@@ -10,7 +10,9 @@ Session: Claude Code, branch `claude/virgil-phase-0-5-visual-recovery-durqrz` (h
 | WP1 | 71b21c0 | Original screen-faced astro-bot family, shared rig, expression atlas, line-up route |
 | WP2+WP3 | a94adff | Hero Foundry bay, stations, lanes, event-driven choreography, failed-check variant, fixture evidence |
 | WP4 | b2baeb4 | Mind knowledge cluster, gateway continuity, supporting overlay, capture manifest |
-| WP5 | (final) | Captures, video, docs, run record |
+| WP5 | b86f8a4 | Prototype documentation, run record draft, video recorder |
+| WP5 | 3a39974 | Captures (29, no page errors), walkthrough video, mobile HUD layout |
+| WP5 | (this commit) | Run record finalised |
 
 ## External sources and licences
 
@@ -35,8 +37,8 @@ All shipped characters, equipment, stations, screens, textures and shaders are o
 | `pnpm check` (biome lint and format, typecheck across 8 targets, unit tests) | clean; tests: agent-contracts 37, domain 30, gate-engine 19, knowledge-graph 21, visual-language 18, mission-control 7 |
 | `pnpm --filter @virgil/knowledge-lint run lint` | 10 pages, 28 claims, 94/94 tethers intact, no findings |
 | `vite build` | ok (single 1.7 MB chunk; code splitting deferred) |
-| Headless captures (`pnpm --filter mission-control capture`) | see `docs/art-direction/phase-0-5/capture-report.json` |
-| Video (`e2e/record.ts`) | see below |
+| Headless captures (`pnpm --filter mission-control capture`) | 29/29 without page errors; renderer ANGLE/SwiftShader; `docs/art-direction/phase-0-5/capture-report.json` |
+| Video (`e2e/record.ts`) | `docs/art-direction/phase-0-5/spike-foundry.webm`, 26 steps, 7.7 MB |
 
 ## Captures and video
 
