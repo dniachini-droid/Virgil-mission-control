@@ -14,7 +14,7 @@ Deliverable 21. Machine-readable twin: `docs/process/run-records/phase-0.run-rec
 | WP4 | 6342087 | Knowledge layer, provenance graph, Mind Scan, knowledge fixtures |
 | WP5 | f6367f3 | Visual language data, grammar, role bible, art bible, two worlds, performance |
 | WP6 | 34c43a3 | Rendering spikes and headless captures |
-| WP7 | see the commit that carries this file | ADRs, testing docs, product docs, Phase 1 brief, checkpoint, traceability, run record |
+| WP7 | 44fcbd6 | ADRs, testing docs, product docs, Phase 1 brief, checkpoint, traceability, run record |
 
 ## Commands (classes)
 

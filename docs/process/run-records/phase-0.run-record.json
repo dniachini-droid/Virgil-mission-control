@@ -248,6 +248,10 @@
     {
       "sha": "34c43a3273ded95852411f70b77ff7cf2b6c65e3",
       "message": "feat(wp6): Orbital Foundry and Mind of Virgil rendering spikes with headless captures"
+    },
+    {
+      "sha": "44fcbd6748063b94004f63de14e72b12c94e5911",
+      "message": "docs(wp7): ADRs, testing strategy, product docs, Phase 1 brief, checkpoint, traceability, run record"
     }
   ],
   "candidateState": "BUILDER_REPORTED_COMPLETE",
