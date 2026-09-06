@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:9ba600d9598bc702a094029dcf7095021b74d67981309a26d9f3f6091747fb58",
+  "graphHash": "sha256:5afe71e60589ec909cd6d82338e2392ea95362718bf86da2f99ca358d41fcfa7",
   "nodes": [
     {
       "id": "agent-roster",
@@ -46,7 +46,7 @@
       "id": "docs/decisions/proposed/OD-0002-art-direction-checkpoint.md",
       "nodeType": "owner_decision",
       "kind": null,
-      "title": "OD-0002 — Art-direction checkpoint (proposed; no authority until the owner accepts)",
+      "title": "OD-0002 — Art-direction checkpoint: rejected runtime executions and approved visual direction",
       "epistemicClass": "ai_generated_hypothesis",
       "authorityClass": "hypothesis",
       "status": null,
