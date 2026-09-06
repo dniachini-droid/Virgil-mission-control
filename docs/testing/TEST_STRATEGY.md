@@ -6,8 +6,9 @@ Deliverable 18 (with `AGENT_EVALUATION.md`). Source: master commission section 1
 
 | Layer (commission §10) | Where | Phase 0 status |
 |---|---|---|
-| Domain state-machine tests | `packages/domain/test` | 82 tests: table integrity, five fixture runs, distinct states, authority violations, out-of-order rejection, determinism, and 52 adversarial regressions (`adversarial.test.ts`) reproducing the exploits in Keeper findings K-01, K-02 and K-03; repaired, pending fresh review |
-| Schema validation | `packages/agent-contracts/test` | Every schema rejects `{}`; constitution data validates; fixture events validate under Zod and Ajv; malformed events rejected |
+| Domain state-machine tests | `packages/domain/test` | 93 tests: table integrity, five fixture runs, distinct states, authority violations, out-of-order rejection, determinism, 52 adversarial regressions (`adversarial.test.ts`) reproducing the exploits in Keeper findings K-01, K-02 and K-03, and 11 consolidation regressions (`resume-and-paths.test.ts`: resume-target allowlist, halt from eligibility and repair states, terminal-state halts, replayed decisions, repair authorisation under a scope decision, path traversal in grants, file events, staging and manifests); repaired, pending fresh review |
+| Schema validation | `packages/agent-contracts/test` | Every schema rejects `{}`; constitution data validates; fixture events validate under Zod and Ajv; malformed events rejected; `paths.test.ts` covers the shared path normaliser and `RepoPath`/`RepoPathPattern` |
+| Permission-matrix and tooling agreement | `packages/agent-contracts/test/permission-matrix.test.ts` | 29 tests: the Phase 0 invariant checks plus tool/write-authority agreement, candidate-boundary exclusivity, sanctioned placeholders, nested concrete boundaries, protected-boundary reach and settings deny coverage. Data agreement only; not runtime enforcement |
 | Gate-engine unit and integration | `packages/gate-engine/test` | 19 tests over 13 scenarios plus semantics (insufficient evidence never passes, claims cannot override, eligibility is not authority, repair limit) |
 | Adapter contract tests | `packages/repository-adapters` | Phase 2; `GateEvidence` is the contract |
 | Event replay tests | `packages/domain/test/replay.test.ts` | Implemented |
@@ -24,7 +25,7 @@ Deliverable 18 (with `AGENT_EVALUATION.md`). Source: master commission section 1
 | Performance budgets | `docs/architecture/PERFORMANCE_STRATEGY.md` | Defined; measured in Phase 1 on real devices |
 | Accessibility checks | HUD: keyboard stepping, aria-live Evidence View, focus styles | Automated axe checks in Phase 1 |
 
-Totals: 130 unit tests at the Phase 0 base SHA; 186 after the foundation repair (agent-contracts 37, domain 82, gate-engine 19, knowledge-graph 24, visual-language 18, mission-control 6), one capture script, one Mind Scan CLI. `pnpm check` runs lint, typecheck and tests. Which mechanism each test exercises is set out in `docs/architecture/ENFORCEMENT_BOUNDARIES.md`.
+Totals: 130 unit tests at the Phase 0 base SHA; 186 after the foundation repair; 209 on the consolidation branch (agent-contracts 49, domain 93, gate-engine 19, knowledge-graph 24, visual-language 18, mission-control 6), one capture script, one Mind Scan CLI. `pnpm check` runs lint, typecheck and tests. Which mechanism each test exercises, and what no test covers, is set out in `docs/architecture/ENFORCEMENT_BOUNDARIES.md` using its four-value status vocabulary.
 
 ## Amendment 1 proofs
 

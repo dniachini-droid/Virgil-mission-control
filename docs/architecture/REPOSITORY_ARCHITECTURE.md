@@ -10,7 +10,7 @@ virgil-mission-control/
 ├── package.json, pnpm-workspace.yaml, pnpm-lock.yaml, turbo.json, tsconfig.base.json, biome.json, .gitignore, .nvmrc
 ├── apps/mission-control/           Vite + React + R3F app; Phase 0: /spike/foundry and /spike/mind; e2e capture script
 ├── packages/
-│   ├── agent-contracts/            Zod schemas for every contract; export to schemas/
+│   ├── agent-contracts/            Zod schemas for every contract; shared path normaliser; export to schemas/
 │   ├── domain/                     states, events, transition table loader, guards, reducer, replay
 │   ├── gate-engine/                18 deterministic gates, composite evaluators
 │   ├── visual-language/            tokens, epistemic contract, animation grammar, role performance; projection helpers
@@ -24,12 +24,19 @@ virgil-mission-control/
 │   ├── product/                    commission (canonical), provenance record, vision, V1 boundary
 │   ├── architecture/               repository, system, event model, contracts, ontology, mind scan, two worlds, performance
 │   ├── art-direction/              art bible, epistemic contract, operational animation, role bible, spikes and captures
+│   │   └── approved/               owner-approved visual references (hybrid direction) and the consolidation bundle records
 │   ├── process/                    environment report, permission matrix, Phase 1 brief, checkpoint, traceability, run record
 │   ├── security/                   threat model, allowlist
-│   ├── decisions/                  OD-0001, ADR-0001 to ADR-0010
+│   ├── decisions/                  OD-0001, ADR-0001 to ADR-0010; proposed/OD-0002 (owner's visual-direction decision awaiting the owner's move)
 │   └── testing/                    test strategy, agent evaluation
+├── assets/
+│   ├── concepts/characters/        approved character concept sheets (Virgil, Fabricator, Prover, Keeper)
+│   ├── models/candidates/          candidate 3D models for inspection only (Virgil model candidate 01)
+│   └── licenses/                   provenance and licence register for every imported file
 └── schemas/                        39 generated JSON Schema files
 ```
+
+`assets/README.md` states, for every file, whether it is an approved visual reference, a character concept sheet, a candidate model or a production-ready runtime asset. There are no production-ready runtime assets.
 
 ## Deferred, with the phase that creates it
 
@@ -38,9 +45,9 @@ virgil-mission-control/
 | `apps/orchestration-service/` | 3 | No session launching in Phase 0; the domain and gate packages define its behaviour |
 | `packages/repository-adapters/` | 2 | No repository integration in Phase 0; `GateEvidence` fixes the adapter output shape |
 | `packages/knowledge-compiler/` | 1 (minimal), 5 (production) | Phase 0 defines operations, ontology and fixtures; compilation runs by skill |
-| `assets/source, models, textures, audio` | 1 onward | Phase 0 uses procedural geometry and shaders only; every future asset needs a licence record |
+| `assets/source, textures, audio`; production `assets/models` | 1 onward | Phase 0 uses procedural geometry and shaders only; `assets/models/candidates/` holds inspection candidates, not production models; every future asset needs a licence record |
 | `assets/shaders/` | 1 | Phase 0 shaders live in `apps/mission-control/src/world/shaders.ts`; they move to `assets/shaders` when shared by more than one app |
-| `assets/licenses/` | 1 | No third-party assets yet |
+| `assets/licenses/` | created in consolidation | Holds the provenance register for the approved references, concept sheets and the model candidate |
 | `project-templates/` | 4 | Project Foundry |
 | `tests/` (root) | 1 | Phase 0 tests live beside their packages; cross-package end-to-end journeys arrive with the slice |
 

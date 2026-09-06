@@ -2,6 +2,10 @@
 
 Deliverable 13. Governs both worlds. Source: master commission section 5 and Amendment 1 (sections A to S). Data twins: `packages/visual-language/data/tokens.json`, `epistemic-contract.json`, `animation-grammar.json`, `role-performance.json`. Companion documents: `EPISTEMIC_VISUAL_CONTRACT.md`, `OPERATIONAL_ANIMATION.md`, `ROLE_PERFORMANCE_BIBLE.md`, `docs/architecture/TWO_WORLDS.md`, `docs/architecture/PERFORMANCE_STRATEGY.md`.
 
+## 0. Approved visual direction (owner decision, transcribed)
+
+The owner's written visual-direction decision (`docs/decisions/proposed/OD-0002-art-direction-checkpoint.md`; authority once moved to `docs/decisions/`) governs where it conflicts with the sections below. Binding reference: `docs/art-direction/approved/visual-canon/03-approved-hybrid.png`, with Direction B (`02-direction-b.png`) as the strongest stylistic influence. The four character sheets under `assets/concepts/characters/` are approved. The world is psychedelic, cosmic, tactile, colourful and stylised; the characters are charming, cute, compact, screen-faced space robots with funny and distinctive role equipment; Virgil is a compact, heavily equipped cartoony robot operating from a stylised control centre. "Cute" does not mean generic clip art or interchangeable avatars; role, authority and current state stay readable through silhouette, equipment, animation and spatial position. The Phase 0 spikes and the Phase 0.5 runtime execution are rejected as an art baseline. Sections 8 and 10 below are read through this decision: the "cartoon clip-art astronauts" prohibition excludes cheap clip art and stock characters, not the approved astro-bot family.
+
 ## 1. Thesis of the look
 
 A psychedelic orbital observatory that governs real work. Surreal scale and colour; exact, legible evidence. The eye should first read the state of the work, then enjoy the world. Every beautiful thing is also a fact: a nebula's hue follows the workflow state palette, a lane glows because a real handoff is in transit, a monument is gold because an owner decided.

@@ -20,4 +20,4 @@ Index:
 | ADR-0008 | Visual contracts as validated data with evidence-gated animation | Accepted |
 | ADR-0009 | Headless spike capture with Playwright and SwiftShader | Accepted |
 | ADR-0010 | Labels as canvas textures instead of SDF text | Accepted |
-| OD-0002 (proposed) | Art-direction checkpoint | Proposed, awaiting owner |
+| OD-0002 | Art-direction checkpoint: rejected runtime executions and approved visual direction | Owner's written decision transcribed by the consolidation session at `proposed/`; authority only once the owner moves it here (session tooling and policy deny writes to `OD-*`) |

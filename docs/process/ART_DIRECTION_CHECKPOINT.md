@@ -38,3 +38,7 @@ Judge separately:
 ## Recording the decision
 
 Fill in `docs/decisions/proposed/OD-0002-art-direction-checkpoint.md`, move it to `docs/decisions/OD-0002-art-direction-checkpoint.md`, and commit. Only the owner performs that move; sessions are denied writes to accepted decision files. The knowledge layer then ingests it as a raw source.
+
+## Outcome
+
+The owner inspected the Phase 0 spikes and the later Phase 0.5 runtime rebuild and rejected both as an accepted art baseline. The owner's binding visual direction (the hybrid reference `docs/art-direction/approved/visual-canon/03-approved-hybrid.png`, Direction B as the strongest stylistic influence, the four approved character sheets, and the rules for what "cute" means and does not mean) is transcribed in `docs/decisions/proposed/OD-0002-art-direction-checkpoint.md`. The checklist row "cartoon clip-art astronauts" is read per that decision: generic clip art and interchangeable avatars fail; charming, compact, screen-faced space robots with distinctive role equipment are the direction. The file stays at `proposed/` until the owner moves it; no procedural visual rebuild starts before then, and no session awards itself an artistic pass.

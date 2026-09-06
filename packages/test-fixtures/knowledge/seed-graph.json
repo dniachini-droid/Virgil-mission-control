@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:d020709771037688912ed4378ad42c4fe9e4c14cfee8f57880c8e1e993685d5e",
+  "graphHash": "sha256:9ba600d9598bc702a094029dcf7095021b74d67981309a26d9f3f6091747fb58",
   "nodes": [
     {
       "id": "agent-roster",

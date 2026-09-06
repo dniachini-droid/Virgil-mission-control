@@ -43,7 +43,7 @@ Any acceptance criterion that requires an owner decision (character direction, s
 
 ## Owner decisions required before start
 
-1. Art-direction checkpoint verdict (`ART_DIRECTION_CHECKPOINT.md`).
-2. Character direction: stylised humanoid, semi-organic machine, drone, or hybrid ensemble.
-3. Optional sound motifs in or out of the slice.
-4. Phase 1 branch name and whether Phase 0's branch is merged first (owner-only).
+1. Art-direction checkpoint verdict (`ART_DIRECTION_CHECKPOINT.md`): decided in writing by the owner (runtime executions rejected; hybrid reference approved), transcribed at `docs/decisions/proposed/OD-0002-art-direction-checkpoint.md`; effective when the owner moves it to `docs/decisions/`.
+2. Character direction: decided by the same record (compact, cute, screen-faced space robots; the four approved sheets under `assets/concepts/characters/`); the earlier options (humanoid, semi-organic machine, drone, hybrid ensemble) are superseded.
+3. Optional sound motifs in or out of the slice: open.
+4. Phase 1 branch name: open. The Phase 0 foundation, its repairs and the approved direction are consolidated in one pull request the owner merges first; the repaired authority system also needs the fresh independent review recorded in `PHASE_0_FOUNDATION_REPAIR_RUN_RECORD.md`.

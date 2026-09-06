@@ -2,6 +2,8 @@
 
 Deliverables 14 and 15, and Amendment 1 outputs 8 and 9. Location: `apps/mission-control`, routes `/spike/foundry` and `/spike/mind`. Captures: `docs/art-direction/spikes/*.png` with `capture-report.json` (renderer string and page errors per capture). These are art-direction and data-contract proofs, not the interface.
 
+Status after the owner's checkpoint: the visual execution of these spikes, and of the later Phase 0.5 runtime rebuild, is **rejected as an art baseline** (`docs/decisions/proposed/OD-0002-art-direction-checkpoint.md`). The spikes remain in the repository as proofs of the event, evidence and animation-grammar contracts and of the headless capture pipeline. The approved visual direction is the reference imagery under `docs/art-direction/approved/`; nothing in `apps/mission-control` implements it yet, and no rebuild starts before the decision is accepted.
+
 ## Run
 
 ```sh

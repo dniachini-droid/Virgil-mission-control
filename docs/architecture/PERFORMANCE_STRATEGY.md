@@ -1,6 +1,17 @@
 # Performance strategy and device tiers
 
-Deliverable 17. Source: master commission sections 5.5, 5.7 and 10; Amendment 1 sections R and S. Enforced by the Performance Examiner role and, in Phase 1, by Playwright measurements on representative devices.
+Deliverable 17. Source: master commission sections 5.5, 5.7 and 10; Amendment 1 sections R and S.
+
+## Status
+
+Using the vocabulary of `ENFORCEMENT_BOUNDARIES.md`:
+
+- **Implemented now:** a tier setting with five values, a device-pixel-ratio range per tier, antialiasing only at `ultra`, a heuristic initial tier from core count, device memory and viewport size (`apps/mission-control/src/ui/settings.ts` `detectTier`), a software-renderer flag set from the WebGL renderer string, and a manual tier selector in the spike HUD.
+- **Validated by tests:** none of the above. No test measures a frame time, a draw call, a triangle count or a byte budget.
+- **Design-level only:** every budget in the tier table; the reduction order; runtime adaptation from 120-frame sampling with step-down and step-up rules; forcing `constrained` from the renderer string; making tier changes visible in the Evidence View; the load and transfer budgets; the Performance Examiner role (a definition exists in `.claude/agents/`, no session runs it).
+- **Deferred to a later runtime:** measurement on representative devices and Playwright traces (Phase 1 on a GPU runner); reporting against budgets in a run record.
+
+Nothing here is enforced. The table below is a target, not a measured or gated property of any branch.
 
 ## Tiers
 
@@ -22,7 +33,9 @@ Never removed: role identity, evidence markings, state geometry, SHA identity, a
 
 ## Detection and adaptation
 
-Initial tier from `navigator.hardwareConcurrency`, device memory, screen size, `prefers-reduced-motion`, WebGL renderer string (software renderers force `constrained`). Runtime adaptation samples frame time over 120 frames; two consecutive windows over budget step down one tier; sixty seconds under 70 % of budget may step up one tier, never above the initial tier without user action. Tier changes are visible in the Evidence View footer and are never silent.
+Intended: initial tier from `navigator.hardwareConcurrency`, device memory, screen size, `prefers-reduced-motion`, WebGL renderer string (software renderers force `constrained`). Runtime adaptation samples frame time over 120 frames; two consecutive windows over budget step down one tier; sixty seconds under 70 % of budget may step up one tier, never above the initial tier without user action. Tier changes are visible in the Evidence View footer and are never silent.
+
+Implemented today: only the heuristic initial tier (cores, memory, viewport) and a software-renderer flag; no runtime adaptation, no forced `constrained`, no Evidence View footer. Reduced motion is read separately and is orthogonal to tier.
 
 ## Budgets for the Phase 1 slice
 
@@ -30,4 +43,4 @@ Load ≤ 3 s to first interactive frame on desktop, ≤ 6 s on mobile over a fas
 
 ## Measurement
 
-Phase 0: none possible in the container (software rendering). Phase 1: Playwright traces with `performance.now()` frame sampling on a desktop with a discrete GPU, an integrated-GPU laptop, and a mid-range phone via remote debugging; results recorded per tier in the run record. The Performance Examiner reports against these budgets and cannot redefine the premium visual standard as unnecessary.
+None has been performed on any branch: the Phase 0 container renders through SwiftShader and no GPU device has been measured. Phase 1: Playwright traces with `performance.now()` frame sampling on a desktop with a discrete GPU, an integrated-GPU laptop, and a mid-range phone via remote debugging; results recorded per tier in the run record. The Performance Examiner reports against these budgets and cannot redefine the premium visual standard as unnecessary. The Phase 0 and Phase 0.5 runtime visuals were rejected by the owner (`docs/decisions/proposed/OD-0002-art-direction-checkpoint.md`), so no performance figure from those spikes would describe the intended production scene.

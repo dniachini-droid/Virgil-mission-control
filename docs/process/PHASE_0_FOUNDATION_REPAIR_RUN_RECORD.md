@@ -1,5 +1,7 @@
 # Phase 0 foundation repair run record
 
+Consolidation note: the three commits this record describes were cherry-picked, unchanged, into the single consolidation branch, and the further requirements the owner attached to them (resume-target allowlist, repair authorisation under a recorded owner decision, path normalisation, permission-overlap tests) were added there; see `CONSOLIDATION_RUN_RECORD.md`. The repair branch named below is superseded by that consolidation and can be deleted by the owner after the merge. The text below is kept as the repair session wrote it.
+
 Session: Claude Code, repository `dniachini-droid/Virgil-mission-control`. Authority: the owner's written repair instruction for this session, bounded to Keeper findings K-01, K-02, K-03, K-15 and the documentation and traceability claims overstated by K-01 to K-07 and K-18. No pull request, merge, deployment or Phase 1 work.
 
 ## Base and branch

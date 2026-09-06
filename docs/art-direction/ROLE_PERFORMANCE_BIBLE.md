@@ -2,9 +2,13 @@
 
 Amendment 1 deliverable 3. Data: `packages/visual-language/data/role-performance.json` validated against `schemas/role-performance-bible.schema.json`; each role defines silhouette, station, instruments, locomotion, working ritual, handoff behaviour, idle behaviour, prohibited-action representation, colour-free recognisability, colour accent and what it never touches. Tests check that all fourteen entries are distinct and that idle behaviour never describes work.
 
+## Approved character direction (owner decision, transcribed)
+
+The owner approved four character designs (`assets/concepts/characters/`: Virgil, Fabricator, Prover, Keeper) as charming, cute, compact, screen-faced space robots with funny and distinctive role equipment, recorded in `docs/decisions/proposed/OD-0002-art-direction-checkpoint.md`. Where a silhouette below (for example "tall, armless" Virgil or "hooded, no arms" Keeper) conflicts with an approved sheet, the sheet governs once the decision is accepted; the rituals, stations, prohibited-action representations and "never touches" columns stand. The data twin `role-performance.json` has not been rewritten in the consolidation; that is Phase 1 work under the accepted decision.
+
 ## Ensemble rules
 
-A serious premium science-fiction ensemble. Silhouette carries identity; colour is an accent. Stations are architecture, not backdrops: each has instruments that light only under a grant. Every role has a visible way of refusing a prohibited action (locked arms, folded vanes, a prohibition glyph, a forge that stays cold) so that the world shows authority stopping rather than pretending it never tried.
+A premium stylised ensemble. Silhouette carries identity; colour is an accent. Stations are architecture, not backdrops: each has instruments that light only under a grant. Every role has a visible way of refusing a prohibited action (locked arms, folded vanes, a prohibition glyph, a forge that stays cold) so that the world shows authority stopping rather than pretending it never tried.
 
 ## Permanent core crew
 

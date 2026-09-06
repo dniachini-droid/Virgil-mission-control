@@ -8,7 +8,7 @@ The governing product authority is `docs/product/VIRGIL_MASTER_COMMISSION.md`. S
 
 ## Status
 
-Phase 0, foundation and governed design, is delivered and awaits the owner's art-direction checkpoint on a real GPU (`docs/process/ART_DIRECTION_CHECKPOINT.md`) and, after the Keeper's review, independent review and owner acceptance of the foundation repair (`docs/process/PHASE_0_FOUNDATION_REPAIR_RUN_RECORD.md`). No orchestrator, agent launching, repository integration or production interface exists yet. The application contains two art-direction and data-contract spikes only (`docs/art-direction/SPIKES.md`).
+Phase 0 (foundation and governed design), the foundation repairs required by the independent Keeper review, and the owner's approved visual direction are consolidated on one branch for a single owner-reviewed pull request (`docs/process/CONSOLIDATION_RUN_RECORD.md`). The repaired authority system awaits fresh independent review and owner acceptance (`docs/architecture/ENFORCEMENT_BOUNDARIES.md`). The owner rejected the Phase 0 spikes and the Phase 0.5 runtime rebuild as an art baseline; the approved direction is the hybrid visual reference and four character sheets under `docs/art-direction/approved/` and `assets/`, with one unrigged Virgil model candidate. No orchestrator, agent launching, repository integration, production interface or production-ready runtime asset exists yet. The application still contains the two Phase 0 spikes as data-contract proofs only (`docs/art-direction/SPIKES.md`).
 
 ## Getting started
 
@@ -20,7 +20,7 @@ pnpm check
 pnpm --filter mission-control dev
 ```
 
-Open `/spike/foundry` and `/spike/mind` in the running app. Software rendering in a container is not a valid basis for judging the art bar; view the spikes on a machine with a GPU.
+Open `/spike/foundry` and `/spike/mind` in the running app. They prove the event, evidence and animation contracts; their look is not the approved art direction (see `docs/art-direction/approved/README.md`).
 
 ## Layout
 
