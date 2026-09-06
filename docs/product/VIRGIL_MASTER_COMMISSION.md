@@ -1029,3 +1029,950 @@ The Mind may feel alive. Its sources, uncertainty and contradictions must remain
 Knowledge may compound. Live operational truth must never be copied into stale memory.
 
 The product may look like a game. It must govern real work like a serious system.
+
+────────
+
+Amendments register
+
+Amendment 1 — Operational Animation Grammar and Role Performance Language. Issued by the owner on 2026-09-06 as part of the Phase 0 approval (owner decision OD-0001). Binding. Recorded below in full. The amendment strengthens sections 1, 3, 4, 5, 6, 9, 10, 11 and 13; it does not replace the two-world system, governance constitution, epistemic visual contract or knowledge architecture. Where this amendment adds a requirement, the requirement is additive. Where it corrects an earlier Phase 0 plan assumption (the permission invariant), the correction governs.
+
+────────
+
+Amendment 1 — Binding operational animation commission
+
+A. Foundational rule
+
+Virgil Mission Control must make authenticated work visible.
+
+The graphics are not an animated wallpaper behind a dashboard. Every consequential action shown in the world must correspond to a typed event supported by inspectable tool, Git, test, gate, review, owner-decision or knowledge evidence.
+
+The foundational visual rule must remain literal:
+
+The artifact moves between workers. Authority does not silently move with it.
+
+The renderer may control composition, timing, camera and artistic expression. It may not invent:
+
+* Work that did not occur.
+* A file operation that was not evidenced.
+* A successful command that failed.
+* A test that did not run.
+* A push that was not confirmed.
+* A review that did not occur.
+* An authority transfer that was not granted.
+* A merge or deployment that was not completed.
+* Knowledge or certainty unsupported by provenance.
+
+Ambient life must be visually quieter and distinguishable from authenticated activity. Inactive agents must not type, fabricate, scan or perform fake work merely to make the station appear busy.
+
+B. Machine-readable animation contract
+
+Create a machine-readable operational-event-to-animation contract within packages/visual-language/ and document it in the art bible.
+
+Each mapping must define:
+
+* Triggering event type.
+* Required machine or structured evidence.
+* Actor role.
+* Source and destination.
+* Operational entity or immutable artifact affected.
+* State before the event.
+* Transitional state.
+* State after the event.
+* Full-motion animation.
+* Persistent visual state after motion ends.
+* Reduced-motion equivalent.
+* Mobile and low-performance equivalent.
+* Failure and interruption behaviour.
+* Replay behaviour.
+* Evidence View destination.
+* Whether sound or haptics are optional reinforcements.
+
+The same event must retain the same essential meaning across camera positions, performance tiers, reduced-motion mode, mobile mode and timeline replay.
+
+C. Four animation layers
+
+1. Tool activity
+
+Reading, searching, creating, editing, moving, deleting, running commands and inspecting evidence.
+
+2. Git manufacturing
+
+Branches, worktrees, unstaged changes, staging, commits, pushes, remote equality, pull requests, stale candidates, merges and deployments.
+
+3. Governance and review
+
+Assignments, authority grants, handoffs, tests, deterministic verification, independent review, findings, adjudication, quarantine, bounded repair, owner decisions and merge eligibility.
+
+4. Ambient life
+
+Slow nebula movement, breathing station lights, distant transports, subtle machinery and occasional idle posture changes.
+
+Ambient motion must never resemble evidence-backed work.
+
+Detailed operational animations
+
+D. File and tool activity
+
+File opened or read
+
+A narrow inspection beam travels from the worker’s instrument to the selected file module. The module opens as a layered holographic cross-section without leaving its repository position.
+
+Reading must never resemble editing. A persistent evidence marker records the path and operation.
+
+Repository or code search
+
+A structured pulse sweeps only the authorised search boundary. Matching modules respond with indexed signals.
+
+The search scope must be visible. A search of one file, one directory and the entire repository must not look identical.
+
+File created
+
+An empty geometric frame is fabricated at the worker’s bench. It receives its path identity and fills with structured luminous layers as bytes are written.
+
+It remains translucent until the write succeeds.
+
+File edited
+
+The existing module separates into unchanged structure and a local diff plane.
+
+Added material assembles as luminous components. Removed material detaches into an audit stream rather than disappearing. Modified connections visibly reconnect.
+
+The result remains local, unsealed and visibly different from a commit.
+
+File moved or renamed
+
+The same identity-marked module travels along a tracked route to a newly labelled location.
+
+It must not appear to be an unrelated deletion and creation.
+
+File deleted
+
+The module enters a controlled deconstruction vault, leaving a persistent deletion silhouette and diff marker.
+
+Destructive operations must never disappear without trace.
+
+Command started
+
+The worker connects an instrument to a bounded task aperture showing the command class and authorised target.
+
+Do not display secrets, hidden prompts or credential contents.
+
+Command completed
+
+The aperture resolves into a signed result trace containing completion state, exit result and elapsed time.
+
+Command completion does not imply artifact approval.
+
+Command failed
+
+The aperture fractures into a stable fault geometry tethered to structured failure evidence. It remains inspectable and is not erased by a retry.
+
+E. Git manufacturing animations
+
+Branch created
+
+A new labelled route separates from the approved base line. The base SHA remains visible at the junction.
+
+Worktree created
+
+An isolated docking bay unfolds from the project station and locks onto the new branch route.
+
+It must remain visibly isolated from main, the default working tree and other active worktrees.
+
+Unstaged changes
+
+Modified modules hover around the Fabricator’s active bench with explicit diff markings. They are not yet cargo.
+
+git add and staging
+
+Approved changed modules rise from the workbench and converge into a magnetic staging cradle.
+
+Files outside the permitted path boundary are repelled and marked as authority violations rather than silently included.
+
+Commit created
+
+The staged assembly compresses into a sealed, tamper-evident cargo capsule.
+
+The short SHA ignites on its hull. The full SHA, parent SHA, file manifest, author and timestamp remain inspectable.
+
+A commit is a candidate artifact. It is not automatically verified, reviewed or safe to merge.
+
+Push started
+
+A mass-driver transit lane charges between the local worktree dock and the allowlisted remote repository.
+
+The capsule enters transit while the local and remote states remain visibly unequal.
+
+Push confirmed
+
+The remote station registers the immutable capsule and the local and remote SHA beacons phase-lock.
+
+Only machine evidence may trigger this state.
+
+Push failed
+
+The capsule stops before reaching the remote dock. Its path remains incomplete and a fault tether leads to the exact failure evidence.
+
+Remote/local mismatch
+
+The local and remote SHA beacons remain visibly out of phase. Mirrored artifacts separate into a parallax split so mismatch cannot be confused with successful transport.
+
+Pull request opened
+
+The pushed capsule enters an inspection orbit and receives a visible PR identity ring.
+
+Opening a pull request must not resemble verification, review or approval.
+
+Candidate changed after review
+
+The prior inspection seal visibly breaks. Its review signature becomes stale and the capsule leaves the owner-gate route.
+
+A new SHA requires fresh verification and independent review.
+
+Safe to merge
+
+Machine-verification bands and independent-review marks align into an eligibility key positioned outside the owner merge airlock.
+
+The key means eligible. It does not open the airlock.
+
+Owner-authorised merge
+
+Only an explicit owner event opens the merge airlock. The eligible capsule passes through the interlocks and integrates into the main station core.
+
+Review passage must never trigger this animation automatically.
+
+Deployment
+
+A merged and authorised artifact enters a launch vehicle or outward transmission gate.
+
+Deployment started, deployment succeeded and deployment failed must be separate animations and persistent states.
+
+F. Testing and evidence animations
+
+Verification started
+
+The sealed candidate enters a scanner array while the Prover activates independent testing channels.
+
+Individual check running
+
+Each named check receives its own scanner arc. Parallel and sequential checks must remain distinguishable.
+
+Check passed
+
+The scanner arc closes into a stable verification band carrying the check identity, result and timestamp.
+
+Check failed
+
+The arc breaks at the affected surface and produces an evidence tether to the exact failure.
+
+Other passed checks remain visible. One failure does not erase the rest of the evidence.
+
+Check skipped
+
+An unpowered but clearly labelled scanner arc remains visible with its reason.
+
+Skipped must never resemble passed.
+
+Mutation or adversarial control
+
+The Prover introduces a controlled defect into a disposable mirrored test image, never into the sealed candidate.
+
+The scanner must visibly catch the seeded defect before the temporary image dissolves.
+
+Verification completed
+
+The array produces a machine-verification signature only for checks that genuinely completed.
+
+Verification supports review eligibility. It is not an independent-review verdict.
+
+G. Assignment, handoff and chain-work animations
+
+Work order created
+
+The approved scope condenses into a bounded work-order object containing:
+
+* User and product promise.
+* Acceptance criteria.
+* Non-goals.
+* Permitted surfaces.
+* Protected surfaces.
+* Required evidence.
+* Stop conditions.
+* Open owner decisions.
+
+Authority granted
+
+An authority token travels separately from the work order. It visibly contains the tier, permitted actions, file or repository boundary, expiry and stop conditions.
+
+Agent assigned
+
+Virgil opens a route from the central observatory to exactly one appropriate role station.
+
+Virgil routes the work but does not perform it.
+
+Agent started
+
+The worker enters its active station and connects only to the tools, project and authority boundary it has been granted.
+
+Agent waiting
+
+The tools power down and the worker adopts a clearly idle posture. The missing dependency, blocker or owner question remains suspended above the station.
+
+Waiting must not resemble continued work.
+
+Handoff prepared
+
+The source worker places the artifact, manifest, evidence, risks and next-stage contract into a transfer cradle.
+
+If required information is absent, the cradle is physically unable to seal.
+
+Handoff in transit
+
+The sealed artifact travels through a named emissive corridor from the source station to the destination station.
+
+The route shows source, destination and stage.
+
+The authority token does not travel unless an explicit authority-grant event exists.
+
+Handoff received
+
+The destination worker verifies the capsule’s identity, SHA and manifest before opening an inspection projection.
+
+Receipt does not imply acceptance.
+
+Chain history
+
+Completed transit paths remain faintly visible as provenance trails so the user can understand the real sequence without every previous worker continuing to animate.
+
+Interrupted or stale handoff
+
+The corridor freezes and the artifact remains at the last proven position.
+
+Timeline replay may resume only from real events. It may not fabricate a missing transition.
+
+H. Review, quarantine and repair animations
+
+Independent review started
+
+The Keeper receives the exact sealed SHA at a physically separate inspection station.
+
+Non-destructive forensic lenses orbit the capsule. The Keeper has no fabrication tools and cannot break the commit seal.
+
+Finding raised
+
+A persistent evidence pin attaches to the exact affected surface. It connects to a finding object carrying stable identity, severity and reproduction evidence.
+
+Pass with non-blocking findings
+
+The main inspection ring resolves into a passing state, but the non-blocking finding markers remain attached and inspectable.
+
+They must not disappear because the overall verdict passed.
+
+Blocked
+
+The capsule enters a rigid quarantine field carrying the proven defect and affected acceptance criterion.
+
+Insufficient evidence
+
+The capsule enters a different incomplete-evidence field whose open geometry indicates that the blocker is missing proof rather than a proven code defect.
+
+Colour alone must not distinguish these states.
+
+Adjudication
+
+Conflicting findings enter the Arbiter’s symmetrical evidence tribunal on opposing paths.
+
+Reproduced findings emerge consolidated while retaining their original identities. Unsupported findings fail to obtain an evidence tether.
+
+Repair authorised
+
+A bounded repair token unlocks one specific repair dock.
+
+It displays:
+
+* Accepted finding IDs.
+* Permitted files.
+* Prohibited collateral changes.
+* Required checks.
+* Repair-cycle count.
+* Stop conditions.
+
+Repair performed
+
+The Fabricator works only within that dock and contract.
+
+The old reviewed capsule remains immutable and visible nearby. The repair produces a new candidate rather than rewriting the old artifact.
+
+Fresh re-review
+
+The repaired candidate receives a new SHA capsule and returns to an independent inspection station.
+
+Old verification and review signatures never transfer automatically.
+
+Owner decision required
+
+Relevant machinery stops and directs attention toward the owner aperture.
+
+The decision, consequences, evidence and recommended default become inspectable. Agents must not continue miming progress while authority is absent.
+
+Role-specific workers
+
+Workers must form a serious premium science-fiction ensemble, not interchangeable avatars with different coloured uniforms.
+
+They may be stylised humanoid beings, semi-organic machines, drones or hybrids. Each role requires a distinctive:
+
+* Silhouette.
+* Station.
+* Instrument set.
+* Locomotion style.
+* Working ritual.
+* Handoff behaviour.
+* Idle behaviour.
+* Prohibited-action representation.
+
+Every role must remain recognisable without relying on colour.
+
+I. Permanent core crew
+
+Virgil — Conductor
+
+Virgil occupies the central observatory as a calm celestial navigator surrounded by an orbital state instrument.
+
+Its movement language resembles a conductor guiding trajectories: rotating project paths, opening authorised transit lanes, directing work orders and bringing blocked machinery to rest.
+
+Virgil never touches:
+
+* Code modules.
+* Fabrication equipment.
+* Test controls.
+* Review seals.
+* The merge mechanism.
+* Deployment controls.
+
+When the chain becomes blocked, Virgil becomes almost completely still and presents exactly one illuminated route or decision to the owner.
+
+Cartographer — Scoper
+
+The Cartographer works over a dark stellar map table using compass drones, boundary filaments and acceptance landmarks.
+
+An idea begins as an unformed cloud. The Cartographer draws a visible perimeter around:
+
+* The intended user.
+* Product promise.
+* V1 boundary.
+* User journeys.
+* Acceptance criteria.
+* Required evidence.
+
+Non-goals fall beyond a marked horizon. Assumptions remain floating markers. Material owner decisions appear as unopened gates.
+
+The result is a bounded work-order map, never technical architecture or code.
+
+Architect — Planner
+
+The Architect inhabits a zero-gravity blueprint chamber.
+
+It unfolds the approved scope into:
+
+* Translucent structural layers.
+* Dependency constellations.
+* Schema projections.
+* Staged construction routes.
+* Planned verification arrays.
+* Protected dark-metal volumes.
+* Visible risk distortions.
+
+The Architect may project future structures but cannot fabricate or modify production modules.
+
+Fabricator — Builder
+
+The Fabricator works in a kinetic assembly dock with articulated tool arms, code looms and modular light-forges.
+
+Its actions visibly correspond to actual work:
+
+* Reading opens inspection projections.
+* Searching sends scoped pulses.
+* Editing adds and removes luminous components.
+* Changed files accumulate around the bench.
+* git add gathers them into the staging cradle.
+* Committing seals the SHA capsule.
+* Pushing fires it toward the remote station.
+* Handoff places it into the correct transit corridor.
+
+The Fabricator is energetic and purposeful but immediately stops at an unauthorised file boundary, missing decision or exhausted repair contract.
+
+Prover — Test Engineer
+
+The Prover operates a radial verification chamber containing calibrated scanner rings, test channels, controlled fault injectors and evidence prisms.
+
+Passed, failed, running and skipped checks remain separately visible.
+
+When risk warrants mutation testing, the Prover creates a disposable mirrored candidate, introduces a controlled fault and proves that the test system detects it.
+
+The Prover may modify authorised tests. It cannot reshape production behaviour merely to make verification pass.
+
+Keeper — Independent Reviewer
+
+The Keeper inhabits a quiet inspection station physically separated from the fabrication dock.
+
+Its movement is slow, forensic and sceptical. It uses:
+
+* Orbiting inspection lenses.
+* Diff spectrographs.
+* Acceptance-criterion markers.
+* Evidence pins.
+* Provenance readers.
+
+The Keeper inspects one exact immutable SHA. It has no construction arms and cannot alter the candidate.
+
+Its verdict changes the review record, not the underlying artifact.
+
+Arbiter — Adjudicator
+
+The Arbiter works within a symmetrical evidence tribunal.
+
+Conflicting findings arrive on opposing trajectories and are weighed through reproduction evidence rather than opinion.
+
+The Arbiter:
+
+* Preserves finding identities.
+* Rejects unsupported claims.
+* Consolidates overlapping findings.
+* Defines one bounded repair contract.
+
+It cannot touch the candidate or manufacture an unsupported compromise.
+
+J. Conditional specialists
+
+These stations may exist as dormant architecture but their workers appear only when commissioned by the risk classification.
+
+Domain Verifier
+
+Uses calibrated reference prisms, measurement standards and authority ledgers.
+
+It traces scientific, medical, legal, financial or business logic to appropriate sources and marks uncertainty without turning judgment into certainty.
+
+Breaker
+
+Occupies a contained impact range.
+
+It launches malformed inputs, interruptions, state corruption, edge cases and destructive-operation simulations at a disposable candidate projection.
+
+Failures and successful resistance both remain as evidence. Nothing may escape its containment boundary.
+
+Integrator
+
+Works at an inter-station coupling yard with interface collars, protocol bridges, migration conduits and schema alignment tools.
+
+It makes API, version, data and cross-component incompatibilities visible at their actual joins.
+
+Interface Keeper
+
+Moves through a responsive projection theatre containing:
+
+* Desktop viewport.
+* Mobile viewport.
+* Keyboard navigation.
+* Pointer interaction.
+* Screen-reader representation.
+* Reduced-motion mode.
+* Constrained-device mode.
+
+It reviews what the user genuinely sees and can do, including whether the visual world tells the same truth as the evidence.
+
+Security Sentinel
+
+Acts as a shielded warden using permission keys, threat shadows, sealed secret vaults and trust-boundary probes.
+
+It exposes unauthorised routes and closes compromised apertures.
+
+Secret values and credentials must never become part of the visual performance.
+
+Transport Inspector
+
+Operates between mirrored local and remote docks.
+
+It aligns:
+
+* Byte signatures.
+* Hashes.
+* Manifests.
+* Local and remote SHAs.
+* Uploaded canonical artifacts.
+
+Matching artifacts phase-lock. Mismatches produce a visible parallax separation.
+
+This role guards against corrupt transfers, stale remotes, altered attachments and false claims of artifact equality.
+
+Performance Examiner
+
+Works inside a temporal and gravimetric laboratory surrounding the rendered world.
+
+Frame time, memory, draw calls, loading, concurrency and device pressure visibly affect its instruments.
+
+It may test reduced tiers, but it cannot redefine the approved premium visual standard as unnecessary.
+
+Mind of Virgil animation system
+
+The Mind of Virgil is a genuine second 3D world, not a folder browser, graph widget or documentation sidebar.
+
+It visualises documented knowledge operations and provenance. It must never claim to show a model’s private chain-of-thought, hidden reasoning or consciousness.
+
+K. Archive Nebula
+
+Raw source arrival
+
+An unopened transmission crosses into the Archive Nebula, is inspected, hashed and sealed.
+
+Its source identity, canonical path, provenance and ingestion status become inspectable before compilation.
+
+Immutable source reading
+
+A knowledge worker creates a non-destructive light projection from the sealed source.
+
+The original source remains fixed and unchanged.
+
+Approved owner decisions remain sealed golden source objects. Research documents remain stellar tablets or illuminated manuscripts. Images remain holographic plates. Datasets remain structured swarms or lattices.
+
+L. Synaptic Forge
+
+Compilation proposed
+
+Traceable concept fragments emerge from the light projection and enter the Forge.
+
+They remain translucent proposals connected to their exact supporting sources.
+
+Claim supported
+
+A complete provenance tether forms and the claim gains only the structural stability appropriate to its authority class.
+
+Claim contested
+
+Incompatible supported claims create a persistent interference field.
+
+Both claims, sources and authority classes remain separately inspectable. They are never blended into false consensus.
+
+Unsupported hypothesis
+
+The proposed structure flickers, remains incomplete and lacks a full tether. Its visual beauty must never imply verified authority.
+
+Owner decision proposed
+
+Possible choices orbit an empty monument plinth.
+
+The monument cannot seal until an explicit owner-decision event occurs.
+
+Owner decision approved
+
+A golden authority seal descends onto the monument. Governed signals travel to dependent knowledge nodes and project surfaces.
+
+M. Living Knowledge Galaxy
+
+Wiki page created or updated
+
+Validated fragments assemble into a durable celestial structure.
+
+The structure retains:
+
+* Provenance tethers.
+* Compiler identity.
+* Compilation date.
+* Last-verification date.
+* Authority class.
+* Related concepts.
+* Supersession history.
+
+Claim superseded
+
+The old structure fades into a historical orbit while a directed tether connects it to its successor.
+
+It remains selectable and must not be deleted merely to make the galaxy look clean.
+
+Broken or stale provenance
+
+The tether frays into a stable fault geometry. The affected node loses the visual stability associated with verified support.
+
+Knowledge output generated
+
+Selected knowledge structures project a separate polished object into the outputs orbit.
+
+The object carries source and governing-version marks. It does not become authority merely because it is polished.
+
+Mind Scan
+
+A coherent neurological wave travels across the galaxy once.
+
+It reveals:
+
+* Contradictions.
+* Orphan nodes.
+* Broken provenance.
+* Unsupported claims.
+* Superseded material presented as current.
+* Copied live operational state.
+* Repeated concepts lacking dedicated pages.
+* Knowledge regions built around outdated authority.
+* Proposed repairs awaiting approval.
+
+Each finding remains as an evidence-linked diagnostic beacon. Mind Scan may propose repairs but may not silently rewrite owner-controlled authority.
+
+N. Cross-world causation
+
+A verified Foundry run may send a sealed run artifact through the Mind gateway.
+
+It must not instantly become durable knowledge.
+
+The visible sequence is:
+
+1. Verified run artifact arrives.
+2. Raw source record is created and hashed.
+3. Source is read non-destructively.
+4. Compilation is proposed.
+5. Claims and provenance are checked.
+6. Contradictions remain visible.
+7. Required verification or owner approval occurs.
+8. A durable node is created only when its authority requirements are satisfied.
+
+Selecting a Foundry finding may travel to the governing knowledge node it contradicts. Selecting a durable principle may reveal every project surface governed by it.
+
+Operational state and durable knowledge must remain visually and architecturally distinct.
+
+Camera, sound, mobile and accessibility
+
+O. Camera behaviour
+
+* The user may follow an artifact, pin a worker, remain in overview or suppress automatic camera travel.
+* Important events may receive restrained cinematic emphasis.
+* The camera must not repeatedly seize control or cause motion sickness.
+* Overview-to-detail transitions should reveal spatial relationships rather than hide loading.
+* Timeline replay must support pause, step, scrub, jump-to-event and jump-to-evidence.
+
+P. Sound and haptics
+
+Sound and optional haptics may reinforce an event but cannot carry unique meaning.
+
+Possible motifs include:
+
+* Soft magnetic convergence for staging.
+* Deep seal tone for a commit.
+* Rising transit resonance for push.
+* Phase-lock tone for confirmed remote equality.
+* Scanner harmonics for tests.
+* Muted fracture for a failed check.
+* Low containment pulse for quarantine.
+* Singular owner-airlock tone for merge authority.
+* Distinct gateway sound between the Foundry and Mind.
+
+Routine work should remain restrained. Users must be able to mute all non-essential sound.
+
+Q. Reduced-motion mode
+
+Travel becomes:
+
+* Short fades.
+* Path illumination.
+* Discrete before-and-after poses.
+* Static evidence marks.
+* Limited camera movement.
+
+No essential state may disappear because motion is disabled.
+
+R. Mobile mode
+
+Mobile must remain a real version of the spatial product.
+
+It may use:
+
+* Fewer simultaneous actors.
+* Shorter visible transit routes.
+* Simplified particles and shadows.
+* Deliberate focus transitions.
+* Tap-to-follow artifacts.
+* One spatial chain segment at a time.
+* A compact Evidence View.
+* Device-appropriate navigation.
+
+It must not collapse into an unrelated collection of ordinary dashboard cards.
+
+S. Low-performance tiers
+
+Reduce, in order:
+
+1. Particle density.
+2. Volumetric resolution.
+3. Reflection and shadow quality.
+4. Background traffic.
+5. Geometry detail.
+6. Post-processing intensity.
+
+Do not remove:
+
+* Role identity.
+* Evidence markings.
+* State geometry.
+* SHA identity.
+* Authority tokens.
+* Provenance tethers.
+* Blocked versus passed distinctions.
+* Owner-gate meaning.
+
+Event-model amendments
+
+Expand the proposed operational event model to include at least:
+
+* authority_granted
+* authority_revoked
+* branch_created
+* worktree_created
+* agent_started
+* agent_waiting
+* file_read
+* repository_searched
+* file_created
+* file_modified
+* file_moved
+* file_deleted
+* command_started
+* command_completed
+* command_failed
+* changes_staged
+* candidate_committed
+* push_started
+* candidate_pushed
+* push_failed
+* remote_artifact_mismatch
+* pr_opened
+* handoff_prepared
+* handoff_started
+* handoff_received
+* verification_started
+* check_started
+* check_passed
+* check_failed
+* check_skipped
+* verification_completed
+* review_started
+* finding_raised
+* candidate_quarantined
+* adjudication_completed
+* repair_authorised
+* repair_started
+* repair_completed
+* candidate_changed_after_review
+* review_passed
+* safe_to_merge
+* merged_by_owner
+* deployment_started
+* deployed
+* deployment_failed
+* owner_decision_required
+
+Not every low-level tool event needs to become durable forever. Define the boundary between durable audit events, replayable operational events and ephemeral telemetry. The visual layer must still never manufacture activity.
+
+Permission invariant correction
+
+Do not encode a blanket rule saying that no two agents may ever write the same artifact.
+
+Use this invariant:
+
+* Every artifact has one clearly accountable owner at a time.
+* Agents may not have ambiguous or simultaneous overlapping authority.
+* Protected boundaries remain exclusive.
+* A role may receive a narrow sequential grant where required—for example, Prover modifying files within an explicitly authorised test boundary.
+* Every authority grant, transfer, expiration and revocation is explicit, bounded and auditable.
+* Reviewer independence remains absolute.
+* Keeper and Arbiter cannot modify the candidate.
+* Virgil cannot perform the specialised work it routes.
+
+Update the permission-matrix tests accordingly.
+
+Phase 0 deliverable amendments
+
+Add the following explicit Phase 0 outputs:
+
+1. A machine-readable Operational Animation Grammar.
+2. Operational animation art-direction documentation.
+3. A Role Performance Bible covering all seven permanent and seven conditional roles.
+4. Full-motion, reduced-motion, mobile and low-performance mappings.
+5. Tests proving that evidence-backed operational animation cannot be triggered without its required event and evidence.
+6. Tests proving that ambient animation cannot impersonate work.
+7. Tests proving that skipped, failed, passed, reviewed, safe-to-merge, merged and deployed states remain distinct.
+8. A fixture-driven Foundry sequence showing:
+    * file read;
+    * repository search;
+    * file edit;
+    * unstaged state;
+    * staging cradle;
+    * sealed SHA commit;
+    * push transit;
+    * remote confirmation;
+    * evidence-backed handoff.
+9. A Mind sequence showing:
+    * immutable source arrival;
+    * source hashing;
+    * non-destructive reading;
+    * compilation proposal;
+    * provenance tether;
+    * durable knowledge node;
+    * contested or unsupported claim;
+    * Mind Scan finding.
+
+Update the relevant repository artifacts, proposed schemas, traceability matrix, art bible, testing strategy and Phase 1 brief to include these requirements.
+
+Phase 1 vertical-slice amendment
+
+The playable Phase 1 story must include:
+
+1. An idea entering a project station.
+2. The Cartographer visibly bounding it.
+3. The Architect creating the plan without building.
+4. A branch and isolated worktree docking bay.
+5. The Fabricator reading, searching and editing a real fixture file.
+6. Changed modules visibly remaining unstaged.
+7. git add gathering them into the staging cradle.
+8. A commit sealing into a SHA-labelled capsule.
+9. Push transit and remote-equality confirmation.
+10. An evidence-complete handoff to Prover.
+11. Running, passed, failed and skipped verification states.
+12. A separate handoff to Keeper.
+13. Independent non-destructive review of the exact SHA.
+14. A passing route.
+15. A quarantine route with stable finding identity.
+16. Bounded repair producing a new SHA.
+17. Fresh independent re-review.
+18. The artifact reaching SAFE_TO_MERGE.
+19. The owner airlock remaining closed until explicit owner action.
+20. A verified run artifact crossing into the Mind.
+21. Compilation into a proposed lesson.
+22. A durable node forming only after required authority.
+23. A contested claim remaining visibly unresolved.
+24. Mind Scan returning exact evidence.
+25. Desktop, mobile, reduced-motion and constrained-device demonstrations.
+
+Visual-quality acceptance
+
+The Orbital Foundry and Mind of Virgil spikes must credibly demonstrate the intended premium, proper 3D, psychedelic-space quality.
+
+Technical capability alone is not sufficient.
+
+If the result appears like:
+
+* Primitive spheres presented as a final visual language.
+* A normal dashboard with a decorative 3D background.
+* Generic glass panels.
+* Cartoon clip-art astronauts.
+* Interchangeable coloured avatars.
+* Uncontrolled particles and bloom.
+* Text boxes doing all meaningful communication.
+* A folder browser disguised as the Mind.
+* A basic node graph without environmental meaning.
+
+then the visual requirement has not passed.
+
+If software rendering cannot provide sufficient evidence for final visual judgment, record:
+
+BLOCKED_PENDING_REAL_GPU_REVIEW
+
+Do not automatically call it a pass or defer an unconvincing art result to Phase 1.
+
+Phase 0 must define an explicit owner art-direction checkpoint before Phase 1 is considered ready.
