@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:b14f94b376fec1d62baddfe47e6c047a6715b8c75e9ef09cb0484ba70948fe54",
+  "graphHash": "sha256:2d59c1ee61d8d2b38b63b93f5a55f687e591b38b1207adcc1c9ce9cbedcae2d9",
   "nodes": [
     {
       "id": "agent-roster",
@@ -39,6 +39,16 @@
       "title": "OD-0001 — Phase 0 approval, authority and Amendment 1",
       "epistemicClass": "owner_approved_decision",
       "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/proposed/OD-0002-art-direction-checkpoint.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0002 — Art-direction checkpoint (proposed; no authority until the owner accepts)",
+      "epistemicClass": "ai_generated_hypothesis",
+      "authorityClass": "hypothesis",
       "status": null,
       "claimCount": 0
     },
