@@ -73,3 +73,14 @@ Deliverables 1 to 21 and Amendment 1 outputs 1 to 9 are delivered. Acceptance cr
 **Phase 1 readiness: not ready** until OD-0002 records PASS or PASS WITH DIRECTION.
 
 **One recommended next action:** run both spikes on a GPU machine (`pnpm --filter mission-control dev`), complete `docs/decisions/proposed/OD-0002-art-direction-checkpoint.md`, and move it to `docs/decisions/` as the accepted decision.
+
+## Amendment: foundation repair after the Keeper's review
+
+The sections above are the Phase 0 session's own record and are kept as written. The independent Keeper's review of that branch found the following claims overstated, and they are corrected on branch `claude/virgil-phase-0-foundation-repair-qatfj9` (`PHASE_0_FOUNDATION_REPAIR_RUN_RECORD.md`):
+
+- "Unit tests 130 passing" and "domain 30" described a reducer that accepted `verification_completed` on the payload's own `allRequiredCompleted` claim (K-02), any string as an owner decision id for a second repair cycle or a merge (K-01), any grant id for deployment (K-01), reviewers independent of builder sessions only (K-03), grants and agent starts from any actor (K-03), and recorded the resume state after the state had already changed (K-01). The "authority violation replay test" therefore proved less than the verdict section claimed.
+- "Acceptance criteria 1 to 11 and 13 to 17 are met with evidence" is withdrawn for AC1, AC3 (reducer half), AC5, AC6, AC7 and AC15 until a fresh independent Keeper reviews the repaired branch and the owner accepts it. `PHASE_0_TRACEABILITY.md` marks those rows "repaired, pending review".
+- "Mind Scan over `knowledge/`: 94/94 tethers intact" was true of the derivation, but the committed `seed-graph.json` used by the Mind spike was stale against that derivation and nothing tested it (K-15). A freshness test now fails when it is stale.
+- "Threat model items T1, T3, T5, T8, T9 and T10 have design-level mitigation now" understated the gap: T2, T3, T7, T8 and T13 were recorded as enforced by the reducer in Phase 0 while the reducer did not perform those checks. `docs/security/THREAT_MODEL.md` and `docs/architecture/ENFORCEMENT_BOUNDARIES.md` now state per layer what is enforced.
+
+The Phase 0 verdict BLOCKED_PENDING_REAL_GPU_REVIEW stands, with the additional blocker that the repaired authority system awaits independent review and owner acceptance.

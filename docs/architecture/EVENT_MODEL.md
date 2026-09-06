@@ -39,22 +39,28 @@ Every catalogued event carries a default durability class; a producer may raise 
 
 ## Candidate state machine
 
-The fifteen states and the transition table are in `constitution/authority.json` and explained in `constitution/STATE_LANGUAGE.md`. Guards are implemented in `packages/domain/src/guards.ts`:
+The fifteen states and the transition table are in `constitution/authority.json` and explained in `constitution/STATE_LANGUAGE.md`. The reducer applies them in three stages, described in full in `ENFORCEMENT_BOUNDARIES.md`: event validation (`packages/domain/src/validation.ts`), then the transition table with its guards (`guards.ts`), then on-transition effects. A rejected event is recorded with a kind (`order`, `authority`, `consistency`, `transition`) and applies no effect.
 
-| Guard | Rule |
+Guard names are fixed by `authority.json`. Their implementations derive every answer from recorded facts; no guard trusts a payload's claim about those facts:
+
+| Guard | Rule (as implemented after the foundation repair) |
 |---|---|
 | `result_claims_complete` | builder claimed completion (claim only) |
-| `check_is_required` | failing check was required |
-| `review_eligibility_gate_passes` | all required checks completed, none failed, pushed, remote SHA equals head, no mismatch |
-| `required_checks_missing` | some required check did not complete |
-| `required_check_failed` | a required check failed |
-| `reviewer_independent_of_builder` | reviewer session is not a builder session and reviews the current SHA |
+| `check_is_required` | the failing check was declared required by `verification_started` or recorded as required |
+| `review_eligibility_gate_passes` | every required check of the active verification has a recorded `passed` result with exit 0 on the current SHA; pushed, remote SHA equals head, no mismatch. The payload's `allRequiredCompleted` is not consulted |
+| `required_checks_missing` | a required check is absent, `running` or `skipped` in the recorded checks |
+| `required_check_failed` | a required check has a recorded `failed` result |
+| `reviewer_independent_of_builder` | reviewer session is not a builder, repairer or Prover session of this lineage, and reviews the current SHA |
 | `verdict_pass`, `verdict_pass_with_non_blocking` | verdict vocabulary |
 | `all_merge_gates_pass[_and_review_passed]` | fresh non-stale seal on the current SHA, passing verdict, verification signature on the same SHA, pushed and remote-equal, no blocking unrepaired finding |
-| `repair_cycle_within_limit` | next cycle; ≤1 without owner, ≤2 with an owner decision id |
-| `new_sha_differs_from_reviewed_sha` | repair produced a new SHA in the lineage |
-| `actor_is_owner` | merge only by an owner actor with a decision id |
-| `deploy_authority_present` | decision id and owner actor or grant |
+| `repair_cycle_within_limit` | payload cycle equals the derived count plus one; ≤1 without owner; cycle 2 only with a recorded, unconsumed owner decision of kind `additional_repair_round`; never 3 |
+| `new_sha_differs_from_reviewed_sha` | the new SHA is the committed current head and differs from the previous SHA and every sealed SHA |
+| `actor_is_owner` | owner actor citing a recorded, unconsumed owner decision of kind `merge` (the exact-SHA and merge-gate checks for `merged_by_owner` run in event validation) |
+| `deploy_authority_present` | owner or system actor citing a recorded owner decision of kind `deployment` for the merged SHA |
+
+`repairCycles` is incremented by the reducer on each accepted `repair_authorised`; the payload count is only checked against it. `owner_decision_required` records the state it halted from; an `owner_decision` may resume into a protected state (`READY_FOR_REVIEW`, `REVIEW_IN_PROGRESS`, `PASS_WITH_NON_BLOCKING_FINDINGS`, `REPAIR_AUTHORISED`, `SAFE_TO_MERGE`, `MERGED`, `DEPLOYED`) only when that is the recorded pre-halt state and its invariant still holds.
+
+Before the repair, `review_eligibility_gate_passes` read `allRequiredCompleted` from the payload, `repair_cycle_within_limit` accepted any string as an owner decision id, `actor_is_owner` accepted any decision id, `deploy_authority_present` accepted any grant id, reviewer independence covered builder sessions only, and the resume state was recorded after the state had already changed. Those were Keeper findings K-01 to K-03.
 
 ## Timeline replay
 
@@ -62,4 +68,4 @@ The fifteen states and the transition table are in `constitution/authority.json`
 
 ## Tests
 
-`packages/domain/test`: transition table integrity, replay of passing, blocked-and-repaired, repair-limit, stale-review and authority-violation runs, determinism, out-of-order rejection, distinct-state guarantees. `packages/agent-contracts/test`: every fixture event validates under both Zod and the exported JSON Schema.
+`packages/domain/test`: transition table integrity, replay of passing, blocked-and-repaired, repair-limit, stale-review and authority-violation runs, determinism, out-of-order rejection, distinct-state guarantees, and `adversarial.test.ts`, which reproduces every exploit in Keeper findings K-01, K-02 and K-03 and asserts rejection with no effect. `packages/agent-contracts/test`: every fixture event validates under both Zod and the exported JSON Schema.
