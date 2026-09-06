@@ -1,0 +1,19 @@
+{
+  "name": "@virgil/knowledge-graph",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Typed provenance graph derived reproducibly from knowledge/ files, decisions, schemas, code and events; Mind Scan lint checks.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@virgil/agent-contracts": "workspace:*",
+    "yaml": "^2.8.0",
+    "zod": "^4.5.4"
+  }
+}

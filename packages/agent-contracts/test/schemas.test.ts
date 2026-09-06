@@ -5,7 +5,7 @@ import addFormats from 'ajv-formats';
 import { describe, expect, it } from 'vitest';
 import authority from '../../../constitution/authority.json' with { type: 'json' };
 import matrix from '../../../constitution/permission-matrix.json' with { type: 'json' };
-import { candidateScenarios, foundryRuns } from '../../test-fixtures/src/index.js';
+import { candidateScenarios, foundryRuns, mindSequence } from '../../test-fixtures/src/index.js';
 import { AuthorityConfig, DomainEvent, PermissionMatrix, schemaRegistry } from '../src/index.js';
 
 const schemasDir = resolve(import.meta.dirname, '../../../schemas');
@@ -51,7 +51,7 @@ describe('fixture events validate as domain events (Zod and exported JSON Schema
     readFileSync(resolve(schemasDir, 'domain-event.schema.json'), 'utf8'),
   );
   const validate = ajv.compile(jsonSchema);
-  for (const [name, build] of Object.entries(foundryRuns)) {
+  for (const [name, build] of Object.entries({ ...foundryRuns, mindSequence })) {
     it(name, () => {
       for (const e of build()) {
         const r = DomainEvent.safeParse(e);
