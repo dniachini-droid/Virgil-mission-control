@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { G, mesh, place } from '../../characters/parts.js';
+import { labelTexture } from '../labels.js';
 import { L } from './layout.js';
 import { deckMaterial, ST } from './materials.js';
 import type { BayState } from './state.js';
@@ -121,6 +122,30 @@ export function buildBackdrop() {
     place(block, -30 + i * 14, 2 + (i % 3) * 3, -34 - (i % 2) * 8, 0, (i % 3) * 0.3);
     group.add(block);
   }
+  // Gateway to the Mind: a luminous threshold ring beyond the Keeper platform. Crossing it is a
+  // knowledge event (run_record_deposited); in Phase 0.5 it is the visible far end of the bay.
+  const gate = new THREE.Group();
+  gate.position.set(24, 3.2, -6);
+  gate.rotation.y = -0.6;
+  const gateRing = mesh(G.torus(2.6, 0.18, 12, 64), ST.frame(), 'gateway-ring');
+  gate.add(gateRing);
+  const gateInner = mesh(G.torus(2.25, 0.05, 8, 64), ST.glow('#bfe9ff', 0.6), 'gateway-glow');
+  gate.add(gateInner);
+  const gateStand = mesh(G.rbox(1.2, 3.2, 0.8, 0.08), ST.dark(), 'gate-stand');
+  place(gateStand, 0, -3.2, 0);
+  gate.add(gateStand);
+  group.add(gate);
+  const { texture: gateTex, aspect: gateAspect } = labelTexture('GATEWAY · the Mind of Virgil', {
+    size: 40,
+    fg: '#bfe9ff',
+    pad: 14,
+  });
+  const gatePlate = new THREE.Mesh(
+    G.plane(0.3 * gateAspect, 0.3),
+    new THREE.MeshBasicMaterial({ map: gateTex, transparent: true, toneMapped: false }),
+  );
+  place(gatePlate, 24, 6.4, -6, 0, -0.6, 0);
+  group.add(gatePlate);
   // Distant harmless transports: three small craft on far lanes that never dock.
   const transports: THREE.Group[] = [];
   for (let i = 0; i < 3; i++) {

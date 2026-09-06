@@ -15,12 +15,12 @@ export interface MindStep {
 }
 
 export const cameras = {
-  overview: { position: [2, 18, 44], target: [2, 1, -2] },
-  gateway: { position: [-30, 8, 18], target: [-22, 2, 0] },
-  archive: { position: [-16, 6, 14], target: [-16, 2, 0] },
-  forge: { position: [-2, 6, 14], target: [-1, 2, 0] },
-  galaxy: { position: [10, 8, 18], target: [15, 1.5, -2] },
-  contested: { position: [18, 5, 10], target: [19, 2, 3] },
+  overview: { position: [-4.5, 8, 22.5], target: [-3.5, 1.6, -1.5] },
+  gateway: { position: [-19, 4.5, 11], target: [-13, 1.8, 2.4] },
+  archive: { position: [-12.5, 3.8, 8.5], target: [-8.6, 1.6, 0.4] },
+  forge: { position: [1.4, 4.4, 8.8], target: [0.4, 2.0, 0] },
+  galaxy: { position: [6, 6.5, 14], target: [-1, 4, -8] },
+  contested: { position: [9.5, 3.8, 7.5], target: [7.4, 1.9, 0.6] },
 } satisfies Record<string, CameraPose>;
 
 const events = mindSequence();

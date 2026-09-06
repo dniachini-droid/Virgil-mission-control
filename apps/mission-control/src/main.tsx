@@ -16,31 +16,44 @@ function Index() {
           color: 'var(--ice)',
         }}
       >
-        Virgil Mission Control — Phase 0 spikes
+        Virgil Mission Control — Phase 0.5 prototype
       </h1>
       <p>
-        Art-direction and data-contract proofs. Not the product interface. Every animation is driven
-        by a recorded fixture event and gated by the Operational Animation Grammar.
+        Bounded visual recovery under OD-0002: one hero Foundry bay, four screen-faced astro-bots,
+        one Mind cluster. Not the product interface. Every work animation is driven by a recorded
+        fixture event and gated by the Operational Animation Grammar; idle life is ambient only.
       </p>
       <ul>
         <li>
           <Link to="/spike/foundry" style={{ color: 'var(--cyan)' }}>
-            Orbital Foundry spike
+            Orbital Foundry · success run
           </Link>{' '}
-          — read, search, edit, unstaged, staging cradle, sealed SHA commit, push transit, remote
-          confirmation, evidence-backed handoff.
+          — file edit, unstaged modules, staging, commit sealing, push, handoff, verification,
+          independent Keeper review, non-blocking finding, review pass, safe-to-merge outside the
+          closed airlock, refused tampered push.{' '}
+          <Link to="/spike/foundry?run=failed" style={{ color: 'var(--coral)' }}>
+            failed-check run
+          </Link>{' '}
+          — unit check fails, verification completes with a failure, quarantine.
         </li>
         <li>
           <Link to="/spike/mind" style={{ color: 'var(--cyan)' }}>
-            Mind of Virgil spike
+            Mind of Virgil · knowledge cluster
           </Link>{' '}
-          — source arrival, hashing, non-destructive reading, compilation proposal, provenance
-          tether, durable node, contested claim, Mind Scan finding.
+          — source arrival through the gateway, hashing, non-destructive reading, compilation
+          proposal, provenance tether, contested claim, durable node, Mind Scan finding.
+        </li>
+        <li>
+          <Link to="/spike/characters" style={{ color: 'var(--cyan)' }}>
+            Character family line-up
+          </Link>{' '}
+          — Fabricator, Prover, Keeper, Virgil in every mode; add <code>?mono=1</code> for the
+          greyscale silhouette test.
         </li>
       </ul>
       <p style={{ color: 'var(--ash)' }}>
-        Query parameters: step, tier (ultra|desktop|laptop|mobile|constrained), reduced (1), hold (1
-        to suppress camera travel). Keyboard: ← → steps, Home/End.
+        Query parameters: step, run (failed), tier (ultra|desktop|laptop|mobile|constrained),
+        reduced (1), hold (1 to suppress camera travel), mono (1). Keyboard: ← → steps, Home/End.
       </p>
     </main>
   );

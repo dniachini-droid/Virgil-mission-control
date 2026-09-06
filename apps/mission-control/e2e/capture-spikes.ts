@@ -1,7 +1,8 @@
 /**
- * Captures screenshots of both spikes at defined steps and camera positions using the
- * pre-installed Chromium. In this container rendering is software (SwiftShader); the
- * captures are evidence of structure and data-contract behaviour, not of final visual quality.
+ * Captures the Phase 0.5 prototype (character line-up, Foundry bay success and failed runs,
+ * Mind cluster) at defined steps using the pre-installed Chromium. In this container rendering
+ * is software (SwiftShader); the captures are evidence of structure and data-contract
+ * behaviour, not of final visual quality. The Phase 0 captures stay in docs/art-direction/spikes.
  * Usage: pnpm --filter mission-control build && pnpm --filter mission-control capture
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -9,34 +10,49 @@ import { resolve } from 'node:path';
 import { chromium } from '@playwright/test';
 import { preview } from 'vite';
 
-const outDir = resolve(import.meta.dirname, '../../../docs/art-direction/spikes');
+const outDir = resolve(import.meta.dirname, '../../../docs/art-direction/phase-0-5');
 mkdirSync(outDir, { recursive: true });
 
-const shots: Array<{ route: string; step: number; name: string; query?: string }> = [
-  { route: '/spike/foundry', step: 0, name: 'foundry-00-overview' },
-  { route: '/spike/foundry', step: 1, name: 'foundry-01-file-read' },
+const shots: Array<{ route: string; step: number; name: string; query?: string; wait?: number }> = [
+  { route: '/spike/characters', step: 0, name: 'characters-00-lineup-idle', query: '&mode=idle' },
+  { route: '/spike/characters', step: 2, name: 'characters-02-lineup-work', query: '&mode=work' },
+  { route: '/spike/characters', step: 4, name: 'characters-04-lineup-refuse', query: '&mode=refuse' },
+  { route: '/spike/characters', step: 0, name: 'characters-00-lineup-greyscale', query: '&mode=idle&mono=1' },
+  { route: '/spike/foundry', step: 0, name: 'foundry-00-bay-overview' },
   { route: '/spike/foundry', step: 3, name: 'foundry-03-file-edit' },
-  { route: '/spike/foundry', step: 5, name: 'foundry-05-staging-cradle' },
-  { route: '/spike/foundry', step: 6, name: 'foundry-06-sealed-commit' },
-  { route: '/spike/foundry', step: 7, name: 'foundry-07-push-transit' },
-  { route: '/spike/foundry', step: 8, name: 'foundry-08-remote-confirmed' },
-  { route: '/spike/foundry', step: 9, name: 'foundry-09-handoff' },
-  { route: '/spike/foundry', step: 10, name: 'foundry-10-refused' },
+  { route: '/spike/foundry', step: 5, name: 'foundry-05-staging' },
+  { route: '/spike/foundry', step: 6, name: 'foundry-06-commit-sealing', wait: 4500 },
+  { route: '/spike/foundry', step: 9, name: 'foundry-09-handoff-prover', wait: 4500 },
+  { route: '/spike/foundry', step: 13, name: 'foundry-13-checks' },
+  { route: '/spike/foundry', step: 18, name: 'foundry-18-signature' },
+  { route: '/spike/foundry', step: 19, name: 'foundry-19-handoff-keeper', wait: 4500 },
+  { route: '/spike/foundry', step: 22, name: 'foundry-22-finding' },
+  { route: '/spike/foundry', step: 24, name: 'foundry-24-safe-to-merge', wait: 4500 },
+  { route: '/spike/foundry', step: 25, name: 'foundry-25-refused' },
+  { route: '/spike/foundry', step: 0, name: 'foundry-00-bay-greyscale', query: '&mono=1' },
+  { route: '/spike/foundry', step: 16, name: 'foundry-failed-16-unit-failed', query: '&run=failed' },
+  { route: '/spike/foundry', step: 19, name: 'foundry-failed-19-quarantined', query: '&run=failed' },
   {
     route: '/spike/foundry',
     step: 6,
     name: 'foundry-06-reduced-motion-mobile',
     query: '&reduced=1&tier=mobile',
   },
+  {
+    route: '/spike/foundry',
+    step: 24,
+    name: 'foundry-24-reduced-motion-desktop',
+    query: '&reduced=1',
+  },
   { route: '/spike/mind', step: 0, name: 'mind-00-overview' },
   { route: '/spike/mind', step: 1, name: 'mind-01-gateway' },
   { route: '/spike/mind', step: 3, name: 'mind-03-hashed-sealed' },
   { route: '/spike/mind', step: 4, name: 'mind-04-non-destructive-read' },
-  { route: '/spike/mind', step: 5, name: 'mind-05-compilation-proposed' },
   { route: '/spike/mind', step: 6, name: 'mind-06-provenance-tether' },
   { route: '/spike/mind', step: 7, name: 'mind-07-contested' },
   { route: '/spike/mind', step: 8, name: 'mind-08-durable-node' },
   { route: '/spike/mind', step: 9, name: 'mind-09-scan-finding' },
+  { route: '/spike/mind', step: 8, name: 'mind-08-reduced-motion-mobile', query: '&reduced=1&tier=mobile' },
 ];
 
 async function main() {
@@ -76,7 +92,7 @@ async function main() {
         null,
         { timeout: 60_000 },
       );
-      await page.waitForTimeout(shot.step === 0 ? 1500 : 3200);
+      await page.waitForTimeout(shot.wait ?? (shot.step === 0 ? 2500 : 3400));
       const renderer = await page.evaluate(
         () => (window as Window & { __virgilRenderer?: string }).__virgilRenderer ?? '',
       );
@@ -87,7 +103,7 @@ async function main() {
         url,
         renderer,
         errors,
-        file: `docs/art-direction/spikes/${shot.name}.png`,
+        file: `docs/art-direction/phase-0-5/${shot.name}.png`,
       });
       console.log(
         `${shot.name.padEnd(36)} ${errors.length ? `ERRORS: ${errors.join(' | ').slice(0, 200)}` : 'ok'}`,
