@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install)",
+      "Bash(pnpm check)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm test)",
+      "Bash(pnpm --filter *)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git rev-parse*)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push origin main*)",
+      "Bash(git push * main)",
+      "Bash(git merge*)",
+      "Bash(git rebase*)",
+      "Bash(git reset --hard*)",
+      "Bash(rm -rf /*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Write(./knowledge/raw/**)",
+      "Edit(./knowledge/raw/**)",
+      "Edit(./docs/product/VIRGIL_MASTER_COMMISSION.md)",
+      "Edit(./constitution/**)",
+      "Write(./constitution/**)",
+      "Edit(./docs/decisions/OD-*)",
+      "WebFetch",
+      "WebSearch"
+    ]
+  }
+}
