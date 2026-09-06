@@ -46,10 +46,12 @@ describe('distinct states never collapse', () => {
         } as unknown as DomainEvent;
       }
       if (e.type === 'verification_completed') {
+        const payload = e.payload as { results: Record<string, string> };
         return {
           ...e,
           payload: {
             ...(e.payload as object),
+            results: { ...payload.results, unit: 'skipped' },
             allRequiredCompleted: false,
             anyRequiredFailed: false,
           },

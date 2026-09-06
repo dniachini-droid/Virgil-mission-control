@@ -49,6 +49,25 @@ export interface ReviewSeal {
   stale: boolean;
 }
 
+/** A recorded, owner-actor `owner_decision` (or `scope_approved`) fact. Only these may be cited as authority. */
+export interface OwnerDecisionRecord {
+  decisionId: string;
+  kind: string;
+  seq: number;
+  eventId: string;
+  /** Event ids that consumed this decision for a one-shot action (merge, additional repair round). */
+  consumedBy: string[];
+}
+
+export interface AdjudicationRecord {
+  adjudicationId: string;
+  seq: number;
+  repairContractId?: string | undefined;
+  acceptedFindingIds: string[];
+  rejectedFindingIds: string[];
+  repairCycleCount: number;
+}
+
 export interface LineageState {
   lineageId: string;
   state: CandidateState;
@@ -60,7 +79,18 @@ export interface LineageState {
   pushed: boolean;
   mismatch?: { kind: string; localSha: string; remoteSha?: string };
   pr?: { number: number; headSha: string; draft: boolean };
+  /** Sessions that built the candidate (fabricator sessions and any session that edited files). */
   builderSessions: string[];
+  /** Sessions that repaired the candidate under a repair contract. */
+  repairerSessions: string[];
+  /** Sessions that ran deterministic verification (Prover sessions and check emitters). */
+  proverSessions: string[];
+  /** Sessions that reviewed or adjudicated the candidate. */
+  reviewerSessions: string[];
+  /** The verification run currently in progress or last completed, and the checks it declared required. */
+  activeVerificationId?: string | undefined;
+  activeVerificationSha?: string | undefined;
+  requiredCheckIds: string[];
   verificationSignature?: string | undefined;
   verificationSha?: string | undefined;
   checks: Record<string, CheckState>;
@@ -68,8 +98,10 @@ export interface LineageState {
   reviewSeal?: ReviewSeal | undefined;
   priorSeals: ReviewSeal[];
   quarantineReason?: string | undefined;
+  /** Derived by counting accepted `repair_authorised` transitions. Never read from a payload. */
   repairCycles: number;
   activeRepairContractId?: string | undefined;
+  adjudications: Record<string, AdjudicationRecord>;
   shaHistory: string[];
   deployment: DeploymentState;
   deploymentId?: string | undefined;
@@ -126,12 +158,20 @@ export interface TransitionRecord {
   guard?: string;
 }
 
+/**
+ * An event the reducer refused. `kind` says why: `authority` (actor, grant or cited decision invalid),
+ * `consistency` (payload contradicts recorded facts), `transition` (not allowed by the table or its guard),
+ * `order` (out-of-order seq). Authority and consistency rejections apply no effect at all.
+ */
+export type InvalidEventKind = 'authority' | 'consistency' | 'transition' | 'order';
+
 export interface InvalidTransition {
   seq: number;
   eventId: string;
   type: string;
   state: CandidateState | null;
   reason: string;
+  kind: InvalidEventKind;
 }
 
 export interface RunState {
@@ -168,6 +208,8 @@ export interface RunState {
     recommendedDefault: string;
     answeredBy?: string;
   }>;
+  /** Owner decisions recorded by owner-actor events, keyed by decision id. */
+  decisions: Record<string, OwnerDecisionRecord>;
   transitions: TransitionRecord[];
   invalidTransitions: InvalidTransition[];
   events: number;
@@ -188,6 +230,7 @@ export function initialRunState(runId: string): RunState {
     files: {},
     commands: {},
     ownerQuestions: [],
+    decisions: {},
     transitions: [],
     invalidTransitions: [],
     events: 0,
@@ -200,10 +243,15 @@ export function newLineage(lineageId: string): LineageState {
     state: 'BUILDING',
     pushed: false,
     builderSessions: [],
+    repairerSessions: [],
+    proverSessions: [],
+    reviewerSessions: [],
+    requiredCheckIds: [],
     checks: {},
     findings: {},
     priorSeals: [],
     repairCycles: 0,
+    adjudications: {},
     shaHistory: [],
     deployment: 'NOT_STARTED',
   };

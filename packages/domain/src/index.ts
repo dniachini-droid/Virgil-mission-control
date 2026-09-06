@@ -3,3 +3,4 @@ export * from './reducer.js';
 export * from './replay.js';
 export * from './state.js';
 export * from './transitions.js';
+export * from './validation.js';

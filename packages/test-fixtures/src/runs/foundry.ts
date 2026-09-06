@@ -474,6 +474,66 @@ function handoffToKeeper(
   );
 }
 
+/** Grants the Arbiter and starts its session; adjudication requires a registered, independent Arbiter. */
+function startArbiter(b: RunBuilder, grantId: string): void {
+  b.add(
+    'authority_granted',
+    virgil,
+    { grantId, roleId: 'arbiter', tier: 'TIER_2', permittedPaths: [], expiresAt: at(600) },
+    [ev('owner_decision', 'OD-0002')],
+  );
+  b.add(
+    'agent_started',
+    arbiter,
+    { roleId: 'arbiter', sessionId: 'sess-arbiter-1', grantId },
+    [ev('event', grantId)],
+    { grant: grantId },
+  );
+}
+
+/** A Prover-raised blocking finding against the failed unit check of the given verification. */
+function blockingFinding(b: RunBuilder, findingId: string, verificationId: string): void {
+  b.add(
+    'finding_raised',
+    prover,
+    {
+      findingId,
+      reportId: verificationId,
+      severity: 'blocking',
+      blocking: true,
+      surface: `${FILE}:42`,
+      criterionId: 'AC-1.2',
+      reproduced: true,
+    },
+    [ev('check_run', `${verificationId}/unit`)],
+    { grant: 'G-prover-1' },
+  );
+}
+
+/** Arbiter adjudication accepting one finding and defining one repair contract for the next cycle. */
+function adjudicate(
+  b: RunBuilder,
+  adjudicationId: string,
+  findingId: string,
+  repairContractId: string,
+  repairCycleCount: number,
+  verificationId: string,
+): void {
+  b.add(
+    'adjudication_completed',
+    arbiter,
+    {
+      adjudicationId,
+      acceptedFindingIds: [findingId],
+      rejectedFindingIds: [],
+      repairContractId,
+      repairCycleCount,
+    },
+    [ev('check_run', `${verificationId}/unit`)],
+    { grant: 'G-arb-1' },
+  );
+}
+
 export function passingRun(): DomainEvent[] {
   const b = new RunBuilder('run-pass');
   prologue(b, HEAD_SHA);
@@ -563,33 +623,9 @@ export function blockedThenRepairedRun(): DomainEvent[] {
     { lineageId: 'LIN-1', headSha: HEAD_SHA, reason: 'proven_defect', findingIds: [] },
     [ev('check_run', 'V-1/unit')],
   );
-  b.add(
-    'finding_raised',
-    prover,
-    {
-      findingId: 'F-2',
-      reportId: 'V-1',
-      severity: 'blocking',
-      blocking: true,
-      surface: `${FILE}:42`,
-      criterionId: 'AC-1.2',
-      reproduced: true,
-    },
-    [ev('check_run', 'V-1/unit')],
-    { grant: 'G-prover-1' },
-  );
-  b.add(
-    'adjudication_completed',
-    arbiter,
-    {
-      adjudicationId: 'ADJ-1',
-      acceptedFindingIds: ['F-2'],
-      rejectedFindingIds: [],
-      repairContractId: 'RC-1',
-      repairCycleCount: 1,
-    },
-    [ev('check_run', 'V-1/unit')],
-  );
+  blockingFinding(b, 'F-2', 'V-1');
+  startArbiter(b, 'G-arb-1');
+  adjudicate(b, 'ADJ-1', 'F-2', 'RC-1', 1, 'V-1');
   b.add(
     'repair_authorised',
     virgil,
@@ -715,6 +751,9 @@ export function repairLimitRun(): DomainEvent[] {
   const b = new RunBuilder('run-limit');
   prologue(b, HEAD_SHA);
   verification(b, HEAD_SHA, { verificationId: 'V-1', failUnit: true });
+  blockingFinding(b, 'F-2', 'V-1');
+  startArbiter(b, 'G-arb-1');
+  adjudicate(b, 'ADJ-1', 'F-2', 'RC-1', 1, 'V-1');
   b.add(
     'repair_authorised',
     virgil,
@@ -725,6 +764,18 @@ export function repairLimitRun(): DomainEvent[] {
       acceptedFindingIds: ['F-2'],
       permittedFiles: [FILE],
       repairCycleCount: 1,
+    },
+    [ev('adjudication', 'ADJ-1')],
+  );
+  b.add(
+    'authority_granted',
+    virgil,
+    {
+      grantId: 'G-fab-2',
+      roleId: 'fabricator',
+      tier: 'TIER_2',
+      permittedPaths: [FILE],
+      expiresAt: at(600),
     },
     [ev('adjudication', 'ADJ-1')],
   );
@@ -741,12 +792,14 @@ export function repairLimitRun(): DomainEvent[] {
       branch: 'feature/capsule-sha',
     },
     [ev('git_object', HEAD_SHA_2)],
+    { grant: 'G-fab-2' },
   );
   b.add(
     'repair_completed',
     fab2,
     { repairContractId: 'RC-1', lineageId: 'LIN-1', previousSha: HEAD_SHA, newSha: HEAD_SHA_2 },
     [ev('git_object', HEAD_SHA_2)],
+    { grant: 'G-fab-2' },
   );
   b.add(
     'candidate_pushed',
@@ -755,6 +808,8 @@ export function repairLimitRun(): DomainEvent[] {
     [ev('git_ref', `origin@${HEAD_SHA_2}`)],
   );
   verification(b, HEAD_SHA_2, { verificationId: 'V-2', failUnit: true });
+  blockingFinding(b, 'F-3', 'V-2');
+  adjudicate(b, 'ADJ-2', 'F-3', 'RC-2', 2, 'V-2');
   // cycle 2 without owner authority: must be rejected
   b.add(
     'repair_authorised',
@@ -814,12 +869,14 @@ export function repairLimitRun(): DomainEvent[] {
       branch: 'feature/capsule-sha',
     },
     [ev('git_object', HEAD_SHA_3)],
+    { grant: 'G-fab-2' },
   );
   b.add(
     'repair_completed',
     fab2,
     { repairContractId: 'RC-2', lineageId: 'LIN-1', previousSha: HEAD_SHA_2, newSha: HEAD_SHA_3 },
     [ev('git_object', HEAD_SHA_3)],
+    { grant: 'G-fab-2' },
   );
   b.add(
     'candidate_pushed',
@@ -828,6 +885,8 @@ export function repairLimitRun(): DomainEvent[] {
     [ev('git_ref', `origin@${HEAD_SHA_3}`)],
   );
   verification(b, HEAD_SHA_3, { verificationId: 'V-3', failUnit: true });
+  blockingFinding(b, 'F-4', 'V-3');
+  adjudicate(b, 'ADJ-3', 'F-4', 'RC-3', 3, 'V-3');
   // cycle 3: rejected even with an owner decision id
   b.add(
     'repair_authorised',

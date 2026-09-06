@@ -133,11 +133,11 @@ describe('stale review', () => {
 describe('authority violations', () => {
   const state = replay('run-authority', authorityViolationRun());
   it('rejects a builder reviewing its own candidate', () => {
-    expect(
-      state.invalidTransitions.some(
-        (x) => x.type === 'review_started' && x.reason.includes('reviewer_independent_of_builder'),
-      ),
-    ).toBe(true);
+    const rejected = state.invalidTransitions.filter((x) => x.type === 'review_started');
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0]?.kind).toBe('authority');
+    expect(rejected[0]?.reason).toContain('fabricator');
+    expect(state.lineage?.reviewSeal?.reviewerSession).toBe('sess-keeper-1');
   });
   it('rejects merge before eligibility and merge by a non-owner', () => {
     const merges = state.invalidTransitions.filter((x) => x.type === 'merged_by_owner');
