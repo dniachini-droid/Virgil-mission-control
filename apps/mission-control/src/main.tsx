@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Link, Route, Routes } from 'react-router';
+import { CharactersSpike } from './spikes/characters/CharactersSpike.js';
 import { FoundrySpike } from './spikes/foundry/FoundrySpike.js';
 import { MindSpike } from './spikes/mind/MindSpike.js';
 
@@ -52,6 +53,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
         <Route path="/" element={<Index />} />
         <Route path="/spike/foundry" element={<FoundrySpike />} />
         <Route path="/spike/mind" element={<MindSpike />} />
+        <Route path="/spike/characters" element={<CharactersSpike />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
