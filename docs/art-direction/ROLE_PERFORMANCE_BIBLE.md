@@ -4,18 +4,18 @@ Amendment 1 deliverable 3. Data: `packages/visual-language/data/role-performance
 
 ## Ensemble rules
 
-A serious premium science-fiction ensemble. Silhouette carries identity; colour is an accent. Stations are architecture, not backdrops: each has instruments that light only under a grant. Every role has a visible way of refusing a prohibited action (locked arms, folded vanes, a prohibition glyph, a forge that stays cold) so that the world shows authority stopping rather than pretending it never tried.
+Amended by OD-0002. A cohesive family of compact, charming, screen-faced robot astronauts (Art Bible section 8): shared rig, strongly differentiated body shells, screens and equipment. Silhouette and equipment carry identity; colour is an accent. Stations are architecture, not backdrops: each has instruments that light only under a grant. Every role has a visible way of refusing a prohibited action (locked arms, folded vanes, a prohibition glyph, a forge that stays cold) so that the world shows authority stopping rather than pretending it never tried.
 
 ## Permanent core crew
 
 | Role | Silhouette | Station | Signature ritual | Never touches |
 |---|---|---|---|---|
-| Virgil | tall, armless, chest-height orbital ring, guiding vanes | central observatory dais under a dome with a projected orrery | opens one lane at a time; becomes almost still when blocked and lights one route | code, fabrication, tests, seals, airlock, deployment |
+| Virgil | compact senior astro-bot: command mantle and rear shell, three communication antennae, orbital instrument ring, fold-out control vanes, the most expressive screen | dense stylised control centre overlooking the bay: curved console bank, route levers, orrery instrument, owner airlock behind | opens one lane at a time; becomes almost still when blocked and lights one route | code, fabrication, tests, seals, airlock, deployment |
 | Cartographer | low, hunched, compass drones at the shoulders, filament spool | dark stellar map table with a horizon rail | stakes landmarks, spools a perimeter, leaves decisions as closed gates | architecture, code, opening owner gates |
 | Architect | elongated, floating diagonally, projection limbs without hands | zero-gravity blueprint chamber | unfolds layers, casts protected volumes as dark metal, ends with go/no-go | production modules, tests, owner decisions |
-| Fabricator | compact, four tool arms, code loom, forearm light-forge | kinetic assembly dock inside an isolated bay | read, search, edit, accumulate, stage, seal, push, corridor | seals, airlock, deployment, tokens, files outside permitted paths |
-| Prover | ring torso, radial spines, two precise manipulators | radial verification chamber with a mirror bay | one arc per check; seeds defects only into the mirror | sealed candidate, production behaviour, verdicts |
-| Keeper | hooded, no arms, orbiting lenses, hanging spectrograph | separate inspection station across a visible gap | orbits lenses over the exact SHA; pins findings; one verdict | candidate contents, tests, airlock |
+| Fabricator | broad sturdy construction astro-bot: barrel torso, two articulated construction arms with mismatched manipulators, modular tool backpack, luminous assembly wand | kinetic assembly dock inside an isolated bay: bench, module racks, magnetic cradle, commit press | read, search, edit, accumulate, stage, seal, push, corridor | seals, airlock, deployment, tokens, files outside permitted paths |
+| Prover | scanner astro-bot: narrow drum torso with a rotating waist sensor ring, antenna array, deployable diagnostic mast, circular reticle screen, two precise probe manipulators | scanner station: ring gantry with one channel per check and a capsule dock | one arc per check; seeds defects only into the mirror | sealed candidate, production behaviour, verdicts |
+| Keeper | inspection astro-bot with no arms: hooded sensor cowl, folding magnifier boom, three orbiting inspection drones, archival reel on the back, tall calm screen | separate inspection platform across a visible gap, joined only by the evidence corridor | orbits lenses over the exact SHA; pins findings; one verdict | candidate contents, tests, airlock |
 | Arbiter | bilateral, two evidence pans on vanes, one central eye | symmetrical tribunal with opposing tracks and a contract forge | reproduces, consolidates with ids intact, rejects unsupported, forges one contract | candidate, repair beyond the limit |
 
 ## Conditional specialists

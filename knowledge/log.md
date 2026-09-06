@@ -12,3 +12,4 @@ Append-only. One line per operation: `timestamp | event | actor | subject | evid
 2026-09-06T17:40:00+00:00 | wiki_lint_started | knowledge-lint | knowledge/wiki | tools/knowledge-lint
 2026-09-06T17:40:00+00:00 | wiki_lint_completed | knowledge-lint | 10 pages, 28 claims, 94/94 tethers intact, 0 findings | docs/process/PHASE_0_RUN_RECORD.md
 2026-09-06T17:45:00+00:00 | knowledge_compilation_proposed | phase-0-session | docs/decisions/proposed/OD-0002-art-direction-checkpoint.md (owner decision proposal, no authority) | docs/process/ART_DIRECTION_CHECKPOINT.md
+2026-09-06T18:20:00+00:00 | knowledge_compilation_proposed | phase-0-5-session | docs/decisions/proposed/OD-0002-art-direction-checkpoint.md (owner decision accepted in writing; raw source record and wiki compilation deferred until the owner moves the file: session tooling denies knowledge/raw writes) | owner Phase 0.5 commissioning message

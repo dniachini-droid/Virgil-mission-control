@@ -44,6 +44,6 @@ Any acceptance criterion that requires an owner decision (character direction, s
 ## Owner decisions required before start
 
 1. Art-direction checkpoint verdict (`ART_DIRECTION_CHECKPOINT.md`).
-2. Character direction: stylised humanoid, semi-organic machine, drone, or hybrid ensemble.
+2. Character direction: decided by OD-0002 (compact, charming, screen-faced robot astronauts; Phase 0.5 delivers the four core characters).
 3. Optional sound motifs in or out of the slice.
 4. Phase 1 branch name and whether Phase 0's branch is merged first (owner-only).

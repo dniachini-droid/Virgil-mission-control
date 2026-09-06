@@ -38,3 +38,9 @@ Judge separately:
 ## Recording the decision
 
 Fill in `docs/decisions/proposed/OD-0002-art-direction-checkpoint.md`, move it to `docs/decisions/OD-0002-art-direction-checkpoint.md`, and commit. Only the owner performs that move; sessions are denied writes to accepted decision files. The knowledge layer then ingests it as a raw source.
+
+## Outcome and Phase 0.5 re-check (OD-0002)
+
+The owner inspected the Phase 0 spikes on a real GPU and recorded FAIL on graphical execution with the pipeline retained (`docs/decisions/proposed/OD-0002-art-direction-checkpoint.md`, accepted text awaiting the owner's move). A bounded visual recovery (Phase 0.5, `docs/process/PHASE_0_5_PLAN.md`) was authorised. The checklist row "cartoon clip-art astronauts" now reads per OD-0002: cheap clip-art, stock characters, asset-store mixtures and low-effort reskins fail; charming stylised screen-faced astro-bots are the direction.
+
+Re-check on a GPU after Phase 0.5: open `/spike/foundry` (success run), `/spike/foundry?run=failed` (failed-check variant) and `/spike/mind`; judge against the Phase 0.5 quality bar in Art Bible section 11. Verdicts: PASS WITH DIRECTION (Phase 1 may start with the listed changes as acceptance criteria) or NEEDS_ITERATION (a further bounded pass before Phase 1).
