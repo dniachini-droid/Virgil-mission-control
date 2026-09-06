@@ -1,5 +1,10 @@
 import type { DomainEvent } from '@virgil/agent-contracts';
-import { derivedVerification, evaluateGuard } from './guards.js';
+import {
+  derivedVerification,
+  evaluateGuard,
+  safeResumeStateFor,
+  terminalStates,
+} from './guards.js';
 import {
   type CandidateState,
   type InvalidEventKind,
@@ -503,8 +508,18 @@ function applyOnTransition(
         consumeDecision(run, p.ownerDecisionId, event.eventId);
       break;
     case 'owner_decision_required':
-      /** The state to resume into is the state the machinery halted from, never the halt state itself. */
-      if (from !== 'OWNER_DECISION_REQUIRED') lineage.resumeState = from;
+      /**
+       * The resume target is the safe state derived from the state the machinery halted from, never the
+       * halt state itself and never an eligibility state (K-01). A halt during an authorised repair
+       * withdraws the repair authority; the cycle stays counted.
+       */
+      if (from !== 'OWNER_DECISION_REQUIRED') {
+        lineage.resumeState = safeResumeStateFor(from, lineage);
+        if (from === 'REPAIR_AUTHORISED' && lineage.activeRepairContractId) {
+          lineage.withdrawnRepairContractIds.push(lineage.activeRepairContractId);
+          lineage.activeRepairContractId = undefined;
+        }
+      }
       break;
     case 'candidate_quarantined':
       lineage.quarantineReason = str(p.reason);
@@ -563,6 +578,15 @@ export function applyEvent(input: RunState, event: DomainEvent): ApplyResult {
     if (softLineageEvents.has(event.type)) return { run, accepted: true, transitioned: false };
     return reject(run, event, 'transition', 'no candidate lineage exists yet');
   }
+
+  /**
+   * A merge or deployment that happened cannot be suspended: in a terminal state the owner question
+   * is recorded as a fact (applyAuxiliary) and the lineage stays where it is, so that no later
+   * `owner_decision` needs a terminal state as its resume target. Reducer policy; see
+   * docs/architecture/ENFORCEMENT_BOUNDARIES.md.
+   */
+  if (event.type === 'owner_decision_required' && terminalStates.has(lineage.state))
+    return { run, accepted: true, transitioned: false };
 
   const options = candidateTransitions(lineage.state, event.type);
   const payload = event.payload as P;

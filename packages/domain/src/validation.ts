@@ -1,10 +1,18 @@
-import type { DomainEvent } from '@virgil/agent-contracts';
+import {
+  type DomainEvent,
+  normaliseRepoPath,
+  normaliseRepoPathPattern,
+  pathPermitted,
+  patternsMayOverlap,
+} from '@virgil/agent-contracts';
 import matrix from '../../../constitution/permission-matrix.json' with { type: 'json' };
 import {
   derivedVerification,
+  guardedResumeStates,
   mergeGatesPass,
+  privilegedResumeStates,
   protectedStateInvariantHolds,
-  protectedStates,
+  resumeTargetAllowlist,
   taintedForReview,
 } from './guards.js';
 import type { CandidateState, InvalidEventKind, LineageState, RunState } from './state.js';
@@ -29,15 +37,71 @@ const protectedPathBoundaries = authorityConfig.protectedBoundaries.filter((b) =
 /** Events that record a decision id rather than cite one. */
 const decisionRecordingEvents = new Set(['owner_decision', 'scope_approved']);
 
-const literalPrefix = (pattern: string): string => pattern.split('*')[0] ?? '';
-
-/** True when a permitted-path pattern could reach a protected boundary. */
+/**
+ * The protected boundary a permitted-path pattern could reach, or undefined. The pattern is
+ * normalised first; a pattern that cannot be normalised (traversal, absolute, encoded) is treated
+ * as reaching every boundary, because it cannot be shown to stay inside any.
+ */
 export function patternReachesProtectedBoundary(pattern: string): string | undefined {
-  const prefix = literalPrefix(pattern);
-  return protectedPathBoundaries.find((b) => {
-    const bp = literalPrefix(b);
-    return prefix.startsWith(bp) || bp.startsWith(prefix);
-  });
+  const n = normaliseRepoPathPattern(pattern);
+  if (!n.ok) return `every boundary (unnormalisable pattern: ${n.reason})`;
+  return protectedPathBoundaries.find((b) => patternsMayOverlap(n.path, b));
+}
+
+/** Why a permitted-path pattern issued by `actorKind` is unacceptable, or undefined. */
+export function permittedPathProblem(pattern: unknown, actorKind: string): string | undefined {
+  const n = normaliseRepoPathPattern(pattern);
+  if (!n.ok) return `permitted path ${String(pattern)} is invalid: ${n.reason}`;
+  if (actorKind === 'owner') return undefined;
+  const boundary = patternReachesProtectedBoundary(n.path);
+  return boundary ? `permitted path ${n.path} reaches protected boundary ${boundary}` : undefined;
+}
+
+/**
+ * Why an `owner_decision` may not resume into `target`, or undefined. Privileged and terminal
+ * states are never targets; a review-stage state only when recorded as the pre-halt state with its
+ * invariant intact; anything else must be on the explicit allowlist.
+ */
+export function resumeTargetProblem(
+  lineage: LineageState,
+  target: CandidateState,
+): EventRejection | undefined {
+  const recorded = lineage.resumeState;
+  if (privilegedResumeStates.has(target))
+    return authority(
+      `owner_decision cannot resume into ${target}: privileged and terminal states are never resume targets`,
+    );
+  if (guardedResumeStates.has(target)) {
+    if (target !== recorded)
+      return authority(
+        `owner_decision cannot resume into ${target} (halted from ${recorded ?? 'none'})`,
+      );
+    if (!protectedStateInvariantHolds(lineage, target))
+      return consistency(
+        `owner_decision cannot resume into ${target}: its invariant no longer holds`,
+      );
+    return undefined;
+  }
+  if (!resumeTargetAllowlist.has(target))
+    return authority(`owner_decision cannot resume into ${target}: not an allowed resume target`);
+  return undefined;
+}
+
+/** Why a file write by `event` falls outside the actor's granted paths, or undefined. */
+function fileWriteProblem(run: RunState, event: DomainEvent, paths: unknown[]): string | undefined {
+  for (const path of paths) {
+    const n = normaliseRepoPath(path);
+    if (!n.ok) return `path ${String(path)} is invalid: ${n.reason}`;
+  }
+  if (event.actor.kind !== 'agent') return undefined;
+  const grant =
+    typeof event.authorityGrantId === 'string' ? run.grants[event.authorityGrantId] : undefined;
+  if (!grant) return 'file write without a recorded authority grant';
+  if (grant.revoked) return `file write under revoked grant ${grant.grantId}`;
+  const outside = paths.filter((p) => !pathPermitted(p, grant.permittedPaths));
+  return outside.length
+    ? `path ${outside.map(String).join(', ')} is outside the permitted paths of grant ${grant.grantId}`
+    : undefined;
 }
 
 function sessionOf(event: DomainEvent): string | undefined {
@@ -125,21 +189,11 @@ export function validateEvent(run: RunState, event: DomainEvent): EventRejection
       )
         return authority(`owner_decision ${id} must cite its recorded decision as evidence`);
       if (event.type === 'owner_decision' && lineage?.state === 'OWNER_DECISION_REQUIRED') {
-        /**
-         * The wildcard resume never manufactures eligibility or authority: a protected state can only
-         * be resumed into when it is the recorded pre-halt state and its invariant still holds.
-         */
-        const recorded = lineage.resumeState;
-        const target = (p.resumesTo as CandidateState | undefined) ?? recorded;
-        if (target && protectedStates.has(target)) {
-          if (target !== recorded)
-            return authority(
-              `owner_decision cannot resume into protected state ${target} (halted from ${recorded ?? 'none'})`,
-            );
-          if (!protectedStateInvariantHolds(lineage, target))
-            return consistency(
-              `owner_decision cannot resume into ${target}: its invariant no longer holds`,
-            );
+        /** The wildcard resume never manufactures eligibility or authority (`resumeTargetProblem`). */
+        const target = (p.resumesTo as CandidateState | undefined) ?? lineage.resumeState;
+        if (target) {
+          const problem = resumeTargetProblem(lineage, target);
+          if (problem) return problem;
         }
       }
       return undefined;
@@ -160,12 +214,10 @@ export function validateEvent(run: RunState, event: DomainEvent): EventRejection
         return authority('a TIER_3 grant is an owner-only action');
       if (a.kind === 'virgil' && tier !== 'TIER_1' && !run.stage.scopeApproved)
         return authority('Virgil may grant beyond TIER_1 only after scope_approved by the owner');
-      if (a.kind !== 'owner')
-        for (const path of (p.permittedPaths as string[]) ?? []) {
-          const boundary = patternReachesProtectedBoundary(path);
-          if (boundary)
-            return authority(`permitted path ${path} reaches protected boundary ${boundary}`);
-        }
+      for (const path of (p.permittedPaths as unknown[]) ?? []) {
+        const problem = permittedPathProblem(path, a.kind);
+        if (problem) return authority(problem);
+      }
       return undefined;
     }
     case 'authority_revoked':
@@ -192,7 +244,32 @@ export function validateEvent(run: RunState, event: DomainEvent): EventRejection
       if (s !== undefined && s !== String(p.sessionId))
         return authority(`actor session ${s} reports for ${String(p.sessionId)}`);
       return undefined;
+    case 'file_created':
+    case 'file_modified':
+    case 'file_deleted': {
+      const problem = fileWriteProblem(run, event, [p.path]);
+      return problem ? authority(problem) : undefined;
+    }
+    case 'file_moved': {
+      const problem = fileWriteProblem(run, event, [p.from, p.to]);
+      return problem ? authority(problem) : undefined;
+    }
+    case 'file_read':
+    case 'repository_searched': {
+      const path = event.type === 'file_read' ? p.path : p.scopePath;
+      if (path === undefined) return undefined;
+      const n = normaliseRepoPath(path);
+      return n.ok ? undefined : consistency(`path ${String(path)} is invalid: ${n.reason}`);
+    }
+    case 'changes_staged': {
+      const problem = fileWriteProblem(run, event, (p.paths as unknown[]) ?? []);
+      return problem ? authority(problem) : undefined;
+    }
     case 'candidate_committed': {
+      for (const path of (p.manifest as unknown[]) ?? []) {
+        const n = normaliseRepoPath(path);
+        if (!n.ok) return consistency(`manifest path ${String(path)} is invalid: ${n.reason}`);
+      }
       if (!lineage || !lineage.currentSha) return undefined;
       if (p.lineageId !== lineage.lineageId)
         return consistency(
@@ -359,6 +436,15 @@ export function validateEvent(run: RunState, event: DomainEvent): EventRejection
       if (!lineage) return consistency('no candidate lineage');
       if (!grantIssuers.has(a.kind))
         return authority(`only the owner or Virgil may authorise a repair, got ${a.kind}`);
+      /** One bounded repair is Tier 2 work: it exists only under the owner's recorded scope decision. */
+      if (!Object.values(run.decisions).some((d) => d.kind === 'scope_approved'))
+        return authority(
+          'repair authorisation requires a recorded owner scope decision; none exists in this run',
+        );
+      for (const path of (p.permittedFiles as unknown[]) ?? []) {
+        const problem = permittedPathProblem(path, a.kind);
+        if (problem) return authority(`repair contract: ${problem}`);
+      }
       if (p.lineageId !== lineage.lineageId)
         return consistency('repair contract names another lineage');
       if (p.reviewedSha !== lineage.currentSha)

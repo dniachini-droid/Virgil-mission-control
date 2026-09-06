@@ -101,18 +101,76 @@ export function mergeGatesPass(lineage: LineageState, headSha: string): boolean 
 }
 
 /**
- * States that may only be entered through a guarded transition. An `owner_decision` may resume
- * into one of them only when it is the recorded pre-halt state and its invariant still holds.
+ * Resume targets an `owner_decision` may never name. Eligibility states (`SAFE_TO_MERGE`,
+ * `REPAIR_AUTHORISED`) are earned only through their guarded transitions, and the terminal fact
+ * states (`MERGED`, `DEPLOYED`) record something that happened and cannot be re-entered by decree.
+ * `OWNER_DECISION_REQUIRED` is the halt state itself. Keeper finding K-01.
  */
-export const protectedStates: ReadonlySet<CandidateState> = new Set<CandidateState>([
-  'READY_FOR_REVIEW',
-  'REVIEW_IN_PROGRESS',
-  'PASS_WITH_NON_BLOCKING_FINDINGS',
-  'REPAIR_AUTHORISED',
+export const privilegedResumeStates: ReadonlySet<CandidateState> = new Set<CandidateState>([
   'SAFE_TO_MERGE',
   'MERGED',
   'DEPLOYED',
+  'REPAIR_AUTHORISED',
+  'OWNER_DECISION_REQUIRED',
 ]);
+
+/**
+ * Review-stage states: an `owner_decision` may resume into one only when it is the recorded
+ * pre-halt state and its invariant (fresh verification, fresh seal) still holds.
+ */
+export const guardedResumeStates: ReadonlySet<CandidateState> = new Set<CandidateState>([
+  'READY_FOR_REVIEW',
+  'REVIEW_IN_PROGRESS',
+  'PASS_WITH_NON_BLOCKING_FINDINGS',
+]);
+
+/**
+ * Explicit allowlist of states an `owner_decision` may name as `resumesTo` regardless of the
+ * recorded pre-halt state. None confers eligibility, review standing or authority; every later
+ * privilege must be re-earned through the transition table.
+ */
+export const resumeTargetAllowlist: ReadonlySet<CandidateState> = new Set<CandidateState>([
+  'BUILDING',
+  'BUILDER_REPORTED_COMPLETE',
+  'VERIFICATION_INCOMPLETE',
+  'BLOCKED',
+  'INSUFFICIENT_EVIDENCE',
+  'QUARANTINED',
+  'RE_REVIEW_REQUIRED',
+]);
+
+/** Terminal fact states. A halt records the owner question but cannot suspend a merge that happened. */
+export const terminalStates: ReadonlySet<CandidateState> = new Set<CandidateState>([
+  'MERGED',
+  'DEPLOYED',
+]);
+
+/** States that may only be entered through a guarded transition (privileged plus guarded). */
+export const protectedStates: ReadonlySet<CandidateState> = new Set<CandidateState>([
+  ...[...privilegedResumeStates].filter((s) => s !== 'OWNER_DECISION_REQUIRED'),
+  ...guardedResumeStates,
+]);
+
+/**
+ * The state recorded as the resume target when the machinery halts from `from`. A halt from an
+ * eligibility state falls back to the state that eligibility was earned from, so the privilege is
+ * re-earned by its guarded transition after the owner decides; a halt during an authorised repair
+ * withdraws the repair authority (the candidate returns to quarantine and the cycle stays counted).
+ */
+export function safeResumeStateFor(from: CandidateState, lineage: LineageState): CandidateState {
+  switch (from) {
+    case 'SAFE_TO_MERGE':
+      return lineage.reviewSeal?.verdict === 'PASS_WITH_NON_BLOCKING_FINDINGS'
+        ? 'PASS_WITH_NON_BLOCKING_FINDINGS'
+        : 'READY_FOR_REVIEW';
+    case 'REPAIR_AUTHORISED':
+      return 'QUARANTINED';
+    case 'OWNER_DECISION_REQUIRED':
+      return lineage.resumeState ?? 'QUARANTINED';
+    default:
+      return from;
+  }
+}
 
 /** The invariant a protected state carries; used when an owner decision resumes into it. */
 export function protectedStateInvariantHolds(

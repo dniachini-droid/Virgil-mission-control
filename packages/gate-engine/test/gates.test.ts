@@ -82,6 +82,21 @@ describe('gate semantics', () => {
     expect(pathPermitted('constitution/authority.json', ['apps/**'])).toBe(false);
     expect(pathPermitted('docs/a.md', ['docs/*.md'])).toBe(true);
     expect(pathPermitted('docs/sub/a.md', ['docs/*.md'])).toBe(false);
+    // Normalised before comparison: traversal, absolute and encoded paths never match any pattern.
+    expect(pathPermitted('apps/x/src/../../../constitution/authority.json', ['apps/**'])).toBe(
+      false,
+    );
+    expect(pathPermitted('apps/x/src/%2e%2e/%2e%2e/constitution/authority.json', ['**'])).toBe(
+      false,
+    );
+    expect(pathPermitted('/apps/x/src/a.ts', ['apps/**'])).toBe(false);
+    expect(pathPermitted('apps/x/./src//a.ts', ['apps/x/src/**'])).toBe(true);
+    const escaped = gates.diff_within_permitted_paths({
+      changedPaths: ['apps/x/src/a.ts', 'apps/x/src/../../../constitution/authority.json'],
+      permittedPaths: ['apps/x/src/**'],
+    });
+    expect(escaped.result).toBe('fail');
+    expect(escaped.reason).toContain('constitution/authority.json');
   });
   it('repair cycle: 1 normal, 2 with owner decision, 3 never', () => {
     const base: GateEvidence = { repairCycleCount: 0, requestedRepairCycle: 1 };

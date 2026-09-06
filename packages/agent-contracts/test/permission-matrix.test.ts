@@ -1,8 +1,15 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import settings from '../../../.claude/settings.json' with { type: 'json' };
+import authority from '../../../constitution/authority.json' with { type: 'json' };
 import matrix from '../../../constitution/permission-matrix.json' with { type: 'json' };
-import { AgentDefinitionFrontmatter, schemaRegistry } from '../src/index.js';
+import {
+  AgentDefinitionFrontmatter,
+  normaliseRepoPathPattern,
+  patternsMayOverlap,
+  schemaRegistry,
+} from '../src/index.js';
 
 const agentsDir = resolve(import.meta.dirname, '../../../.claude/agents');
 const roles = matrix.roles;
@@ -106,4 +113,86 @@ describe('agent definitions agree with the matrix', () => {
       expect(body).toContain('Definition version');
     });
   }
+});
+
+/**
+ * Tool and write-authority overlap. A role's tools, Bash policy, write boundaries and candidate
+ * flags must tell one story, no two roles may hold nested concrete boundaries, no boundary may
+ * reach a protected boundary from authority.json, and the session deny rules must cover every
+ * path-shaped protected boundary for both Write and Edit.
+ */
+describe('tool and write-authority overlap', () => {
+  const writeTools = new Set(['Edit', 'Write']);
+  const placeholder = (w: string) => /^<.+>$/.test(w);
+  const sanctionedPlaceholders: Record<string, string> = {
+    '<assigned-worktree>/<permitted-paths-from-plan-or-repair-contract>': 'fabricator',
+    '<explicitly-authorised-test-boundary>': 'prover',
+    '<disposable-scratch-copy>': 'breaker',
+  };
+  const protectedPaths = authority.protectedBoundaries.filter((b) => b.includes('/'));
+
+  it('a role has write tools if and only if it has a write boundary', () => {
+    for (const r of roles) {
+      const hasWriteTool = r.tools.some((t) => writeTools.has(t));
+      expect(hasWriteTool, `${r.id}: tools ${r.tools.join(',')}`).toBe(
+        r.writeBoundaries.length > 0,
+      );
+    }
+  });
+  it('only a role that may modify the candidate holds a boundary inside the candidate worktree', () => {
+    for (const r of roles) {
+      const inCandidate = r.writeBoundaries.some(
+        (w) => w.includes('worktree') || w.includes('permitted-paths'),
+      );
+      expect(inCandidate, r.id).toBe(r.mayModifyCandidate === true);
+      if (r.mayModifyTests !== false)
+        expect(
+          r.tools.some((t) => writeTools.has(t)),
+          `${r.id} modifies tests`,
+        ).toBe(true);
+      if (r.bashPolicy === 'none' || r.bashPolicy.startsWith('read-only'))
+        expect(r.mayModifyCandidate, `${r.id} bash ${r.bashPolicy}`).toBe(false);
+    }
+  });
+  it('stage launching is exclusive to the role holding the Agent tool', () => {
+    for (const r of roles) expect(r.tools.includes('Agent'), r.id).toBe(r.mayLaunchStages);
+  });
+  it('placeholder boundaries are the three sanctioned ones, each held by one role', () => {
+    for (const r of roles)
+      for (const w of r.writeBoundaries.filter(placeholder))
+        expect(sanctionedPlaceholders[w], `${r.id}: ${w}`).toBe(r.id);
+    for (const [w, id] of Object.entries(sanctionedPlaceholders))
+      expect(byId.get(id)?.writeBoundaries, id).toContain(w);
+  });
+  it('concrete boundaries normalise, never nest across roles and never reach a protected boundary', () => {
+    const concrete: Array<[string, string]> = [];
+    for (const r of roles)
+      for (const w of r.writeBoundaries.filter((x) => !placeholder(x))) {
+        const n = normaliseRepoPathPattern(w);
+        expect(n.ok, `${r.id}: ${w}`).toBe(true);
+        if (n.ok) concrete.push([n.path, r.id]);
+      }
+    expect(concrete.length).toBeGreaterThan(0);
+    for (const [a, ra] of concrete)
+      for (const [b, rb] of concrete)
+        if (ra !== rb) expect(patternsMayOverlap(a, b), `${ra}:${a} vs ${rb}:${b}`).toBe(false);
+    for (const [w, id] of concrete)
+      for (const boundary of protectedPaths)
+        expect(patternsMayOverlap(w, boundary), `${id}:${w} vs protected ${boundary}`).toBe(false);
+  });
+  it('session deny rules cover Write and Edit for every path-shaped protected boundary', () => {
+    const deny = new Set(settings.permissions.deny);
+    const rule = (b: string) => {
+      const n = normaliseRepoPathPattern(b);
+      expect(n.ok, b).toBe(true);
+      if (!n.ok) return b;
+      return n.path.endsWith('/') ? `./${n.path}**` : `./${n.path}`;
+    };
+    for (const b of protectedPaths) {
+      const target = rule(b);
+      expect(deny, `Write(${target})`).toContain(`Write(${target})`);
+      expect(deny, `Edit(${target})`).toContain(`Edit(${target})`);
+    }
+    expect(protectedPaths.length).toBeGreaterThanOrEqual(5);
+  });
 });

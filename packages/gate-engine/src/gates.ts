@@ -1,4 +1,4 @@
-import type { EvidenceRef } from '@virgil/agent-contracts';
+import { type EvidenceRef, pathPermitted as sharedPathPermitted } from '@virgil/agent-contracts';
 import authority from '../../../constitution/authority.json' with { type: 'json' };
 import type { GateEvidence } from './evidence.js';
 
@@ -30,23 +30,12 @@ const missing = (gateId: string, reason: string): GateDecision => ({
 });
 const ref = (kind: EvidenceRef['kind'], r: string): EvidenceRef => ({ kind, ref: r });
 
-/** Minimal glob: supports trailing '/**', '*' within a segment, and exact paths. */
-export function pathPermitted(path: string, patterns: readonly string[]): boolean {
-  return patterns.some((pat) => {
-    if (pat.endsWith('/**')) return path === pat.slice(0, -3) || path.startsWith(pat.slice(0, -2));
-    if (pat.endsWith('/')) return path.startsWith(pat);
-    if (pat.includes('*')) {
-      const re = new RegExp(
-        `^${pat
-          .split('*')
-          .map((s) => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
-          .join('[^/]*')}$`,
-      );
-      return re.test(path);
-    }
-    return path === pat;
-  });
-}
+/**
+ * Permitted-path matching is shared with the contracts and the domain reducer
+ * (`@virgil/agent-contracts` paths.ts): every path and pattern is normalised first and a path that
+ * cannot be normalised (traversal, absolute, encoded separators) is never permitted.
+ */
+export const pathPermitted = sharedPathPermitted;
 
 export const gates = {
   repository_allowlisted(e: GateEvidence): GateDecision {

@@ -180,8 +180,9 @@ describe('K-01: owner_decision resume cannot manufacture a protected state', () 
     expect(lastOf(s, 'owner_decision')?.kind).toBe('authority');
     expect(s.decisions['OD-0005']).toBeUndefined();
   });
-  it('re-validates the invariant when resuming into the protected state it halted from', () => {
-    // Halt from SAFE_TO_MERGE, then the candidate changes while halted; resuming must be refused.
+  it('re-validates the invariant when resuming into the review state it halted back to', () => {
+    // Halt from SAFE_TO_MERGE records the pre-eligibility state; the candidate then changes while
+    // halted, so resuming into that review state must be refused (its seal is stale).
     const base = prefixThrough(passingRun(), 'safe_to_merge');
     const t = new Tail(base)
       .add('owner_decision_required', virgil, {
@@ -203,7 +204,7 @@ describe('K-01: owner_decision resume cannot manufacture a protected state', () 
         ev('owner_decision', 'OD-0009'),
       ]);
     const s = replay('adv', t.events);
-    expect(s.lineage?.resumeState).toBe('SAFE_TO_MERGE');
+    expect(s.lineage?.resumeState).toBe('PASS_WITH_NON_BLOCKING_FINDINGS');
     expect(s.lineage?.state).toBe('OWNER_DECISION_REQUIRED');
     expect(lastOf(s, 'owner_decision')?.kind).toBe('consistency');
   });

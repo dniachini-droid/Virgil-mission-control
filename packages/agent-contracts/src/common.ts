@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import authority from '../../../constitution/authority.json' with { type: 'json' };
 import matrix from '../../../constitution/permission-matrix.json' with { type: 'json' };
+import { isValidRepoPath, isValidRepoPathPattern } from './paths.js';
 
 export const Sha = z
   .string()
@@ -11,13 +12,16 @@ export const Timestamp = z.iso
   .datetime({ offset: true })
   .describe('ISO-8601 timestamp with offset');
 export const Id = z.string().min(1).max(200);
+/** Concrete repository-relative path: normalisable, no traversal, no globs (see paths.ts). */
 export const RepoPath = z
   .string()
   .min(1)
-  .refine(
-    (p) => !p.startsWith('/') && !p.includes('..'),
-    'repository-relative path without traversal',
-  );
+  .refine(isValidRepoPath, 'repository-relative path without traversal, absolute prefix or globs');
+/** Permitted-path pattern: a normalisable path, directory prefix or `*`/`**` glob without traversal. */
+export const RepoPathPattern = z
+  .string()
+  .min(1)
+  .refine(isValidRepoPathPattern, 'repository-relative path pattern without traversal');
 export const ContentHash = z
   .string()
   .regex(/^sha256:[0-9a-f]{64}$/)

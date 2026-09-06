@@ -2,6 +2,7 @@ export * from './common.js';
 export * from './events.js';
 export * from './knowledge.js';
 export * from './operational.js';
+export * from './paths.js';
 export * from './visual.js';
 
 import * as common from './common.js';

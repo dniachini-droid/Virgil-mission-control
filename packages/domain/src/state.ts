@@ -101,11 +101,14 @@ export interface LineageState {
   /** Derived by counting accepted `repair_authorised` transitions. Never read from a payload. */
   repairCycles: number;
   activeRepairContractId?: string | undefined;
+  /** Repair contracts withdrawn because the machinery halted for an owner decision while a repair was authorised. */
+  withdrawnRepairContractIds: string[];
   adjudications: Record<string, AdjudicationRecord>;
   shaHistory: string[];
   deployment: DeploymentState;
   deploymentId?: string | undefined;
   mergeSha?: string | undefined;
+  /** The safe state an `owner_decision` resumes into, recorded when the machinery halted (see guards.ts `safeResumeStateFor`). */
   resumeState?: CandidateState | undefined;
   pendingOwnerQuestion?:
     | { questionId: string; question: string; recommendedDefault: string }
@@ -251,6 +254,7 @@ export function newLineage(lineageId: string): LineageState {
     findings: {},
     priorSeals: [],
     repairCycles: 0,
+    withdrawnRepairContractIds: [],
     adjudications: {},
     shaHistory: [],
     deployment: 'NOT_STARTED',
