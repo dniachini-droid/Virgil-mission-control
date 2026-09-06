@@ -1,0 +1,17 @@
+{
+  "name": "@virgil/visual-language",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Epistemic visual contract, operational animation grammar, role performance bible and design tokens. Data that rendering may not reinterpret.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@virgil/agent-contracts": "workspace:*"
+  }
+}
