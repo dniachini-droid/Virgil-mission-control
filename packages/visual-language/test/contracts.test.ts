@@ -74,7 +74,10 @@ describe('operational animation grammar', () => {
   });
   it('defines all sixteen fields with reduced-motion, mobile, failure and replay equivalents for every mapping', () => {
     for (const m of animationGrammar.mappings) {
-      expect(m.requiredEvidence.length, m.eventType).toBeGreaterThan(0);
+      expect(
+        m.requiredEvidence.length + (m.anyOfEvidence?.length ?? 0),
+        m.eventType,
+      ).toBeGreaterThan(0);
       for (const f of [
         'persistentVisual',
         'reducedMotion',

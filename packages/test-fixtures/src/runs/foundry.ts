@@ -211,10 +211,16 @@ function prologue(b: RunBuilder, headSha: string): void {
     [ev('git_object', headSha)],
     { grant: 'G-fab-1' },
   );
-  b.add('push_started', fab, { headSha, branch: 'feature/capsule-sha', remote: 'origin' }, [], {
-    grant: 'G-fab-1',
-    durability: 'replayable_operational',
-  });
+  b.add(
+    'push_started',
+    fab,
+    { headSha, branch: 'feature/capsule-sha', remote: 'origin' },
+    [ev('git_object', headSha)],
+    {
+      grant: 'G-fab-1',
+      durability: 'replayable_operational',
+    },
+  );
   b.add(
     'candidate_pushed',
     github,

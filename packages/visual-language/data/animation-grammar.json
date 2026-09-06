@@ -726,7 +726,7 @@
       "eventType": "push_started",
       "layer": "git_manufacturing",
       "world": "foundry",
-      "requiredEvidence": ["event"],
+      "requiredEvidence": ["git_object"],
       "actorRole": "fabricator",
       "source": "local worktree dock",
       "destination": "remote station",
@@ -1715,7 +1715,7 @@
       "eventType": "raw_source_added",
       "layer": "knowledge",
       "world": "mind",
-      "requiredEvidence": ["raw_source"],
+      "requiredEvidence": [],
       "actorRole": "system",
       "source": "Mind gateway or owner aperture",
       "destination": "Archive Nebula",
@@ -1738,7 +1738,8 @@
         "optional": true,
         "motif": "arrival chime"
       },
-      "mustNotResemble": ["wiki_page_created"]
+      "mustNotResemble": ["wiki_page_created"],
+      "anyOfEvidence": ["code_path", "run_record"]
     },
     {
       "mappingId": "anim-raw_source_hashed",
@@ -1805,7 +1806,7 @@
       "eventType": "knowledge_compilation_proposed",
       "layer": "knowledge",
       "world": "mind",
-      "requiredEvidence": ["raw_source"],
+      "requiredEvidence": [],
       "actorRole": "knowledge_worker",
       "source": "light projection",
       "destination": "Synaptic Forge",
@@ -1828,14 +1829,15 @@
         "optional": true,
         "motif": "forge shimmer"
       },
-      "mustNotResemble": ["wiki_page_created"]
+      "mustNotResemble": ["wiki_page_created"],
+      "anyOfEvidence": ["raw_source", "run_record"]
     },
     {
       "mappingId": "anim-claim_supported",
       "eventType": "claim_supported",
       "layer": "knowledge",
       "world": "mind",
-      "requiredEvidence": ["raw_source"],
+      "requiredEvidence": [],
       "actorRole": "knowledge_worker",
       "source": "proposed claim",
       "destination": "supporting source",
@@ -1858,14 +1860,24 @@
         "optional": true,
         "motif": "tether click"
       },
-      "mustNotResemble": ["knowledge_compilation_approved"]
+      "mustNotResemble": ["knowledge_compilation_approved"],
+      "anyOfEvidence": [
+        "raw_source",
+        "run_record",
+        "owner_decision",
+        "adr",
+        "schema",
+        "code_path",
+        "event",
+        "wiki_page"
+      ]
     },
     {
       "mappingId": "anim-provenance_tether_created",
       "eventType": "provenance_tether_created",
       "layer": "knowledge",
       "world": "mind",
-      "requiredEvidence": ["raw_source"],
+      "requiredEvidence": [],
       "actorRole": "knowledge_worker",
       "source": "claim",
       "destination": "evidence target",
@@ -1888,7 +1900,17 @@
         "optional": true,
         "motif": "tether click"
       },
-      "mustNotResemble": ["provenance_tether_broken"]
+      "mustNotResemble": ["provenance_tether_broken"],
+      "anyOfEvidence": [
+        "raw_source",
+        "run_record",
+        "owner_decision",
+        "adr",
+        "schema",
+        "code_path",
+        "event",
+        "wiki_page"
+      ]
     },
     {
       "mappingId": "anim-provenance_tether_broken",

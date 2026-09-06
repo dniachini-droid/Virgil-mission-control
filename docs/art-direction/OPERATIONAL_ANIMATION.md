@@ -18,7 +18,7 @@ Virgil makes authenticated work visible. Every consequential animation correspon
 
 ## Each mapping defines
 
-Triggering event, required evidence kinds, actor role, source and destination, entity, state before, transitional state, state after, full motion (description, duration, camera hint), persistent visual, reduced-motion equivalent, mobile and low-performance equivalent, failure and interruption behaviour, replay behaviour, Evidence View destination, optional sound or haptic motif, and the mappings it must never resemble.
+Triggering event, required evidence kinds (all of `requiredEvidence` plus at least one of `anyOfEvidence` where the legitimate kind varies, as for tethers), actor role, source and destination, entity, state before, transitional state, state after, full motion (description, duration, camera hint), persistent visual, reduced-motion equivalent, mobile and low-performance equivalent, failure and interruption behaviour, replay behaviour, Evidence View destination, optional sound or haptic motif, and the mappings it must never resemble.
 
 ## Distinctions enforced
 

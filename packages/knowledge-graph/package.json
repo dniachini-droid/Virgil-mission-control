@@ -9,7 +9,8 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "export-seed-graph": "tsx scripts/export-seed-graph.ts"
   },
   "dependencies": {
     "@virgil/agent-contracts": "workspace:*",

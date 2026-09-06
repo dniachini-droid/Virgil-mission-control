@@ -29,8 +29,13 @@ export const AnimationMapping = z.object({
   world: World,
   requiredEvidence: z
     .array(EvidenceKind)
-    .min(1)
-    .describe('Evidence kinds that must be present on the event before this animation may play'),
+    .describe(
+      'Evidence kinds that must all be present on the event before this animation may play',
+    ),
+  anyOfEvidence: z
+    .array(EvidenceKind)
+    .optional()
+    .describe('When present, at least one of these kinds must also be present on the event'),
   actorRole: z.union([
     RoleId,
     z.enum(['owner', 'virgil', 'system', 'git', 'github', 'knowledge_worker', 'any']),

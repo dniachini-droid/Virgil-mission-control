@@ -114,7 +114,6 @@
             ]
           },
           "requiredEvidence": {
-            "minItems": 1,
             "type": "array",
             "items": {
               "type": "string",
@@ -139,7 +138,34 @@
                 "adr"
               ]
             },
-            "description": "Evidence kinds that must be present on the event before this animation may play"
+            "description": "Evidence kinds that must all be present on the event before this animation may play"
+          },
+          "anyOfEvidence": {
+            "description": "When present, at least one of these kinds must also be present on the event",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "git_object",
+                "git_ref",
+                "command_output",
+                "check_run",
+                "file_hash",
+                "diff",
+                "event",
+                "pull_request",
+                "raw_source",
+                "owner_decision",
+                "gate_decision",
+                "review_report",
+                "adjudication",
+                "run_record",
+                "wiki_page",
+                "schema",
+                "code_path",
+                "adr"
+              ]
+            }
           },
           "actorRole": {
             "anyOf": [
