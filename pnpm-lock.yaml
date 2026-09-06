@@ -69,9 +69,6 @@ importers:
       '@playwright/test':
         specifier: ^1.63.0
         version: 1.63.0
-      '@react-three/test-renderer':
-        specifier: ^9.1.1
-        version: 9.1.1(@react-three/fiber@9.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(three@0.185.1))(react@19.2.8)(three@0.185.1)
       '@types/react':
         specifier: ^19.2.0
         version: 19.2.18
@@ -445,13 +442,6 @@ packages:
       postprocessing: ^6.36.0
       react: ^19.0.0
       three: '>= 0.156.0'
-
-  '@react-three/test-renderer@9.1.1':
-    resolution: {integrity: sha512-4DmLn0tg+AP8aU0Mb5vekjHqFrwRJ3z11HfQGOJIDj6DxZ/5BjRHRsDxY0Y+g4l8+WHysQ6PeuSdzTDDYoGuXg==}
-    peerDependencies:
-      '@react-three/fiber': '>=9.0.0'
-      react: ^19.0.0
-      three: '>=0.156'
 
   '@rolldown/binding-android-arm-eabi@1.2.7':
     resolution: {integrity: sha512-EypzgnYCwyVY4NDHKzGmNJT5b+XaQEBniHxsMdeIQLB/tcCzZnhqrzHpZFbX9iaxx+5RiB8caATBtfvZP7zVxQ==}
@@ -1545,12 +1535,6 @@ snapshots:
       three: 0.185.1
     transitivePeerDependencies:
       - '@types/three'
-
-  '@react-three/test-renderer@9.1.1(@react-three/fiber@9.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(three@0.185.1))(react@19.2.8)(three@0.185.1)':
-    dependencies:
-      '@react-three/fiber': 9.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(three@0.185.1)
-      react: 19.2.8
-      three: 0.185.1
 
   '@rolldown/binding-android-arm-eabi@1.2.7':
     optional: true

@@ -8,7 +8,7 @@ The governing product authority is `docs/product/VIRGIL_MASTER_COMMISSION.md`. S
 
 ## Status
 
-Phase 0, foundation and governed design, is in progress. No orchestrator, agent launching, repository integration or production interface exists yet. The application contains two art-direction and data-contract spikes only.
+Phase 0, foundation and governed design, is delivered and awaits the owner's art-direction checkpoint on a real GPU (`docs/process/ART_DIRECTION_CHECKPOINT.md`). No orchestrator, agent launching, repository integration or production interface exists yet. The application contains two art-direction and data-contract spikes only (`docs/art-direction/SPIKES.md`).
 
 ## Getting started
 

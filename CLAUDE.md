@@ -51,4 +51,4 @@ pnpm --filter mission-control dev                       # spikes at /spike/found
 
 ## Phase status
 
-Phase 0 (foundation and governed design) in progress on branch `claude/virgil-phase-0-plan-kp7g38`. Phase 1 does not begin until the owner accepts the Phase 0 run record and the art-direction checkpoint. See `docs/process/`.
+Phase 0 (foundation and governed design) delivered on branch `claude/virgil-phase-0-plan-kp7g38`; verdict BLOCKED_PENDING_REAL_GPU_REVIEW awaiting the owner's art-direction checkpoint (`docs/process/ART_DIRECTION_CHECKPOINT.md`). Phase 1 does not begin until OD-0002 is accepted. See `docs/process/PHASE_0_RUN_RECORD.md` and `PHASE_0_TRACEABILITY.md`.

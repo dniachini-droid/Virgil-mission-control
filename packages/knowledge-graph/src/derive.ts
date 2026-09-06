@@ -105,7 +105,7 @@ export function deriveGraph(opts: DeriveOptions): KnowledgeGraph {
   for (const file of walk(join(root, 'docs/decisions'), (f) => /\/(OD|ADR)-\d{4}.*\.md$/.test(f))) {
     const p = rel(file);
     const isOd = /\/OD-/.test(p);
-    const proposed = p.endsWith('.proposed.md');
+    const proposed = p.endsWith('.proposed.md') || p.includes('/proposed/');
     const title = (readFileSync(file, 'utf8').match(/^# (.+)$/m)?.[1] ?? p).trim();
     addNode({
       id: p,

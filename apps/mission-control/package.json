@@ -28,7 +28,6 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
-    "@react-three/test-renderer": "^9.1.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@types/three": "^0.185.0",
