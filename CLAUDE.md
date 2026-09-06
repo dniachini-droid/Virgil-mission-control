@@ -51,4 +51,4 @@ pnpm --filter mission-control dev                       # spikes at /spike/found
 
 ## Phase status
 
-Phase 0 (foundation and governed design) delivered on branch `claude/virgil-phase-0-plan-kp7g38`; verdict BLOCKED_PENDING_REAL_GPU_REVIEW awaiting the owner's art-direction checkpoint (`docs/process/ART_DIRECTION_CHECKPOINT.md`). Phase 1 does not begin until OD-0002 is accepted. See `docs/process/PHASE_0_RUN_RECORD.md` and `PHASE_0_TRACEABILITY.md`.
+Phase 0 (foundation and governed design) delivered on branch `claude/virgil-phase-0-plan-kp7g38`; verdict BLOCKED_PENDING_REAL_GPU_REVIEW awaiting the owner's art-direction checkpoint (`docs/process/ART_DIRECTION_CHECKPOINT.md`). The Keeper's review of that branch found the reducer's authority enforcement overstated; the repair on branch `claude/virgil-phase-0-foundation-repair-qatfj9` is pending fresh independent review and owner acceptance (`docs/process/PHASE_0_FOUNDATION_REPAIR_RUN_RECORD.md`, `docs/architecture/ENFORCEMENT_BOUNDARIES.md`). Phase 1 does not begin until OD-0002 is accepted and the repair is accepted. See `docs/process/PHASE_0_RUN_RECORD.md` and `PHASE_0_TRACEABILITY.md`.
