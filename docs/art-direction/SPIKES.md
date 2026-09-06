@@ -1,5 +1,7 @@
 # Phase 0 rendering spikes
 
+Superseded for art direction by Phase 0.5 (`PHASE_0_5_PROTOTYPE.md`, captures in `phase-0-5/`) under OD-0002. This file and the `spikes/` captures remain as the Phase 0 baseline for comparison.
+
 Deliverables 14 and 15, and Amendment 1 outputs 8 and 9. Location: `apps/mission-control`, routes `/spike/foundry` and `/spike/mind`. Captures: `docs/art-direction/spikes/*.png` with `capture-report.json` (renderer string and page errors per capture). These are art-direction and data-contract proofs, not the interface.
 
 ## Run
