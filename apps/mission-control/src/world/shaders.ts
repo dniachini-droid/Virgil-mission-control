@@ -66,7 +66,7 @@ uniform vec3 uColor; uniform float uProgress; uniform float uCharge; uniform flo
 varying vec2 vUv;
 void main(){
   float along=vUv.x;
-  float body=0.12+0.25*uCharge;
+  float body=0.04+0.32*uCharge;
   float packet=uPacket*exp(-pow((along-uProgress)*22.0,2.0));
   float pulse=0.5+0.5*sin(along*40.0-uTime*3.0);
   float glow=body*(0.75+0.25*pulse*uCharge)+packet*1.8;

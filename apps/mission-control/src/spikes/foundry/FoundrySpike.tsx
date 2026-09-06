@@ -8,22 +8,26 @@ import { CameraRig } from '../../world/CameraRig.js';
 import { Effects } from '../../world/Effects.js';
 import { SpikeShell } from '../SpikeShell.js';
 import { FoundryScene } from './FoundryScene.js';
-import { cameras, foundryDurations, foundrySteps } from './sequence.js';
+import { cameras, foundrySequence, type RunVariant } from './sequence.js';
 
 export function FoundrySpike() {
   const [params] = useSearchParams();
   const initial = Number(params.get('step') ?? 0);
+  const variant: RunVariant = params.get('run') === 'failed' ? 'failed' : 'success';
+  const mono = params.get('mono') === '1';
+  const steps = useMemo(() => foundrySequence(variant), [variant]);
+  const durations = useMemo(() => steps.map((s) => s.durationMs), [steps]);
   return (
     <SpikeShell>
       {(settings, setSettings) => {
         // eslint-disable-next-line react-hooks/rules-of-hooks
         const { stepIndex, goTo, progressRef } = useSequence(
-          foundrySteps.length,
-          foundryDurations,
+          steps.length,
+          durations,
           settings.reducedMotion,
           initial,
         );
-        const step = foundrySteps[stepIndex] ?? foundrySteps[0]!;
+        const step = steps[stepIndex] ?? steps[0]!;
         const state = projectCandidateState(step.candidateState);
         // eslint-disable-next-line react-hooks/rules-of-hooks
         useEffect(() => {
@@ -35,9 +39,9 @@ export function FoundrySpike() {
           return () => clearTimeout(t);
         }, [stepIndex]);
         // eslint-disable-next-line react-hooks/rules-of-hooks
-        const steps: StepInfo[] = useMemo(
+        const stepInfos: StepInfo[] = useMemo(
           () =>
-            foundrySteps.map((s, i) => ({
+            steps.map((s, i) => ({
               id: s.id,
               title: s.title,
               status:
@@ -51,23 +55,27 @@ export function FoundrySpike() {
             })),
           [stepIndex],
         );
+        const headSha = (step.event?.payload as { headSha?: string } | undefined)?.headSha;
         return {
           scene: (
             <>
-              <FoundryScene step={stepIndex} progressRef={progressRef} />
+              <FoundryScene steps={steps} step={stepIndex} progressRef={progressRef} />
               <CameraRig pose={cameras[step.camera]} autoTravel={settings.autoTravel} />
-              <Effects />
+              <Effects mono={mono} />
             </>
           ),
           hud: (
             <Hud
-              title="Orbital Foundry · spike"
+              title={`Orbital Foundry · ${variant === 'failed' ? 'failed-check run' : 'success run'}`}
               settings={settings}
               onSettings={setSettings}
-              steps={steps}
+              steps={stepInfos}
               stepIndex={stepIndex}
               onStep={goTo}
-              other={{ label: 'Mind of Virgil', href: '/spike/mind' }}
+              other={{
+                label: variant === 'failed' ? 'success run' : 'failed-check run',
+                href: variant === 'failed' ? '/spike/foundry' : '/spike/foundry?run=failed',
+              }}
               evidence={
                 <Evidence
                   heading={`${String(stepIndex).padStart(2, '0')} · ${step.title}`}
@@ -78,26 +86,13 @@ export function FoundrySpike() {
                   }}
                   refusal={step.refusal}
                   fields={[
-                    ['project', 'virgil-mission-control · station 1'],
-                    ['branch', 'feature/capsule-sha · worktree .worktrees/capsule-sha'],
-                    [
-                      'candidate',
-                      stepIndex >= 6
-                        ? `${String((step.event?.payload as { headSha?: string })?.headSha ?? '').slice(0, 12) || 'a1330d5a1122'} (full SHA in Evidence View)`
-                        : 'none yet',
-                    ],
-                    ['grant', 'G-fab-1 · TIER_2 · fabricator'],
+                    ['branch', 'feature/capsule-sha · .worktrees/capsule-sha'],
+                    ['candidate', headSha ? `${headSha.slice(0, 12)}…` : 'see event'],
                     [
                       'renderer',
                       settings.softwareRenderer
-                        ? 'software (SwiftShader) — not a valid art judgment'
+                        ? 'software (SwiftShader) — not an art judgment'
                         : 'hardware',
-                    ],
-                    [
-                      'next action',
-                      stepIndex < foundrySteps.length - 1
-                        ? 'advance to the next recorded event'
-                        : 'owner reviews the spike on a real GPU',
                     ],
                   ]}
                   note={step.note}

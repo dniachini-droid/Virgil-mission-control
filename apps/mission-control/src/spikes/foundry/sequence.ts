@@ -1,7 +1,9 @@
 import type { DomainEvent } from '@virgil/agent-contracts';
-import { passingRun } from '@virgil/test-fixtures';
+import { blockedThenRepairedRun, passingRun } from '@virgil/test-fixtures';
 import { type AnimationRefusal, animationFor, tokens } from '@virgil/visual-language';
-import type { CameraPose } from '../../world/CameraRig.js';
+import { CAMERAS } from '../../world/foundry/layout.js';
+
+export type RunVariant = 'success' | 'failed';
 
 export interface FoundryStep {
   id: string;
@@ -9,25 +11,14 @@ export interface FoundryStep {
   event?: DomainEvent;
   refusal?: AnimationRefusal;
   durationMs: number;
-  camera: keyof typeof cameras;
+  camera: keyof typeof CAMERAS;
   candidateState: keyof typeof tokens.stateForm;
   note: string;
 }
 
-export const cameras = {
-  overview: { position: [0, 26, 54], target: [2, 0, -2] },
-  bench: { position: [-12, 4.6, 10.5], target: [-14.5, 1.1, 0.2] },
-  cradle: { position: [-7.5, 6, 9.5], target: [-14, 1.8, 0] },
-  lane: { position: [4, 9, 16], target: [10, 3, -14] },
-  remote: { position: [22, 9, -14], target: [30, 5, -30] },
-  corridor: { position: [-4, 7, 22], target: [-2, 1, 6] },
-  chamber: { position: [8, 5, 22], target: [10, 1.2, 12] },
-} satisfies Record<string, CameraPose>;
+export const cameras = CAMERAS;
 
-const events = passingRun();
-const byType = (type: string, n = 0) => events.filter((e) => e.type === type)[n];
-
-function step(
+function stepFrom(
   id: string,
   title: string,
   event: DomainEvent | undefined,
@@ -50,103 +41,283 @@ function step(
   };
 }
 
-/** A tampered event: a push confirmation with no remote evidence. The grammar must refuse it. */
-const tampered: DomainEvent = {
-  ...(byType('candidate_pushed') as DomainEvent),
-  eventId: 'tampered-push',
-  seq: 999,
-  evidence: [],
-} as DomainEvent;
+/**
+ * The bounded Phase 0.5 sequence: file modification → unstaged modules → staging → commit
+ * sealing → verification → evidence-backed handoff → independent Keeper review → non-blocking
+ * finding → review pass → safe-to-merge eligibility outside the closed owner airlock. The failed
+ * variant diverges at the unit check: failure, verification completed with a failure, quarantine.
+ * Both end with a tampered push confirmation that the grammar refuses.
+ */
+export function foundrySequence(variant: RunVariant): FoundryStep[] {
+  const events = variant === 'failed' ? blockedThenRepairedRun() : passingRun();
+  const byType = (type: string, n = 0) => events.filter((e) => e.type === type)[n];
+  const check = (type: string, checkId: string) =>
+    events.find((e) => e.type === type && (e.payload as { checkId?: string }).checkId === checkId);
+  const tampered: DomainEvent = {
+    ...(byType('candidate_pushed') as DomainEvent),
+    eventId: 'tampered-push',
+    seq: 999,
+    evidence: [],
+  } as DomainEvent;
 
-export const foundrySteps: FoundryStep[] = [
-  step(
-    'overview',
-    'station',
-    undefined,
-    'overview',
-    'BUILDING',
-    'One project station with its isolated worktree bay, the Prover chamber, the Keeper station across a gap, and the remote station beyond the gulf. Nothing moves without an event.',
-  ),
-  step(
-    'read',
-    'file read',
-    byType('file_read'),
-    'bench',
-    'BUILDING',
-    'A narrow inspection beam opens the module as a cross-section in place. Reading never resembles editing.',
-  ),
-  step(
-    'search',
-    'search',
-    byType('repository_searched'),
-    'bench',
-    'BUILDING',
-    'A structured pulse sweeps only the authorised directory scope; the scope is visible.',
-  ),
-  step(
-    'edit',
-    'file edit',
-    byType('file_modified'),
-    'bench',
-    'BUILDING',
-    'The module separates into unchanged structure and a diff plane; removed material streams to the audit vent. Local, unsealed, not a commit.',
-  ),
-  step(
-    'unstaged',
-    'unstaged',
-    byType('file_created'),
-    'bench',
-    'BUILDING',
-    'A second module is fabricated; both hover around the bench with diff markers. They are not cargo.',
-  ),
-  step(
-    'staged',
-    'staging cradle',
-    byType('changes_staged'),
-    'cradle',
-    'BUILDING',
-    'Approved modules rise into the magnetic cradle. Out-of-boundary files would be repelled and marked.',
-  ),
-  step(
-    'commit',
-    'sealed commit',
-    byType('candidate_committed'),
-    'cradle',
-    'BUILDING',
-    'The assembly compresses into a sealed capsule; the short SHA ignites on the hull. A candidate, not a verified artifact.',
-  ),
-  step(
-    'push',
-    'push transit',
-    byType('push_started'),
-    'lane',
-    'BUILDING',
-    'The mass-driver lane charges; the transmission enters transit while local and remote beacons stay out of phase.',
-  ),
-  step(
-    'pushed',
-    'remote confirmed',
-    byType('candidate_pushed'),
-    'remote',
-    'BUILDING',
-    'Only the remote ref evidence phase-locks the beacons and materialises the registered capsule at the remote dock.',
-  ),
-  step(
-    'handoff',
-    'evidence-backed handoff',
-    byType('handoff_started'),
-    'corridor',
-    'BUILDER_REPORTED_COMPLETE',
-    'The sealed capsule travels the named corridor to the Prover. No authority token travels: the grant is a separate event.',
-  ),
-  step(
-    'tampered',
-    'refused: push without evidence',
-    tampered,
-    'overview',
-    'BUILDER_REPORTED_COMPLETE',
-    'A push confirmation offered without remote evidence. The grammar refuses it: nothing moves, and the refusal is itself visible.',
-  ),
-];
+  const common: FoundryStep[] = [
+    stepFrom(
+      'overview',
+      'the bay',
+      undefined,
+      'overview',
+      'BUILDING',
+      'One Foundry work bay: the Fabricator bench, cradle and commit press in the foreground; the Prover scanner in the middle; the Keeper platform across the gap; Virgil at the control centre with the closed owner airlock behind. Nothing works without an event.',
+    ),
+    stepFrom(
+      'read',
+      'file read',
+      byType('file_read'),
+      'bench',
+      'BUILDING',
+      'The Fabricator opens Capsule.tsx as a cross-section under the bench lamp. Reading never resembles editing.',
+    ),
+    stepFrom(
+      'search',
+      'search',
+      byType('repository_searched'),
+      'bench',
+      'BUILDING',
+      'A pulse sweeps only the authorised directory scope across the bench top.',
+    ),
+    stepFrom(
+      'edit',
+      'file edit',
+      byType('file_modified'),
+      'bench',
+      'BUILDING',
+      'The module lifts and splits into a diff plane; removed material streams to the audit vent; new parts arrive on the wand. Unstaged, unsealed.',
+    ),
+    stepFrom(
+      'unstaged',
+      'unstaged modules',
+      byType('file_created'),
+      'bench',
+      'BUILDING',
+      'A second module is fabricated from a frame. Both hover in the racks, marked unstaged.',
+    ),
+    stepFrom(
+      'staged',
+      'staging',
+      byType('changes_staged'),
+      'cradle',
+      'BUILDING',
+      'The Fabricator carries the modules into the magnetic cradle. Nothing out of boundary was offered; nothing is repelled.',
+    ),
+    stepFrom(
+      'commit',
+      'commit sealing',
+      byType('candidate_committed'),
+      'press',
+      'BUILDING',
+      'The press closes over the staged assembly and opens on a sealed capsule with its short SHA. A candidate, not a verified artifact.',
+    ),
+    stepFrom(
+      'push',
+      'push transit',
+      byType('push_started'),
+      'press',
+      'BUILDING',
+      'The press transmitter charges toward the allowlisted remote; local and remote beacons are out of phase.',
+    ),
+    stepFrom(
+      'pushed',
+      'remote confirmed',
+      byType('candidate_pushed'),
+      'press',
+      'BUILDING',
+      'Only the remote ref evidence phase-locks the beacons. The capsule is registered at origin.',
+    ),
+    stepFrom(
+      'handoff-prover',
+      'handoff → Prover',
+      byType('handoff_started'),
+      'lane',
+      'BUILDER_REPORTED_COMPLETE',
+      'Virgil opens one route. The sealed capsule rides the lane to the scanner dock. No authority token travels.',
+    ),
+    stepFrom(
+      'received-prover',
+      'received',
+      byType('handoff_received'),
+      'scanner',
+      'BUILDER_REPORTED_COMPLETE',
+      'The Prover verifies identity, SHA and manifest and docks the capsule. Receipt is not acceptance.',
+    ),
+    stepFrom(
+      'verification',
+      'verification',
+      byType('verification_started'),
+      'scanner',
+      'VERIFICATION_INCOMPLETE',
+      'The Prover deploys the diagnostic mast. One channel per required check waits unpowered.',
+    ),
+    stepFrom(
+      'checks-static',
+      'static checks',
+      check('check_started', 'typecheck'),
+      'scanner',
+      'VERIFICATION_INCOMPLETE',
+      'tsc and biome sweep together: parallel checks sweep at once so they never read as sequential.',
+    ),
+    stepFrom(
+      'pass-typecheck',
+      'tsc passed',
+      check('check_passed', 'typecheck'),
+      'scanner',
+      'VERIFICATION_INCOMPLETE',
+      'The typecheck arc closes into a stable band on the capsule.',
+    ),
+    stepFrom(
+      'pass-lint',
+      'biome passed',
+      check('check_passed', 'lint'),
+      'scanner',
+      'VERIFICATION_INCOMPLETE',
+      'The lint arc closes. Two bands; the unit channel is still dark.',
+    ),
+    stepFrom(
+      'check-unit',
+      'unit running',
+      check('check_started', 'unit'),
+      'scanner',
+      'VERIFICATION_INCOMPLETE',
+      'vitest sweeps alone, after the static group.',
+    ),
+  ];
 
+  const unitPassed = stepFrom(
+    'pass-unit',
+    'unit passed',
+    check('check_passed', 'unit'),
+    'scanner',
+    'VERIFICATION_INCOMPLETE',
+    'Three bands. The optional visual check has not run.',
+  );
+  const unitFailed = stepFrom(
+    'fail-unit',
+    'unit FAILED',
+    check('check_failed', 'unit'),
+    'scanner',
+    'VERIFICATION_INCOMPLETE',
+    'The unit arc breaks at Capsule.tsx:42 with a fault tether to the check run. A failure is never dimmed.',
+  );
+  const skipped = stepFrom(
+    'skip-visual',
+    'visual skipped',
+    check('check_skipped', 'visual-regression'),
+    'scanner',
+    'VERIFICATION_INCOMPLETE',
+    'No GPU in the verification container: the visual channel stays unpowered, labelled with its reason. It never closes.',
+  );
+
+  if (variant === 'failed') {
+    return [
+      ...common,
+      unitFailed,
+      skipped,
+      stepFrom(
+        'verification-failed',
+        'verification failed',
+        byType('verification_completed'),
+        'scanner',
+        'BLOCKED',
+        'All required checks completed and one failed. No signature engages. The Prover cannot fix the candidate.',
+      ),
+      stepFrom(
+        'quarantined',
+        'quarantined',
+        byType('candidate_quarantined'),
+        'scanner',
+        'QUARANTINED',
+        'Virgil quarantines the candidate: a rigid lattice closes over the dock and the corridor to the Keeper stays dark.',
+      ),
+      stepFrom(
+        'tampered',
+        'refused: push without evidence',
+        tampered,
+        'overview',
+        'QUARANTINED',
+        'A push confirmation offered without remote evidence. The grammar refuses it: nothing moves and the refusal is itself visible.',
+      ),
+    ];
+  }
+  return [
+    ...common,
+    unitPassed,
+    skipped,
+    stepFrom(
+      'verified',
+      'signature',
+      byType('verification_completed'),
+      'scanner',
+      'READY_FOR_REVIEW',
+      'Every required check completed and passed: the machine-verification signature engages over the dock.',
+    ),
+    stepFrom(
+      'handoff-keeper',
+      'handoff → Keeper',
+      byType('handoff_started', 1),
+      'gap',
+      'READY_FOR_REVIEW',
+      'Virgil opens the second route. The capsule crosses the visible gap to the separate inspection platform.',
+    ),
+    stepFrom(
+      'received-keeper',
+      'received',
+      byType('handoff_received', 1),
+      'keeper',
+      'READY_FOR_REVIEW',
+      'The Keeper verifies identity, SHA and manifest at the lectern. It has no arms: it cannot open the capsule.',
+    ),
+    stepFrom(
+      'review',
+      'independent review',
+      byType('review_started'),
+      'keeper',
+      'REVIEW_IN_PROGRESS',
+      'Drones orbit the exact SHA under the magnifier; the reviewer session is independent of the builder and prover sessions.',
+    ),
+    stepFrom(
+      'finding',
+      'non-blocking finding',
+      byType('finding_raised'),
+      'keeper',
+      'REVIEW_IN_PROGRESS',
+      'One finding pinned with a stable id and a reproduced surface. Minor, non-blocking; it persists.',
+    ),
+    stepFrom(
+      'review-pass',
+      'review pass',
+      byType('review_passed'),
+      'keeper',
+      'PASS_WITH_NON_BLOCKING_FINDINGS',
+      'The inspection ring closes with the pin attached. One verdict, from one reviewer, on one SHA.',
+    ),
+    stepFrom(
+      'eligible',
+      'safe to merge',
+      byType('safe_to_merge'),
+      'airlock',
+      'SAFE_TO_MERGE',
+      'The gate engine assembles the eligibility key on the pedestal outside the owner airlock. Virgil presents it. The airlock stays closed: safe-to-merge is not merged.',
+    ),
+    stepFrom(
+      'tampered',
+      'refused: push without evidence',
+      tampered,
+      'overview',
+      'SAFE_TO_MERGE',
+      'A push confirmation offered without remote evidence. The grammar refuses it: nothing moves and the refusal is itself visible.',
+    ),
+  ];
+}
+
+export const foundrySteps = foundrySequence('success');
+export const foundryStepsFailed = foundrySequence('failed');
 export const foundryDurations = foundrySteps.map((s) => s.durationMs);

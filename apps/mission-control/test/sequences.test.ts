@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { foundrySteps } from '../src/spikes/foundry/sequence.js';
+import { foundrySequence, foundrySteps } from '../src/spikes/foundry/sequence.js';
 import { mindSteps } from '../src/spikes/mind/sequence.js';
 
 describe('Foundry spike sequence', () => {
-  it('shows the nine commissioned operations in order, each backed by a recorded event', () => {
+  it('shows the Phase 0.5 operational sequence in order, each step backed by a recorded event', () => {
     const ids = foundrySteps.map((s) => s.id);
     expect(ids).toEqual([
       'overview',
@@ -15,18 +15,48 @@ describe('Foundry spike sequence', () => {
       'commit',
       'push',
       'pushed',
-      'handoff',
+      'handoff-prover',
+      'received-prover',
+      'verification',
+      'checks-static',
+      'pass-typecheck',
+      'pass-lint',
+      'check-unit',
+      'pass-unit',
+      'skip-visual',
+      'verified',
+      'handoff-keeper',
+      'received-keeper',
+      'review',
+      'finding',
+      'review-pass',
+      'eligible',
       'tampered',
     ]);
-    for (const s of foundrySteps.slice(1, 10)) {
+    for (const s of foundrySteps.slice(1, -1)) {
       expect(s.event, s.id).toBeDefined();
       expect(s.refusal, s.id).toBeUndefined();
-      expect(s.event?.evidence.length, s.id).toBeGreaterThan(0);
     }
+    for (const s of foundrySteps.slice(1, -1))
+      expect(s.event?.evidence.length, s.id).toBeGreaterThan(0);
+  });
+  it('the failed-check variant breaks the unit arc, completes verification with a failure and quarantines; nothing merges', () => {
+    const ids = foundrySequence('failed').map((s) => s.id);
+    expect(ids.slice(-5)).toEqual([
+      'fail-unit',
+      'skip-visual',
+      'verification-failed',
+      'quarantined',
+      'tampered',
+    ]);
+    expect(ids).not.toContain('eligible');
+    for (const s of foundrySequence('failed'))
+      expect(['MERGED', 'DEPLOYED', 'SAFE_TO_MERGE']).not.toContain(s.candidateState);
   });
   it('takes each step duration from the animation grammar, never from the renderer', () => {
     expect(foundrySteps.find((s) => s.id === 'commit')?.durationMs).toBe(1800);
-    expect(foundrySteps.find((s) => s.id === 'handoff')?.durationMs).toBe(2000);
+    expect(foundrySteps.find((s) => s.id === 'handoff-prover')?.durationMs).toBe(2000);
+    expect(foundrySteps.find((s) => s.id === 'checks-static')?.durationMs).toBe(700);
   });
   it('refuses the tampered push confirmation and renders no motion for it', () => {
     const t = foundrySteps.find((s) => s.id === 'tampered');
@@ -34,9 +64,11 @@ describe('Foundry spike sequence', () => {
     expect(t?.refusal?.missing).toEqual(['git_ref']);
     expect(t?.durationMs).toBe(220);
   });
-  it('never presents the candidate as verified, reviewed or mergeable', () => {
-    for (const s of foundrySteps)
-      expect(['BUILDING', 'BUILDER_REPORTED_COMPLETE']).toContain(s.candidateState);
+  it('ends at safe-to-merge and never presents the candidate as merged or deployed', () => {
+    for (const s of foundrySteps) expect(['MERGED', 'DEPLOYED']).not.toContain(s.candidateState);
+    expect(foundrySteps.find((s) => s.id === 'eligible')?.candidateState).toBe('SAFE_TO_MERGE');
+    expect(foundrySteps.find((s) => s.id === 'commit')?.candidateState).toBe('BUILDING');
+    expect(foundrySteps.find((s) => s.id === 'review')?.candidateState).toBe('REVIEW_IN_PROGRESS');
   });
 });
 

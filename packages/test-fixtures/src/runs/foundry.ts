@@ -315,14 +315,14 @@ function verification(
       required: true,
       parallelGroup: 'static',
     },
-    [],
+    [ev('event', v)],
     { grant: 'G-prover-1', durability: 'replayable_operational' },
   );
   b.add(
     'check_started',
     prover,
     { verificationId: v, checkId: 'lint', name: 'biome', required: true, parallelGroup: 'static' },
-    [],
+    [ev('event', v)],
     { grant: 'G-prover-1', durability: 'replayable_operational' },
   );
   b.add(
@@ -357,7 +357,7 @@ function verification(
     'check_started',
     prover,
     { verificationId: v, checkId: 'unit', name: 'vitest', required: true },
-    [],
+    [ev('event', v)],
     { grant: 'G-prover-1', durability: 'replayable_operational' },
   );
   if (opts.failUnit) {
@@ -561,7 +561,7 @@ export function blockedThenRepairedRun(): DomainEvent[] {
     'candidate_quarantined',
     virgil,
     { lineageId: 'LIN-1', headSha: HEAD_SHA, reason: 'proven_defect', findingIds: [] },
-    [ev('check_run', 'V-1/unit')],
+    [ev('event', 'V-1'), ev('check_run', 'V-1/unit')],
   );
   b.add(
     'finding_raised',

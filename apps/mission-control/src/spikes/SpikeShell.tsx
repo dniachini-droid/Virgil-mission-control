@@ -36,6 +36,7 @@ export function SpikeShell({ children }: Props) {
     <SettingsContext.Provider value={settings}>
       <Canvas
         dpr={dpr}
+        shadows={settings.tier === 'constrained' ? false : 'soft'}
         gl={{
           antialias: settings.tier === 'ultra',
           powerPreference: 'high-performance',
