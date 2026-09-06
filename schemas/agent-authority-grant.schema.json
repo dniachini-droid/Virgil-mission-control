@@ -1,0 +1,186 @@
+{
+  "$id": "https://virgil.local/schemas/agent-authority-grant.schema.json",
+  "title": "agent-authority-grant",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "grantId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "roleId": {
+      "type": "string",
+      "enum": [
+        "virgil",
+        "cartographer",
+        "architect",
+        "fabricator",
+        "prover",
+        "keeper",
+        "arbiter",
+        "domain-verifier",
+        "breaker",
+        "integrator",
+        "interface-keeper",
+        "security-sentinel",
+        "transport-inspector",
+        "performance-examiner"
+      ],
+      "description": "Agent role identifier from constitution/permission-matrix.json"
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "tier": {
+      "type": "string",
+      "enum": [
+        "TIER_1",
+        "TIER_2",
+        "TIER_3"
+      ]
+    },
+    "permittedActions": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "repository": {
+      "type": "string"
+    },
+    "worktree": {
+      "type": "string"
+    },
+    "branch": {
+      "type": "string"
+    },
+    "permittedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "prohibitedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "requiredChecks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "stopConditions": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "grantedBy": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "owner",
+            "virgil",
+            "agent",
+            "system",
+            "git",
+            "github",
+            "knowledge_worker"
+          ]
+        },
+        "roleId": {
+          "type": "string",
+          "enum": [
+            "virgil",
+            "cartographer",
+            "architect",
+            "fabricator",
+            "prover",
+            "keeper",
+            "arbiter",
+            "domain-verifier",
+            "breaker",
+            "integrator",
+            "interface-keeper",
+            "security-sentinel",
+            "transport-inspector",
+            "performance-examiner"
+          ],
+          "description": "Agent role identifier from constitution/permission-matrix.json"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "displayName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    },
+    "grantedByDecisionId": {
+      "description": "Owner decision id when tier requires it",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+      "description": "ISO-8601 timestamp with offset"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+      "description": "ISO-8601 timestamp with offset"
+    },
+    "revokedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+      "description": "ISO-8601 timestamp with offset"
+    },
+    "revokedReason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "grantId",
+    "runId",
+    "roleId",
+    "tier",
+    "permittedActions",
+    "repository",
+    "permittedPaths",
+    "prohibitedPaths",
+    "requiredChecks",
+    "stopConditions",
+    "grantedBy",
+    "issuedAt",
+    "expiresAt"
+  ]
+}

@@ -1,0 +1,185 @@
+{
+  "$id": "https://virgil.local/schemas/risk-classification.schema.json",
+  "title": "risk-classification",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "classificationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "contractId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "level": {
+      "type": "string",
+      "enum": [
+        "low",
+        "moderate",
+        "high",
+        "critical"
+      ]
+    },
+    "flags": {
+      "type": "object",
+      "properties": {
+        "domain": {
+          "default": "none",
+          "type": "string",
+          "enum": [
+            "none",
+            "scientific",
+            "medical",
+            "legal",
+            "financial",
+            "business_logic"
+          ]
+        },
+        "safetyLogic": {
+          "default": false,
+          "type": "boolean"
+        },
+        "destructiveOperations": {
+          "default": false,
+          "type": "boolean"
+        },
+        "stateMachineChange": {
+          "default": false,
+          "type": "boolean"
+        },
+        "crossComponent": {
+          "default": false,
+          "type": "boolean"
+        },
+        "apiChange": {
+          "default": false,
+          "type": "boolean"
+        },
+        "migration": {
+          "default": false,
+          "type": "boolean"
+        },
+        "sharedInfrastructure": {
+          "default": false,
+          "type": "boolean"
+        },
+        "renderedUi": {
+          "default": false,
+          "type": "boolean"
+        },
+        "accessibility": {
+          "default": false,
+          "type": "boolean"
+        },
+        "mobile": {
+          "default": false,
+          "type": "boolean"
+        },
+        "userFacingCopy": {
+          "default": false,
+          "type": "boolean"
+        },
+        "authentication": {
+          "default": false,
+          "type": "boolean"
+        },
+        "secrets": {
+          "default": false,
+          "type": "boolean"
+        },
+        "personalData": {
+          "default": false,
+          "type": "boolean"
+        },
+        "payments": {
+          "default": false,
+          "type": "boolean"
+        },
+        "externalActions": {
+          "default": false,
+          "type": "boolean"
+        },
+        "permissionChange": {
+          "default": false,
+          "type": "boolean"
+        },
+        "generatedArtifacts": {
+          "default": false,
+          "type": "boolean"
+        },
+        "uploads": {
+          "default": false,
+          "type": "boolean"
+        },
+        "canonicalFiles": {
+          "default": false,
+          "type": "boolean"
+        },
+        "remoteLocalEquality": {
+          "default": false,
+          "type": "boolean"
+        },
+        "expensiveRendering": {
+          "default": false,
+          "type": "boolean"
+        },
+        "largeData": {
+          "default": false,
+          "type": "boolean"
+        },
+        "concurrency": {
+          "default": false,
+          "type": "boolean"
+        },
+        "resourceBudget": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "description": "Risk flags that activate conditional specialists"
+    },
+    "requiredFormation": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "virgil",
+          "cartographer",
+          "architect",
+          "fabricator",
+          "prover",
+          "keeper",
+          "arbiter",
+          "domain-verifier",
+          "breaker",
+          "integrator",
+          "interface-keeper",
+          "security-sentinel",
+          "transport-inspector",
+          "performance-examiner"
+        ],
+        "description": "Agent role identifier from constitution/permission-matrix.json"
+      },
+      "description": "Smallest adequate reviewer formation"
+    },
+    "requiresArbiter": {
+      "type": "boolean"
+    },
+    "rationale": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "classificationId",
+    "contractId",
+    "level",
+    "flags",
+    "requiredFormation",
+    "requiresArbiter",
+    "rationale"
+  ]
+}

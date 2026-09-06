@@ -1,0 +1,115 @@
+{
+  "$id": "https://virgil.local/schemas/role-performance-bible.schema.json",
+  "title": "role-performance-bible",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "roles": {
+      "minItems": 14,
+      "maxItems": 14,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "roleId": {
+            "type": "string",
+            "enum": [
+              "virgil",
+              "cartographer",
+              "architect",
+              "fabricator",
+              "prover",
+              "keeper",
+              "arbiter",
+              "domain-verifier",
+              "breaker",
+              "integrator",
+              "interface-keeper",
+              "security-sentinel",
+              "transport-inspector",
+              "performance-examiner"
+            ],
+            "description": "Agent role identifier from constitution/permission-matrix.json"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ensembleRole": {
+            "type": "string"
+          },
+          "silhouette": {
+            "type": "string",
+            "minLength": 30
+          },
+          "station": {
+            "type": "string",
+            "minLength": 30
+          },
+          "instruments": {
+            "minItems": 2,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "locomotion": {
+            "type": "string",
+            "minLength": 20
+          },
+          "workingRitual": {
+            "type": "string",
+            "minLength": 30
+          },
+          "handoffBehaviour": {
+            "type": "string",
+            "minLength": 20
+          },
+          "idleBehaviour": {
+            "type": "string",
+            "minLength": 20
+          },
+          "prohibitedActionRepresentation": {
+            "type": "string",
+            "minLength": 20
+          },
+          "recognisableWithoutColour": {
+            "type": "string",
+            "minLength": 20
+          },
+          "colourAccentToken": {
+            "type": "string"
+          },
+          "neverTouches": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "roleId",
+          "name",
+          "ensembleRole",
+          "silhouette",
+          "station",
+          "instruments",
+          "locomotion",
+          "workingRitual",
+          "handoffBehaviour",
+          "idleBehaviour",
+          "prohibitedActionRepresentation",
+          "recognisableWithoutColour",
+          "colourAccentToken",
+          "neverTouches"
+        ]
+      }
+    }
+  },
+  "required": [
+    "version",
+    "roles"
+  ]
+}

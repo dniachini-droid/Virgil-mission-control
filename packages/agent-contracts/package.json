@@ -1,0 +1,22 @@
+{
+  "name": "@virgil/agent-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Zod schemas for every Virgil structured contract, exported to JSON Schema 2020-12 in /schemas.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "export-schemas": "tsx scripts/export-schemas.ts"
+  },
+  "dependencies": {
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
+  }
+}

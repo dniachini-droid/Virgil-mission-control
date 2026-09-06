@@ -114,17 +114,30 @@
   "transitions": [
     {
       "from": "BUILDING",
-      "on": "agent_result_claimed_complete",
-      "to": "BUILDER_REPORTED_COMPLETE"
+      "on": "agent_result_received",
+      "to": "BUILDER_REPORTED_COMPLETE",
+      "guard": "result_claims_complete"
     },
-    { "from": "BUILDING", "on": "candidate_committed", "to": "BUILDING" },
-    { "from": "BUILDING", "on": "candidate_pushed", "to": "BUILDING" },
+    {
+      "from": "BUILDING",
+      "on": "candidate_committed",
+      "to": "BUILDING"
+    },
+    {
+      "from": "BUILDING",
+      "on": "candidate_pushed",
+      "to": "BUILDING"
+    },
     {
       "from": "BUILDER_REPORTED_COMPLETE",
       "on": "verification_started",
       "to": "VERIFICATION_INCOMPLETE"
     },
-    { "from": "BUILDER_REPORTED_COMPLETE", "on": "remote_artifact_mismatch", "to": "QUARANTINED" },
+    {
+      "from": "BUILDER_REPORTED_COMPLETE",
+      "on": "remote_artifact_mismatch",
+      "to": "QUARANTINED"
+    },
     {
       "from": "VERIFICATION_INCOMPLETE",
       "on": "check_failed",
@@ -143,7 +156,17 @@
       "to": "INSUFFICIENT_EVIDENCE",
       "guard": "required_checks_missing"
     },
-    { "from": "VERIFICATION_INCOMPLETE", "on": "remote_artifact_mismatch", "to": "QUARANTINED" },
+    {
+      "from": "VERIFICATION_INCOMPLETE",
+      "on": "verification_completed",
+      "to": "BLOCKED",
+      "guard": "required_check_failed"
+    },
+    {
+      "from": "VERIFICATION_INCOMPLETE",
+      "on": "remote_artifact_mismatch",
+      "to": "QUARANTINED"
+    },
     {
       "from": "READY_FOR_REVIEW",
       "on": "review_started",
@@ -168,8 +191,16 @@
       "guard": "verdict_pass",
       "$comment": "A plain PASS returns the candidate to eligibility evaluation; safe_to_merge is a separate gate decision."
     },
-    { "from": "REVIEW_IN_PROGRESS", "on": "candidate_quarantined", "to": "QUARANTINED" },
-    { "from": "REVIEW_IN_PROGRESS", "on": "review_blocked", "to": "BLOCKED" },
+    {
+      "from": "REVIEW_IN_PROGRESS",
+      "on": "candidate_quarantined",
+      "to": "QUARANTINED"
+    },
+    {
+      "from": "REVIEW_IN_PROGRESS",
+      "on": "review_blocked",
+      "to": "BLOCKED"
+    },
     {
       "from": "REVIEW_IN_PROGRESS",
       "on": "review_insufficient_evidence",
@@ -197,8 +228,22 @@
       "on": "candidate_changed_after_review",
       "to": "RE_REVIEW_REQUIRED"
     },
-    { "from": "BLOCKED", "on": "candidate_quarantined", "to": "QUARANTINED" },
-    { "from": "BLOCKED", "on": "adjudication_completed", "to": "BLOCKED" },
+    {
+      "from": "BLOCKED",
+      "on": "verification_completed",
+      "to": "BLOCKED",
+      "$comment": "Completion after a failed required check is a fact worth recording; the state stays BLOCKED."
+    },
+    {
+      "from": "BLOCKED",
+      "on": "candidate_quarantined",
+      "to": "QUARANTINED"
+    },
+    {
+      "from": "BLOCKED",
+      "on": "adjudication_completed",
+      "to": "BLOCKED"
+    },
     {
       "from": "BLOCKED",
       "on": "repair_authorised",
@@ -210,33 +255,75 @@
       "on": "verification_started",
       "to": "VERIFICATION_INCOMPLETE"
     },
-    { "from": "INSUFFICIENT_EVIDENCE", "on": "candidate_quarantined", "to": "QUARANTINED" },
-    { "from": "QUARANTINED", "on": "adjudication_completed", "to": "QUARANTINED" },
+    {
+      "from": "INSUFFICIENT_EVIDENCE",
+      "on": "candidate_quarantined",
+      "to": "QUARANTINED"
+    },
+    {
+      "from": "QUARANTINED",
+      "on": "adjudication_completed",
+      "to": "QUARANTINED"
+    },
     {
       "from": "QUARANTINED",
       "on": "repair_authorised",
       "to": "REPAIR_AUTHORISED",
       "guard": "repair_cycle_within_limit"
     },
-    { "from": "REPAIR_AUTHORISED", "on": "repair_started", "to": "REPAIR_AUTHORISED" },
+    {
+      "from": "REPAIR_AUTHORISED",
+      "on": "repair_started",
+      "to": "REPAIR_AUTHORISED"
+    },
     {
       "from": "REPAIR_AUTHORISED",
       "on": "repair_completed",
       "to": "RE_REVIEW_REQUIRED",
       "guard": "new_sha_differs_from_reviewed_sha"
     },
-    { "from": "RE_REVIEW_REQUIRED", "on": "verification_started", "to": "VERIFICATION_INCOMPLETE" },
-    { "from": "SAFE_TO_MERGE", "on": "candidate_changed_after_review", "to": "RE_REVIEW_REQUIRED" },
-    { "from": "SAFE_TO_MERGE", "on": "merged_by_owner", "to": "MERGED", "guard": "actor_is_owner" },
+    {
+      "from": "RE_REVIEW_REQUIRED",
+      "on": "verification_started",
+      "to": "VERIFICATION_INCOMPLETE"
+    },
+    {
+      "from": "SAFE_TO_MERGE",
+      "on": "candidate_changed_after_review",
+      "to": "RE_REVIEW_REQUIRED"
+    },
+    {
+      "from": "SAFE_TO_MERGE",
+      "on": "merged_by_owner",
+      "to": "MERGED",
+      "guard": "actor_is_owner"
+    },
     {
       "from": "MERGED",
       "on": "deployment_started",
       "to": "MERGED",
       "guard": "deploy_authority_present"
     },
-    { "from": "MERGED", "on": "deployment_failed", "to": "MERGED" },
-    { "from": "MERGED", "on": "deployed", "to": "DEPLOYED" },
-    { "from": "*", "on": "owner_decision_required", "to": "OWNER_DECISION_REQUIRED" },
-    { "from": "OWNER_DECISION_REQUIRED", "on": "owner_decision", "to": "$resumesTo" }
-  ]
+    {
+      "from": "MERGED",
+      "on": "deployment_failed",
+      "to": "MERGED"
+    },
+    {
+      "from": "MERGED",
+      "on": "deployed",
+      "to": "DEPLOYED"
+    },
+    {
+      "from": "*",
+      "on": "owner_decision_required",
+      "to": "OWNER_DECISION_REQUIRED"
+    },
+    {
+      "from": "OWNER_DECISION_REQUIRED",
+      "on": "owner_decision",
+      "to": "$resumesTo"
+    }
+  ],
+  "eventNameNote": "Transition 'on' values are domain event types from packages/domain. review_blocked and review_insufficient_evidence are the verdict-carrying review completion events alongside review_passed."
 }

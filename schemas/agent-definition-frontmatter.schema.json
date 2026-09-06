@@ -1,0 +1,44 @@
+{
+  "$id": "https://virgil.local/schemas/agent-definition-frontmatter.schema.json",
+  "title": "agent-definition-frontmatter",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "enum": [
+        "virgil",
+        "cartographer",
+        "architect",
+        "fabricator",
+        "prover",
+        "keeper",
+        "arbiter",
+        "domain-verifier",
+        "breaker",
+        "integrator",
+        "interface-keeper",
+        "security-sentinel",
+        "transport-inspector",
+        "performance-examiner"
+      ],
+      "description": "Agent role identifier from constitution/permission-matrix.json"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 40
+    },
+    "tools": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "description",
+    "tools",
+    "model"
+  ]
+}

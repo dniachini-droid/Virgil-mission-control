@@ -1,0 +1,16 @@
+{
+  "name": "@virgil/test-fixtures",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Known-good and deliberately defective scenarios: candidate evidence fixtures, deterministic event logs and knowledge scan cases.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@virgil/agent-contracts": "workspace:*"
+  }
+}

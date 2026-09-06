@@ -1,0 +1,86 @@
+{
+  "$id": "https://virgil.local/schemas/work-order.schema.json",
+  "title": "work-order",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "workOrderId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "contractId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "intendedUser": {
+      "type": "string"
+    },
+    "productPromise": {
+      "type": "string"
+    },
+    "acceptanceCriteria": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "nonGoals": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "permittedSurfaces": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "protectedSurfaces": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "requiredEvidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "stopConditions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "openOwnerDecisions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    }
+  },
+  "required": [
+    "workOrderId",
+    "contractId",
+    "intendedUser",
+    "productPromise",
+    "acceptanceCriteria",
+    "nonGoals",
+    "permittedSurfaces",
+    "protectedSurfaces",
+    "requiredEvidence",
+    "stopConditions",
+    "openOwnerDecisions"
+  ]
+}

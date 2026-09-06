@@ -1,0 +1,289 @@
+{
+  "$id": "https://virgil.local/schemas/animation-mapping.schema.json",
+  "title": "animation-mapping",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "mappingId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "idea_received",
+        "scope_proposed",
+        "scope_approved",
+        "plan_completed",
+        "work_order_created",
+        "authority_granted",
+        "authority_revoked",
+        "branch_created",
+        "worktree_created",
+        "agent_assigned",
+        "agent_started",
+        "agent_waiting",
+        "agent_result_received",
+        "file_read",
+        "repository_searched",
+        "file_created",
+        "file_modified",
+        "file_moved",
+        "file_deleted",
+        "command_started",
+        "command_completed",
+        "command_failed",
+        "changes_staged",
+        "candidate_committed",
+        "push_started",
+        "candidate_pushed",
+        "push_failed",
+        "remote_artifact_mismatch",
+        "pr_opened",
+        "handoff_prepared",
+        "handoff_started",
+        "handoff_received",
+        "verification_started",
+        "check_started",
+        "check_passed",
+        "check_failed",
+        "check_skipped",
+        "verification_completed",
+        "review_started",
+        "finding_raised",
+        "review_passed",
+        "review_blocked",
+        "review_insufficient_evidence",
+        "candidate_quarantined",
+        "adjudication_completed",
+        "repair_authorised",
+        "repair_started",
+        "repair_completed",
+        "candidate_changed_after_review",
+        "safe_to_merge",
+        "merged_by_owner",
+        "deployment_started",
+        "deployment_failed",
+        "deployed",
+        "owner_decision_required",
+        "owner_decision",
+        "raw_source_added",
+        "raw_source_hashed",
+        "raw_source_read",
+        "run_record_deposited",
+        "knowledge_compilation_proposed",
+        "knowledge_compilation_approved",
+        "wiki_page_created",
+        "wiki_page_updated",
+        "provenance_tether_created",
+        "provenance_tether_broken",
+        "claim_supported",
+        "claim_contested",
+        "claim_superseded",
+        "knowledge_gap_detected",
+        "wiki_lint_started",
+        "wiki_lint_finding_raised",
+        "wiki_lint_completed",
+        "knowledge_output_generated"
+      ]
+    },
+    "layer": {
+      "type": "string",
+      "enum": [
+        "tool_activity",
+        "git_manufacturing",
+        "governance_review",
+        "knowledge"
+      ]
+    },
+    "world": {
+      "type": "string",
+      "enum": [
+        "foundry",
+        "mind",
+        "gateway"
+      ]
+    },
+    "requiredEvidence": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "git_object",
+          "git_ref",
+          "command_output",
+          "check_run",
+          "file_hash",
+          "diff",
+          "event",
+          "pull_request",
+          "raw_source",
+          "owner_decision",
+          "gate_decision",
+          "review_report",
+          "adjudication",
+          "run_record",
+          "wiki_page",
+          "schema",
+          "code_path",
+          "adr"
+        ]
+      },
+      "description": "Evidence kinds that must be present on the event before this animation may play"
+    },
+    "actorRole": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "virgil",
+            "cartographer",
+            "architect",
+            "fabricator",
+            "prover",
+            "keeper",
+            "arbiter",
+            "domain-verifier",
+            "breaker",
+            "integrator",
+            "interface-keeper",
+            "security-sentinel",
+            "transport-inspector",
+            "performance-examiner"
+          ],
+          "description": "Agent role identifier from constitution/permission-matrix.json"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "owner",
+            "virgil",
+            "system",
+            "git",
+            "github",
+            "knowledge_worker",
+            "any"
+          ]
+        }
+      ]
+    },
+    "source": {
+      "type": "string"
+    },
+    "destination": {
+      "type": "string"
+    },
+    "entity": {
+      "type": "string",
+      "description": "Operational entity or immutable artifact affected"
+    },
+    "stateBefore": {
+      "type": "string"
+    },
+    "transitionalState": {
+      "type": "string"
+    },
+    "stateAfter": {
+      "type": "string"
+    },
+    "fullMotion": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 20
+        },
+        "durationMs": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "cameraHint": {
+          "type": "string",
+          "enum": [
+            "none",
+            "restrained_emphasis",
+            "follow_artifact",
+            "reveal_relationship"
+          ]
+        }
+      },
+      "required": [
+        "description",
+        "durationMs",
+        "cameraHint"
+      ]
+    },
+    "persistentVisual": {
+      "type": "string",
+      "minLength": 20,
+      "description": "What remains visible after the motion ends"
+    },
+    "reducedMotion": {
+      "type": "string",
+      "minLength": 20
+    },
+    "mobileLowPerformance": {
+      "type": "string",
+      "minLength": 20
+    },
+    "failureInterruption": {
+      "type": "string",
+      "minLength": 20
+    },
+    "replay": {
+      "type": "string",
+      "minLength": 20
+    },
+    "evidenceViewDestination": {
+      "type": "string"
+    },
+    "soundHaptics": {
+      "type": "object",
+      "properties": {
+        "optional": {
+          "type": "boolean",
+          "const": true
+        },
+        "motif": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "optional"
+      ]
+    },
+    "mustNotResemble": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Other mappings or states this must remain distinguishable from"
+    }
+  },
+  "required": [
+    "mappingId",
+    "eventType",
+    "layer",
+    "world",
+    "requiredEvidence",
+    "actorRole",
+    "source",
+    "destination",
+    "entity",
+    "stateBefore",
+    "transitionalState",
+    "stateAfter",
+    "fullMotion",
+    "persistentVisual",
+    "reducedMotion",
+    "mobileLowPerformance",
+    "failureInterruption",
+    "replay",
+    "evidenceViewDestination",
+    "soundHaptics",
+    "mustNotResemble"
+  ]
+}

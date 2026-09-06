@@ -1,0 +1,272 @@
+{
+  "$id": "https://virgil.local/schemas/knowledge-compilation-proposal.schema.json",
+  "title": "knowledge-compilation-proposal",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "proposalId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "ingest",
+        "compile",
+        "propose"
+      ]
+    },
+    "sourceIds": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "proposedNodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "nodeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "principle",
+              "architecture_concept",
+              "agent_role",
+              "decision",
+              "lesson",
+              "open_question",
+              "glossary_term",
+              "visual_language",
+              "governance",
+              "contradiction_field"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "authorityClass": {
+            "type": "string",
+            "enum": [
+              "commission",
+              "owner_decision",
+              "constitution",
+              "adr",
+              "verified_evidence",
+              "compiled",
+              "hypothesis",
+              "output"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "nodeId",
+          "kind",
+          "title",
+          "path",
+          "authorityClass",
+          "summary"
+        ]
+      }
+    },
+    "proposedClaims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "claimId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "nodeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "statement": {
+            "type": "string"
+          },
+          "authorityClass": {
+            "type": "string",
+            "enum": [
+              "commission",
+              "owner_decision",
+              "constitution",
+              "adr",
+              "verified_evidence",
+              "compiled",
+              "hypothesis",
+              "output"
+            ]
+          }
+        },
+        "required": [
+          "claimId",
+          "nodeId",
+          "statement",
+          "authorityClass"
+        ]
+      }
+    },
+    "proposedTethers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "tetherId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "fromClaimId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "raw_source",
+              "owner_decision",
+              "adr",
+              "schema",
+              "code_path",
+              "verified_run",
+              "event",
+              "wiki_page"
+            ]
+          },
+          "target": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "git_object",
+                  "git_ref",
+                  "command_output",
+                  "check_run",
+                  "file_hash",
+                  "diff",
+                  "event",
+                  "pull_request",
+                  "raw_source",
+                  "owner_decision",
+                  "gate_decision",
+                  "review_report",
+                  "adjudication",
+                  "run_record",
+                  "wiki_page",
+                  "schema",
+                  "code_path",
+                  "adr"
+                ]
+              },
+              "ref": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Locator: SHA, path, event id, PR number, check id, URL-free identifier"
+              },
+              "hash": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "description": "sha256 content hash"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "ref"
+            ],
+            "description": "A pointer to inspectable machine or structured evidence. Prose is never evidence."
+          }
+        },
+        "required": [
+          "tetherId",
+          "fromClaimId",
+          "kind",
+          "target"
+        ]
+      }
+    },
+    "affectedExistingNodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "nodeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "strengthened",
+              "challenged",
+              "superseded"
+            ]
+          }
+        },
+        "required": [
+          "nodeId",
+          "effect"
+        ]
+      }
+    },
+    "requiresOwnerApproval": {
+      "type": "boolean",
+      "description": "True for owner_decision, constitution or adr authority pages"
+    },
+    "compiler": {
+      "type": "string"
+    },
+    "proposedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+      "description": "ISO-8601 timestamp with offset"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "approved",
+        "applied",
+        "rejected"
+      ]
+    }
+  },
+  "required": [
+    "proposalId",
+    "operation",
+    "sourceIds",
+    "proposedNodes",
+    "proposedClaims",
+    "proposedTethers",
+    "affectedExistingNodes",
+    "requiresOwnerApproval",
+    "compiler",
+    "proposedAt",
+    "status"
+  ]
+}

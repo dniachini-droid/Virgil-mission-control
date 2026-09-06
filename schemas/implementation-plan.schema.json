@@ -1,0 +1,450 @@
+{
+  "$id": "https://virgil.local/schemas/implementation-plan.schema.json",
+  "title": "implementation-plan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "planId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "contractId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "projectId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "baseSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "Immutable full commit SHA"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "go",
+        "no_go"
+      ]
+    },
+    "repositoryFindings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "moduleDependencyMap": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "module": {
+            "type": "string"
+          },
+          "dependsOn": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "module",
+          "dependsOn"
+        ]
+      }
+    },
+    "proposedArchitecture": {
+      "type": "string"
+    },
+    "dataSchemaChanges": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "migrationBoundary": {
+      "type": "string"
+    },
+    "testingStrategy": {
+      "type": "string"
+    },
+    "riskClassification": {
+      "type": "object",
+      "properties": {
+        "classificationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "contractId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "level": {
+          "type": "string",
+          "enum": [
+            "low",
+            "moderate",
+            "high",
+            "critical"
+          ]
+        },
+        "flags": {
+          "type": "object",
+          "properties": {
+            "domain": {
+              "default": "none",
+              "type": "string",
+              "enum": [
+                "none",
+                "scientific",
+                "medical",
+                "legal",
+                "financial",
+                "business_logic"
+              ]
+            },
+            "safetyLogic": {
+              "default": false,
+              "type": "boolean"
+            },
+            "destructiveOperations": {
+              "default": false,
+              "type": "boolean"
+            },
+            "stateMachineChange": {
+              "default": false,
+              "type": "boolean"
+            },
+            "crossComponent": {
+              "default": false,
+              "type": "boolean"
+            },
+            "apiChange": {
+              "default": false,
+              "type": "boolean"
+            },
+            "migration": {
+              "default": false,
+              "type": "boolean"
+            },
+            "sharedInfrastructure": {
+              "default": false,
+              "type": "boolean"
+            },
+            "renderedUi": {
+              "default": false,
+              "type": "boolean"
+            },
+            "accessibility": {
+              "default": false,
+              "type": "boolean"
+            },
+            "mobile": {
+              "default": false,
+              "type": "boolean"
+            },
+            "userFacingCopy": {
+              "default": false,
+              "type": "boolean"
+            },
+            "authentication": {
+              "default": false,
+              "type": "boolean"
+            },
+            "secrets": {
+              "default": false,
+              "type": "boolean"
+            },
+            "personalData": {
+              "default": false,
+              "type": "boolean"
+            },
+            "payments": {
+              "default": false,
+              "type": "boolean"
+            },
+            "externalActions": {
+              "default": false,
+              "type": "boolean"
+            },
+            "permissionChange": {
+              "default": false,
+              "type": "boolean"
+            },
+            "generatedArtifacts": {
+              "default": false,
+              "type": "boolean"
+            },
+            "uploads": {
+              "default": false,
+              "type": "boolean"
+            },
+            "canonicalFiles": {
+              "default": false,
+              "type": "boolean"
+            },
+            "remoteLocalEquality": {
+              "default": false,
+              "type": "boolean"
+            },
+            "expensiveRendering": {
+              "default": false,
+              "type": "boolean"
+            },
+            "largeData": {
+              "default": false,
+              "type": "boolean"
+            },
+            "concurrency": {
+              "default": false,
+              "type": "boolean"
+            },
+            "resourceBudget": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "description": "Risk flags that activate conditional specialists"
+        },
+        "requiredFormation": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "virgil",
+              "cartographer",
+              "architect",
+              "fabricator",
+              "prover",
+              "keeper",
+              "arbiter",
+              "domain-verifier",
+              "breaker",
+              "integrator",
+              "interface-keeper",
+              "security-sentinel",
+              "transport-inspector",
+              "performance-examiner"
+            ],
+            "description": "Agent role identifier from constitution/permission-matrix.json"
+          },
+          "description": "Smallest adequate reviewer formation"
+        },
+        "requiresArbiter": {
+          "type": "boolean"
+        },
+        "rationale": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "classificationId",
+        "contractId",
+        "level",
+        "flags",
+        "requiredFormation",
+        "requiresArbiter",
+        "rationale"
+      ]
+    },
+    "taskGraph": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "title": {
+            "type": "string"
+          },
+          "dependsOn": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "permittedPaths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "requiredChecks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        },
+        "required": [
+          "taskId",
+          "title",
+          "dependsOn",
+          "permittedPaths",
+          "requiredChecks"
+        ]
+      }
+    },
+    "permittedPaths": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "protectedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "untouchedAreas": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requiredChecks": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "checkId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "name": {
+            "type": "string"
+          },
+          "commandClass": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "checkId",
+          "name",
+          "commandClass"
+        ]
+      }
+    },
+    "goNoGo": {
+      "type": "object",
+      "properties": {
+        "verdict": {
+          "type": "string",
+          "enum": [
+            "go",
+            "no_go"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "verdict",
+        "reasons"
+      ]
+    },
+    "authoredBy": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "owner",
+            "virgil",
+            "agent",
+            "system",
+            "git",
+            "github",
+            "knowledge_worker"
+          ]
+        },
+        "roleId": {
+          "type": "string",
+          "enum": [
+            "virgil",
+            "cartographer",
+            "architect",
+            "fabricator",
+            "prover",
+            "keeper",
+            "arbiter",
+            "domain-verifier",
+            "breaker",
+            "integrator",
+            "interface-keeper",
+            "security-sentinel",
+            "transport-inspector",
+            "performance-examiner"
+          ],
+          "description": "Agent role identifier from constitution/permission-matrix.json"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "displayName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+      "description": "ISO-8601 timestamp with offset"
+    }
+  },
+  "required": [
+    "planId",
+    "contractId",
+    "projectId",
+    "baseSha",
+    "status",
+    "repositoryFindings",
+    "moduleDependencyMap",
+    "proposedArchitecture",
+    "dataSchemaChanges",
+    "migrationBoundary",
+    "testingStrategy",
+    "riskClassification",
+    "taskGraph",
+    "permittedPaths",
+    "protectedPaths",
+    "untouchedAreas",
+    "requiredChecks",
+    "goNoGo",
+    "authoredBy",
+    "createdAt"
+  ]
+}

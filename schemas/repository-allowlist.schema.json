@@ -1,0 +1,96 @@
+{
+  "$id": "https://virgil.local/schemas/repository-allowlist.schema.json",
+  "title": "repository-allowlist",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "entryId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "repository": {
+            "type": "string"
+          },
+          "permittedOperations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "roleId": {
+                  "type": "string",
+                  "enum": [
+                    "virgil",
+                    "cartographer",
+                    "architect",
+                    "fabricator",
+                    "prover",
+                    "keeper",
+                    "arbiter",
+                    "domain-verifier",
+                    "breaker",
+                    "integrator",
+                    "interface-keeper",
+                    "security-sentinel",
+                    "transport-inspector",
+                    "performance-examiner"
+                  ],
+                  "description": "Agent role identifier from constitution/permission-matrix.json"
+                },
+                "operations": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "read",
+                      "worktree",
+                      "push_branch_pattern",
+                      "open_draft_pr"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "roleId",
+                "operations"
+              ]
+            }
+          },
+          "pushBranchPattern": {
+            "type": "string"
+          },
+          "protectedBranches": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "addedByDecisionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "entryId",
+          "repository",
+          "permittedOperations",
+          "protectedBranches",
+          "addedByDecisionId"
+        ]
+      }
+    }
+  },
+  "required": [
+    "version",
+    "entries"
+  ]
+}

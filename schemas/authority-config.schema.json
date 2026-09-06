@@ -1,0 +1,176 @@
+{
+  "$id": "https://virgil.local/schemas/authority-config.schema.json",
+  "title": "authority-config",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "tiers": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "requiresOwnerDecision": {
+            "type": [
+              "boolean",
+              "string"
+            ]
+          },
+          "permittedActions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "requiresOwnerDecision",
+          "permittedActions"
+        ]
+      }
+    },
+    "ownerOnlyActions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "virgilProhibitions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "protectedBoundaries": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "permissionInvariant": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "repairLimits": {
+      "type": "object",
+      "properties": {
+        "independentReviewsPerCycle": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "adjudicationsPerCycle": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "boundedRepairsPerCycle": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "reReviewsPerCycle": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "maxCyclesWithoutOwner": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "maxCyclesWithOwner": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "beyondLimit": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "independentReviewsPerCycle",
+        "adjudicationsPerCycle",
+        "boundedRepairsPerCycle",
+        "reReviewsPerCycle",
+        "maxCyclesWithoutOwner",
+        "maxCyclesWithOwner",
+        "beyondLimit"
+      ]
+    },
+    "reviewVerdicts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "candidateStates": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "deploymentStates": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "checkResults": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "on": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "guard": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "on",
+          "to"
+        ]
+      }
+    }
+  },
+  "required": [
+    "version",
+    "tiers",
+    "ownerOnlyActions",
+    "virgilProhibitions",
+    "protectedBoundaries",
+    "permissionInvariant",
+    "repairLimits",
+    "reviewVerdicts",
+    "candidateStates",
+    "deploymentStates",
+    "checkResults",
+    "transitions"
+  ]
+}
