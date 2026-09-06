@@ -201,7 +201,10 @@ function buildDurable() {
 }
 
 function buildTether(from: THREE.Vector3, to: THREE.Vector3, color: string) {
-  const mid = from.clone().lerp(to, 0.5).add(new THREE.Vector3(0, 0.9, 0));
+  const mid = from
+    .clone()
+    .lerp(to, 0.5)
+    .add(new THREE.Vector3(0, 0.9, 0));
   const curve = new THREE.CatmullRomCurve3([from, mid, to]);
   const points = curve.getPoints(48);
   const geom = new THREE.BufferGeometry().setFromPoints(points);
@@ -213,9 +216,15 @@ function buildTether(from: THREE.Vector3, to: THREE.Vector3, color: string) {
     opacity: 0.8,
   });
   const solid = new THREE.LineBasicMaterial({ color: ICE, transparent: true, opacity: 0.95 });
-  const line = new THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial | THREE.LineDashedMaterial>(geom, dashed);
+  const line = new THREE.Line<
+    THREE.BufferGeometry,
+    THREE.LineBasicMaterial | THREE.LineDashedMaterial
+  >(geom, dashed);
   line.computeLineDistances();
-  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.018, 6, false), ST.glow(ICE, 0.6));
+  const tube = new THREE.Mesh(
+    new THREE.TubeGeometry(curve, 40, 0.018, 6, false),
+    ST.glow(ICE, 0.6),
+  );
   tube.visible = false;
   return {
     line,
@@ -311,7 +320,11 @@ export function buildMindCluster() {
     place(strip, 0, 1.27 + i * 1.5, -1.56);
     rack.add(strip);
     for (let j = 0; j < 5; j++) {
-      const tablet = mesh(G.rbox(0.5, 0.9, 0.3, 0.04), j % 2 ? ST.ceramic() : ST.alloy(), 'archive-tablet');
+      const tablet = mesh(
+        G.rbox(0.5, 0.9, 0.3, 0.04),
+        j % 2 ? ST.ceramic() : ST.alloy(),
+        'archive-tablet',
+      );
       place(tablet, -3 + j * 1.5 + (i % 2) * 0.4, 1.75 + i * 1.5, -2.1, 0, (j - 2) * 0.08);
       rack.add(tablet);
     }
@@ -353,7 +366,13 @@ export function buildMindCluster() {
   // Projection: a wireframe ghost of the run monolith beside the original.
   const projection = new THREE.Mesh(
     new THREE.CylinderGeometry(0.53, 0.62, 2.2, 6),
-    new THREE.MeshBasicMaterial({ color: ICE, wireframe: true, transparent: true, opacity: 0, toneMapped: false }),
+    new THREE.MeshBasicMaterial({
+      color: ICE,
+      wireframe: true,
+      transparent: true,
+      opacity: 0,
+      toneMapped: false,
+    }),
   );
   projection.position.copy(ML.projection).add(new THREE.Vector3(0, 1.0, 0));
   group.add(projection);
@@ -384,7 +403,11 @@ export function buildMindCluster() {
     place(emitter, Math.cos(a) * 2.0, 3.8, Math.sin(a) * 2.0);
     forge.add(emitter);
   }
-  const forgePlate = plate('SYNAPTIC FORGE · proposals become durable only after approval', GLASS, 0.24);
+  const forgePlate = plate(
+    'SYNAPTIC FORGE · proposals become durable only after approval',
+    GLASS,
+    0.24,
+  );
   place(forgePlate, 0, 4.6, 0);
   forge.add(forgePlate);
   group.add(forge);
@@ -397,19 +420,32 @@ export function buildMindCluster() {
   durable.group.position.copy(ML.forge).add(new THREE.Vector3(0, 2.3, 0));
   durable.group.visible = false;
   group.add(durable.group);
-  const durablePlate = plate('lesson-capsule-sha-legibility · compiled · verified', WHITE, 0.2, LIME);
+  const durablePlate = plate(
+    'lesson-capsule-sha-legibility · compiled · verified',
+    WHITE,
+    0.2,
+    LIME,
+  );
   place(durablePlate, ML.forge.x, 4.0, ML.forge.z + 0.8);
   durablePlate.visible = false;
   group.add(durablePlate);
   const fragSeatA = ML.forge.clone().add(new THREE.Vector3(0, 2.3, 0));
   const fragSeatB = ML.contested.clone().add(new THREE.Vector3(0, 1.9, 0));
-  const tetherRun = buildTether(fragSeatA, ML.runSlot.clone().add(new THREE.Vector3(0, 2.0, 0)), GLASS);
+  const tetherRun = buildTether(
+    fragSeatA,
+    ML.runSlot.clone().add(new THREE.Vector3(0, 2.0, 0)),
+    GLASS,
+  );
   const tetherCommission = buildTether(
     fragSeatA,
     ML.commission.clone().add(new THREE.Vector3(0, 2.4, 0)),
     GLASS,
   );
-  const tetherB = buildTether(fragSeatB, ML.runSlot.clone().add(new THREE.Vector3(0, 1.6, 0)), GLASS);
+  const tetherB = buildTether(
+    fragSeatB,
+    ML.runSlot.clone().add(new THREE.Vector3(0, 1.6, 0)),
+    GLASS,
+  );
   for (const t of [tetherRun, tetherCommission, tetherB]) group.add(t.line, t.tube);
 
   // Contested station: a low platform where the disputed claim splits into two halves.
@@ -454,7 +490,12 @@ export function buildMindCluster() {
   place(lattice, 0, 1.9, 0);
   lattice.visible = false;
   contest.add(lattice);
-  const contestPlate = plate('C-lesson-bloom ⇄ C-artbible-bloom-cap · contested', AMBER, 0.2, AMBER);
+  const contestPlate = plate(
+    'C-lesson-bloom ⇄ C-artbible-bloom-cap · contested',
+    AMBER,
+    0.2,
+    AMBER,
+  );
   place(contestPlate, 0, 3.0, 0);
   contestPlate.visible = false;
   contest.add(contestPlate);
@@ -464,7 +505,11 @@ export function buildMindCluster() {
   group.add(contest);
 
   // Scan wave on the deck.
-  const scanUniforms = { uColor: { value: new THREE.Color(ICE) }, uRadius: { value: 0 }, uActive: { value: 0 } };
+  const scanUniforms = {
+    uColor: { value: new THREE.Color(ICE) },
+    uRadius: { value: 0 },
+    uActive: { value: 0 },
+  };
   const scanWave = new THREE.Mesh(
     G.plane(30, 30),
     new THREE.ShaderMaterial({
@@ -503,7 +548,8 @@ export function buildMindCluster() {
   // Galaxy: existing durable structures from the seed graph, arranged by kind behind the cluster
   // with faint tethers to the commission monolith. Depth and scale, never a bare graph.
   const galaxy = new THREE.Group();
-  const nodes = (seedGraph as { nodes: Array<{ id: string; kind: string | null; title: string }> }).nodes;
+  const nodes = (seedGraph as { nodes: Array<{ id: string; kind: string | null; title: string }> })
+    .nodes;
   const kindY: Record<string, number> = {
     principle: 7,
     governance: 5,
@@ -571,7 +617,13 @@ export function buildMindCluster() {
   dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
   const dust = new THREE.Points(
     dustGeo,
-    new THREE.PointsMaterial({ color: '#c56f9a', size: 0.06, transparent: true, opacity: 0.6, depthWrite: false }),
+    new THREE.PointsMaterial({
+      color: '#c56f9a',
+      size: 0.06,
+      transparent: true,
+      opacity: 0.6,
+      depthWrite: false,
+    }),
   );
   group.add(dust);
 
@@ -605,7 +657,8 @@ export function buildMindCluster() {
       const reading = s.read > 0;
       readerArm.rotation.y = -0.6 + e(s.read) * 0.6 + (motion ? Math.sin(t * 0.7) * 0.02 : 0);
       lensGlow.emissiveIntensity = 0.3 + (s.read > 0 && s.read < 1 ? 2 : 0) + (reading ? 0.6 : 0);
-      (projection.material as THREE.MeshBasicMaterial).opacity = 0.7 * e(s.read) * (1 - 0.5 * e(s.propose));
+      (projection.material as THREE.MeshBasicMaterial).opacity =
+        0.7 * e(s.read) * (1 - 0.5 * e(s.propose));
       projectionPlate.visible = s.read > 0.4 && s.propose === 0;
       projection.rotation.y = motion ? t * 0.1 : 0;
       // Propose: fragments separate from the projection and drift to their seats.
@@ -614,7 +667,9 @@ export function buildMindCluster() {
       fragB.group.visible = s.propose > 0 && s.contest < 0.5;
       const start = ML.projection.clone().add(new THREE.Vector3(0, 1.2, 0));
       fragA.group.position.copy(start).lerp(fragSeatA, pk);
-      fragB.group.position.copy(start.clone().add(new THREE.Vector3(0.4, 0.6, 0.4))).lerp(fragSeatB, pk);
+      fragB.group.position
+        .copy(start.clone().add(new THREE.Vector3(0.4, 0.6, 0.4)))
+        .lerp(fragSeatB, pk);
       fragA.group.position.y += Math.sin(pk * Math.PI) * 1.2;
       fragB.group.position.y += Math.sin(pk * Math.PI) * 1.6;
       fragA.group.rotation.y = motion ? t * 0.25 : 0;

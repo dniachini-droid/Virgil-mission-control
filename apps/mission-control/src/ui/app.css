@@ -173,3 +173,42 @@ canvas {
   overflow: hidden;
   clip: rect(0 0 0 0);
 }
+@media (max-width: 720px) {
+  .hud-top {
+    gap: 6px;
+    padding: 6px 8px;
+    flex-wrap: wrap;
+  }
+  .hud-top h1 {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+  .hud-top label,
+  .hud-top button,
+  .hud-top select {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+  .hud-bottom {
+    gap: 6px;
+    padding: 6px 8px 8px;
+  }
+  .timeline {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .timeline button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .evidence {
+    max-height: 30vh;
+    font-size: 10.5px;
+    padding: 7px 9px;
+  }
+  .evidence dl {
+    grid-template-columns: max-content 1fr;
+  }
+}

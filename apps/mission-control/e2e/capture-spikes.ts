@@ -16,8 +16,18 @@ mkdirSync(outDir, { recursive: true });
 const shots: Array<{ route: string; step: number; name: string; query?: string; wait?: number }> = [
   { route: '/spike/characters', step: 0, name: 'characters-00-lineup-idle', query: '&mode=idle' },
   { route: '/spike/characters', step: 2, name: 'characters-02-lineup-work', query: '&mode=work' },
-  { route: '/spike/characters', step: 4, name: 'characters-04-lineup-refuse', query: '&mode=refuse' },
-  { route: '/spike/characters', step: 0, name: 'characters-00-lineup-greyscale', query: '&mode=idle&mono=1' },
+  {
+    route: '/spike/characters',
+    step: 4,
+    name: 'characters-04-lineup-refuse',
+    query: '&mode=refuse',
+  },
+  {
+    route: '/spike/characters',
+    step: 0,
+    name: 'characters-00-lineup-greyscale',
+    query: '&mode=idle&mono=1',
+  },
   { route: '/spike/foundry', step: 0, name: 'foundry-00-bay-overview' },
   { route: '/spike/foundry', step: 3, name: 'foundry-03-file-edit' },
   { route: '/spike/foundry', step: 5, name: 'foundry-05-staging' },
@@ -30,8 +40,18 @@ const shots: Array<{ route: string; step: number; name: string; query?: string; 
   { route: '/spike/foundry', step: 24, name: 'foundry-24-safe-to-merge', wait: 4500 },
   { route: '/spike/foundry', step: 25, name: 'foundry-25-refused' },
   { route: '/spike/foundry', step: 0, name: 'foundry-00-bay-greyscale', query: '&mono=1' },
-  { route: '/spike/foundry', step: 16, name: 'foundry-failed-16-unit-failed', query: '&run=failed' },
-  { route: '/spike/foundry', step: 19, name: 'foundry-failed-19-quarantined', query: '&run=failed' },
+  {
+    route: '/spike/foundry',
+    step: 16,
+    name: 'foundry-failed-16-unit-failed',
+    query: '&run=failed',
+  },
+  {
+    route: '/spike/foundry',
+    step: 19,
+    name: 'foundry-failed-19-quarantined',
+    query: '&run=failed',
+  },
   {
     route: '/spike/foundry',
     step: 6,
@@ -52,7 +72,12 @@ const shots: Array<{ route: string; step: number; name: string; query?: string; 
   { route: '/spike/mind', step: 7, name: 'mind-07-contested' },
   { route: '/spike/mind', step: 8, name: 'mind-08-durable-node' },
   { route: '/spike/mind', step: 9, name: 'mind-09-scan-finding' },
-  { route: '/spike/mind', step: 8, name: 'mind-08-reduced-motion-mobile', query: '&reduced=1&tier=mobile' },
+  {
+    route: '/spike/mind',
+    step: 8,
+    name: 'mind-08-reduced-motion-mobile',
+    query: '&reduced=1&tier=mobile',
+  },
 ];
 
 async function main() {

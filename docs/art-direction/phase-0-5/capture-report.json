@@ -1,0 +1,205 @@
+[
+  {
+    "name": "characters-00-lineup-idle",
+    "url": "http://localhost:4173/spike/characters?step=0&mode=idle",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/characters-00-lineup-idle.png"
+  },
+  {
+    "name": "characters-02-lineup-work",
+    "url": "http://localhost:4173/spike/characters?step=2&mode=work",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/characters-02-lineup-work.png"
+  },
+  {
+    "name": "characters-04-lineup-refuse",
+    "url": "http://localhost:4173/spike/characters?step=4&mode=refuse",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/characters-04-lineup-refuse.png"
+  },
+  {
+    "name": "characters-00-lineup-greyscale",
+    "url": "http://localhost:4173/spike/characters?step=0&mode=idle&mono=1",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/characters-00-lineup-greyscale.png"
+  },
+  {
+    "name": "foundry-00-bay-overview",
+    "url": "http://localhost:4173/spike/foundry?step=0&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-00-bay-overview.png"
+  },
+  {
+    "name": "foundry-03-file-edit",
+    "url": "http://localhost:4173/spike/foundry?step=3&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-03-file-edit.png"
+  },
+  {
+    "name": "foundry-05-staging",
+    "url": "http://localhost:4173/spike/foundry?step=5&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-05-staging.png"
+  },
+  {
+    "name": "foundry-06-commit-sealing",
+    "url": "http://localhost:4173/spike/foundry?step=6&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-06-commit-sealing.png"
+  },
+  {
+    "name": "foundry-09-handoff-prover",
+    "url": "http://localhost:4173/spike/foundry?step=9&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-09-handoff-prover.png"
+  },
+  {
+    "name": "foundry-13-checks",
+    "url": "http://localhost:4173/spike/foundry?step=13&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-13-checks.png"
+  },
+  {
+    "name": "foundry-18-signature",
+    "url": "http://localhost:4173/spike/foundry?step=18&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-18-signature.png"
+  },
+  {
+    "name": "foundry-19-handoff-keeper",
+    "url": "http://localhost:4173/spike/foundry?step=19&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-19-handoff-keeper.png"
+  },
+  {
+    "name": "foundry-22-finding",
+    "url": "http://localhost:4173/spike/foundry?step=22&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-22-finding.png"
+  },
+  {
+    "name": "foundry-24-safe-to-merge",
+    "url": "http://localhost:4173/spike/foundry?step=24&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-24-safe-to-merge.png"
+  },
+  {
+    "name": "foundry-25-refused",
+    "url": "http://localhost:4173/spike/foundry?step=25&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-25-refused.png"
+  },
+  {
+    "name": "foundry-00-bay-greyscale",
+    "url": "http://localhost:4173/spike/foundry?step=0&mono=1",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-00-bay-greyscale.png"
+  },
+  {
+    "name": "foundry-failed-16-unit-failed",
+    "url": "http://localhost:4173/spike/foundry?step=16&run=failed",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-failed-16-unit-failed.png"
+  },
+  {
+    "name": "foundry-failed-19-quarantined",
+    "url": "http://localhost:4173/spike/foundry?step=19&run=failed",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-failed-19-quarantined.png"
+  },
+  {
+    "name": "foundry-06-reduced-motion-mobile",
+    "url": "http://localhost:4173/spike/foundry?step=6&reduced=1&tier=mobile",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-06-reduced-motion-mobile.png"
+  },
+  {
+    "name": "foundry-24-reduced-motion-desktop",
+    "url": "http://localhost:4173/spike/foundry?step=24&reduced=1",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/foundry-24-reduced-motion-desktop.png"
+  },
+  {
+    "name": "mind-00-overview",
+    "url": "http://localhost:4173/spike/mind?step=0&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/mind-00-overview.png"
+  },
+  {
+    "name": "mind-01-gateway",
+    "url": "http://localhost:4173/spike/mind?step=1&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/mind-01-gateway.png"
+  },
+  {
+    "name": "mind-03-hashed-sealed",
+    "url": "http://localhost:4173/spike/mind?step=3&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/mind-03-hashed-sealed.png"
+  },
+  {
+    "name": "mind-04-non-destructive-read",
+    "url": "http://localhost:4173/spike/mind?step=4&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/mind-04-non-destructive-read.png"
+  },
+  {
+    "name": "mind-06-provenance-tether",
+    "url": "http://localhost:4173/spike/mind?step=6&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/mind-06-provenance-tether.png"
+  },
+  {
+    "name": "mind-07-contested",
+    "url": "http://localhost:4173/spike/mind?step=7&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/mind-07-contested.png"
+  },
+  {
+    "name": "mind-08-durable-node",
+    "url": "http://localhost:4173/spike/mind?step=8&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/mind-08-durable-node.png"
+  },
+  {
+    "name": "mind-09-scan-finding",
+    "url": "http://localhost:4173/spike/mind?step=9&tier=desktop",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/mind-09-scan-finding.png"
+  },
+  {
+    "name": "mind-08-reduced-motion-mobile",
+    "url": "http://localhost:4173/spike/mind?step=8&reduced=1&tier=mobile",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "errors": [],
+    "file": "docs/art-direction/phase-0-5/mind-08-reduced-motion-mobile.png"
+  }
+]
