@@ -1,0 +1,90 @@
+{
+  "$id": "https://virgil.local/schemas/raw-source-record.schema.json",
+  "title": "raw-source-record",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "sourceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "specification",
+        "research_document",
+        "image_reference",
+        "owner_decision",
+        "dataset",
+        "run_record",
+        "design_note",
+        "unclassified"
+      ]
+    },
+    "title": {
+      "type": "string"
+    },
+    "canonicalPath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Path of the immutable source; the record never duplicates its content"
+    },
+    "contentHash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "sha256 content hash"
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "provenance": {
+      "type": "string",
+      "description": "Where the source came from and who curated it"
+    },
+    "ingestionState": {
+      "type": "string",
+      "enum": [
+        "arrived",
+        "hashed",
+        "sealed",
+        "compiled"
+      ]
+    },
+    "addedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+      "description": "ISO-8601 timestamp with offset"
+    },
+    "addedBy": {
+      "type": "string"
+    },
+    "relatedSourceIds": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "immutable": {
+      "type": "boolean",
+      "const": true
+    }
+  },
+  "required": [
+    "sourceId",
+    "kind",
+    "title",
+    "canonicalPath",
+    "provenance",
+    "ingestionState",
+    "addedAt",
+    "addedBy",
+    "immutable"
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "$id": "https://virgil.local/schemas/gate-report.schema.json",
+  "title": "gate-report",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "reportId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "purpose": {
+      "type": "string",
+      "enum": [
+        "review_eligibility",
+        "merge_eligibility",
+        "repair_authorisation",
+        "deploy_authority"
+      ]
+    },
+    "headSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "Immutable full commit SHA"
+    },
+    "decisions": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "gateId": {
+            "type": "string"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "fail",
+              "insufficient_evidence"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "git_object",
+                    "git_ref",
+                    "command_output",
+                    "check_run",
+                    "file_hash",
+                    "diff",
+                    "event",
+                    "pull_request",
+                    "raw_source",
+                    "owner_decision",
+                    "gate_decision",
+                    "review_report",
+                    "adjudication",
+                    "run_record",
+                    "wiki_page",
+                    "schema",
+                    "code_path",
+                    "adr"
+                  ]
+                },
+                "ref": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Locator: SHA, path, event id, PR number, check id, URL-free identifier"
+                },
+                "hash": {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$",
+                  "description": "sha256 content hash"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "ref"
+              ],
+              "description": "A pointer to inspectable machine or structured evidence. Prose is never evidence."
+            }
+          },
+          "evaluatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "ISO-8601 timestamp with offset"
+          }
+        },
+        "required": [
+          "gateId",
+          "result",
+          "reason",
+          "evidence"
+        ]
+      }
+    },
+    "overall": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail",
+        "insufficient_evidence"
+      ]
+    },
+    "evaluatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+      "description": "ISO-8601 timestamp with offset"
+    }
+  },
+  "required": [
+    "reportId",
+    "purpose",
+    "decisions",
+    "overall",
+    "evaluatedAt"
+  ]
+}

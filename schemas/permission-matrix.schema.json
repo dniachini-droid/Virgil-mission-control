@@ -1,0 +1,157 @@
+{
+  "$id": "https://virgil.local/schemas/permission-matrix.schema.json",
+  "title": "permission-matrix",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "toolVocabulary": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "virgil",
+              "cartographer",
+              "architect",
+              "fabricator",
+              "prover",
+              "keeper",
+              "arbiter",
+              "domain-verifier",
+              "breaker",
+              "integrator",
+              "interface-keeper",
+              "security-sentinel",
+              "transport-inspector",
+              "performance-examiner"
+            ],
+            "description": "Agent role identifier from constitution/permission-matrix.json"
+          },
+          "name": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "permanent",
+              "conditional"
+            ]
+          },
+          "stage": {
+            "type": "string"
+          },
+          "activatedBy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "maxTier": {
+            "type": "string"
+          },
+          "tools": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bashPolicy": {
+            "type": "string"
+          },
+          "writeBoundaries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mayModifyCandidate": {
+            "type": "boolean"
+          },
+          "mayModifyTests": {
+            "type": [
+              "boolean",
+              "string"
+            ]
+          },
+          "mayLaunchStages": {
+            "type": "boolean"
+          },
+          "independentOf": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "prohibited": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stopConditions": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "escalatesTo": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "virgil",
+              "arbiter"
+            ]
+          },
+          "resultSchema": {
+            "type": "string"
+          },
+          "payloadSchema": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "title",
+          "kind",
+          "stage",
+          "maxTier",
+          "tools",
+          "bashPolicy",
+          "writeBoundaries",
+          "mayModifyCandidate",
+          "mayModifyTests",
+          "mayLaunchStages",
+          "independentOf",
+          "prohibited",
+          "stopConditions",
+          "escalatesTo",
+          "resultSchema",
+          "payloadSchema"
+        ]
+      }
+    }
+  },
+  "required": [
+    "version",
+    "toolVocabulary",
+    "roles"
+  ]
+}

@@ -1,0 +1,488 @@
+{
+  "$id": "https://virgil.local/schemas/machine-verification-result.schema.json",
+  "title": "machine-verification-result",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "projectId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "repository": {
+      "type": "string"
+    },
+    "branch": {
+      "type": "string"
+    },
+    "worktree": {
+      "type": "string"
+    },
+    "baseSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "Immutable full commit SHA"
+    },
+    "headSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "Immutable full commit SHA"
+    },
+    "pr": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": "string"
+        },
+        "number": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "draft": {
+          "type": "boolean"
+        },
+        "headSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$",
+          "description": "Immutable full commit SHA"
+        },
+        "baseRef": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository",
+        "number",
+        "draft",
+        "headSha",
+        "baseRef"
+      ]
+    },
+    "roleId": {
+      "type": "string",
+      "enum": [
+        "virgil",
+        "cartographer",
+        "architect",
+        "fabricator",
+        "prover",
+        "keeper",
+        "arbiter",
+        "domain-verifier",
+        "breaker",
+        "integrator",
+        "interface-keeper",
+        "security-sentinel",
+        "transport-inspector",
+        "performance-examiner"
+      ],
+      "description": "Agent role identifier from constitution/permission-matrix.json"
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "authorityTier": {
+      "type": "string",
+      "enum": [
+        "TIER_1",
+        "TIER_2",
+        "TIER_3"
+      ]
+    },
+    "authorityGrantId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "permittedActions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "filesChanged": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "checksRun": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "checkId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "name": {
+            "type": "string"
+          },
+          "commandClass": {
+            "type": "string",
+            "description": "Class of command, never the raw command with secrets"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "running",
+              "passed",
+              "failed",
+              "skipped"
+            ]
+          },
+          "exitCode": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "ISO-8601 timestamp with offset"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "ISO-8601 timestamp with offset"
+          },
+          "skipReason": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "git_object",
+                    "git_ref",
+                    "command_output",
+                    "check_run",
+                    "file_hash",
+                    "diff",
+                    "event",
+                    "pull_request",
+                    "raw_source",
+                    "owner_decision",
+                    "gate_decision",
+                    "review_report",
+                    "adjudication",
+                    "run_record",
+                    "wiki_page",
+                    "schema",
+                    "code_path",
+                    "adr"
+                  ]
+                },
+                "ref": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Locator: SHA, path, event id, PR number, check id, URL-free identifier"
+                },
+                "hash": {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$",
+                  "description": "sha256 content hash"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "ref"
+              ],
+              "description": "A pointer to inspectable machine or structured evidence. Prose is never evidence."
+            }
+          }
+        },
+        "required": [
+          "checkId",
+          "name",
+          "commandClass",
+          "required",
+          "result",
+          "evidence"
+        ]
+      }
+    },
+    "checksSkipped": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "checkId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "checkId",
+          "reason"
+        ]
+      }
+    },
+    "findingIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "handoffSource": {
+      "type": "string",
+      "enum": [
+        "virgil",
+        "cartographer",
+        "architect",
+        "fabricator",
+        "prover",
+        "keeper",
+        "arbiter",
+        "domain-verifier",
+        "breaker",
+        "integrator",
+        "interface-keeper",
+        "security-sentinel",
+        "transport-inspector",
+        "performance-examiner"
+      ],
+      "description": "Agent role identifier from constitution/permission-matrix.json"
+    },
+    "handoffDestination": {
+      "type": "string",
+      "enum": [
+        "virgil",
+        "cartographer",
+        "architect",
+        "fabricator",
+        "prover",
+        "keeper",
+        "arbiter",
+        "domain-verifier",
+        "breaker",
+        "integrator",
+        "interface-keeper",
+        "security-sentinel",
+        "transport-inspector",
+        "performance-examiner"
+      ],
+      "description": "Agent role identifier from constitution/permission-matrix.json"
+    },
+    "gateResult": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail",
+        "insufficient_evidence"
+      ]
+    },
+    "stopReason": {
+      "type": "string"
+    },
+    "nextAction": {
+      "type": "string",
+      "description": "Exactly one recommended next action"
+    },
+    "verificationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "checks": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "checkId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "name": {
+            "type": "string"
+          },
+          "commandClass": {
+            "type": "string",
+            "description": "Class of command, never the raw command with secrets"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "running",
+              "passed",
+              "failed",
+              "skipped"
+            ]
+          },
+          "exitCode": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "ISO-8601 timestamp with offset"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "ISO-8601 timestamp with offset"
+          },
+          "skipReason": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "git_object",
+                    "git_ref",
+                    "command_output",
+                    "check_run",
+                    "file_hash",
+                    "diff",
+                    "event",
+                    "pull_request",
+                    "raw_source",
+                    "owner_decision",
+                    "gate_decision",
+                    "review_report",
+                    "adjudication",
+                    "run_record",
+                    "wiki_page",
+                    "schema",
+                    "code_path",
+                    "adr"
+                  ]
+                },
+                "ref": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Locator: SHA, path, event id, PR number, check id, URL-free identifier"
+                },
+                "hash": {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$",
+                  "description": "sha256 content hash"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "ref"
+              ],
+              "description": "A pointer to inspectable machine or structured evidence. Prose is never evidence."
+            }
+          }
+        },
+        "required": [
+          "checkId",
+          "name",
+          "commandClass",
+          "required",
+          "result",
+          "evidence"
+        ]
+      }
+    },
+    "allRequiredCompleted": {
+      "type": "boolean"
+    },
+    "anyRequiredFailed": {
+      "type": "boolean"
+    },
+    "mutationControl": {
+      "type": "object",
+      "properties": {
+        "disposableCopyRef": {
+          "type": "string"
+        },
+        "seededDefect": {
+          "type": "string"
+        },
+        "detectedByCheckId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "detected": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "disposableCopyRef",
+        "seededDefect",
+        "detected"
+      ]
+    },
+    "baselineFailures": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "signature": {
+      "type": "string",
+      "description": "Machine verification signature over completed checks only"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+      "description": "ISO-8601 timestamp with offset"
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+      "description": "ISO-8601 timestamp with offset"
+    }
+  },
+  "required": [
+    "projectId",
+    "repository",
+    "headSha",
+    "verificationId",
+    "checks",
+    "allRequiredCompleted",
+    "anyRequiredFailed",
+    "baselineFailures",
+    "signature",
+    "startedAt",
+    "completedAt"
+  ]
+}

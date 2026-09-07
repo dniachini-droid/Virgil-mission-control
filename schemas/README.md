@@ -1,0 +1,43 @@
+# Schemas
+
+Generated from `packages/agent-contracts/src` by `pnpm --filter @virgil/agent-contracts export-schemas`. Do not edit by hand; edit the Zod source and regenerate. JSON Schema draft 2020-12.
+
+- `acceptance-contract.schema.json`
+- `adjudication.schema.json`
+- `agent-authority-grant.schema.json`
+- `agent-definition-frontmatter.schema.json`
+- `agent-result.schema.json`
+- `animation-mapping.schema.json`
+- `atomic-claim.schema.json`
+- `authority-config.schema.json`
+- `candidate-artifact.schema.json`
+- `check-run.schema.json`
+- `domain-event.schema.json`
+- `epistemic-visual-projection-contract.schema.json`
+- `evidence-ref.schema.json`
+- `gate-decision.schema.json`
+- `gate-report.schema.json`
+- `handoff.schema.json`
+- `implementation-plan.schema.json`
+- `knowledge-compilation-proposal.schema.json`
+- `knowledge-compilation-result.schema.json`
+- `knowledge-node.schema.json`
+- `knowledge-relationship.schema.json`
+- `machine-verification-result.schema.json`
+- `mind-scan-finding.schema.json`
+- `operational-animation-grammar.schema.json`
+- `owner-decision.schema.json`
+- `permission-matrix.schema.json`
+- `project-manifest.schema.json`
+- `provenance-tether.schema.json`
+- `raw-source-record.schema.json`
+- `repair-contract.schema.json`
+- `repository-allowlist.schema.json`
+- `review-finding.schema.json`
+- `review-report.schema.json`
+- `risk-classification.schema.json`
+- `role-performance-bible.schema.json`
+- `run-record.schema.json`
+- `stage-assignment.schema.json`
+- `telemetry-signal.schema.json`
+- `work-order.schema.json`

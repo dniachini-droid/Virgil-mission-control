@@ -1,0 +1,288 @@
+{
+  "runId": "phase-0",
+  "phase": "Phase 0 — foundation and governed design",
+  "purpose": "Establish repository foundation, product and technical authority, knowledge system, agent definitions, deterministic gates, art-direction proof and the Phase 1 plan.",
+  "projectId": "virgil-mission-control",
+  "repository": "dniachini-droid/Virgil-mission-control",
+  "branch": "claude/virgil-phase-0-plan-kp7g38",
+  "roleId": "architect",
+  "sessionId": "session_01UshVJ3MouL4NEytMFdTWhi",
+  "authorityTier": "TIER_2",
+  "authorityGrantId": "OD-0001",
+  "permittedActions": [
+    "commit_and_push_to_authorised_branch",
+    "install_authorised_dependencies",
+    "author_phase_0_artifacts"
+  ],
+  "commands": [
+    {
+      "commandClass": "repository-inspection",
+      "summary": "git status/log, tool versions, file listing",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "integrity-analysis",
+      "summary": "hash and substitution search of the commission copy",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "registry-query",
+      "summary": "npm dist-tags and metadata for the candidate stack",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "dependency-install",
+      "summary": "pnpm install of the authorised open-source packages",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "lint",
+      "summary": "biome check",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "typecheck",
+      "summary": "turbo run typecheck",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "unit-test",
+      "summary": "turbo run test",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "schema-export",
+      "summary": "export 39 JSON Schemas",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "knowledge-lint",
+      "summary": "Mind Scan over knowledge/",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "build",
+      "summary": "vite build",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "headless-capture",
+      "summary": "Playwright captures with SwiftShader",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "git-push",
+      "summary": "push to the authorised branch only",
+      "exitCode": 0
+    }
+  ],
+  "filesChanged": [
+    "docs/product/VIRGIL_MASTER_COMMISSION.md",
+    "constitution/authority.json",
+    "constitution/permission-matrix.json",
+    "packages/agent-contracts/src/index.ts",
+    "packages/domain/src/reducer.ts",
+    "packages/gate-engine/src/gates.ts",
+    "packages/knowledge-graph/src/derive.ts",
+    "packages/visual-language/data/animation-grammar.json",
+    "apps/mission-control/src/spikes/foundry/FoundryScene.tsx",
+    "apps/mission-control/src/spikes/mind/MindScene.tsx",
+    "docs/process/PHASE_0_RUN_RECORD.md"
+  ],
+  "checksRun": [
+    {
+      "checkId": "biome",
+      "name": "Biome lint and format",
+      "commandClass": "lint",
+      "required": true,
+      "result": "passed",
+      "exitCode": 0,
+      "evidence": [
+        {
+          "kind": "command_output",
+          "ref": "biome check . (99 files)"
+        }
+      ]
+    },
+    {
+      "checkId": "typecheck",
+      "name": "TypeScript 7 typecheck",
+      "commandClass": "typecheck",
+      "required": true,
+      "result": "passed",
+      "exitCode": 0,
+      "evidence": [
+        {
+          "kind": "command_output",
+          "ref": "turbo run typecheck (8 targets)"
+        }
+      ]
+    },
+    {
+      "checkId": "unit",
+      "name": "Vitest unit tests",
+      "commandClass": "unit-test",
+      "required": true,
+      "result": "passed",
+      "exitCode": 0,
+      "evidence": [
+        {
+          "kind": "command_output",
+          "ref": "turbo run test (130 tests)"
+        }
+      ]
+    },
+    {
+      "checkId": "knowledge-lint",
+      "name": "Mind Scan",
+      "commandClass": "knowledge-lint",
+      "required": true,
+      "result": "passed",
+      "exitCode": 0,
+      "evidence": [
+        {
+          "kind": "command_output",
+          "ref": "94/94 tethers intact, no findings"
+        }
+      ]
+    },
+    {
+      "checkId": "build",
+      "name": "Vite production build",
+      "commandClass": "build",
+      "required": true,
+      "result": "passed",
+      "exitCode": 0,
+      "evidence": [
+        {
+          "kind": "command_output",
+          "ref": "dist/assets/index-*.js"
+        }
+      ]
+    },
+    {
+      "checkId": "capture",
+      "name": "Headless spike captures",
+      "commandClass": "headless-capture",
+      "required": true,
+      "result": "passed",
+      "exitCode": 0,
+      "evidence": [
+        {
+          "kind": "code_path",
+          "ref": "docs/art-direction/spikes/capture-report.json"
+        }
+      ]
+    },
+    {
+      "checkId": "gpu-visual-judgment",
+      "name": "Owner art-direction review on a GPU",
+      "commandClass": "owner-review",
+      "required": true,
+      "result": "skipped",
+      "skipReason": "No GPU in the execution container; software rendering is not a valid art judgment (Amendment 1).",
+      "evidence": []
+    },
+    {
+      "checkId": "performance-tiers",
+      "name": "Frame budgets per device tier",
+      "commandClass": "benchmark",
+      "required": false,
+      "result": "skipped",
+      "skipReason": "No representative devices in the container; measured in Phase 1.",
+      "evidence": []
+    }
+  ],
+  "checksSkipped": [
+    {
+      "checkId": "gpu-visual-judgment",
+      "reason": "No GPU in the execution container"
+    },
+    {
+      "checkId": "performance-tiers",
+      "reason": "No representative devices; deferred to Phase 1"
+    },
+    {
+      "checkId": "3d-interaction-tests",
+      "reason": "Label canvas unavailable under Node; deferred to Phase 1"
+    },
+    {
+      "checkId": "agent-evaluations",
+      "reason": "Requires Phase 3 session launching; harness and fixtures delivered"
+    }
+  ],
+  "limitations": [
+    "Worker figures are silhouette stand-ins, not the final ensemble.",
+    "The commission's 752-byte difference against the owner's original is unexplained in-session; owner verification command recorded.",
+    "Runtime enforcement of per-role write boundaries arrives with Phase 3 hooks."
+  ],
+  "commits": [
+    {
+      "sha": "3993393e3f2fabbac9ea9c465ce8af119e306f5a",
+      "message": "docs: add Virgil master commissioning brief as governing product authority"
+    },
+    {
+      "sha": "f6ed881c50eddadf344fd7947910e9a354d90c4e",
+      "message": "docs: amend master commission with Amendment 1 (Operational Animation Grammar)"
+    },
+    {
+      "sha": "1f169cb1990886bdae061a6d09d0f69a1ea0ae76",
+      "message": "feat(wp1): workspace scaffold, session rules, constitution and owner decision OD-0001"
+    },
+    {
+      "sha": "4adc76b12f4e150ffcd884bca0f5b1095d5c4c11",
+      "message": "feat(wp2): agent roster, permission matrix, knowledge skill, settings, threat model"
+    },
+    {
+      "sha": "0c748e8771532bca22ee29061e5d9a61cb9f6bb3",
+      "message": "feat(wp3): contracts, domain event model with replay, gate engine and defective fixtures"
+    },
+    {
+      "sha": "6342087f2a1742470275869a85d47a45962e7c66",
+      "message": "feat(wp4): knowledge layer, provenance graph, Mind Scan checks and fixtures"
+    },
+    {
+      "sha": "f6367f365a302070cdbb4bb9b88ccef8b64a682b",
+      "message": "feat(wp5): visual language data, animation grammar, role bible, art bible, two worlds, performance"
+    },
+    {
+      "sha": "34c43a3273ded95852411f70b77ff7cf2b6c65e3",
+      "message": "feat(wp6): Orbital Foundry and Mind of Virgil rendering spikes with headless captures"
+    },
+    {
+      "sha": "44fcbd6748063b94004f63de14e72b12c94e5911",
+      "message": "docs(wp7): ADRs, testing strategy, product docs, Phase 1 brief, checkpoint, traceability, run record"
+    }
+  ],
+  "candidateState": "BUILDER_REPORTED_COMPLETE",
+  "verdict": "BLOCKED_PENDING_REAL_GPU_REVIEW",
+  "openOwnerDecisions": [
+    {
+      "questionId": "OD-0002",
+      "question": "Do the spikes credibly demonstrate the intended quality on a real GPU?",
+      "consequence": "Phase 1 cannot start without PASS or PASS WITH DIRECTION.",
+      "recommendedDefault": "PASS WITH DIRECTION with the character ensemble direction recorded."
+    },
+    {
+      "questionId": "Q-characters",
+      "question": "Character direction: stylised humanoid, semi-organic machine, drone or hybrid?",
+      "consequence": "Determines Phase 1 modelling.",
+      "recommendedDefault": "Hybrid ensemble: semi-organic machines for builders and provers, hooded figures for reviewers, a celestial navigator for Virgil."
+    },
+    {
+      "questionId": "Q-sound",
+      "question": "Are optional sound motifs in the Phase 1 slice?",
+      "consequence": "Adds audio assets and a mute control.",
+      "recommendedDefault": "Out of Phase 1; in Phase 5."
+    }
+  ],
+  "risks": [
+    "Bleeding-edge majors may need per-package fallbacks",
+    "Bundle needs code splitting before Phase 2",
+    "Software renders may misrepresent bloom and colour"
+  ],
+  "nextAction": "Owner runs both spikes on a GPU and records OD-0002 (art-direction checkpoint).",
+  "stopReason": "Phase 0 complete except the owner-only visual judgment",
+  "startedAt": "2026-09-06T15:50:00+00:00",
+  "completedAt": "2026-09-06T18:00:00+00:00"
+}

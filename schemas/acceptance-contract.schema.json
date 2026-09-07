@@ -1,0 +1,196 @@
+{
+  "$id": "https://virgil.local/schemas/acceptance-contract.schema.json",
+  "title": "acceptance-contract",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "contractId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "projectId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "version": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "owner_accepted",
+        "superseded"
+      ]
+    },
+    "problem": {
+      "type": "string"
+    },
+    "intendedUser": {
+      "type": "string"
+    },
+    "productPromise": {
+      "type": "string"
+    },
+    "v1Boundary": {
+      "type": "string"
+    },
+    "userJourneys": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acceptanceCriteria": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "criterionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "statement": {
+            "type": "string"
+          },
+          "evidenceRequired": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "criterionId",
+          "statement",
+          "evidenceRequired"
+        ]
+      }
+    },
+    "nonGoals": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "openOwnerDecisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "question": {
+            "type": "string"
+          },
+          "consequence": {
+            "type": "string"
+          },
+          "recommendedDefault": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "questionId",
+          "question",
+          "consequence",
+          "recommendedDefault"
+        ]
+      }
+    },
+    "failureConditions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acceptedByDecisionId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "authoredBy": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "owner",
+            "virgil",
+            "agent",
+            "system",
+            "git",
+            "github",
+            "knowledge_worker"
+          ]
+        },
+        "roleId": {
+          "type": "string",
+          "enum": [
+            "virgil",
+            "cartographer",
+            "architect",
+            "fabricator",
+            "prover",
+            "keeper",
+            "arbiter",
+            "domain-verifier",
+            "breaker",
+            "integrator",
+            "interface-keeper",
+            "security-sentinel",
+            "transport-inspector",
+            "performance-examiner"
+          ],
+          "description": "Agent role identifier from constitution/permission-matrix.json"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "displayName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+      "description": "ISO-8601 timestamp with offset"
+    }
+  },
+  "required": [
+    "contractId",
+    "projectId",
+    "version",
+    "status",
+    "problem",
+    "intendedUser",
+    "productPromise",
+    "v1Boundary",
+    "userJourneys",
+    "acceptanceCriteria",
+    "nonGoals",
+    "assumptions",
+    "openOwnerDecisions",
+    "failureConditions",
+    "authoredBy",
+    "createdAt"
+  ]
+}

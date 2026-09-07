@@ -1,0 +1,232 @@
+{
+  "$id": "https://virgil.local/schemas/knowledge-node.schema.json",
+  "title": "knowledge-node",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "nodeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "principle",
+        "architecture_concept",
+        "agent_role",
+        "decision",
+        "lesson",
+        "open_question",
+        "glossary_term",
+        "visual_language",
+        "governance",
+        "contradiction_field"
+      ]
+    },
+    "title": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "epistemicClass": {
+      "type": "string",
+      "enum": [
+        "immutable_raw_evidence",
+        "durable_compiled_knowledge",
+        "owner_approved_decision",
+        "ai_generated_hypothesis",
+        "contested_claim",
+        "superseded_claim",
+        "unverified_claim",
+        "live_operational_signal",
+        "deterministically_verified_fact"
+      ]
+    },
+    "authorityClass": {
+      "type": "string",
+      "enum": [
+        "commission",
+        "owner_decision",
+        "constitution",
+        "adr",
+        "verified_evidence",
+        "compiled",
+        "hypothesis",
+        "output"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "claimId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "nodeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "statement": {
+            "type": "string"
+          },
+          "epistemicClass": {
+            "type": "string",
+            "enum": [
+              "immutable_raw_evidence",
+              "durable_compiled_knowledge",
+              "owner_approved_decision",
+              "ai_generated_hypothesis",
+              "contested_claim",
+              "superseded_claim",
+              "unverified_claim",
+              "live_operational_signal",
+              "deterministically_verified_fact"
+            ]
+          },
+          "authorityClass": {
+            "type": "string",
+            "enum": [
+              "commission",
+              "owner_decision",
+              "constitution",
+              "adr",
+              "verified_evidence",
+              "compiled",
+              "hypothesis",
+              "output"
+            ]
+          },
+          "supportTetherIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "contestedBy": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "supersededBy": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "verifiedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "ISO-8601 timestamp with offset"
+          },
+          "verificationSignature": {
+            "description": "Present only for deterministically verified facts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "claimId",
+          "nodeId",
+          "statement",
+          "epistemicClass",
+          "authorityClass",
+          "supportTetherIds"
+        ]
+      }
+    },
+    "related": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "compiledAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+      "description": "ISO-8601 timestamp with offset"
+    },
+    "lastVerifiedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+      "description": "ISO-8601 timestamp with offset"
+    },
+    "compiledBy": {
+      "type": "string",
+      "description": "Maintaining agent or skill"
+    },
+    "supersededBy": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "supersedes": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "affectsDecisions": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "affectsCodeSurfaces": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "current",
+        "contested",
+        "superseded",
+        "proposed",
+        "unverified"
+      ]
+    }
+  },
+  "required": [
+    "nodeId",
+    "kind",
+    "title",
+    "path",
+    "epistemicClass",
+    "authorityClass",
+    "summary",
+    "claims",
+    "compiledAt",
+    "compiledBy",
+    "status"
+  ]
+}

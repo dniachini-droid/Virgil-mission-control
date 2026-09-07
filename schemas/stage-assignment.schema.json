@@ -1,0 +1,176 @@
+{
+  "$id": "https://virgil.local/schemas/stage-assignment.schema.json",
+  "title": "stage-assignment",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "assignmentId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "scope",
+        "plan",
+        "build",
+        "verification",
+        "review",
+        "adjudication",
+        "repair",
+        "re_review",
+        "owner_gate",
+        "deploy"
+      ]
+    },
+    "roleId": {
+      "type": "string",
+      "enum": [
+        "virgil",
+        "cartographer",
+        "architect",
+        "fabricator",
+        "prover",
+        "keeper",
+        "arbiter",
+        "domain-verifier",
+        "breaker",
+        "integrator",
+        "interface-keeper",
+        "security-sentinel",
+        "transport-inspector",
+        "performance-examiner"
+      ],
+      "description": "Agent role identifier from constitution/permission-matrix.json"
+    },
+    "grantId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "git_object",
+              "git_ref",
+              "command_output",
+              "check_run",
+              "file_hash",
+              "diff",
+              "event",
+              "pull_request",
+              "raw_source",
+              "owner_decision",
+              "gate_decision",
+              "review_report",
+              "adjudication",
+              "run_record",
+              "wiki_page",
+              "schema",
+              "code_path",
+              "adr"
+            ]
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Locator: SHA, path, event id, PR number, check id, URL-free identifier"
+          },
+          "hash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "description": "sha256 content hash"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "ref"
+        ],
+        "description": "A pointer to inspectable machine or structured evidence. Prose is never evidence."
+      }
+    },
+    "workOrderId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "assignedBy": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "owner",
+            "virgil",
+            "agent",
+            "system",
+            "git",
+            "github",
+            "knowledge_worker"
+          ]
+        },
+        "roleId": {
+          "type": "string",
+          "enum": [
+            "virgil",
+            "cartographer",
+            "architect",
+            "fabricator",
+            "prover",
+            "keeper",
+            "arbiter",
+            "domain-verifier",
+            "breaker",
+            "integrator",
+            "interface-keeper",
+            "security-sentinel",
+            "transport-inspector",
+            "performance-examiner"
+          ],
+          "description": "Agent role identifier from constitution/permission-matrix.json"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "displayName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    },
+    "assignedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+      "description": "ISO-8601 timestamp with offset"
+    }
+  },
+  "required": [
+    "assignmentId",
+    "runId",
+    "stage",
+    "roleId",
+    "grantId",
+    "inputs",
+    "assignedBy",
+    "assignedAt"
+  ]
+}

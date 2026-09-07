@@ -1,0 +1,389 @@
+{
+  "runId": "consolidation",
+  "phase": "Consolidation \u2014 Phase 0 foundation, Keeper repairs, approved visual direction",
+  "purpose": "Consolidate the approved Phase 0 foundation, the repairs for Keeper findings K-01, K-02, K-03 and K-15, corrected documentation and the owner-approved visual direction into one branch for a single owner-reviewed pull request into main. Second round (OD-0003 proposal): repair Keeper findings KR-01, KR-02, KR-04, KR-05 on candidate 956be26.",
+  "projectId": "virgil-mission-control",
+  "repository": "dniachini-droid/Virgil-mission-control",
+  "branch": "claude/virgil-main-consolidation-6f5fuc",
+  "baseSha": "8210125705e01650ec82154fc4c2cee0ba076bdf",
+  "roleId": "fabricator",
+  "sessionId": "session_01Bgm953xPxj36XgiS7ZL8hQ",
+  "authorityTier": "TIER_2",
+  "permittedActions": [
+    "commit_and_push_to_single_consolidation_branch",
+    "open_one_pull_request_targeting_main",
+    "repair_keeper_findings_k01_k02_k03_k15",
+    "import_owner_approved_artifacts_with_provenance"
+  ],
+  "commands": [
+    {
+      "commandClass": "repository-inspection",
+      "summary": "git fetch, branch and SHA verification, clean-tree check, bundle extraction outside the repository",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "independent-review",
+      "summary": "fresh read-only Keeper session reviewed 956be26: BLOCKED (KR-01, KR-02); owner authorised one additional repair round",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "dependency-install",
+      "summary": "pnpm install --frozen-lockfile",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "git-cherry-pick",
+      "summary": "three foundation-repair commits onto the Phase 0 SHA",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "lint",
+      "summary": "biome check (111 files)",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "typecheck",
+      "summary": "turbo run typecheck (8 targets)",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "unit-test",
+      "summary": "turbo run test (225 tests after the second repair round)",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "schema-export",
+      "summary": "export 39 JSON Schemas; no diff",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "seed-graph-export",
+      "summary": "regenerate seed-graph.json; no diff",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "knowledge-lint",
+      "summary": "Mind Scan over knowledge/: 94/94 tethers, no findings",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "build",
+      "summary": "vite build",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "adversarial-probe",
+      "summary": "first-round exploits plus KR-01, KR-02, KR-04 against repaired sources; first-round exploits against base sources",
+      "exitCode": 0
+    },
+    {
+      "commandClass": "git-push",
+      "summary": "push to the single consolidation branch only",
+      "exitCode": 0
+    }
+  ],
+  "filesChanged": [
+    "packages/domain/src/guards.ts",
+    "packages/domain/src/validation.ts",
+    "packages/domain/src/reducer.ts",
+    "packages/domain/src/state.ts",
+    "packages/domain/test/adversarial.test.ts",
+    "packages/domain/test/resume-and-paths.test.ts",
+    "packages/domain/scripts/k-probe.ts",
+    "packages/agent-contracts/src/paths.ts",
+    "packages/agent-contracts/src/common.ts",
+    "packages/agent-contracts/test/paths.test.ts",
+    "packages/agent-contracts/test/permission-matrix.test.ts",
+    "packages/gate-engine/src/gates.ts",
+    "packages/knowledge-graph/src/seed.ts",
+    "packages/knowledge-graph/test/seed-graph.test.ts",
+    "packages/test-fixtures/knowledge/seed-graph.json",
+    ".claude/settings.json",
+    "docs/architecture/ENFORCEMENT_BOUNDARIES.md",
+    "docs/security/THREAT_MODEL.md",
+    "docs/architecture/PERFORMANCE_STRATEGY.md",
+    "docs/process/PHASE_0_TRACEABILITY.md",
+    "docs/decisions/proposed/OD-0002-art-direction-checkpoint.md",
+    "docs/art-direction/approved/README.md",
+    "assets/licenses/ASSET_PROVENANCE.md",
+    "docs/process/CONSOLIDATION_RUN_RECORD.md",
+    "packages/domain/test/repair-round-2.test.ts",
+    "docs/decisions/proposed/OD-0003-consolidation-repair-round.md",
+    "schemas/domain-event.schema.json"
+  ],
+  "checksRun": [
+    {
+      "checkId": "install",
+      "name": "Dependency installation from the lockfile",
+      "commandClass": "dependency-install",
+      "required": true,
+      "result": "passed",
+      "exitCode": 0,
+      "evidence": [
+        {
+          "kind": "command_output",
+          "ref": "pnpm install --frozen-lockfile"
+        }
+      ]
+    },
+    {
+      "checkId": "biome",
+      "name": "Biome lint and format",
+      "commandClass": "lint",
+      "required": true,
+      "result": "passed",
+      "exitCode": 0,
+      "evidence": [
+        {
+          "kind": "command_output",
+          "ref": "biome check . (111 files, no fixes)"
+        }
+      ]
+    },
+    {
+      "checkId": "typecheck",
+      "name": "TypeScript typecheck",
+      "commandClass": "typecheck",
+      "required": true,
+      "result": "passed",
+      "exitCode": 0,
+      "evidence": [
+        {
+          "kind": "command_output",
+          "ref": "turbo run typecheck (8 targets)"
+        }
+      ]
+    },
+    {
+      "checkId": "unit",
+      "name": "Vitest unit and regression tests",
+      "commandClass": "unit-test",
+      "required": true,
+      "result": "passed",
+      "exitCode": 0,
+      "evidence": [
+        {
+          "kind": "command_output",
+          "ref": "turbo run test (225 tests: agent-contracts 54, domain 104, gate-engine 19, knowledge-graph 24, visual-language 18, mission-control 6)"
+        }
+      ]
+    },
+    {
+      "checkId": "schema-freshness",
+      "name": "Schema regeneration produces no diff",
+      "commandClass": "schema-export",
+      "required": true,
+      "result": "passed",
+      "exitCode": 0,
+      "evidence": [
+        {
+          "kind": "command_output",
+          "ref": "export-schemas; git diff schemas/ empty"
+        }
+      ]
+    },
+    {
+      "checkId": "seed-graph-freshness",
+      "name": "Seed graph regeneration produces no diff",
+      "commandClass": "seed-graph-export",
+      "required": true,
+      "result": "passed",
+      "exitCode": 0,
+      "evidence": [
+        {
+          "kind": "command_output",
+          "ref": "export-seed-graph; git diff empty; seed-graph.test.ts"
+        }
+      ]
+    },
+    {
+      "checkId": "knowledge-lint",
+      "name": "Mind Scan",
+      "commandClass": "knowledge-lint",
+      "required": true,
+      "result": "passed",
+      "exitCode": 0,
+      "evidence": [
+        {
+          "kind": "command_output",
+          "ref": "94/94 tethers intact, no findings"
+        }
+      ]
+    },
+    {
+      "checkId": "build",
+      "name": "Vite production build",
+      "commandClass": "build",
+      "required": true,
+      "result": "passed",
+      "exitCode": 0,
+      "evidence": [
+        {
+          "kind": "command_output",
+          "ref": "turbo run build"
+        }
+      ]
+    },
+    {
+      "checkId": "adversarial-probe",
+      "name": "First-round exploits, KR-01, KR-02 and KR-04 rejected on this branch; first-round exploits accepted on the base",
+      "commandClass": "adversarial-probe",
+      "required": true,
+      "result": "passed",
+      "exitCode": 0,
+      "evidence": [
+        {
+          "kind": "code_path",
+          "ref": "packages/domain/scripts/k-probe.ts"
+        },
+        {
+          "kind": "run_record",
+          "ref": "docs/process/CONSOLIDATION_RUN_RECORD.md"
+        }
+      ]
+    },
+    {
+      "checkId": "gpu-visual-review",
+      "name": "Visual judgment on a real GPU",
+      "commandClass": "manual-review",
+      "required": false,
+      "result": "skipped",
+      "skipReason": "No GPU in the container; the owner has already rejected the runtime visuals",
+      "evidence": []
+    },
+    {
+      "checkId": "performance-measurement",
+      "name": "Frame and byte budgets per tier",
+      "commandClass": "benchmark",
+      "required": false,
+      "result": "skipped",
+      "skipReason": "No representative device; strategy recorded as design-level only",
+      "evidence": []
+    },
+    {
+      "checkId": "triposr-licence-verification",
+      "name": "Primary-source licence verification for the model candidate generator",
+      "commandClass": "licence-verification",
+      "required": false,
+      "result": "skipped",
+      "skipReason": "Session policy denies web access; recorded as stated, not verified; production use blocked",
+      "evidence": []
+    },
+    {
+      "checkId": "independent-review",
+      "name": "Fresh independent Keeper review of the second candidate SHA",
+      "commandClass": "review",
+      "required": true,
+      "result": "skipped",
+      "skipReason": "A different role; the first candidate was reviewed (BLOCKED) and repaired; the new SHA awaits its own review",
+      "evidence": []
+    }
+  ],
+  "checksSkipped": [
+    {
+      "checkId": "gpu-visual-review",
+      "reason": "No GPU in the container; the owner has already rejected the runtime visuals"
+    },
+    {
+      "checkId": "performance-measurement",
+      "reason": "No representative device; strategy recorded as design-level only"
+    },
+    {
+      "checkId": "triposr-licence-verification",
+      "reason": "Session policy denies web access; recorded as stated, not verified; production use blocked"
+    },
+    {
+      "checkId": "independent-review",
+      "reason": "A different role; the first candidate was reviewed (BLOCKED) and repaired; the new SHA awaits its own review"
+    },
+    {
+      "checkId": "mutation-control",
+      "reason": "Not performed; the adversarial suite and probe cover the reducer only"
+    }
+  ],
+  "limitations": [
+    "The reducer trusts actor identity as recorded; session identity binding is Phase 3",
+    "Writes that emit no event are invisible to the reducer; only settings deny rules cover them until hooks exist",
+    "Git and GitHub facts are trusted as recorded; adapters, the live allowlist and gate evidence collection are Phase 2",
+    "role-performance.json and the art-direction prose are not yet rewritten to the approved sheets",
+    "No production-ready runtime asset exists; the model candidate is unrigged and its generator licence is unverified",
+    "Single lineage per run; decisions recorded per run",
+    "Bundle needs code splitting before Phase 2",
+    "KR-03: the required-check set is declared by the Prover and anchored to no owner-controlled list (accepted gap)",
+    "KR-06, KR-07, KR-09 recorded as accepted gaps in ENFORCEMENT_BOUNDARIES.md",
+    "The settings matcher test models the harness; the harness matcher itself is not exercised by tests"
+  ],
+  "commits": [
+    {
+      "sha": "0e3c067db92f0df377d781797b12635a82385984",
+      "message": "fix(domain): validate actor, authority, decisions and derive verification from recorded checks"
+    },
+    {
+      "sha": "e3e64887cea172d4063cf2d7e1bbbebb9a761959",
+      "message": "fix(domain): restrict owner-decision resume targets, require a scope decision for repair, normalise repository paths"
+    },
+    {
+      "sha": "9c6ca36c2fa7079e771e379ce83551a0add950c0",
+      "message": "docs: distinguish reducer, gate-engine and orchestration enforcement; correct overstated claims"
+    },
+    {
+      "sha": "0a82850f75a32068e66f21264492e25fbf8011f7",
+      "message": "fix(knowledge-graph): regenerate the seed graph and add a freshness test"
+    },
+    {
+      "sha": "3bbf2c84ef047cd8f2418b56ea281b01f6b229ee",
+      "message": "docs: state enforcement status per layer, correct overstated claims, record the consolidation"
+    },
+    {
+      "sha": "79b80e51ad6e9f9382ffefa1b36fc609a1161e6b",
+      "message": "feat(art): import the approved visual canon, character concept sheets, model candidate and provenance"
+    },
+    {
+      "sha": "956be26064171f53022f92fc4429770bb727eaa5",
+      "message": "docs: consolidation run record, machine-readable twin and adversarial probe script (first candidate; Keeper verdict BLOCKED)"
+    }
+  ],
+  "candidateState": "BUILDER_REPORTED_COMPLETE",
+  "openOwnerDecisions": [
+    {
+      "questionId": "OD-0003-move",
+      "question": "Move docs/decisions/proposed/OD-0003-consolidation-repair-round.md to docs/decisions/ to record the authorised additional repair round as an accepted decision?",
+      "consequence": "Until moved, the authorisation exists only in the owner's message and this transcription.",
+      "recommendedDefault": "Move it with OD-0002 after the merge."
+    },
+    {
+      "questionId": "OD-0002-move",
+      "question": "Move docs/decisions/proposed/OD-0002-art-direction-checkpoint.md to docs/decisions/ to give the transcribed visual-direction decision authority?",
+      "consequence": "Until moved, the art direction is a proposal and Phase 1 cannot start.",
+      "recommendedDefault": "Move it after the merge; the knowledge layer then ingests it."
+    },
+    {
+      "questionId": "terminal-halt-policy",
+      "question": "Ratify the reducer policy that an owner question raised in MERGED or DEPLOYED is recorded without leaving the terminal state (a narrowing of the authority.json wildcard for two states)?",
+      "consequence": "Without ratification the constitution text and the reducer differ on those two states.",
+      "recommendedDefault": "Ratify by an owner decision and amend STATE_LANGUAGE.md and authority.json in a later owner-only change."
+    },
+    {
+      "questionId": "fresh-review",
+      "question": "Commission a fresh read-only Keeper review of the exact final SHA before merging?",
+      "consequence": "The repaired authority system is unaccepted until reviewed.",
+      "recommendedDefault": "Yes, against KEEPER_REQUIRED_REPAIRS.md and this record."
+    },
+    {
+      "questionId": "required-check-list",
+      "question": "Where should the governed list of required checks live (KR-03)?",
+      "consequence": "Until decided, a Prover may declare a smaller required set than the plan intends.",
+      "recommendedDefault": "An owner-controlled requiredChecks entry in constitution/authority.json, enforced by the reducer, in a later owner-only change."
+    }
+  ],
+  "risks": [
+    "Unreviewed reducer changes are pending independent review",
+    "The model candidate's generator licence is stated, not verified",
+    "Bundle size unchanged; code splitting needed before Phase 2",
+    "This is the last repair cycle permitted with owner authority; a further BLOCKED verdict stops the lineage"
+  ],
+  "nextAction": "Owner commissions one fresh read-only Keeper review of the new final SHA, then merges the pull request or returns findings; after the merge, moves OD-0002 and OD-0003 to docs/decisions/ and deletes the superseded branches.",
+  "stopReason": "Consolidation complete; merge and acceptance are owner-only",
+  "startedAt": "2026-09-06T23:30:00+00:00",
+  "completedAt": "2026-09-07T01:00:00+00:00"
+}

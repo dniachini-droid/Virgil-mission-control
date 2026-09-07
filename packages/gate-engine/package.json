@@ -1,0 +1,20 @@
+{
+  "name": "@virgil/gate-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic eligibility and integrity gates computed from machine evidence. No LLM judgment. No I/O.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@virgil/agent-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@virgil/test-fixtures": "workspace:*"
+  }
+}

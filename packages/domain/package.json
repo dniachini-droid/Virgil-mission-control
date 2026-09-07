@@ -1,0 +1,23 @@
+{
+  "name": "@virgil/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Workflow entities, events, state machine, reducer and replay for Virgil runs.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "probe": "tsx scripts/k-probe.ts"
+  },
+  "dependencies": {
+    "@virgil/agent-contracts": "workspace:*",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@virgil/test-fixtures": "workspace:*",
+    "@virgil/gate-engine": "workspace:*"
+  }
+}

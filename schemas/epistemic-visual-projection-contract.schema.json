@@ -1,0 +1,171 @@
+{
+  "$id": "https://virgil.local/schemas/epistemic-visual-projection-contract.schema.json",
+  "title": "epistemic-visual-projection-contract",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "entries": {
+      "minItems": 9,
+      "maxItems": 9,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "epistemicClass": {
+            "type": "string",
+            "enum": [
+              "immutable_raw_evidence",
+              "durable_compiled_knowledge",
+              "owner_approved_decision",
+              "ai_generated_hypothesis",
+              "contested_claim",
+              "superseded_claim",
+              "unverified_claim",
+              "live_operational_signal",
+              "deterministically_verified_fact"
+            ]
+          },
+          "authorityRank": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9,
+            "description": "Higher ranks may never be rendered with the visual stability of a lower rank"
+          },
+          "visualStability": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9,
+            "description": "Perceived solidity; must not exceed what the authorityRank permits"
+          },
+          "visual": {
+            "type": "object",
+            "properties": {
+              "form": {
+                "type": "string",
+                "description": "Geometry family, e.g. solid_celestial_structure"
+              },
+              "label": {
+                "type": "string",
+                "description": "Visible text label pattern"
+              },
+              "pattern": {
+                "type": "string",
+                "description": "Surface or edge pattern independent of colour"
+              },
+              "motion": {
+                "type": "string",
+                "description": "Motion signature; must be legible when reduced"
+              },
+              "colourToken": {
+                "type": "string",
+                "description": "Palette token; never the sole state indicator"
+              },
+              "authorityMark": {
+                "type": "string"
+              },
+              "tether": {
+                "description": "Tether rendering rule",
+                "type": "string"
+              },
+              "interaction": {
+                "type": "string",
+                "description": "Selection and inspection behaviour"
+              },
+              "reducedMotion": {
+                "type": "string"
+              },
+              "lowPerformance": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "form",
+              "label",
+              "pattern",
+              "motion",
+              "colourToken",
+              "interaction",
+              "reducedMotion",
+              "lowPerformance"
+            ]
+          },
+          "persistent": {
+            "type": "boolean",
+            "description": "False only for live_operational_signal"
+          }
+        },
+        "required": [
+          "epistemicClass",
+          "authorityRank",
+          "visualStability",
+          "visual",
+          "persistent"
+        ]
+      }
+    },
+    "tetherStates": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "intact",
+          "broken",
+          "stale",
+          "absent"
+        ]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "form": {
+            "type": "string",
+            "description": "Geometry family, e.g. solid_celestial_structure"
+          },
+          "pattern": {
+            "type": "string",
+            "description": "Surface or edge pattern independent of colour"
+          },
+          "motion": {
+            "type": "string",
+            "description": "Motion signature; must be legible when reduced"
+          },
+          "colourToken": {
+            "type": "string",
+            "description": "Palette token; never the sole state indicator"
+          },
+          "reducedMotion": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "form",
+          "pattern",
+          "motion",
+          "colourToken",
+          "reducedMotion"
+        ]
+      },
+      "required": [
+        "intact",
+        "broken",
+        "stale",
+        "absent"
+      ]
+    },
+    "invariants": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "version",
+    "entries",
+    "tetherStates",
+    "invariants"
+  ]
+}

@@ -1,0 +1,329 @@
+{
+  "$comment": "Machine-readable twin of the constitution. Owner-controlled. Read by packages/domain and packages/gate-engine. Changing this file is a Tier 3 owner decision.",
+  "version": "1.0.0",
+  "tiers": {
+    "TIER_1": {
+      "title": "act and report",
+      "requiresOwnerDecision": false,
+      "permittedActions": [
+        "read_only_recovery",
+        "status_reconciliation",
+        "collect_machine_evidence",
+        "update_presentation_state",
+        "report_inactivity_or_failure",
+        "identify_next_authorised_action"
+      ]
+    },
+    "TIER_2": {
+      "title": "ask scope once, then execute the agreed chain",
+      "requiresOwnerDecision": "scope_approved",
+      "permittedActions": [
+        "start_agreed_stage",
+        "create_isolated_worktree_and_branch",
+        "run_approved_build",
+        "push_branch_and_open_draft_pr",
+        "commission_review_formation",
+        "apply_one_adjudicated_bounded_repair"
+      ]
+    },
+    "TIER_3": {
+      "title": "owner approval required before action",
+      "requiresOwnerDecision": true,
+      "permittedActions": [
+        "material_owner_decision",
+        "authority_change",
+        "new_work_after_failed_bounded_cycle",
+        "additional_repair_or_rereview_round",
+        "merge",
+        "deploy",
+        "permission_expansion"
+      ]
+    }
+  },
+  "ownerOnlyActions": [
+    "merge",
+    "deploy",
+    "authority_change",
+    "permission_expansion",
+    "additional_repair_or_rereview_round",
+    "new_work_after_failed_bounded_cycle",
+    "material_owner_decision"
+  ],
+  "virgilProhibitions": [
+    "scope",
+    "plan",
+    "build",
+    "repair",
+    "review",
+    "adjudicate",
+    "approve_pr",
+    "merge",
+    "deploy",
+    "change_own_authority",
+    "start_extra_repair_round_without_owner",
+    "treat_builder_report_as_proof"
+  ],
+  "protectedBoundaries": [
+    "constitution/",
+    "docs/product/VIRGIL_MASTER_COMMISSION.md",
+    "docs/decisions/OD-*",
+    "knowledge/raw/",
+    "schemas/gate-*",
+    "merge_mechanism",
+    "deploy_mechanism"
+  ],
+  "permissionInvariant": [
+    "one_accountable_owner_per_artifact_at_a_time",
+    "no_ambiguous_or_simultaneous_overlapping_authority",
+    "protected_boundaries_exclusive",
+    "narrow_sequential_grants_permitted",
+    "every_grant_transfer_expiry_revocation_explicit_and_auditable",
+    "reviewer_independence_absolute",
+    "keeper_and_arbiter_cannot_modify_candidate",
+    "virgil_cannot_perform_routed_work"
+  ],
+  "repairLimits": {
+    "independentReviewsPerCycle": 1,
+    "adjudicationsPerCycle": 1,
+    "boundedRepairsPerCycle": 1,
+    "reReviewsPerCycle": 1,
+    "maxCyclesWithoutOwner": 1,
+    "maxCyclesWithOwner": 2,
+    "beyondLimit": "OWNER_DECISION_REQUIRED"
+  },
+  "reviewVerdicts": ["PASS", "PASS_WITH_NON_BLOCKING_FINDINGS", "BLOCKED", "INSUFFICIENT_EVIDENCE"],
+  "candidateStates": [
+    "BUILDING",
+    "BUILDER_REPORTED_COMPLETE",
+    "VERIFICATION_INCOMPLETE",
+    "READY_FOR_REVIEW",
+    "REVIEW_IN_PROGRESS",
+    "PASS_WITH_NON_BLOCKING_FINDINGS",
+    "BLOCKED",
+    "INSUFFICIENT_EVIDENCE",
+    "REPAIR_AUTHORISED",
+    "RE_REVIEW_REQUIRED",
+    "SAFE_TO_MERGE",
+    "MERGED",
+    "DEPLOYED",
+    "QUARANTINED",
+    "OWNER_DECISION_REQUIRED"
+  ],
+  "deploymentStates": ["NOT_STARTED", "STARTED", "FAILED", "SUCCEEDED"],
+  "checkResults": ["running", "passed", "failed", "skipped"],
+  "transitions": [
+    {
+      "from": "BUILDING",
+      "on": "agent_result_received",
+      "to": "BUILDER_REPORTED_COMPLETE",
+      "guard": "result_claims_complete"
+    },
+    {
+      "from": "BUILDING",
+      "on": "candidate_committed",
+      "to": "BUILDING"
+    },
+    {
+      "from": "BUILDING",
+      "on": "candidate_pushed",
+      "to": "BUILDING"
+    },
+    {
+      "from": "BUILDER_REPORTED_COMPLETE",
+      "on": "verification_started",
+      "to": "VERIFICATION_INCOMPLETE"
+    },
+    {
+      "from": "BUILDER_REPORTED_COMPLETE",
+      "on": "remote_artifact_mismatch",
+      "to": "QUARANTINED"
+    },
+    {
+      "from": "VERIFICATION_INCOMPLETE",
+      "on": "check_failed",
+      "to": "BLOCKED",
+      "guard": "check_is_required"
+    },
+    {
+      "from": "VERIFICATION_INCOMPLETE",
+      "on": "verification_completed",
+      "to": "READY_FOR_REVIEW",
+      "guard": "review_eligibility_gate_passes"
+    },
+    {
+      "from": "VERIFICATION_INCOMPLETE",
+      "on": "verification_completed",
+      "to": "INSUFFICIENT_EVIDENCE",
+      "guard": "required_checks_missing"
+    },
+    {
+      "from": "VERIFICATION_INCOMPLETE",
+      "on": "verification_completed",
+      "to": "BLOCKED",
+      "guard": "required_check_failed"
+    },
+    {
+      "from": "VERIFICATION_INCOMPLETE",
+      "on": "remote_artifact_mismatch",
+      "to": "QUARANTINED"
+    },
+    {
+      "from": "READY_FOR_REVIEW",
+      "on": "review_started",
+      "to": "REVIEW_IN_PROGRESS",
+      "guard": "reviewer_independent_of_builder"
+    },
+    {
+      "from": "READY_FOR_REVIEW",
+      "on": "candidate_changed_after_review",
+      "to": "RE_REVIEW_REQUIRED"
+    },
+    {
+      "from": "REVIEW_IN_PROGRESS",
+      "on": "review_passed",
+      "to": "PASS_WITH_NON_BLOCKING_FINDINGS",
+      "guard": "verdict_pass_with_non_blocking"
+    },
+    {
+      "from": "REVIEW_IN_PROGRESS",
+      "on": "review_passed",
+      "to": "READY_FOR_REVIEW",
+      "guard": "verdict_pass",
+      "$comment": "A plain PASS returns the candidate to eligibility evaluation; safe_to_merge is a separate gate decision."
+    },
+    {
+      "from": "REVIEW_IN_PROGRESS",
+      "on": "candidate_quarantined",
+      "to": "QUARANTINED"
+    },
+    {
+      "from": "REVIEW_IN_PROGRESS",
+      "on": "review_blocked",
+      "to": "BLOCKED"
+    },
+    {
+      "from": "REVIEW_IN_PROGRESS",
+      "on": "review_insufficient_evidence",
+      "to": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "from": "REVIEW_IN_PROGRESS",
+      "on": "candidate_changed_after_review",
+      "to": "RE_REVIEW_REQUIRED"
+    },
+    {
+      "from": "READY_FOR_REVIEW",
+      "on": "safe_to_merge",
+      "to": "SAFE_TO_MERGE",
+      "guard": "all_merge_gates_pass_and_review_passed"
+    },
+    {
+      "from": "PASS_WITH_NON_BLOCKING_FINDINGS",
+      "on": "safe_to_merge",
+      "to": "SAFE_TO_MERGE",
+      "guard": "all_merge_gates_pass"
+    },
+    {
+      "from": "PASS_WITH_NON_BLOCKING_FINDINGS",
+      "on": "candidate_changed_after_review",
+      "to": "RE_REVIEW_REQUIRED"
+    },
+    {
+      "from": "BLOCKED",
+      "on": "verification_completed",
+      "to": "BLOCKED",
+      "$comment": "Completion after a failed required check is a fact worth recording; the state stays BLOCKED."
+    },
+    {
+      "from": "BLOCKED",
+      "on": "candidate_quarantined",
+      "to": "QUARANTINED"
+    },
+    {
+      "from": "BLOCKED",
+      "on": "adjudication_completed",
+      "to": "BLOCKED"
+    },
+    {
+      "from": "BLOCKED",
+      "on": "repair_authorised",
+      "to": "REPAIR_AUTHORISED",
+      "guard": "repair_cycle_within_limit"
+    },
+    {
+      "from": "INSUFFICIENT_EVIDENCE",
+      "on": "verification_started",
+      "to": "VERIFICATION_INCOMPLETE"
+    },
+    {
+      "from": "INSUFFICIENT_EVIDENCE",
+      "on": "candidate_quarantined",
+      "to": "QUARANTINED"
+    },
+    {
+      "from": "QUARANTINED",
+      "on": "adjudication_completed",
+      "to": "QUARANTINED"
+    },
+    {
+      "from": "QUARANTINED",
+      "on": "repair_authorised",
+      "to": "REPAIR_AUTHORISED",
+      "guard": "repair_cycle_within_limit"
+    },
+    {
+      "from": "REPAIR_AUTHORISED",
+      "on": "repair_started",
+      "to": "REPAIR_AUTHORISED"
+    },
+    {
+      "from": "REPAIR_AUTHORISED",
+      "on": "repair_completed",
+      "to": "RE_REVIEW_REQUIRED",
+      "guard": "new_sha_differs_from_reviewed_sha"
+    },
+    {
+      "from": "RE_REVIEW_REQUIRED",
+      "on": "verification_started",
+      "to": "VERIFICATION_INCOMPLETE"
+    },
+    {
+      "from": "SAFE_TO_MERGE",
+      "on": "candidate_changed_after_review",
+      "to": "RE_REVIEW_REQUIRED"
+    },
+    {
+      "from": "SAFE_TO_MERGE",
+      "on": "merged_by_owner",
+      "to": "MERGED",
+      "guard": "actor_is_owner"
+    },
+    {
+      "from": "MERGED",
+      "on": "deployment_started",
+      "to": "MERGED",
+      "guard": "deploy_authority_present"
+    },
+    {
+      "from": "MERGED",
+      "on": "deployment_failed",
+      "to": "MERGED"
+    },
+    {
+      "from": "MERGED",
+      "on": "deployed",
+      "to": "DEPLOYED"
+    },
+    {
+      "from": "*",
+      "on": "owner_decision_required",
+      "to": "OWNER_DECISION_REQUIRED"
+    },
+    {
+      "from": "OWNER_DECISION_REQUIRED",
+      "on": "owner_decision",
+      "to": "$resumesTo"
+    }
+  ],
+  "eventNameNote": "Transition 'on' values are domain event types from packages/domain. review_blocked and review_insufficient_evidence are the verdict-carrying review completion events alongside review_passed."
+}
