@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:9cd71428e78b07b5fbcc15d301931851c634a38b5632ceab4aa3a8cad0188323",
+  "graphHash": "sha256:7142a2e2d304213f5a8a629b1ce8bd49b3ba0cca241c65b22c747102c196cc8d",
   "nodes": [
     {
       "id": "agent-roster",
@@ -87,6 +87,16 @@
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0006 — Recording an owner decision on the owner's instruction (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0007-phase-1-authorisation-and-todays-decisions.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0007 — Phase 0 accepted, Phase 1 authorised, and the five other decisions of 2026-09-07 (Tier 3)",
       "epistemicClass": "owner_approved_decision",
       "authorityClass": "owner_decision",
       "status": null,
