@@ -118,8 +118,8 @@ describe('agent definitions agree with the matrix', () => {
 /**
  * Tool and write-authority overlap. A role's tools, Bash policy, write boundaries and candidate
  * flags must tell one story, no two roles may hold nested concrete boundaries, no boundary may
- * reach a protected boundary from authority.json, and the session deny rules must cover every
- * path-shaped protected boundary for both Write and Edit.
+ * reach a protected boundary from authority.json, and every path-shaped protected boundary must
+ * carry the protection its classification in `boundaryProtection` claims for it.
  */
 describe('tool and write-authority overlap', () => {
   const writeTools = new Set(['Edit', 'Write']);
@@ -180,20 +180,108 @@ describe('tool and write-authority overlap', () => {
       for (const boundary of protectedPaths)
         expect(patternsMayOverlap(w, boundary), `${id}:${w} vs protected ${boundary}`).toBe(false);
   });
-  it('session deny rules cover Write and Edit for every path-shaped protected boundary', () => {
-    const deny = new Set(settings.permissions.deny);
-    const rule = (b: string) => {
-      const n = normaliseRepoPathPattern(b);
-      expect(n.ok, b).toBe(true);
-      if (!n.ok) return b;
-      return n.path.endsWith('/') ? `./${n.path}**` : `./${n.path}`;
-    };
+  /**
+   * Boundary protection is not one thing, and asserting that it is was wrong.
+   *
+   * `constitution/authority.json` classifies every path-shaped protected boundary into exactly one
+   * of two kinds (`boundaryProtection`): `sessionDenied`, protected by a `Write`/`Edit` deny rule
+   * in `.claude/settings.json`, and `ownerInstructedOnly`, protected by the recorded owner
+   * instruction that governs it and deliberately carrying no deny rule.
+   *
+   * The authority for the split. `docs/decisions/OD-0006-recording-owner-decisions.md` records the
+   * owner's decision that their own turn in the owner console is sufficient authority for a session
+   * to record and file an owner decision in `docs/decisions/`. A `Write`/`Edit` deny rule on
+   * `docs/decisions/OD-*` made that impossible for any session, so the owner removed the two rules
+   * themselves in commit `9627bae`. That left this file asserting a rule that no longer existed.
+   *
+   * The constitutional change that classifies it. The owner added the `boundaryProtection` block
+   * themselves in commit `dd8ddb1`, additively, leaving `protectedBoundaries` unchanged. It lives
+   * in `constitution/`, which every session is denied, so a session cannot move a boundary from
+   * `sessionDenied` to `ownerInstructedOnly` to make its own write legal.
+   *
+   * The three assertions below replace one. Together they are stricter, not looser: an unclassified
+   * new boundary now fails (it did not before), a boundary classified in both groups fails, a
+   * session-denied boundary still needs both deny rules, and an owner-instructed boundary must both
+   * carry no deny rule that reaches it and be recorded in `ENFORCEMENT_BOUNDARIES.md` in that
+   * document's own status vocabulary.
+   */
+  const denyRuleTarget = (b: string) => {
+    const n = normaliseRepoPathPattern(b);
+    expect(n.ok, b).toBe(true);
+    if (!n.ok) return b;
+    return n.path.endsWith('/') ? `./${n.path}**` : `./${n.path}`;
+  };
+  const boundaryProtection = authority.boundaryProtection;
+  const sessionDenied: readonly string[] = boundaryProtection.sessionDenied;
+  const ownerInstructedOnly: readonly string[] = boundaryProtection.ownerInstructedOnly;
+  /** The four statuses of `docs/architecture/ENFORCEMENT_BOUNDARIES.md`, "Status vocabulary". */
+  const statusVocabulary = [
+    'implemented now',
+    'validated by tests',
+    'design-level only',
+    'deferred to a privileged runtime',
+  ];
+
+  it('every path-shaped protected boundary is classified in exactly one protection group', () => {
     for (const b of protectedPaths) {
-      const target = rule(b);
+      const groups = [
+        ...(sessionDenied.includes(b) ? ['sessionDenied'] : []),
+        ...(ownerInstructedOnly.includes(b) ? ['ownerInstructedOnly'] : []),
+      ];
+      expect(
+        groups,
+        `${b}: every path-shaped protected boundary must appear in exactly one of ` +
+          `boundaryProtection.sessionDenied or boundaryProtection.ownerInstructedOnly`,
+      ).toHaveLength(1);
+    }
+    for (const b of [...sessionDenied, ...ownerInstructedOnly])
+      expect(
+        protectedPaths,
+        `${b} is classified but is not a path-shaped protected boundary`,
+      ).toContain(b);
+    expect(protectedPaths.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('every session-denied boundary has both a Write and an Edit deny rule', () => {
+    const deny = new Set(settings.permissions.deny);
+    for (const b of sessionDenied) {
+      const target = denyRuleTarget(b);
       expect(deny, `Write(${target})`).toContain(`Write(${target})`);
       expect(deny, `Edit(${target})`).toContain(`Edit(${target})`);
     }
-    expect(protectedPaths.length).toBeGreaterThanOrEqual(5);
+    expect(sessionDenied.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('every owner-instructed-only boundary carries no deny rule and is recorded as such', () => {
+    const writeOrEditTargets = settings.permissions.deny
+      .map((r) => /^(?:Write|Edit)\((.+)\)$/.exec(r)?.[1])
+      .filter((t): t is string => typeof t === 'string')
+      .map((t) => t.replace(/^\.\//, ''));
+    const documentLines = readFileSync(
+      resolve(import.meta.dirname, '../../../docs/architecture/ENFORCEMENT_BOUNDARIES.md'),
+      'utf8',
+    ).split('\n');
+    for (const b of ownerInstructedOnly) {
+      for (const target of writeOrEditTargets)
+        expect(
+          patternsMayOverlap(target, b),
+          `deny rule for ${target} reaches owner-instructed boundary ${b}`,
+        ).toBe(false);
+      const rows = documentLines.filter((l) => l.startsWith('|') && l.includes(`\`${b}\``));
+      expect(rows.length, `${b} is not recorded in ENFORCEMENT_BOUNDARIES.md`).toBeGreaterThan(0);
+      const recorded = rows.filter(
+        (r) =>
+          r.includes('protected by recorded owner instruction') &&
+          statusVocabulary.some((s) => r.includes(`**${s}**`)),
+      );
+      expect(
+        recorded.length,
+        `${b}: ENFORCEMENT_BOUNDARIES.md must record it as protected by recorded owner ` +
+          `instruction, with a status from that document's vocabulary. Rows found: ` +
+          `${JSON.stringify(rows)}`,
+      ).toBeGreaterThan(0);
+    }
+    expect(ownerInstructedOnly.length).toBeGreaterThanOrEqual(1);
   });
 });
 

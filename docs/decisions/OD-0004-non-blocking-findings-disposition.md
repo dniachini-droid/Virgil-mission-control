@@ -1,6 +1,6 @@
 # OD-0004 — Disposition of the non-blocking Keeper findings, and the merge of pull request #1 (Tier 3)
 
-Status: **owner decision, transcribed; proposal path pending the owner's move.** Issued by the owner in the owner console on 2026-09-07, after the independent Keeper review of candidate `3b9a964e7de4c53560fd3128090cdba39b005c6c` returned `PASS_WITH_NON_BLOCKING_FINDINGS` (a comment on pull request #1 headed "Keeper review — candidate `3b9a964e...` (second repair round)"). The owner's words are the source; this file transcribes them and decides nothing itself. It gains authority when the owner moves it to `docs/decisions/`; until then the same policy and tooling limits apply as for OD-0002 and OD-0003.
+Status: **Accepted.** Issued by the owner in the owner console on 2026-09-07, after the independent Keeper review of candidate `3b9a964e7de4c53560fd3128090cdba39b005c6c` returned `PASS_WITH_NON_BLOCKING_FINDINGS` (a comment on pull request #1 headed "Keeper review — candidate `3b9a964e...` (second repair round)"). The owner's words are the source; this file transcribes them and decides nothing itself. The owner accepted it on 2026-09-07 by instruction in the owner console, and this session filed it here on that instruction under the mechanism recorded in `OD-0006-recording-owner-decisions.md`, which holds the owner's verbatim words. It carries authority (layer 1) from that acceptance. Only this status line changed on filing; the decision text is unaltered.
 
 ## Question
 

@@ -94,20 +94,68 @@ Implemented now and validated by tests (`packages/agent-contracts/test/paths.tes
 
 ## Permission matrix and session tooling
 
-Validated by tests (`packages/agent-contracts/test/permission-matrix.test.ts`, "tool and write-authority overlap"): a role has write tools if and only if it has a write boundary; only the Fabricator holds a boundary inside the candidate worktree; stage launching is exclusive to the role with the `Agent` tool; the three placeholder boundaries are each held by one role; concrete boundaries normalise, never nest across roles and never reach a protected boundary; and `.claude/settings.json` denies both `Write` and `Edit` for every path-shaped protected boundary in `authority.json`. These tests check data agreement between files; they do not make the runtime enforce the matrix (deferred, above).
+Validated by tests (`packages/agent-contracts/test/permission-matrix.test.ts`, "tool and write-authority overlap"): a role has write tools if and only if it has a write boundary; only the Fabricator holds a boundary inside the candidate worktree; stage launching is exclusive to the role with the `Agent` tool; the three placeholder boundaries are each held by one role; concrete boundaries normalise, never nest across roles and never reach a protected boundary; and every path-shaped protected boundary in `authority.json` carries the protection its `boundaryProtection` classification claims for it (see "Boundary protection: two kinds" below). These tests check data agreement between files; they do not make the runtime enforce the matrix (deferred, above).
 
-## Owner-decision recording (OD-0006): procedural, not enforced
+## Boundary protection: two kinds, and which protects what
 
-`docs/decisions/proposed/OD-0006-recording-owner-decisions.md` records the owner's instruction that their turn in the owner console is sufficient authority for a session to record and file an owner decision. It places two conditions on that. Neither is enforced by anything on this branch.
+`constitution/authority.json` lists seven `protectedBoundaries`. Five are paths; two (`merge_mechanism`, `deploy_mechanism`) are mechanisms, not paths, and are out of scope here. Until the owner's commit `dd8ddb1` the repository treated all five paths as protected by one mechanism — a `Write` and `Edit` deny rule in `.claude/settings.json` — and `permission-matrix.test.ts` asserted exactly that. That assertion was true when written and became false when the owner removed the two deny rules for `docs/decisions/OD-*` in commit `9627bae`, so that a session could file an owner decision at all (`OD-0006`). The test then failed on `main`, correctly: it was reporting a real disagreement between the constitution and the settings file.
+
+The owner's commit `dd8ddb1` resolves that by declaring, in `constitution/authority.json` itself, that there are two kinds of protection:
+
+```json
+"boundaryProtection": {
+  "sessionDenied": ["constitution/", "docs/product/VIRGIL_MASTER_COMMISSION.md", "knowledge/raw/", "schemas/gate-*"],
+  "ownerInstructedOnly": ["docs/decisions/OD-*"]
+}
+```
+
+The classification lives in `constitution/`, which every session is denied both by rule and by test. That placement is the point of the design: a session cannot reclassify a boundary out of `sessionDenied` in order to make its own write to it legal. Only the owner can move a path between the two groups, and the owner did.
+
+| Protected boundary | Protection | Mechanism today | Status |
+|---|---|---|---|
+| `constitution/` | session-denied | `Write(./constitution/**)` and `Edit(./constitution/**)` in `.claude/settings.json` | **validated by tests** |
+| `docs/product/VIRGIL_MASTER_COMMISSION.md` | session-denied | `Write` and `Edit` deny rules on the exact path | **validated by tests** |
+| `knowledge/raw/` | session-denied | `Write(./knowledge/raw/**)` and `Edit(./knowledge/raw/**)` | **validated by tests** |
+| `schemas/gate-*` | session-denied | `Write(./schemas/gate-*)` and `Edit(./schemas/gate-*)` | **validated by tests** |
+| `docs/decisions/OD-*` | owner-instructed only — protected by recorded owner instruction, not by a deny rule | A `PreToolUse` hook refuses a `Write` or `Edit` whose resulting file lacks a blockquoted verbatim quotation or a date. Nothing determines whether an owner instruction exists, whether the quoted words are the owner's, or what a `Bash`-mediated write does | **design-level only** for the protection itself; the hook's own two checks are **validated by tests** |
+
+Read the status column exactly. **validated by tests** on the four session-denied rows means one thing and no more: `packages/agent-contracts/test/permission-matrix.test.ts` fails if either deny rule is removed from `.claude/settings.json`. The rule is then enforced by the Claude Code harness, which is not this repository and is not exercised by any test here; the test asserts the rule is declared, not that the harness honours it. The owner-instructed row splits, because two different things are true of it. The **protection** — that a write there is legitimate only because the owner instructed it — is **design-level only**: no code determines whether the owner instructed anything, so nothing stops a session writing an `OD-*` file the owner never asked for. The **hook's two content checks** are **validated by tests**: `packages/agent-contracts/test/od-decision-record-guard.test.ts` fails if either check is removed. Those checks constrain the shape of a record; they establish no authority for it. The three assertions below are assertions about the classification and the settings file; none of them is a control over a session's writes to `docs/decisions/`. All of this is set out in full under "Owner-decision recording (OD-0006)".
+
+Three assertions in `permission-matrix.test.ts` ("tool and write-authority overlap") hold this structure, and together they are stricter than the single assertion they replaced:
+
+1. Every path-shaped entry of `protectedBoundaries` appears in exactly one of the two groups. A new protected boundary that nobody classifies fails; so does one listed in both. The old assertion had no equivalent — a new boundary could be added to `authority.json` and, if a deny rule happened to exist, nothing checked that anyone had decided which kind of protection it had.
+2. Every `sessionDenied` path has both a `Write` and an `Edit` deny rule. This is the old assertion at unchanged strength, applied to the four paths for which it is true.
+3. Every `ownerInstructedOnly` path has no `Write` or `Edit` deny rule that reaches it (checked with the shared pattern-overlap function, so a broader rule such as `Write(./docs/**)` fails too) and is recorded in this document as protected by recorded owner instruction, with a status from the vocabulary above. A path put in this group that nobody documents fails.
+
+Nothing else in that test file was loosened to make these three fit.
+
+## Owner-decision recording (OD-0006): one condition now partly enforced, one not at all
+
+`docs/decisions/OD-0006-recording-owner-decisions.md` records the owner's instruction that their turn in the owner console is sufficient authority for a session to record and file an owner decision. It places two conditions on that. One is still enforced by nothing. The other is now enforced in part, and the part matters less than the part that is still missing.
 
 | Control stated in OD-0006 | Status | Where it stands |
 |---|---|---|
 | Authority for an owner decision comes only from the owner's own turn in the owner console; no other channel is ever owner approval | **design-level only** | No code determines which channel an instruction arrived on. The reducer requires an owner *actor* on `owner_decision` and `scope_approved`, but the truthfulness of `actor.kind` is itself deferred to a privileged runtime (see "What the reducer does not enforce"), and a decision filed as a Markdown file emits no event at all today |
-| A record made on the owner's instruction must quote the owner's exact words verbatim | **design-level only** | No test asserts that a filed `docs/decisions/OD-*.md` contains a quote, or any particular content. The `owner_decision` event payload (`packages/agent-contracts/src/events.ts`: `decisionId`, `kind`, `resumesTo`, `appliesToSha`) and the `OwnerDecisionRecord` contract (`packages/agent-contracts/src/operational.ts`: `question`, `decision`, `consequences`, `appliesTo`, `decidedAt`, `recordPath`) have no field for the owner's words, so the reducer and the schemas have nothing to check. `.claude/settings.json` denies paths, not content |
+| A record made on the owner's instruction must quote the owner's exact words verbatim | the **presence** of a quotation is **implemented now** and **validated by tests**; its **authenticity** is **design-level only** and unenforceable here | `.claude/hooks/od-decision-record-guard.mjs`, wired as a `PreToolUse` hook on `Write` and `Edit` in `.claude/settings.json`, refuses a write to `docs/decisions/OD-*` whose resulting file lacks either a blockquoted verbatim quotation or a `YYYY-MM-DD` date. `packages/agent-contracts/test/od-decision-record-guard.test.ts` fails if either check is removed. Nothing checks that the owner said the quoted words. The `owner_decision` event payload (`packages/agent-contracts/src/events.ts`: `decisionId`, `kind`, `resumesTo`, `appliesToSha`) and the `OwnerDecisionRecord` contract (`packages/agent-contracts/src/operational.ts`: `question`, `decision`, `consequences`, `appliesTo`, `decidedAt`, `recordPath`) still have no field for the owner's words, so the reducer and the schemas still have nothing to check. `.claude/settings.json` denies paths, not content; the hook is what looks at content |
 
-The quote is not a verification mechanism and is not recorded here as one. It is authored by the same session that files the record, and no independent copy of the owner's instruction is committed, hashed or referenced anywhere in this repository, so a later reader has nothing to compare it against. Its only effect is to make a false record detectable by the owner, who can read it and say the words are not theirs. If the owner console reports words the owner did not say, a false decision can be filed at authority layer 1 of `CLAUDE.md` and nothing in the repository will contradict it.
+### What the guard does, exactly
 
-Closing this would take an independent record of the owner's instruction, committed by something other than the session that files the decision — an exported console transcript, or a hash of one, on a path the filing session cannot write. No such record exists on this branch and nothing here produces one. It is future work, named and not done.
+It computes the file content a `Write` or `Edit` would leave behind and refuses the call unless that content contains both a Markdown blockquote line carrying a double-quoted span of at least eight characters, and a date in `YYYY-MM-DD` form. It fails closed: a payload it cannot parse, a tool whose resulting content it cannot compute, and an `Edit` against a file it cannot read are all refused rather than waved through.
+
+### What the guard does not do, and cannot
+
+- **It does not check that the owner said the quoted words, or said anything.** It has no copy of the owner's instruction. Nothing in this repository has one. A session that invents a quotation and a date satisfies the guard completely, and the guard will report nothing.
+- **It does not establish authority.** A filed record that passes it is not thereby an owner decision; it is a file of the right shape.
+- **It does not cover `Bash`.** The hook runs on the `Write` and `Edit` tools. A write performed through `Bash` — `cat > docs/decisions/OD-0099.md`, a `python3` heredoc, `sed -i` — never reaches it, and `.claude/settings.json` allows no general `Bash` write rule to close that off without denying ordinary work. This is the same class of hole the reducer has ("a Bash-mediated write that emits no event is invisible to it", above). It is a real bypass, available to any session, and it is recorded here rather than left for a reader to discover.
+- **It does not check the harness runs it.** No test here executes the Claude Code hook dispatcher. The tests execute the script directly and separately assert that `.claude/settings.json` declares it; whether the harness honours that declaration is outside this repository.
+
+So the quote is still not a verification mechanism, and is still not recorded here as one. It is authored by the same session that files the record, and no independent copy of the owner's instruction is committed, hashed or referenced anywhere in this repository, so a later reader has nothing to compare it against. What has changed is narrower than it may look: a record filed **without** the owner's words can no longer be written through `Write` or `Edit`, where before nothing stopped it. The authenticity of a quotation that is present remains detectable only by the owner, who can read it and say the words are not theirs. **If the owner console reports words the owner did not say, a false decision can still be filed at authority layer 1 of `CLAUDE.md` and nothing in the repository will contradict it.** The guard does not touch that risk at all.
+
+Closing it would take an independent record of the owner's instruction, committed by something other than the session that files the decision — an exported console transcript, or a hash of one, on a path the filing session cannot write. No such record exists on this branch and nothing here produces one. It is future work, named and not done.
+
+### A fact found while building the guard, reported not repaired
+
+Run against the six filed decision records as they stand, the guard accepts `OD-0006` and refuses `OD-0001` through `OD-0005`: none of those five contains a blockquoted verbatim quotation of the owner's words. That is the guard reporting a true thing about records filed before it existed, not a defect in the guard. It is recorded here and not repaired: adding the owner's words to a filed decision would change its substance, and this session does not hold them. Whether those five should be amended is the owner's to decide.
 
 ## Gate engine enforcement (delivered for fixtures only)
 
