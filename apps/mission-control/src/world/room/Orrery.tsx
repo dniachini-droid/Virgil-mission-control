@@ -104,13 +104,17 @@ const TRACKS: readonly Track[] = [
   },
 ];
 
-export function Orrery({ position = layout.orreryAt }: { position?: readonly [number, number, number] }) {
+export function Orrery({
+  position = layout.orreryAt,
+}: {
+  position?: readonly [number, number, number];
+}) {
   const { reducedMotion, tier } = useSettings();
   const coarse = tier === 'constrained' || tier === 'mobile';
   const tracks = coarse ? TRACKS.filter((_, i) => i !== 1 && i !== 3) : TRACKS;
 
   return (
-    <group position={[position[0], position[1] + 0.32, position[2]]}>
+    <group position={[position[0], position[1] + 0.72, position[2]]}>
       <Core coarse={coarse} />
       {tracks.map((track) => (
         <TrackRing key={track.radius} track={track} frozen={reducedMotion} coarse={coarse} />

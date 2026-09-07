@@ -4,7 +4,7 @@
  * `src/world/assets/meshyAsset.ts` for the decode path and the two load-time
  * corrections (centre pivot, double-siding).
  */
-import { type MeshyAsset, loadMeshyAsset } from '../assets/meshyAsset.js';
+import { loadMeshyAsset, type MeshyAsset } from '../assets/meshyAsset.js';
 import payloadBase64 from './virgil-asset.b64.txt?raw';
 import metadata from './virgil-asset.json';
 

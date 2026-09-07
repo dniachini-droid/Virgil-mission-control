@@ -96,8 +96,7 @@ function Index() {
       </p>
       <p style={{ color: 'var(--amber)' }}>
         Below are the <b>rejected Phase 0 spikes</b>, kept only so that viewing point V0 remains
-        reproducible. They are not the art direction you approved and are not offered for
-        judgement.
+        reproducible. They are not the art direction you approved and are not offered for judgement.
       </p>
       <ul>
         <li>

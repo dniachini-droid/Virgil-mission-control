@@ -42,11 +42,11 @@ function Floor({ coarse }: { coarse: boolean }) {
           the surface; the blur spreads the reflection the way a waxed floor
           does rather than a mirror. */}
       <MeshReflectorMaterial
-        color={room.surface.cream}
+        color={room.surface.creamShadow}
         resolution={coarse ? 512 : 1024}
-        mirror={0.55}
+        mirror={0.4}
         mixBlur={1}
-        mixStrength={1.4}
+        mixStrength={0.7}
         blur={[320, 120]}
         depthScale={0.9}
         minDepthThreshold={0.6}
@@ -155,7 +155,14 @@ function BackWall({ coarse }: { coarse: boolean }) {
     shape.lineTo(-half, layout.ceilingY + 0.5);
     shape.closePath();
     const hole = new THREE.Path();
-    hole.absarc(layout.windowCentre[0], layout.windowCentre[1], layout.windowRadius, 0, Math.PI * 2, true);
+    hole.absarc(
+      layout.windowCentre[0],
+      layout.windowCentre[1],
+      layout.windowRadius,
+      0,
+      Math.PI * 2,
+      true,
+    );
     shape.holes.push(hole);
     return new THREE.ShapeGeometry(shape, coarse ? 32 : 96);
   }, [coarse]);
@@ -174,20 +181,34 @@ function BackWall({ coarse }: { coarse: boolean }) {
         <meshStandardMaterial color={room.surface.gold} roughness={0.28} metalness={0.95} />
       </mesh>
       <mesh position={[wx, wy, wz + 0.02]}>
-        <ringGeometry args={[layout.windowRadius + 0.17, layout.windowRadius + 0.95, ringSegments]} />
+        <ringGeometry
+          args={[layout.windowRadius + 0.17, layout.windowRadius + 0.95, ringSegments]}
+        />
         <meshStandardMaterial color={room.surface.ivory} roughness={0.6} metalness={0.05} />
       </mesh>
       <mesh position={[wx, wy, wz + 0.05]}>
         <torusGeometry args={[layout.windowRadius + 0.95, 0.05, 8, ringSegments]} />
         <meshStandardMaterial color={room.surface.brass} roughness={0.35} metalness={0.9} />
       </mesh>
-      {/* Glazing bars: three thin gold ribs across the glass, offset from the
+      {/* Pilasters either side of the window, floor to ceiling, so the wall
+          has the vertical rhythm of the reference's arches. */}
+      {[-1, 1].map((side) => (
+        <group key={side} position={[side * (layout.windowRadius + 1.75), 0, wz + 0.25]}>
+          <mesh position={[0, layout.ceilingY / 2, 0]} castShadow receiveShadow>
+            <boxGeometry args={[0.42, layout.ceilingY, 0.42]} />
+            <meshStandardMaterial color={room.surface.ivory} roughness={0.6} metalness={0.05} />
+          </mesh>
+          <mesh position={[0, layout.ceilingY / 2, 0.22]}>
+            <boxGeometry args={[0.08, layout.ceilingY, 0.02]} />
+            <meshStandardMaterial color={room.surface.gold} roughness={0.3} metalness={0.95} />
+          </mesh>
+        </group>
+      ))}
+      {/* Glazing bars: two thin gold ribs across the glass, offset from the
           centre so they never cross Virgil's face from the authored camera. */}
       {[-0.55, 0.62].map((t) => (
         <mesh key={t} position={[wx + t * layout.windowRadius, wy, wz + 0.02]}>
-          <boxGeometry
-            args={[0.05, 2 * Math.sqrt(1 - t * t) * layout.windowRadius + 0.1, 0.05]}
-          />
+          <boxGeometry args={[0.05, 2 * Math.sqrt(1 - t * t) * layout.windowRadius + 0.1, 0.05]} />
           <meshStandardMaterial color={room.surface.gold} roughness={0.3} metalness={0.95} />
         </mesh>
       ))}
@@ -206,12 +227,14 @@ function Parapet() {
       </mesh>
       <mesh position={[0, layout.parapetHeight + 0.03, 0.02]}>
         <boxGeometry args={[width + 0.1, 0.06, 0.9]} />
-        <meshStandardMaterial color={room.surface.gold} roughness={0.3} metalness={0.95} />
+        <meshStandardMaterial color={room.surface.goldBright} roughness={0.45} metalness={0.6} />
       </mesh>
       {/* The cove: an emissive strip along the front edge. */}
-      <mesh position={[0, layout.parapetHeight - 0.08, 0.46]}>
-        <boxGeometry args={[width - 0.3, 0.035, 0.02]} />
-        <meshBasicMaterial color={room.warm.cove} toneMapped={false} />
+      <mesh position={[0, layout.parapetHeight - 0.07, 0.24]}>
+        <boxGeometry args={[width - 0.3, 0.03, 0.02]} />
+        {/* Tone-mapped and only moderately over 1.0: untone-mapped this
+            strip reflected in the floor as a white flare (observed). */}
+        <meshStandardMaterial color="#000000" emissive={room.warm.cove} emissiveIntensity={2.4} />
       </mesh>
     </group>
   );
@@ -222,11 +245,17 @@ function SideWallsAndCeiling() {
   const zMid = (layout.backWallZ + layout.wallZ) / 2;
   return (
     <group>
-      <mesh position={[-layout.sideWallX, layout.ceilingY / 2, zMid]} rotation={[0, Math.PI / 2, 0]}>
+      <mesh
+        position={[-layout.sideWallX, layout.ceilingY / 2, zMid]}
+        rotation={[0, Math.PI / 2, 0]}
+      >
         <planeGeometry args={[depth, layout.ceilingY]} />
         <meshStandardMaterial color={room.surface.creamShadow} roughness={0.8} />
       </mesh>
-      <mesh position={[layout.sideWallX, layout.ceilingY / 2, zMid]} rotation={[0, -Math.PI / 2, 0]}>
+      <mesh
+        position={[layout.sideWallX, layout.ceilingY / 2, zMid]}
+        rotation={[0, -Math.PI / 2, 0]}
+      >
         <planeGeometry args={[depth, layout.ceilingY]} />
         <meshStandardMaterial color={room.surface.creamShadow} roughness={0.8} />
       </mesh>

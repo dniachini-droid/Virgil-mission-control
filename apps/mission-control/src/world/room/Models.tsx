@@ -16,7 +16,7 @@ import { layout } from './palette.js';
 
 export function VirgilFigure() {
   const virgil = use(loadVirgil());
-  return <primitive object={virgil.placed} position={layout.virgilAt} rotation={[0, 0, 0]} />;
+  return <primitive object={virgil.placed} position={layout.virgilAt} rotation={[0, -0.12, 0]} />;
 }
 
 export function ConsoleDais() {

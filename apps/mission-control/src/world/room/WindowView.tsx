@@ -35,12 +35,12 @@ export function WindowView() {
     <group>
       {/* The nebula. Distance and height keep the aperture's crop at ~85 % of
           the image from the authored camera, with margin for orbit. */}
-      <Layer texture={textures.nebula} position={[wx, wy + 2.2, -34]} height={30} />
+      <Layer texture={textures.nebula} position={[wx, wy + 1.6, -34]} height={30} />
       {/* The planet, upper left of the aperture as in the reference, nearer
           than the nebula so it slides against it. */}
       <Layer
         texture={textures.planet}
-        position={[wx - 5.2, wy + 3.2, -21]}
+        position={[wx - 5.0, wy + 1.5, -21]}
         height={7.4}
         transparent
       />
@@ -49,8 +49,8 @@ export function WindowView() {
           drawn into the image (from slightly above) and cannot be reposed. */}
       <Layer
         texture={textures.station}
-        position={[wx + 4.6, wy + 2.4, -16.5]}
-        height={3.6}
+        position={[wx + 4.3, wy + 1.1, -16.5]}
+        height={3.4}
         transparent
       />
     </group>

@@ -77,23 +77,27 @@ export const room = {
  *  - **The console is 2.6 m across**, top at 0.93 m. In the reference the dais
  *    is a piece of furniture he stands behind, wider than he is tall, and its
  *    rim is at his lower chest. 2.0 m (the source size) read as a table.
- *  - **The orrery is 1.15 m tall** on top of the console, so its sphere sits
- *    between his chest and his eyes and is read against his face, as in the
- *    reference, without covering it.
+ *  - **The orrery is 1.1 m tall**, standing on the console's well floor,
+ *    which is measured at 0.35 m (the console is a semicircular desk: low
+ *    steps in front, a screen arc rising to 0.93 m behind). Placed at the
+ *    rim height, as a first pass did, it hid Virgil's face from the authored
+ *    camera; on the well floor its sphere clears the rim and stays below his
+ *    chin. Virgil stands a little right of centre so the armillary — a sphere,
+ *    not the reference's flat platter — never crosses his face.
  *
  * The reference is a wide-angle frame and its dais reads larger relative to
  * him than a measurement would give; these are a considered reading of it.
  */
 export const layout = {
   virgilHeight: 1.65,
-  virgilAt: [0, 0, -4.15] as [number, number, number],
+  virgilAt: [0.6, 0, -4.0] as [number, number, number],
 
   consoleCentre: [0, 0, -2.4] as [number, number, number],
   consoleWidth: 2.6,
   consoleTop: 0.93,
 
-  orreryAt: [0, 0.93, -2.4] as [number, number, number],
-  orreryHeight: 1.15,
+  orreryAt: [0, 0.35, -2.4] as [number, number, number],
+  orreryHeight: 1.1,
 
   wallZ: -7,
   ceilingY: 7.5,
@@ -101,15 +105,15 @@ export const layout = {
   backWallZ: 6.5,
   floorRadius: 16,
 
-  windowCentre: [0, 3.0, -7] as [number, number, number],
-  windowRadius: 3.4,
+  windowCentre: [0, 3.4, -7] as [number, number, number],
+  windowRadius: 3.5,
 
-  parapetZ: -6.2,
-  parapetHeight: 0.95,
+  parapetZ: -6.6,
+  parapetHeight: 0.55,
 
   camera: {
-    position: [0, 1.55, 1.7] as [number, number, number],
-    target: [0, 1.25, -3.4] as [number, number, number],
-    fov: 40,
+    position: [0.15, 2.0, 2.9] as [number, number, number],
+    target: [0.1, 1.15, -3.2] as [number, number, number],
+    fov: 38,
   },
 } as const;

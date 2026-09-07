@@ -114,9 +114,9 @@ const MODELS = {
     outDir: 'src/world/props',
     target: {
       axis: 'y',
-      metres: 1.15,
+      metres: 1.1,
       reason:
-        'The 2.000 m source height is unit-box normalisation. 1.15 m on top of the 0.93 m console puts the sphere between Virgil’s chest and eyes, so it is read against his face as it is in the reference, without hiding it.',
+        'The 2.000 m source height is unit-box normalisation. Standing on the console’s well floor (measured 0.35 m), 1.1 m lifts the sphere just clear of the 0.93 m screen arc and keeps it below a 1.65 m Virgil’s chin, so it reads against his chest as the reference’s orrery does.',
     },
     // Thin rings and a stand: the base colour carries the brass; 512 is enough
     // for a normal map on members this narrow on screen.
@@ -478,6 +478,8 @@ async function reduce(name, model) {
   log(`vertices ${position.count}, triangles ${index.array.length / 3}, maxIndex ${maxIndex}`);
   log(`geometry ${geometryBytes} B, textures ${textureBytes} B`);
   log(`payload  ${payload.length} B, base64 ${b64.length} B`);
-  log(`scale ${scale.toFixed(4)} (${model.target.axis} -> ${model.target.metres} m), baseOffsetY ${(-min[1] * scale).toFixed(4)}`);
+  log(
+    `scale ${scale.toFixed(4)} (${model.target.axis} -> ${model.target.metres} m), baseOffsetY ${(-min[1] * scale).toFixed(4)}`,
+  );
   log(`source   ${file.length} B unchanged at ${sourcePath}`);
 }

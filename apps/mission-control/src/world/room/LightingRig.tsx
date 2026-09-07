@@ -33,7 +33,7 @@ export function LightingRig() {
           and Virgil's on the console are what seat them in the room. */}
       <spotLight
         color={room.warm.key}
-        intensity={140}
+        intensity={55}
         position={[-3.2, 5.6, 2.4]}
         angle={0.55}
         penumbra={0.7}
@@ -49,7 +49,7 @@ export function LightingRig() {
           a single hard slope of light. */}
       <spotLight
         color={room.warm.amber}
-        intensity={60}
+        intensity={28}
         position={[3.4, 3.8, 1.2]}
         angle={0.6}
         penumbra={0.8}
@@ -62,14 +62,14 @@ export function LightingRig() {
           him comes from. Two lights, offset, so the uplight has a direction. */}
       <pointLight
         color={room.warm.amberDeep}
-        intensity={7}
+        intensity={3.5}
         distance={6}
         decay={2}
         position={[cx - 0.7, cy + 0.25, cz + 0.9]}
       />
       <pointLight
         color={room.warm.amber}
-        intensity={5}
+        intensity={2.5}
         distance={6}
         decay={2}
         position={[cx + 0.8, cy + 0.25, cz + 0.6]}
@@ -87,18 +87,15 @@ export function LightingRig() {
           the window sees goes blue instead of black. */}
       <pointLight
         color={room.cool.violet}
-        intensity={26}
+        intensity={11}
         distance={16}
         decay={2}
         position={[wx, wy, wz + 0.6]}
       />
-      {/* Ambient: sky cool, ground warm. The reflected floor is warm, so the
-          light coming up off it is too. */}
-      <hemisphereLight
-        color={room.cool.shadow}
-        groundColor={room.warm.amberDeep}
-        intensity={0.55}
-      />
+      {/* Ambient: warm above and below. The walls are cream and the coves are
+          amber, so the room's own ambient is warm; the cool arrives only
+          through the aperture, from the two lights above. */}
+      <hemisphereLight color={room.warm.key} groundColor={room.warm.amberDeep} intensity={0.42} />
 
       <Environment resolution={coarse ? 64 : 256} frames={1} background={false}>
         {/* The sphere the panels sit in: deep blue-violet, so metals that see

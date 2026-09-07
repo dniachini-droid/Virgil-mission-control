@@ -3,13 +3,13 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing';
 import { Suspense, useEffect, useState } from 'react';
 import * as THREE from 'three';
-import { SettingsContext, detectTier, prefersReducedMotion } from '../../ui/settings.js';
+import { detectTier, prefersReducedMotion, SettingsContext } from '../../ui/settings.js';
 import { LightingRig } from './LightingRig.js';
 import { ConsoleDais, MetalOrrery, VirgilFigure } from './Models.js';
 import { Orrery as LightOrrery } from './Orrery.js';
+import { layout, room } from './palette.js';
 import { RoomShell } from './RoomShell.js';
 import { WindowView } from './WindowView.js';
-import { layout, room } from './palette.js';
 
 /**
  * Virgil in his room: the first art-directed Owner Build.
@@ -45,7 +45,7 @@ export function VirgilRoom() {
           gl={{
             antialias: true,
             toneMapping: THREE.ACESFilmicToneMapping,
-            toneMappingExposure: 1.05,
+            toneMappingExposure: 1.0,
             powerPreference: 'high-performance',
           }}
           camera={{
@@ -88,7 +88,7 @@ export function VirgilRoom() {
                   centre are bright enough to bloom. */}
               <Bloom
                 intensity={0.75}
-                luminanceThreshold={0.86}
+                luminanceThreshold={0.9}
                 luminanceSmoothing={0.2}
                 mipmapBlur
                 resolutionScale={0.5}

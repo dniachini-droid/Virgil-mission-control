@@ -48,11 +48,11 @@
   },
   "runtime": {
     "targetAxis": "y",
-    "targetMetres": 1.15,
-    "targetReason": "The 2.000 m source height is unit-box normalisation. 1.15 m on top of the 0.93 m console puts the sphere between Virgil’s chest and eyes, so it is read against his face as it is in the reference, without hiding it.",
-    "scale": 0.575,
+    "targetMetres": 1.1,
+    "targetReason": "The 2.000 m source height is unit-box normalisation. Standing on the console’s well floor (measured 0.35 m), 1.1 m lifts the sphere just clear of the 0.93 m screen arc and keeps it below a 1.65 m Virgil’s chin, so it reads against his chest as the reference’s orrery does.",
+    "scale": 0.55,
     "positionScale": 1,
-    "baseOffsetY": 0.575,
+    "baseOffsetY": 0.55,
     "doubleSided": false
   },
   "payload": {
