@@ -29,13 +29,15 @@ const CLIP_FOR: Record<VirgilPose, string> = {
 /**
  * The visor panel in the head joint's own space (source units, 2.34 tall):
  * the head shell spans y 1.60–2.03 and its front is at z ≈ +0.26 at rest,
- * with the joint at y 1.41 — measured from the file, not guessed.
+ * with the joint at y 1.41 — measured from the file; the panel's extent was
+ * then fitted to the bezel by close-up screenshot, since the bezel is not a
+ * thing the payload can be asked for.
  */
 const VISOR_IN_HEAD = {
-  position: [0, 0.39, 0.275] as [number, number, number],
-  rotation: [-0.06, 0, 0] as [number, number, number],
-  width: 0.5,
-  height: 0.34,
+  position: [0, 0.315, 0.27] as [number, number, number],
+  rotation: [-0.08, 0, 0] as [number, number, number],
+  width: 0.46,
+  height: 0.29,
 };
 
 export function VirgilRigged({

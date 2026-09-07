@@ -144,7 +144,10 @@ export function Visor({
             CURVE,
           ]}
         />
-        <meshBasicMaterial map={texture} toneMapped={false} side={THREE.BackSide} />
+        {/* Double-sided: which face of the arc points at the viewer depends on
+            the parent frame — a head bone's is flipped relative to a plain
+            group's — and a culled visor is a face that is not there. */}
+        <meshBasicMaterial map={texture} toneMapped={false} side={THREE.DoubleSide} />
       </mesh>
       {/* The face's own light, just in front of the panel, onto the chest. */}
       <pointLight ref={light} position={[0, -0.05, 0.12]} distance={1.6} decay={2} />

@@ -154,10 +154,10 @@ function Cast({ demo }: { demo: boolean }) {
       <group position={[px, 0, pz]} rotation={[0, layout.proverRotationY, 0]}>
         <Visor
           state={state.proverFace}
-          position={[0, 1.07, 0.245]}
+          position={[0, 1.08, 0.235]}
           rotation={[-0.05, 0, 0]}
-          width={0.34}
-          height={0.23}
+          width={0.3}
+          height={0.19}
           lightIntensity={0.9}
           curve={0.6}
         />
