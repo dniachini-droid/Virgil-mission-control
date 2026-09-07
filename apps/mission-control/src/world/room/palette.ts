@@ -66,26 +66,34 @@ export const room = {
 
 /**
  * Room dimensions in metres, in one place because the camera framing, the
- * window aperture and Virgil's chosen height are all answerable to each other.
+ * window aperture and the three models' chosen sizes are all answerable to
+ * each other.
  *
- * Virgil is **1.65 m**, and that is a decision rather than a measurement. The
- * source model's 2.000 m is Meshy's unit-box normalisation, not an authored
- * scale, so only the model's proportions carry over and the absolute height had
- * to be chosen. 1.65 m puts the dais rim at `daisTop` = 1.05 m across his
- * mid-chest, which is where the approved reference puts it, and sets his eye
- * line just above the orrery so one low camera can hold both. The reference is
- * a wide-angle frame and its dais reads larger than it is relative to him, so
- * this is a considered reading of it, not a derivation from it.
+ * All three models arrive normalised to a 2-unit box, so every absolute size
+ * here is a decision read against the approved reference, not a measurement:
+ *
+ *  - **Virgil is 1.65 m.** The console top then meets him below the chest, as
+ *    it does in the reference, and his eye line clears the orrery.
+ *  - **The console is 2.6 m across**, top at 0.93 m. In the reference the dais
+ *    is a piece of furniture he stands behind, wider than he is tall, and its
+ *    rim is at his lower chest. 2.0 m (the source size) read as a table.
+ *  - **The orrery is 1.15 m tall** on top of the console, so its sphere sits
+ *    between his chest and his eyes and is read against his face, as in the
+ *    reference, without covering it.
+ *
+ * The reference is a wide-angle frame and its dais reads larger relative to
+ * him than a measurement would give; these are a considered reading of it.
  */
 export const layout = {
   virgilHeight: 1.65,
-  virgilAt: [0, 0, -4.35] as [number, number, number],
+  virgilAt: [0, 0, -4.15] as [number, number, number],
 
-  daisCentre: [0, 0, -2.4] as [number, number, number],
-  daisRadius: 1.7,
-  daisTop: 1.05,
+  consoleCentre: [0, 0, -2.4] as [number, number, number],
+  consoleWidth: 2.6,
+  consoleTop: 0.93,
 
-  orreryCentre: [0, 1.22, -2.4] as [number, number, number],
+  orreryAt: [0, 0.93, -2.4] as [number, number, number],
+  orreryHeight: 1.15,
 
   wallZ: -7,
   ceilingY: 7.5,
@@ -93,15 +101,15 @@ export const layout = {
   backWallZ: 6.5,
   floorRadius: 16,
 
-  windowCentre: [0, 3.2, -7] as [number, number, number],
-  windowRadius: 3.3,
+  windowCentre: [0, 3.0, -7] as [number, number, number],
+  windowRadius: 3.4,
 
-  parapetZ: -6.1,
-  parapetHeight: 0.92,
+  parapetZ: -6.2,
+  parapetHeight: 0.95,
 
   camera: {
-    position: [0, 1.85, 1.45] as [number, number, number],
-    target: [0, 1.28, -3.5] as [number, number, number],
-    fov: 42,
+    position: [0, 1.55, 1.7] as [number, number, number],
+    target: [0, 1.25, -3.4] as [number, number, number],
+    fov: 40,
   },
 } as const;

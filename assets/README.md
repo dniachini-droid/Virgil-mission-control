@@ -7,7 +7,7 @@ Every file under `assets/` is in exactly one of four categories. The application
 | `concepts/characters/` | Character concept sheets (approved) | no | Five owner-approved sheets: Virgil (turnaround and multi-view), Fabricator, Prover, Keeper |
 | `models/candidates/` | Candidate 3D models (inspection only) | no | Virgil model candidate 01 (TripoSR, unrigged, unoptimised, untextured, with its inspection report) and candidate 02 (Meshy, textured, unrigged, no animations, 11.82 MiB — larger on its own than the whole slice's transfer budget); measured facts and consequences for both in `licenses/ASSET_PROVENANCE.md` |
 | `licenses/` | Provenance and licence register | no | `ASSET_PROVENANCE.md`: origin, licence, verification status and category of every imported file; the rule for future imports |
-| `runtime/` | Production-ready runtime assets | would be | **Does not exist.** No production-ready asset has been created or accepted |
+| `runtime/` | Production-ready runtime assets | `runtime/window/` | **Three files, all runtime assets:** the owner's window-view layers (`window-nebula.webp`, `window-planet.webp`, `window-station.webp`), imported 2026-09-07 with provenance rows in `licenses/ASSET_PROVENANCE.md`. Owner-supplied artwork generated with ChatGPT; delivered at 1672 × 941 with the original resolution unknown; preserved byte for byte |
 
 The approved visual references (the hybrid direction and its two source directions) live in `docs/art-direction/approved/visual-canon/`, because they are reference documents rather than assets.
 

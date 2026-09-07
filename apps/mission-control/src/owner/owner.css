@@ -41,3 +41,54 @@
   padding-bottom: 48px;
   box-sizing: border-box;
 }
+
+/* The room stage: the canvas fills the viewport above the footer. */
+.room-stage {
+  position: fixed;
+  inset: 0 0 34px 0;
+  background: #0a0c24;
+}
+.room-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.room-controls {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(5, 3, 15, 0.72);
+  border: 1px solid rgba(245, 196, 81, 0.35);
+  border-radius: 4px;
+  font: 11px / 1.4 var(--mono);
+  color: var(--paper);
+}
+.room-controls-label {
+  color: var(--gold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+.room-controls button {
+  font: inherit;
+  padding: 3px 10px;
+  color: var(--paper);
+  background: transparent;
+  border: 1px solid rgba(239, 233, 255, 0.3);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.room-controls button.is-active {
+  color: var(--ink);
+  background: var(--gold);
+  border-color: var(--gold);
+}
+.room-controls-hint {
+  margin-left: 8px;
+  color: var(--ash);
+}
