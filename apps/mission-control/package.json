@@ -7,10 +7,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:owner": "vite build --config vite.owner.config.ts && node owner-build/inline.mjs",
     "preview": "vite preview --port 4173 --strictPort",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "capture": "tsx e2e/capture-spikes.ts"
+    "capture": "tsx e2e/capture-spikes.ts",
+    "verify:owner": "tsx e2e/verify-owner-build.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",
