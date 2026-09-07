@@ -148,6 +148,23 @@ describe('owner-decision record guard: fails closed', () => {
     expect(verdict.stderr).toContain('fails closed');
   });
 
+  it('refuses a guarded write whose path it cannot resolve, rather than waving it through', () => {
+    // `cwd` is the session's working directory, which need not be the repository root. When it is
+    // a subdirectory, an owner-decision record resolves to `../../docs/decisions/...` relative to
+    // it, which `toRepoRelative` cannot express and reports as null. Null means unknown, not "not
+    // guarded": the guard previously read it as the latter and allowed the write. The content here
+    // satisfies both requirements, so a refusal can only be the unresolved path.
+    const verdict = run(
+      write(
+        join(repoRoot, 'docs/decisions/OD-0099-example.md'),
+        QUOTE_AND_DATE,
+        join(repoRoot, 'packages/agent-contracts'),
+      ),
+    );
+    expect(verdict.code).toBe(2);
+    expect(verdict.stderr).toContain('fails closed');
+  });
+
   it('refuses a guarded write whose resulting content it cannot compute', () => {
     for (const payload of [
       {

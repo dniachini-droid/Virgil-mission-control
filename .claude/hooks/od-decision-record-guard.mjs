@@ -28,9 +28,9 @@
  *
  * Contract. Reads the PreToolUse payload as JSON on stdin. Exit 0 allows the tool call; exit 2
  * blocks it and the message on stderr is shown to the session. It fails closed: a payload it
- * cannot parse, or a tool whose resulting file content it cannot compute, is refused rather than
- * waved through, because a control that silently disables itself is worse than one that is
- * visibly in the way.
+ * cannot parse, a `file_path` it cannot resolve to a path under the session's working directory,
+ * or a tool whose resulting file content it cannot compute, is refused rather than waved through,
+ * because a control that silently disables itself is worse than one that is visibly in the way.
  */
 
 import { readFileSync } from 'node:fs';
@@ -67,7 +67,13 @@ export function missingRequirements(text) {
   return missing;
 }
 
-/** Repository-relative POSIX path for a tool `file_path`, or null when it escapes the repository. */
+/**
+ * POSIX path for a tool `file_path` relative to `cwd`, or null when it cannot be resolved to a
+ * path under `cwd` — an absent or empty path, one that escapes upwards, or `cwd` itself. Null
+ * means unknown, never "not guarded": `cwd` is the session's working directory, which is not
+ * necessarily the repository root, so a guarded file can be unresolvable here. `decide` refuses
+ * on null for that reason.
+ */
 export function toRepoRelative(filePath, cwd) {
   if (typeof filePath !== 'string' || filePath.length === 0) return null;
   const absolute = isAbsolute(filePath) ? filePath : resolve(cwd, filePath);
@@ -129,7 +135,16 @@ export function decide(payload, readFile) {
   const toolName = payload.tool_name;
   const toolInput = payload.tool_input ?? {};
   const rel = toRepoRelative(toolInput.file_path, cwd);
-  if (rel === null || !isGuardedPath(rel)) return { allow: true };
+  if (rel === null)
+    return {
+      allow: false,
+      reason:
+        'Refused: the owner-decision record guard could not resolve the write target ' +
+        `${JSON.stringify(toolInput.file_path)} against the session's working directory ` +
+        `${JSON.stringify(cwd)}, so it cannot tell whether this write touches ` +
+        `${GUARDED_PREFIX}*. It fails closed. Write to a path under the working directory.`,
+    };
+  if (!isGuardedPath(rel)) return { allow: true };
 
   const result = resultingContent(toolName, toolInput, () => readFile(toolInput.file_path, cwd));
   if (!result.ok)
