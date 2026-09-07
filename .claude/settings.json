@@ -52,5 +52,18 @@
       "WebFetch",
       "WebSearch"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/od-decision-record-guard.mjs\""
+          }
+        ]
+      }
+    ]
   }
 }
