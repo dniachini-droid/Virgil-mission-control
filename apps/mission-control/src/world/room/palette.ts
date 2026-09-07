@@ -67,7 +67,15 @@ export const room = {
 /**
  * Room dimensions in metres, in one place because the camera framing, the
  * window aperture and Virgil's chosen height are all answerable to each other.
- * Virgil is 1.65 m — see `docs/process/PHASE_1_S2_VIRGIL_ROOM.md`.
+ *
+ * Virgil is **1.65 m**, and that is a decision rather than a measurement. The
+ * source model's 2.000 m is Meshy's unit-box normalisation, not an authored
+ * scale, so only the model's proportions carry over and the absolute height had
+ * to be chosen. 1.65 m puts the dais rim at `daisTop` = 1.05 m across his
+ * mid-chest, which is where the approved reference puts it, and sets his eye
+ * line just above the orrery so one low camera can hold both. The reference is
+ * a wide-angle frame and its dais reads larger than it is relative to him, so
+ * this is a considered reading of it, not a derivation from it.
  */
 export const layout = {
   virgilHeight: 1.65,
