@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:82025a02fb65e9b87cb5a43c1e6bb8956cc8c87e5ede805aa732dcc6e0e7da9f",
+  "graphHash": "sha256:8e41d88cdfbd98d68199f86414346218017bb6f20fb9ae0169718539db800900",
   "nodes": [
     {
       "id": "agent-roster",
@@ -77,6 +77,16 @@
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0005 — The new reference image, and the graphics-hardware checks in Phase 1 (Tier 3)",
+      "epistemicClass": "ai_generated_hypothesis",
+      "authorityClass": "hypothesis",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/proposed/OD-0006-recording-owner-decisions.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0006 — Recording an owner decision on the owner's instruction (Tier 3)",
       "epistemicClass": "ai_generated_hypothesis",
       "authorityClass": "hypothesis",
       "status": null,
