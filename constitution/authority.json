@@ -72,7 +72,7 @@
     "merge_mechanism",
     "deploy_mechanism"
   ],
-    "boundaryProtection": {
+  "boundaryProtection": {
     "sessionDenied": [
       "constitution/",
       "docs/product/VIRGIL_MASTER_COMMISSION.md",
