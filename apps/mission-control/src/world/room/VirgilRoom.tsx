@@ -52,7 +52,7 @@ export function VirgilRoom() {
             powerPreference: 'high-performance',
           }}
           camera={{
-            position: layout.camera.position,
+            position: initialCamera().position,
             fov: layout.camera.fov,
             near: 0.1,
             far: 120,
@@ -74,7 +74,7 @@ export function VirgilRoom() {
           </Suspense>
           <OrbitControls
             makeDefault
-            target={layout.camera.target}
+            target={initialCamera().target}
             enablePan={false}
             minDistance={2.5}
             maxDistance={9.5}
@@ -149,15 +149,17 @@ function Cast({ demo }: { demo: boolean }) {
       />
       <ProverFigure />
       {/* The Prover's visor: the owner made it blank, so the panel sits over
-          it directly. Height and depth read off his 1.6 m placement. */}
+          it directly, at the measured front of his face: the y 0.95–1.15 band
+          of his payload reaches z ≈ 0.21; the 0.36 above it is his halo. */}
       <group position={[px, 0, pz]} rotation={[0, layout.proverRotationY, 0]}>
         <Visor
           state={state.proverFace}
-          position={[0, 1.33, 0.29]}
+          position={[0, 1.07, 0.245]}
           rotation={[-0.05, 0, 0]}
           width={0.34}
-          height={0.22}
+          height={0.23}
           lightIntensity={0.9}
+          curve={0.6}
         />
       </group>
     </>
@@ -178,6 +180,24 @@ function Ready() {
     return () => cancelAnimationFrame(id);
   }, [invalidate]);
   return null;
+}
+
+/**
+ * The authored camera, or a named close-up for the gross-error captures:
+ * `#/?cam=prover` looks at the side station. Not a feature; a way to see.
+ */
+function initialCamera(): { position: [number, number, number]; target: [number, number, number] } {
+  const query = window.location.hash.split('?')[1] ?? '';
+  const cam = new URLSearchParams(query).get('cam');
+  if (cam === 'prover') {
+    const [px, , pz] = layout.proverAt;
+    return { position: [px + 1.3, 1.7, pz + 1.9], target: [px, 1.25, pz] };
+  }
+  if (cam === 'face') {
+    const [vx, vy, vz] = layout.virgilAt;
+    return { position: [vx + 0.3, vy + 1.7, vz + 1.6], target: [vx, vy + 1.45, vz] };
+  }
+  return { position: [...layout.camera.position], target: [...layout.camera.target] };
 }
 
 function registerRenderer(gl: THREE.WebGLRenderer) {

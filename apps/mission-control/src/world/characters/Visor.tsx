@@ -69,6 +69,7 @@ export function Visor({
   rotation = [0, 0, 0],
   lightIntensity = 1.4,
   eyes = true,
+  curve = 1.15,
 }: {
   state?: FaceState;
   width?: number;
@@ -78,8 +79,11 @@ export function Visor({
   lightIntensity?: number;
   /** False for a character whose visor the owner made blank: colour and pulse only. */
   eyes?: boolean;
+  /** Arc of the panel in radians; flatter for a small visor on a large dome. */
+  curve?: number;
 }) {
   const { reducedMotion } = useSettings();
+  const CURVE = curve;
   const { canvas, texture } = useMemo(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -124,9 +128,23 @@ export function Visor({
 
   return (
     <group position={position} rotation={rotation}>
-      <mesh>
-        <planeGeometry args={[width, height]} />
-        <meshBasicMaterial map={texture} toneMapped={false} transparent={false} />
+      {/* A shallow cylinder segment rather than a flat plate, so the panel
+          wraps the head's curve and does not read as a plate from the side.
+          The arc subtends `curve` radians; its chord is `width`. */}
+      <mesh position={[0, 0, -width / (2 * Math.sin(CURVE / 2))]} rotation={[0, Math.PI, 0]}>
+        <cylinderGeometry
+          args={[
+            width / (2 * Math.sin(CURVE / 2)),
+            width / (2 * Math.sin(CURVE / 2)),
+            height,
+            24,
+            1,
+            true,
+            Math.PI - CURVE / 2,
+            CURVE,
+          ]}
+        />
+        <meshBasicMaterial map={texture} toneMapped={false} side={THREE.BackSide} />
       </mesh>
       {/* The face's own light, just in front of the panel, onto the chest. */}
       <pointLight ref={light} position={[0, -0.05, 0.12]} distance={1.6} decay={2} />

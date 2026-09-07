@@ -60,6 +60,16 @@ if (orbit) {
     await page.screenshot({ path: resolve(outDir, 'room-orbit-right.png') });
   }
 }
+// A fresh page per close-up: a hash-only navigation does not remount the
+// canvas, so the camera would stay where it was.
+for (const cam of ['prover', 'face']) {
+  const view = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  await view.goto(`${fileUrl}#/?cam=${cam}`, { waitUntil: 'load' });
+  await view.waitForFunction(() => '__virgilRoomReady' in window, undefined, { timeout: 180_000 });
+  await view.waitForTimeout(3000);
+  await view.screenshot({ path: resolve(outDir, `room-${cam}.png`) });
+  await view.close();
+}
 console.log(`capture-room: ${outDir}, console errors ${errors.length}`);
 for (const e of errors) console.log(`capture-room: error — ${e}`);
 await browser.close();

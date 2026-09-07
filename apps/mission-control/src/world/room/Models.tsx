@@ -1,4 +1,7 @@
-import { use } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { use, useRef } from 'react';
+import type * as THREE from 'three';
+import { useSettings } from '../../ui/settings.js';
 import { loadConsole2 } from '../props/console2Asset.js';
 import { loadPorthole } from '../props/portholeAsset.js';
 import { loadProver } from '../props/proverAsset.js';
@@ -37,15 +40,27 @@ export function SideStation() {
   );
 }
 
-/** The Prover, static (no rig in the file), at the side station. */
+/**
+ * The Prover, at the side station. The file has no rig, so he carries idle
+ * motion instead: a 1.5 cm rise and fall and a 1.5° sway, out of phase with
+ * each other and with Virgil's clip, so he is never a statue and never in
+ * step with anyone. Still with reduced motion.
+ */
 export function ProverFigure() {
   const prover = use(loadProver());
+  const { reducedMotion } = useSettings();
+  const group = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    if (!group.current || reducedMotion) return;
+    const t = clock.getElapsedTime();
+    group.current.position.y = layout.proverAt[1] + 0.015 * Math.sin(t * 0.9 + 1.3);
+    group.current.rotation.z = 0.026 * Math.sin(t * 0.55 + 0.4);
+    group.current.rotation.y = layout.proverRotationY + 0.02 * Math.sin(t * 0.37);
+  });
   return (
-    <primitive
-      object={prover.placed}
-      position={layout.proverAt}
-      rotation={[0, layout.proverRotationY, 0]}
-    />
+    <group ref={group} position={layout.proverAt} rotation={[0, layout.proverRotationY, 0]}>
+      <primitive object={prover.placed} />
+    </group>
   );
 }
 
