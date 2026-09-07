@@ -12,16 +12,8 @@
     "vertexCount": 40179,
     "triangleCount": 31156,
     "maxIndex": 40178,
-    "boundsMin": [
-      -0.6704091429710388,
-      -1,
-      -0.2491147220134735
-    ],
-    "boundsMax": [
-      0.6704091429710388,
-      1,
-      0.2491147220134735
-    ],
+    "boundsMin": [-0.6704091429710388, -1, -0.2491147220134735],
+    "boundsMax": [0.6704091429710388, 1, 0.2491147220134735],
     "sourceDoubleSided": true,
     "sourceHasTangent": true,
     "sourceAnimations": 0,

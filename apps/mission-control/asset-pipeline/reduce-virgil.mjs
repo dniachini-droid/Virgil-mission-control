@@ -28,6 +28,7 @@
  *
  * Usage: node asset-pipeline/reduce-virgil.mjs
  */
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -40,8 +41,7 @@ const sourcePath = join(repoRoot, 'assets/models/candidates/virgil-model-candida
 const outDir = join(appRoot, 'src/world/virgil');
 
 /** The SHA-256 recorded for the source in `assets/licenses/ASSET_PROVENANCE.md`. */
-const EXPECTED_SOURCE_SHA =
-  'fd80610192d099f4f4c198a8efdf7b8edada9e7015a1f4ace65fe6d1de3f0a25';
+const EXPECTED_SOURCE_SHA = 'fd80610192d099f4f4c198a8efdf7b8edada9e7015a1f4ace65fe6d1de3f0a25';
 
 /**
  * Texture plan. 1024 for the two textures whose detail is visible on the
@@ -116,7 +116,14 @@ function readAccessor(index) {
   if (stride !== elementSize) fail(`accessor ${index}: interleaved data is not handled`);
   const start = (view.byteOffset ?? 0) + (accessor.byteOffset ?? 0);
   const bytes = bin.subarray(start, start + accessor.count * elementSize);
-  const Ctor = componentType.name === 'FLOAT' ? Float32Array : componentType.name === 'UNSIGNED_INT' ? Uint32Array : componentType.name === 'UNSIGNED_SHORT' ? Uint16Array : Uint8Array;
+  const Ctor =
+    componentType.name === 'FLOAT'
+      ? Float32Array
+      : componentType.name === 'UNSIGNED_INT'
+        ? Uint32Array
+        : componentType.name === 'UNSIGNED_SHORT'
+          ? Uint16Array
+          : Uint8Array;
   // A copy, because the subarray is not guaranteed to be aligned for the view.
   const out = new Ctor(accessor.count * components);
   Buffer.from(out.buffer).set(bytes);
@@ -164,7 +171,8 @@ let maxIndex = 0;
 for (let i = 0; i < index.array.length; i += 1) {
   if (index.array[i] > maxIndex) maxIndex = index.array[i];
 }
-if (maxIndex >= position.count) fail(`index ${maxIndex} out of range for ${position.count} vertices`);
+if (maxIndex >= position.count)
+  fail(`index ${maxIndex} out of range for ${position.count} vertices`);
 
 // UNSIGNED_INT -> UNSIGNED_SHORT halves the index buffer. Only legal because the
 // highest index measured above fits; checked rather than assumed.
@@ -371,6 +379,16 @@ writeFileSync(join(outDir, 'virgil-asset.json'), `${JSON.stringify(metadata, nul
 // No trailing newline and no wrapping: every byte here is multiplied into the
 // Owner Build artifact, which is a single downloaded file on a budget.
 writeFileSync(join(outDir, 'virgil-asset.b64.txt'), b64);
+
+// `biome check .` formats JSON too, and `JSON.stringify(_, null, 2)` disagrees
+// with it about short arrays. Formatting the output here keeps regenerating this
+// asset from breaking `pnpm check`, which is exactly the kind of thing that
+// otherwise gets discovered two commits later.
+execFileSync(join(repoRoot, 'node_modules/.bin/biome'), [
+  'format',
+  '--write',
+  join(outDir, 'virgil-asset.json'),
+]);
 
 const geometryBytes = ['position', 'normal', 'uv', 'index'].reduce(
   (sum, key) => sum + sections[key].length,
