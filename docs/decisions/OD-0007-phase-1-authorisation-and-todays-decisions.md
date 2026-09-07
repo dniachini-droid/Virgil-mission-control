@@ -155,7 +155,7 @@ These three values match the row "Repository copy after Amendment 1" already rec
 - `docs/process/PHASE_0_RUN_RECORD.md` is not edited. Its verdict `BLOCKED_PENDING_REAL_GPU_REVIEW` and its "Phase 1 readiness: not ready" line stand as the record of what was found; this decision supersedes both, and a reader of the run record should read this file alongside it.
 - The graphics-hardware checks deferred by OD-0005 remain deferred and must still be recorded as not performed, never as met. Nothing here relieves that.
 - The master commission remains unverified against the owner's original, permanently, by the owner's decision. The fingerprint above is the only thing standing in place of that verification, and it is a weaker thing.
-- `pnpm check` is greened by the structural change described in decision 5, not by any exemption, and no test was skipped, disabled or weakened to reach it.
+- The test failure described in decision 5 is resolved by that structural change, not by any exemption, and no test was skipped, disabled or weakened to reach it; `pnpm check` was nonetheless still red afterwards, because Biome's formatter rejected the indentation of `constitution/authority.json` — a file no session may edit — and it is green only after `constitution/**` was excluded from the formatter in `biome.json`, which ends that trap without exempting anything from a test.
 - Nothing here is ratified by its transcription.
 
 Applies to: `docs/process/PHASE_0_RUN_RECORD.md`, `docs/process/PHASE_1_BRIEF.md`, `docs/product/VIRGIL_MASTER_COMMISSION.md`, `constitution/authority.json`, `packages/agent-contracts/test/permission-matrix.test.ts`, `docs/architecture/ENFORCEMENT_BOUNDARIES.md`.
