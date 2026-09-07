@@ -138,8 +138,12 @@ async function build(metadata: MeshyAssetMetadata, base64: string): Promise<Mesh
     'uv',
     new BufferAttribute(new Uint16Array(buffer, uv.offset, uv.length / 2), 2, true),
   );
+  // Indices are UNSIGNED_SHORT where every index fits and UNSIGNED_INT where
+  // it does not (the ring console's 148,615 vertices); the metadata says which.
   geometry.setIndex(
-    new BufferAttribute(new Uint16Array(buffer, index.offset, index.length / 2), 1),
+    index.kind === 'u32'
+      ? new BufferAttribute(new Uint32Array(buffer, index.offset, index.length / 4), 1)
+      : new BufferAttribute(new Uint16Array(buffer, index.offset, index.length / 2), 1),
   );
   // TANGENT was dropped in the reduction; three.js derives a tangent frame from
   // screen-space derivatives when the attribute is absent.

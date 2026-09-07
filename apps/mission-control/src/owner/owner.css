@@ -92,3 +92,20 @@
   margin-left: 8px;
   color: var(--ash);
 }
+
+/* The one label that keeps the demonstration honest: fixed, always visible
+   while the demo runs, never mistakable for live state. */
+.room-demo-badge {
+  position: absolute;
+  top: 52px;
+  left: 12px;
+  z-index: 10;
+  max-width: 420px;
+  padding: 6px 10px;
+  background: rgba(60, 20, 8, 0.82);
+  border: 1px solid var(--amber);
+  border-radius: 4px;
+  font: 600 11px / 1.45 var(--mono);
+  letter-spacing: 0.02em;
+  color: var(--amber);
+}

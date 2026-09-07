@@ -4,9 +4,13 @@ import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing';
 import { Suspense, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { detectTier, prefersReducedMotion, SettingsContext } from '../../ui/settings.js';
+import { VirgilRigged } from '../characters/VirgilRigged.js';
+import { Visor } from '../characters/Visor.js';
+import { ScreenBank, StationPanel } from '../screens/ScreenBank.js';
+import { useDemo } from './demo.js';
 import { LightingRig } from './LightingRig.js';
-import { ConsoleDais, MetalOrrery, PortholeFrame, VirgilFigure } from './Models.js';
-import { Orrery as LightOrrery } from './Orrery.js';
+import { ConsoleRing, PortholeFrame, ProverFigure, SideStation } from './Models.js';
+import { Orrery } from './Orrery.js';
 import { layout, room } from './palette.js';
 import { RoomShell } from './RoomShell.js';
 import { WindowView } from './WindowView.js';
@@ -25,10 +29,8 @@ import { WindowView } from './WindowView.js';
  * colour. The owner's machine is the only display this project has.
  */
 
-export type OrreryMode = 'metal' | 'light';
-
 export function VirgilRoom() {
-  const [orreryMode, setOrreryMode] = useState<OrreryMode>('light');
+  const [demo, setDemo] = useState(true);
   const [settings] = useState(() => ({
     reducedMotion: prefersReducedMotion(),
     tier: detectTier(),
@@ -65,19 +67,19 @@ export function VirgilRoom() {
             <RoomShell />
             <WindowView />
             <PortholeFrame />
-            <ConsoleDais />
-            {orreryMode === 'metal' ? <MetalOrrery /> : <LightOrrery />}
-            <VirgilFigure />
+            <ConsoleRing />
+            <Orrery />
+            <Cast demo={demo} />
             <Ready />
           </Suspense>
           <OrbitControls
             makeDefault
             target={layout.camera.target}
             enablePan={false}
-            minDistance={3}
+            minDistance={2.5}
             maxDistance={9.5}
             minPolarAngle={0.5}
-            maxPolarAngle={1.42}
+            maxPolarAngle={1.5}
             minAzimuthAngle={-1.1}
             maxAzimuthAngle={1.1}
             enableDamping
@@ -100,25 +102,65 @@ export function VirgilRoom() {
           )}
         </Canvas>
         <div className="room-controls">
-          <span className="room-controls-label">Orrery</span>
-          <button
-            type="button"
-            className={orreryMode === 'light' ? 'is-active' : ''}
-            onClick={() => setOrreryMode('light')}
-          >
-            Light
+          <span className="room-controls-label">Demo</span>
+          <button type="button" className={demo ? 'is-active' : ''} onClick={() => setDemo(true)}>
+            On
           </button>
-          <button
-            type="button"
-            className={orreryMode === 'metal' ? 'is-active' : ''}
-            onClick={() => setOrreryMode('metal')}
-          >
-            Metal
+          <button type="button" className={demo ? '' : 'is-active'} onClick={() => setDemo(false)}>
+            Off
           </button>
           <span className="room-controls-hint">Drag to look around. Scroll to move closer.</span>
         </div>
+        {demo ? (
+          <div className="room-demo-badge" role="status">
+            SCRIPTED DEMONSTRATION — a fixed twenty-second loop driven by no real events. Every
+            screen is illustrative; nothing shown is this repository's state.
+          </div>
+        ) : null}
       </div>
     </SettingsContext.Provider>
+  );
+}
+
+/**
+ * Everyone in the room and everything they read: Virgil (rigged) with his
+ * face, the Prover at the side station with his, the screen bank behind
+ * Virgil and the station's panel. Driven by the demo timeline when it runs,
+ * otherwise resting.
+ */
+function Cast({ demo }: { demo: boolean }) {
+  const state = useDemo(demo);
+  const [sx, , sz] = layout.stationAt;
+  const [px, , pz] = layout.proverAt;
+  return (
+    <>
+      <VirgilRigged pose={state.pose} face={state.virgilFace} />
+      <ScreenBank content={state.content} />
+      <SideStation />
+      <StationPanel
+        position={[
+          sx - Math.sin(layout.stationRotationY) * -0.32,
+          0.98,
+          sz - Math.cos(layout.stationRotationY) * 0.32,
+        ]}
+        rotation={[0, layout.stationRotationY, 0]}
+        occupant="Prover"
+        state={state.stationState}
+      />
+      <ProverFigure />
+      {/* The Prover's visor: the owner made it blank, so the panel sits over
+          it directly. Height and depth read off his 1.6 m placement. */}
+      <group position={[px, 0, pz]} rotation={[0, layout.proverRotationY, 0]}>
+        <Visor
+          state={state.proverFace}
+          position={[0, 1.33, 0.29]}
+          rotation={[-0.05, 0, 0]}
+          width={0.34}
+          height={0.22}
+          lightIntensity={0.9}
+        />
+      </group>
+    </>
   );
 }
 

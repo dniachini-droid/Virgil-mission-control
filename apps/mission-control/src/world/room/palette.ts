@@ -69,40 +69,40 @@ export const room = {
  * window aperture and the models' chosen sizes are all answerable to each
  * other.
  *
- * V2, on the owner's direction after V1: Virgil stands **inside the console
- * well, facing the screens and the camera, and replaces the sun** — the
- * orrery's tracks turn around him. The console is turned 180° so its screen
- * arc is on the near side; the camera is raised above the screen line so the
- * shot reads as looking over a console at the operator beyond it. The window
- * frame is the owner's porthole model and the wall is cut to its measured
- * hole.
+ * V3, on the owner's direction after V2: the ring console
+ * (`console-model-candidate-02.glb`) replaces the first one; Virgil stands
+ * on its well floor (measured 0.384 m; the rim rises to 0.75 m at r = 1.2 m,
+ * so it meets him at the knee and he is not squashed inside it); **he faces
+ * the camera with his back to the window, and the console's screens sit
+ * behind him** — face, screens, window, front to back. A generic side
+ * station stands to his right with the Prover at it.
  *
- * Every absolute size is a decision read against the approved reference, not
- * a measurement, because all the models arrive normalised:
+ * Every absolute size is a decision read against the approved reference:
  *
- *  - **Virgil is 1.8 m** (V1: 1.65 m; the owner asked for a little bigger,
- *    and being the centre of the system argues for presence). On the well
- *    floor at 0.35 m his head reaches 2.15 m, against the window.
- *  - **The console is 2.6 m across**, screen arc to 0.93 m, well floor 0.35 m.
- *  - **The orrery's tracks** run at his chest, radii 0.98–1.72 m: 0.37 m
- *    clear of his widest point, above the console rim at every tilt.
- *  - **The porthole is 11.0 m across**, hole radius 3.524 m as measured; the
- *    wall aperture is cut fractionally smaller so no gap shows.
- *  - **The metal orrery**, when switched in, is 1.1 m tall and stands on the
- *    floor beside the console: it is solid and cannot share his centre.
+ *  - **Virgil is 1.8 m** (rigged model, feet at its origin).
+ *  - **The ring console is 3.0 m across**, primary; the **side station 1.7 m**
+ *    across, secondary, one model for every slot.
+ *  - **The Prover is 1.6 m**, clearly shorter than Virgil.
+ *  - **The orrery's tracks** run at Virgil's chest, radii 0.98–1.72 m, above
+ *    the console rim at every tilt.
+ *  - **The porthole is 11.0 m across**, hole radius 3.524 m as measured.
  */
 export const layout = {
   virgilHeight: 1.8,
-  virgilAt: [0, 0.35, -2.4] as [number, number, number],
+  virgilAt: [0, 0.39, -2.4] as [number, number, number],
 
   consoleCentre: [0, 0, -2.4] as [number, number, number],
-  consoleRotationY: Math.PI,
-  consoleWidth: 2.6,
-  consoleTop: 0.93,
-  wellFloor: 0.35,
+  consoleRotationY: 0,
+  consoleWidth: 3.0,
+  consoleRim: 0.75,
+  wellFloor: 0.384,
 
-  orreryCentre: [0, 1.55, -2.4] as [number, number, number],
-  metalOrreryAt: [2.15, 0, -2.6] as [number, number, number],
+  orreryCentre: [0, 1.62, -2.4] as [number, number, number],
+
+  stationAt: [2.85, 0, -2.75] as [number, number, number],
+  stationRotationY: -0.5,
+  proverAt: [3.2, 0, -3.6] as [number, number, number],
+  proverRotationY: 0.45,
 
   wallZ: -7,
   ceilingY: 9.5,
@@ -118,8 +118,8 @@ export const layout = {
   parapetHeight: 0.55,
 
   camera: {
-    position: [0, 2.6, 3.4] as [number, number, number],
-    target: [0, 1.5, -2.4] as [number, number, number],
-    fov: 38,
+    position: [0.35, 1.95, 3.7] as [number, number, number],
+    target: [0.1, 1.35, -2.4] as [number, number, number],
+    fov: 40,
   },
 } as const;

@@ -38,11 +38,8 @@ await page.waitForTimeout(2500);
 await page.screenshot({ path: resolve(outDir, 'room-light-a.png') });
 await page.waitForTimeout(4000);
 await page.screenshot({ path: resolve(outDir, 'room-light-b.png') });
-await page.getByRole('button', { name: 'Metal' }).click();
-await page.waitForTimeout(2500);
-await page.screenshot({ path: resolve(outDir, 'room-metal.png') });
-await page.getByRole('button', { name: 'Light' }).click();
-await page.waitForTimeout(1500);
+await page.waitForTimeout(4000);
+await page.screenshot({ path: resolve(outDir, 'room-light-c.png') });
 if (orbit) {
   const canvas = page.locator('canvas');
   const box = await canvas.boundingBox();

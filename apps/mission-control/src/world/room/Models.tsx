@@ -1,29 +1,21 @@
 import { use } from 'react';
-import { loadConsole } from '../props/consoleAsset.js';
-import { loadOrrery } from '../props/orreryAsset.js';
+import { loadConsole2 } from '../props/console2Asset.js';
 import { loadPorthole } from '../props/portholeAsset.js';
-import { loadVirgil } from '../virgil/virgilAsset.js';
+import { loadProver } from '../props/proverAsset.js';
+import { loadStation } from '../props/stationAsset.js';
 import { layout } from './palette.js';
 
 /**
- * The owner-supplied models, placed. Each loader returns a group whose origin
- * is the model's base at its chosen real-world size, so placing one is a
- * matter of where its feet go — the centre-pivot correction and the
- * single-siding both happen in `meshyAsset.ts`, not here.
- *
- * Virgil is static: the file has no rig and no clip (0 animations, 0 skins),
- * and posing a rigless mesh is not in this slice. He stands in the console
- * well facing +z — the screens, and the camera beyond them.
+ * The owner-supplied static models, placed. Each loader returns a group whose
+ * origin is the model's base at its chosen real-world size, so placing one is
+ * a matter of where its feet go — the centre-pivot correction and the
+ * single-siding both happen in `meshyAsset.ts`, not here. The animated
+ * Virgil lives in `../characters/VirgilRigged.tsx`.
  */
 
-export function VirgilFigure() {
-  const virgil = use(loadVirgil());
-  return <primitive object={virgil.placed} position={layout.virgilAt} />;
-}
-
-/** Turned 180° from the file so the screen arc is on the camera's side. */
-export function ConsoleDais() {
-  const console_ = use(loadConsole());
+/** The ring console, as authored: its low open side faces the camera. */
+export function ConsoleRing() {
+  const console_ = use(loadConsole2());
   return (
     <primitive
       object={console_.placed}
@@ -33,10 +25,28 @@ export function ConsoleDais() {
   );
 }
 
-/** The owner's metal orrery: solid, so it stands beside the console. */
-export function MetalOrrery() {
-  const orrery = use(loadOrrery());
-  return <primitive object={orrery.placed} position={layout.metalOrreryAt} />;
+/** One generic side station. The station is a place; the agent is the identity. */
+export function SideStation() {
+  const station = use(loadStation());
+  return (
+    <primitive
+      object={station.placed}
+      position={layout.stationAt}
+      rotation={[0, layout.stationRotationY, 0]}
+    />
+  );
+}
+
+/** The Prover, static (no rig in the file), at the side station. */
+export function ProverFigure() {
+  const prover = use(loadProver());
+  return (
+    <primitive
+      object={prover.placed}
+      position={layout.proverAt}
+      rotation={[0, layout.proverRotationY, 0]}
+    />
+  );
 }
 
 /**

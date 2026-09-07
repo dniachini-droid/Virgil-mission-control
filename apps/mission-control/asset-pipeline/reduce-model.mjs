@@ -111,6 +111,54 @@ const MODELS = {
       metallic_roughness: { size: 512, quality: 0.75 },
     },
   },
+  console2: {
+    source: 'assets/models/candidates/console-model-candidate-02.glb',
+    expectedSha: 'efa64ba052c8108f56034edd3f657f9df8b36d06b12728d05830bd75c160e6db',
+    outDir: 'src/world/props',
+    target: {
+      axis: 'x',
+      metres: 3.0,
+      reason:
+        'The 2.000 m source width is unit-box normalisation. Virgil’s console must read as primary against 1.7 m side stations; 3.0 m across puts its ring round a 1.8 m Virgil with room for the orrery’s tracks, and its 0.75 m rim height leaves him standing clear of it rather than squashed inside.',
+    },
+    textures: {
+      base_color: { size: 1024, quality: 0.8 },
+      normal: { size: 512, quality: 0.85 },
+      metallic_roughness: { size: 512, quality: 0.75 },
+    },
+  },
+  station: {
+    source: 'assets/models/candidates/side-station-model-candidate-01.glb',
+    expectedSha: 'b83cc4e7a1c5bfa27629ff6003c83e28ea1c3819b6dc971b6ecd4921d2276b4f',
+    outDir: 'src/world/props',
+    target: {
+      axis: 'x',
+      metres: 1.7,
+      reason:
+        'The 2.000 m source width is unit-box normalisation. A side station is secondary to Virgil’s 3.0 m console and is one model instanced at every slot; 1.7 m across (0.6 m tall) reads as a desk an agent stands at, noticeably smaller than his.',
+    },
+    textures: {
+      base_color: { size: 1024, quality: 0.78 },
+      normal: { size: 512, quality: 0.85 },
+      metallic_roughness: { size: 256, quality: 0.75 },
+    },
+  },
+  prover: {
+    source: 'assets/models/candidates/prover-model-candidate-01.glb',
+    expectedSha: '412d3bb049cc6f74066457db604cce8beb11bca0547380de173c60b96b000dbc',
+    outDir: 'src/world/props',
+    target: {
+      axis: 'y',
+      metres: 1.6,
+      reason:
+        'The 2.000 m source height is unit-box normalisation. The Prover is a secondary figure at a side station; 1.6 m keeps him clearly shorter than the 1.8 m Virgil without reading as a different species, and his visor sits above the 0.6 m station.',
+    },
+    textures: {
+      base_color: { size: 1024, quality: 0.8 },
+      normal: { size: 512, quality: 0.85 },
+      metallic_roughness: { size: 512, quality: 0.75 },
+    },
+  },
   porthole: {
     source: 'assets/models/candidates/porthole-model-candidate-01.glb',
     expectedSha: '59a8b86ed5f986027f2e1104a0dd738d0baa9d3142dc2f0c76049ac7f0a7acb0',
@@ -281,9 +329,13 @@ async function reduce(name, model) {
   }
   if (maxIndex >= position.count)
     fail(`index ${maxIndex} out of range for ${position.count} vertices`);
-  if (maxIndex >= 65536) fail('indices do not fit in UNSIGNED_SHORT; refusing the u16 path');
-  const indices16 = new Uint16Array(index.array.length);
-  for (let i = 0; i < index.array.length; i += 1) indices16[i] = index.array[i];
+  // Narrow to UNSIGNED_SHORT only when every index fits; the ring console has
+  // 148,615 vertices and keeps UNSIGNED_INT. Measured, not assumed.
+  const narrowIndices = maxIndex < 65536;
+  const indicesOut = narrowIndices
+    ? new Uint16Array(index.array.length)
+    : new Uint32Array(index.array.length);
+  for (let i = 0; i < index.array.length; i += 1) indicesOut[i] = index.array[i];
 
   // ------------------------------------------------------------- quantise
 
@@ -315,6 +367,23 @@ async function reduce(name, model) {
 
   const material = gltf.materials?.[0];
   if (!material) fail('no material');
+  // Factors may be absent (glTF defaults, 1.0) or declared (the pygltflib
+  // characters declare all three explicitly). The loader applies 1.0 and the
+  // textures carry the values, so anything other than 1.0 must stop here.
+  const pbr = material.pbrMetallicRoughness ?? {};
+  const factors = {
+    baseColorFactor: pbr.baseColorFactor ?? null,
+    metallicFactor: pbr.metallicFactor ?? null,
+    roughnessFactor: pbr.roughnessFactor ?? null,
+  };
+  if (factors.baseColorFactor && factors.baseColorFactor.some((v) => v !== 1)) {
+    fail(
+      `${name}: baseColorFactor ${factors.baseColorFactor} is not 1.0; the loader does not apply it`,
+    );
+  }
+  if ((factors.metallicFactor ?? 1) !== 1 || (factors.roughnessFactor ?? 1) !== 1) {
+    fail(`${name}: metallic/roughness factors are not 1.0; the loader does not apply them`);
+  }
 
   function imageFor(textureInfo, label) {
     if (!textureInfo) fail(`material has no ${label}`);
@@ -426,7 +495,11 @@ async function reduce(name, model) {
   push('position', positionQ, { kind: 'i16n', components: 3, count: position.count });
   push('normal', normalQ, { kind: 'i8n', components: 3, count: normal.count });
   push('uv', uvQ, { kind: 'u16n', components: 2, count: uv.count });
-  push('index', indices16, { kind: 'u16', components: 1, count: indices16.length });
+  push('index', indicesOut, {
+    kind: narrowIndices ? 'u16' : 'u32',
+    components: 1,
+    count: indicesOut.length,
+  });
   for (const [key, map] of Object.entries(reencoded)) {
     push(`map_${key}`, map.bytes, {
       kind: 'image',
@@ -465,13 +538,14 @@ async function reduce(name, model) {
       sourceDoubleSided: material.doubleSided === true,
       sourceHasTangent: tangentDropped,
       sourceHasNormalMap: material.normalTexture !== undefined,
+      sourceFactors: factors,
       sourceIndexComponentType: index.type,
       sourceAnimations: gltf.animations?.length ?? 0,
       sourceSkins: gltf.skins?.length ?? 0,
     },
     reductions: {
       tangentDropped,
-      indicesNarrowedToU16: index.type !== 'UNSIGNED_SHORT',
+      indicesNarrowedToU16: narrowIndices && index.type !== 'UNSIGNED_SHORT',
       positionQuantised: 'INT16 normalised, scaled by positionScale',
       normalQuantised: 'INT8 normalised',
       uvQuantised: 'UINT16 normalised',
