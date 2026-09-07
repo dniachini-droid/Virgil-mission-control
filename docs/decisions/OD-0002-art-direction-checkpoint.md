@@ -1,6 +1,6 @@
 # OD-0002 — Art-direction checkpoint: rejected runtime executions and approved visual direction
 
-Status: **owner decision, transcribed; proposal path pending the owner's move.** The owner issued this decision in writing on 2026-09-06 in the consolidation instruction. This file transcribes the operative decisions; the owner's message is the source. It gains authority (layer 1) only when the owner moves it to `docs/decisions/OD-0002-art-direction-checkpoint.md`.
+Status: **Accepted.** The owner issued this decision in writing on 2026-09-06 in the consolidation instruction. This file transcribes the operative decisions; the owner's message is the source. The owner accepted it on 2026-09-07 by instruction in the owner console, and this session filed it here on that instruction under the mechanism recorded in `OD-0006-recording-owner-decisions.md`, which holds the owner's verbatim words. It carries authority (layer 1) from that acceptance. Only this status line changed on filing; the decision text is unaltered.
 
 Why it is at `proposed/` and not at the accepted path: `docs/decisions/README.md` says a proposal has no authority until the owner moves it; `CLAUDE.md` says only the owner changes authority layer 1; `constitution/authority.json` lists `docs/decisions/OD-*` as a protected boundary; and `.claude/settings.json` denies `Edit` and `Write` under `docs/decisions/OD-*`. The consolidation session was instructed not to circumvent that policy and did not.
 

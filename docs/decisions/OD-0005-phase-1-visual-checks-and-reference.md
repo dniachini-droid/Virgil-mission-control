@@ -1,6 +1,6 @@
 # OD-0005 — The new reference image, and the graphics-hardware checks in Phase 1 (Tier 3)
 
-Status: **owner decision, transcribed; proposal path pending the owner's move.** Issued by the owner in writing on 2026-09-07, in reply to a session's report of a new reference image and of a contradiction between the Phase 1 acceptance criteria and the hard limits in `CLAUDE.md`. The owner's words are the source; this file transcribes them and decides nothing itself. It gains authority when the owner moves it to `docs/decisions/`; until then the same policy and tooling limits apply as for OD-0002, OD-0003 and OD-0004.
+Status: **Accepted.** Issued by the owner in writing on 2026-09-07, in reply to a session's report of a new reference image and of a contradiction between the Phase 1 acceptance criteria and the hard limits in `CLAUDE.md`. The owner's words are the source; this file transcribes them and decides nothing itself. The owner accepted it on 2026-09-07 by instruction in the owner console, and this session filed it here on that instruction under the mechanism recorded in `OD-0006-recording-owner-decisions.md`, which holds the owner's verbatim words. It carries authority (layer 1) from that acceptance. Only this status line changed on filing; the decision text is unaltered.
 
 ## Question
 
