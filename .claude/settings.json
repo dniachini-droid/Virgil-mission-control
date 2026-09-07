@@ -1,5 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "timeZone": "Australia/Sydney",
+  "timeFormat": "12-hour",
   "permissions": {
     "allow": [
       "Bash(pnpm install)",
@@ -46,8 +48,6 @@
       "Edit(./docs/product/VIRGIL_MASTER_COMMISSION.md)",
       "Edit(./constitution/**)",
       "Write(./constitution/**)",
-      "Edit(./docs/decisions/OD-*)",
-      "Write(./docs/decisions/OD-*)",
       "Write(./docs/product/VIRGIL_MASTER_COMMISSION.md)",
       "Edit(./schemas/gate-*)",
       "Write(./schemas/gate-*)",
