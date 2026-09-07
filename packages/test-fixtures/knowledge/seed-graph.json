@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:79f2e4ea7c9a9347a40dc166a0a0abdf15b846f2c8dfc073fceb1f1318729a10",
+  "graphHash": "sha256:0ea8af673b018eaec6531be9e4b6b1b9248a390913fd8b98b2925e4cc8295a97",
   "nodes": [
     {
       "id": "agent-roster",
@@ -43,22 +43,62 @@
       "claimCount": 0
     },
     {
-      "id": "docs/decisions/proposed/OD-0002-art-direction-checkpoint.md",
+      "id": "docs/decisions/OD-0002-art-direction-checkpoint.md",
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0002 — Art-direction checkpoint: rejected runtime executions and approved visual direction",
-      "epistemicClass": "ai_generated_hypothesis",
-      "authorityClass": "hypothesis",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
       "status": null,
       "claimCount": 0
     },
     {
-      "id": "docs/decisions/proposed/OD-0003-consolidation-repair-round.md",
+      "id": "docs/decisions/OD-0003-consolidation-repair-round.md",
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0003 — Additional repair round on the consolidation candidate (Tier 3)",
-      "epistemicClass": "ai_generated_hypothesis",
-      "authorityClass": "hypothesis",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0004-non-blocking-findings-disposition.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0004 — Disposition of the non-blocking Keeper findings, and the merge of pull request #1 (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0005-phase-1-visual-checks-and-reference.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0005 — The new reference image, and the graphics-hardware checks in Phase 1 (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0006-recording-owner-decisions.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0006 — Recording an owner decision on the owner's instruction (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0007-phase-1-authorisation-and-todays-decisions.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0007 — Phase 0 accepted, Phase 1 authorised, and the five other decisions of 2026-09-07 (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
       "status": null,
       "claimCount": 0
     },

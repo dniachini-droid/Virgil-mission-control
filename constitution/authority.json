@@ -72,6 +72,15 @@
     "merge_mechanism",
     "deploy_mechanism"
   ],
+  "boundaryProtection": {
+    "sessionDenied": [
+      "constitution/",
+      "docs/product/VIRGIL_MASTER_COMMISSION.md",
+      "knowledge/raw/",
+      "schemas/gate-*"
+    ],
+  "ownerInstructedOnly": ["docs/decisions/OD-*"]
+  },
   "permissionInvariant": [
     "one_accountable_owner_per_artifact_at_a_time",
     "no_ambiguous_or_simultaneous_overlapping_authority",

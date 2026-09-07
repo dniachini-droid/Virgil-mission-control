@@ -1,6 +1,6 @@
 # OD-0003 — Additional repair round on the consolidation candidate (Tier 3)
 
-Status: **owner decision, transcribed; proposal path pending the owner's move.** Issued by the owner in writing on 2026-09-07 in reply to the builder's report of the independent Keeper review of candidate `956be26064171f53022f92fc4429770bb727eaa5` (pull request #1). The owner's message is the source: "authorise the repair round as proposed". This file transcribes the proposal the owner authorised. It gains authority when the owner moves it to `docs/decisions/`; the same policy and tooling limits apply as for OD-0002.
+Status: **Accepted.** Issued by the owner in writing on 2026-09-07 in reply to the builder's report of the independent Keeper review of candidate `956be26064171f53022f92fc4429770bb727eaa5` (pull request #1). The owner's message is the source: "authorise the repair round as proposed". This file transcribes the proposal the owner authorised. The owner accepted it on 2026-09-07 by instruction in the owner console, and this session filed it here on that instruction under the mechanism recorded in `OD-0006-recording-owner-decisions.md`, which holds the owner's verbatim words. It carries authority (layer 1) from that acceptance. Only this status line changed on filing; the decision text is unaltered.
 
 ## Question
 
