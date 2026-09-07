@@ -71,10 +71,10 @@ Spawn-in and spawn-out of agents (the P3 item; the demonstration's hand-off show
 
 ## The honest size
 
-The file is **15,270,238 bytes** (14.56 MiB; 15.27 MB at a million bytes each). Against the project's budget of "12 MB desktop, 6 MB mobile" it is **over both, on both readings**: over desktop by 2.56 MiB / 3.27 MB, over mobile by 8.56 MiB / 9.27 MB. The largest single item is your new console — 148,615 vertices, more than four times the old one, which alone is about 4.8 MB as packed — followed by the rigged Virgil with his four clips (about 3.3 MB). The metal orrery and the static Virgil are no longer in the file. Nothing you have seen and liked was cut to chase the number, and nobody has said this budget is binding on this file; if it is, say so and the choice is yours.
+The file is **15,270,215 bytes** (14.56 MiB; 15.27 MB at a million bytes each). Against the project's budget of "12 MB desktop, 6 MB mobile" it is **over both, on both readings**: over desktop by 2.56 MiB / 3.27 MB, over mobile by 8.56 MiB / 9.27 MB. The largest single item is your new console — 148,615 vertices, more than four times the old one, which alone is about 4.8 MB as packed — followed by the rigged Virgil with his four clips (about 3.3 MB). The metal orrery and the static Virgil are no longer in the file. Nothing you have seen and liked was cut to chase the number, and nobody has said this budget is binding on this file; if it is, say so and the choice is yours.
 
 SHA-256 of the file:
 
 ```
-a1e3e3e3da264eef13700d59336cfc5ba7b31ce980df20950bb89cc5d21a52e9
+b7e91a21e1f304d493c8864ac743f16597cdbdf3079d0e35f09855e6095e2fe2
 ```
