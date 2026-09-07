@@ -28,6 +28,16 @@ From Amendment 1: every animation traceable to its event and evidence; skipped, 
 
 Testable: Playwright journeys for the passing route, the quarantine route, the gateway crossing and the scan; visual regression against the Phase 0 baselines at the defined cameras on a GPU runner; performance traces per tier against `PERFORMANCE_STRATEGY.md`; accessibility checks (keyboard reachability of every selectable object, aria names, reduced motion).
 
+### Two checks deferred for want of graphics hardware
+
+Two of the criteria above need graphics hardware the session containers do not have, and the ordinary way to obtain it is a paid service, which `CLAUDE.md` forbids outright. The owner decided that Phase 1 proceeds with both formally deferred and recorded as not performed, rather than lifting the no-paid-services rule or rewriting the criteria. Transcribed at `docs/decisions/proposed/OD-0005-phase-1-visual-checks-and-reference.md`; it takes effect when the owner moves that file into `docs/decisions/`.
+
+1. **"defined desktop and mobile performance targets met on representative devices"** (commission 5.5, above) and the performance traces per tier against `PERFORMANCE_STRATEGY.md`: **deferred, not performed.** Performance stays unmeasured and must be recorded as unmeasured, never as met. "No failure observed" is not a measurement.
+
+2. **"visual regression against the Phase 0 baselines at the defined cameras on a GPU runner"**: **deferred, not performed.** Visual judgement in Phase 1 is the owner's own, on the owner's own machine; no automated baseline stands in for it.
+
+Both criteria stand as written and remain unmet. The Phase 1 run record and any Phase 1 report must state that these two checks were not performed, and why. Every other acceptance criterion is unchanged and unweakened.
+
 ## Risk classification and reviewer formation
 
 Level: moderate. Flags: renderedUi, accessibility, mobile, userFacingCopy, expensiveRendering, resourceBudget. Formation: Keeper, Interface Keeper, Performance Examiner; Arbiter if findings conflict. No Security Sentinel (no credentials or external actions in Phase 1).
@@ -48,6 +58,8 @@ The slice; modelled worker ensemble for the six visible roles per the role bible
 ## Stop conditions
 
 Any acceptance criterion that requires an owner decision (character direction, sound); any need to change authority files; performance budget unmet on the desktop tier after two optimisation passes; visual regression baselines unobtainable on a GPU runner.
+
+The last of these — *visual regression baselines unobtainable on a GPU runner* — is disapplied for one stated reason only: the absence of GPU hardware within the no-paid-services limit, which the owner has decided is a deferral and not a stop (`docs/decisions/proposed/OD-0005-phase-1-visual-checks-and-reference.md`, effective when the owner moves it into `docs/decisions/`). It continues to apply to every other cause. The other stop conditions are unchanged.
 
 ## Owner decisions required before start
 
