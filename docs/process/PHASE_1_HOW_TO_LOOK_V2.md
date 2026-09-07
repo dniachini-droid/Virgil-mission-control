@@ -78,10 +78,10 @@ The textures are WebP, which every current browser and Safari 14+ read. Untested
 
 ## The honest size
 
-The file is **8,036,220 bytes** (7.66 MiB; 8.04 MB counting a megabyte as a million bytes). V1 was 7,135,241 bytes and you called it fantastic; V2 is larger because your porthole frame is in it (about 1.1 MB as packed) and the metal orrery, now the alternative, was shrunk (down 0.2 MB). Against the project's budget of "12 MB desktop, 6 MB mobile": inside desktop on either reading; **over mobile by 1.66 MiB or 2.04 MB.** The remaining ways to get under it — dropping the metal orrery from the file, re-compressing your window pictures, or cutting Virgil's textures — would each take something away that you have seen and liked, so they were not done. Nobody has told you this budget is binding on this file; if it is, say so and the choice is yours.
+The file is **8,036,197 bytes** (7.66 MiB; 8.04 MB counting a megabyte as a million bytes). V1 was 7,135,241 bytes and you called it fantastic; V2 is larger because your porthole frame is in it (about 1.1 MB as packed) and the metal orrery, now the alternative, was shrunk (down 0.2 MB). Against the project's budget of "12 MB desktop, 6 MB mobile": inside desktop on either reading; **over mobile by 1.66 MiB or 2.04 MB.** The remaining ways to get under it — dropping the metal orrery from the file, re-compressing your window pictures, or cutting Virgil's textures — would each take something away that you have seen and liked, so they were not done. Nobody has told you this budget is binding on this file; if it is, say so and the choice is yours.
 
 SHA-256 of the file:
 
 ```
-6dc2247e323aeda5cece4bfcaaa34d99b3b9ea94282dc7bc3e027c5bc18ef0ed
+760c2c7bfb8eafe12eed22d9354666197c2020e1a4abe2d1b8d73c0a5b9ea775
 ```
