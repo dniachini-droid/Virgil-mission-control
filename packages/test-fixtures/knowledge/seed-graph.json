@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:0ea8af673b018eaec6531be9e4b6b1b9248a390913fd8b98b2925e4cc8295a97",
+  "graphHash": "sha256:a86250498e12d01d9be701610b1947b0bec39c34739816ddb2e0334ea6e0d6d1",
   "nodes": [
     {
       "id": "agent-roster",
@@ -97,6 +97,16 @@
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0007 — Phase 0 accepted, Phase 1 authorised, and the five other decisions of 2026-09-07 (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0008-meshy-licence-attestation.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0008 — The owner's attestation as the licence basis for Meshy-generated models (Tier 3)",
       "epistemicClass": "owner_approved_decision",
       "authorityClass": "owner_decision",
       "status": null,
