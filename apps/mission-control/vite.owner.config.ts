@@ -24,7 +24,12 @@ function git(args: string[]): string {
 const sha = process.env.VIRGIL_OWNER_SHA ?? git(['rev-parse', 'HEAD']);
 const worktreeDirty = git(['status', '--porcelain']) !== '';
 const stage = process.env.VIRGIL_OWNER_STAGE ?? 'Phase 1 S1 / viewing point V0';
-const buildDate = new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+// Overridable so that a reviewer can rebuild a delivered artifact byte for byte.
+// Without it the embedded minute is the only thing that stops the output being
+// reproducible from the commit alone.
+const buildDate =
+  process.env.VIRGIL_OWNER_BUILD_DATE ??
+  `${new Date().toISOString().replace('T', ' ').slice(0, 16)} UTC`;
 
 export default defineConfig({
   plugins: [react()],
