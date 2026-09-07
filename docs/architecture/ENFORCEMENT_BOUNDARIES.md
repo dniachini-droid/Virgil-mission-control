@@ -94,7 +94,40 @@ Implemented now and validated by tests (`packages/agent-contracts/test/paths.tes
 
 ## Permission matrix and session tooling
 
-Validated by tests (`packages/agent-contracts/test/permission-matrix.test.ts`, "tool and write-authority overlap"): a role has write tools if and only if it has a write boundary; only the Fabricator holds a boundary inside the candidate worktree; stage launching is exclusive to the role with the `Agent` tool; the three placeholder boundaries are each held by one role; concrete boundaries normalise, never nest across roles and never reach a protected boundary; and `.claude/settings.json` denies both `Write` and `Edit` for every path-shaped protected boundary in `authority.json`. These tests check data agreement between files; they do not make the runtime enforce the matrix (deferred, above).
+Validated by tests (`packages/agent-contracts/test/permission-matrix.test.ts`, "tool and write-authority overlap"): a role has write tools if and only if it has a write boundary; only the Fabricator holds a boundary inside the candidate worktree; stage launching is exclusive to the role with the `Agent` tool; the three placeholder boundaries are each held by one role; concrete boundaries normalise, never nest across roles and never reach a protected boundary; and every path-shaped protected boundary in `authority.json` carries the protection its `boundaryProtection` classification claims for it (see "Boundary protection: two kinds" below). These tests check data agreement between files; they do not make the runtime enforce the matrix (deferred, above).
+
+## Boundary protection: two kinds, and which protects what
+
+`constitution/authority.json` lists seven `protectedBoundaries`. Five are paths; two (`merge_mechanism`, `deploy_mechanism`) are mechanisms, not paths, and are out of scope here. Until the owner's commit `dd8ddb1` the repository treated all five paths as protected by one mechanism — a `Write` and `Edit` deny rule in `.claude/settings.json` — and `permission-matrix.test.ts` asserted exactly that. That assertion was true when written and became false when the owner removed the two deny rules for `docs/decisions/OD-*` in commit `9627bae`, so that a session could file an owner decision at all (`OD-0006`). The test then failed on `main`, correctly: it was reporting a real disagreement between the constitution and the settings file.
+
+The owner's commit `dd8ddb1` resolves that by declaring, in `constitution/authority.json` itself, that there are two kinds of protection:
+
+```json
+"boundaryProtection": {
+  "sessionDenied": ["constitution/", "docs/product/VIRGIL_MASTER_COMMISSION.md", "knowledge/raw/", "schemas/gate-*"],
+  "ownerInstructedOnly": ["docs/decisions/OD-*"]
+}
+```
+
+The classification lives in `constitution/`, which every session is denied both by rule and by test. That placement is the point of the design: a session cannot reclassify a boundary out of `sessionDenied` in order to make its own write to it legal. Only the owner can move a path between the two groups, and the owner did.
+
+| Protected boundary | Protection | Mechanism today | Status |
+|---|---|---|---|
+| `constitution/` | session-denied | `Write(./constitution/**)` and `Edit(./constitution/**)` in `.claude/settings.json` | **validated by tests** |
+| `docs/product/VIRGIL_MASTER_COMMISSION.md` | session-denied | `Write` and `Edit` deny rules on the exact path | **validated by tests** |
+| `knowledge/raw/` | session-denied | `Write(./knowledge/raw/**)` and `Edit(./knowledge/raw/**)` | **validated by tests** |
+| `schemas/gate-*` | session-denied | `Write(./schemas/gate-*)` and `Edit(./schemas/gate-*)` | **validated by tests** |
+| `docs/decisions/OD-*` | owner-instructed only — protected by recorded owner instruction, not by a deny rule | Nothing. No code determines whether an owner instruction exists, and no code inspects what a filed record contains | **design-level only** |
+
+Read the status column exactly. **validated by tests** on the four session-denied rows means one thing and no more: `packages/agent-contracts/test/permission-matrix.test.ts` fails if either deny rule is removed from `.claude/settings.json`. The rule is then enforced by the Claude Code harness, which is not this repository and is not exercised by any test here; the test asserts the rule is declared, not that the harness honours it. **design-level only** on the owner-instructed row is the honest status: no code determines whether the owner instructed anything, so nothing stops a session writing an `OD-*` file the owner never asked for. The three assertions below are assertions about the classification and the settings file; none of them is a control over a session's writes to `docs/decisions/`. That gap is set out in full under "Owner-decision recording (OD-0006)".
+
+Three assertions in `permission-matrix.test.ts` ("tool and write-authority overlap") hold this structure, and together they are stricter than the single assertion they replaced:
+
+1. Every path-shaped entry of `protectedBoundaries` appears in exactly one of the two groups. A new protected boundary that nobody classifies fails; so does one listed in both. The old assertion had no equivalent — a new boundary could be added to `authority.json` and, if a deny rule happened to exist, nothing checked that anyone had decided which kind of protection it had.
+2. Every `sessionDenied` path has both a `Write` and an `Edit` deny rule. This is the old assertion at unchanged strength, applied to the four paths for which it is true.
+3. Every `ownerInstructedOnly` path has no `Write` or `Edit` deny rule that reaches it (checked with the shared pattern-overlap function, so a broader rule such as `Write(./docs/**)` fails too) and is recorded in this document as protected by recorded owner instruction, with a status from the vocabulary above. A path put in this group that nobody documents fails.
+
+Nothing else in that test file was loosened to make these three fit.
 
 ## Owner-decision recording (OD-0006): procedural, not enforced
 
