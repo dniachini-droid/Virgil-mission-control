@@ -582,7 +582,7 @@ export function passingRun(): DomainEvent[] {
   b.add('safe_to_merge', system, { lineageId: 'LIN-1', headSha: HEAD_SHA, gateReportId: 'GR-1' }, [
     ev('gate_decision', 'GR-1'),
   ]);
-  b.add('owner_decision', owner, { decisionId: 'OD-0003', kind: 'merge' }, [
+  b.add('owner_decision', owner, { decisionId: 'OD-0003', kind: 'merge', appliesToSha: HEAD_SHA }, [
     ev('owner_decision', 'OD-0003'),
   ]);
   b.add(

@@ -266,10 +266,12 @@ export const guards: Record<string, Guard> = {
     !lineage.priorSeals.some((s) => s.sha === payload.newSha) &&
     lineage.shaHistory.includes(String(payload.previousSha)) &&
     payload.newSha === lineage.currentSha,
-  /** Merge: owner actor citing a recorded, unconsumed owner merge decision. SHA and gate checks live in validation.ts. */
-  actor_is_owner: ({ run, event, payload }) =>
+  /** Merge: owner actor citing a recorded, unconsumed owner merge decision that names this exact SHA. Gate checks live in validation.ts. */
+  actor_is_owner: ({ run, lineage, event, payload }) =>
     event.actor.kind === 'owner' &&
-    citedDecisionValid(run, payload.decisionId, ownerDecisionKinds.merge, { oneShot: true }),
+    citedDecisionValid(run, payload.decisionId, ownerDecisionKinds.merge, { oneShot: true }) &&
+    run.decisions[String(payload.decisionId)]?.appliesToSha === lineage.currentSha &&
+    payload.headSha === lineage.currentSha,
   /** Deploy is owner-only: a recorded owner deployment decision, started by the owner or by the system on the owner's behalf. */
   deploy_authority_present: ({ run, lineage, event, payload }) =>
     (event.actor.kind === 'owner' || event.actor.kind === 'system') &&

@@ -89,9 +89,13 @@ const out: Record<string, Record<string, unknown>> = {};
   const halted = prefixThrough(repairLimitRun(), 'owner_decision_required');
   const s = replay(
     'p',
-    add(halted, 'owner_decision', fab, { decisionId: 'OD-x', kind: 'merge', resumesTo: 'MERGED' }, [
-      ev('owner_decision', 'OD-x'),
-    ]),
+    add(
+      halted,
+      'owner_decision',
+      fab,
+      { decisionId: 'OD-x', kind: 'continue', resumesTo: 'MERGED' },
+      [ev('owner_decision', 'OD-x')],
+    ),
   );
   out['K-01a non-owner owner_decision resuming into MERGED'] = {
     state: s.lineage?.state,
@@ -103,7 +107,7 @@ const out: Record<string, Record<string, unknown>> = {};
       halted,
       'owner_decision',
       owner,
-      { decisionId: 'OD-y', kind: 'merge', resumesTo: 'SAFE_TO_MERGE' },
+      { decisionId: 'OD-y', kind: 'continue', resumesTo: 'SAFE_TO_MERGE' },
       [ev('owner_decision', 'OD-y')],
     ),
   );
@@ -213,4 +217,73 @@ const out: Record<string, Record<string, unknown>> = {};
 out['PATH gate: traversal path against a permitted pattern'] = {
   permitted: pathPermitted('apps/x/src/../../../constitution/authority.json', ['apps/**']),
 };
+
+// Keeper review findings on the first consolidation candidate (KR-01, KR-02, KR-04).
+{
+  const edited = passingRun().map((e) =>
+    e.type === 'file_modified' || e.type === 'file_created'
+      ? ({ ...e, actor: { ...e.actor, sessionId: 'sess-keeper-1' } } as DomainEvent)
+      : e,
+  );
+  const s = replay('p', edited);
+  out['KR-01 an unregistered session edits under the Fabricator grant, then reviews as Keeper'] = {
+    builderSessions: s.lineage?.builderSessions,
+    reviewerSession: s.lineage?.reviewSeal?.reviewerSession ?? null,
+    state: s.lineage?.state,
+    rejected: rejection(s, 'file_modified') ?? rejection(s, 'review_started'),
+  };
+}
+{
+  const halted = prefixThrough(repairLimitRun(), 'owner_decision_required');
+  const forged = add(halted, 'owner_decision', fab, {
+    decisionId: 'OD-evil',
+    kind: 'continue',
+    resumesTo: 'MERGED',
+  });
+  const s = replay(
+    'p',
+    forged.map((e, i) =>
+      i === forged.length - 1 ? ({ ...e, authority: 'governance' } as unknown as DomainEvent) : e,
+    ),
+  );
+  out['KR-02 non-owner owner_decision tagged with an unknown authority'] = {
+    state: s.lineage?.state,
+    decisionRecorded: !!s.decisions['OD-evil'],
+    rejected: rejection(s, 'owner_decision'),
+  };
+}
+{
+  const base = prefixThrough(passingRun(), 'scope_approved');
+  const early = add(
+    base,
+    'owner_decision',
+    owner,
+    { decisionId: 'OD-early', kind: 'merge', appliesToSha: HEAD_SHA_2 },
+    [ev('owner_decision', 'OD-early')],
+  );
+  const rest = passingRun()
+    .slice(base.length)
+    .filter(
+      (e) =>
+        e.type !== 'owner_decision' ||
+        (e.payload as { decisionId: string }).decisionId !== 'OD-0003',
+    );
+  const events = [...early, ...rest].map((e, i) => ({ ...e, seq: i }) as DomainEvent);
+  const withEarly = events.map((e) =>
+    e.type === 'merged_by_owner'
+      ? ({
+          ...e,
+          payload: { ...(e.payload as object), decisionId: 'OD-early' },
+          evidence: [ev('owner_decision', 'OD-early')],
+        } as DomainEvent)
+      : e,
+  );
+  const s = replay('p', withEarly);
+  out['KR-04 merge decision recorded early for another SHA, cited at merge time'] = {
+    state: s.lineage?.state,
+    mergeSha: s.lineage?.mergeSha ?? null,
+    rejected: rejection(s, 'merged_by_owner'),
+  };
+}
+
 console.log(JSON.stringify(out, null, 2));

@@ -11674,6 +11674,11 @@
                     "QUARANTINED",
                     "OWNER_DECISION_REQUIRED"
                   ]
+                },
+                "appliesToSha": {
+                  "description": "Candidate SHA the decision applies to; required by the reducer for kind merge",
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{40}$"
                 }
               },
               "required": [

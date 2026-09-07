@@ -255,6 +255,9 @@ const P = {
     decisionId: Id,
     kind: z.string(),
     resumesTo: CandidateState.optional(),
+    appliesToSha: Sha.optional().describe(
+      'Candidate SHA the decision applies to; required by the reducer for kind merge',
+    ),
   }),
 };
 

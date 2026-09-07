@@ -55,6 +55,8 @@ export interface OwnerDecisionRecord {
   kind: string;
   seq: number;
   eventId: string;
+  /** Candidate SHA the decision names; a `merge` decision is applicable only to that SHA. */
+  appliesToSha?: string | undefined;
   /** Event ids that consumed this decision for a one-shot action (merge, additional repair round). */
   consumedBy: string[];
 }
@@ -79,7 +81,7 @@ export interface LineageState {
   pushed: boolean;
   mismatch?: { kind: string; localSha: string; remoteSha?: string };
   pr?: { number: number; headSha: string; draft: boolean };
-  /** Sessions that built the candidate (fabricator sessions and any session that edited files). */
+  /** Sessions that built the candidate: every Fabricator session and every session that wrote, staged or committed to it. */
   builderSessions: string[];
   /** Sessions that repaired the candidate under a repair contract. */
   repairerSessions: string[];
@@ -166,7 +168,7 @@ export interface TransitionRecord {
  * `consistency` (payload contradicts recorded facts), `transition` (not allowed by the table or its guard),
  * `order` (out-of-order seq). Authority and consistency rejections apply no effect at all.
  */
-export type InvalidEventKind = 'authority' | 'consistency' | 'transition' | 'order';
+export type InvalidEventKind = 'contract' | 'authority' | 'consistency' | 'transition' | 'order';
 
 export interface InvalidTransition {
   seq: number;

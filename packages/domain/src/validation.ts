@@ -19,7 +19,7 @@ import type { CandidateState, InvalidEventKind, LineageState, RunState } from '.
 import { authorityConfig } from './transitions.js';
 
 export interface EventRejection {
-  kind: Exclude<InvalidEventKind, 'transition' | 'order'>;
+  kind: Exclude<InvalidEventKind, 'transition' | 'order' | 'contract'>;
   reason: string;
 }
 
@@ -87,17 +87,46 @@ export function resumeTargetProblem(
   return undefined;
 }
 
-/** Why a file write by `event` falls outside the actor's granted paths, or undefined. */
+/** Roles whose matrix entry permits writing to the candidate or to an authorised test boundary. */
+const candidateWriterRoles = new Set(
+  matrix.roles
+    .filter((r) => r.mayModifyCandidate === true || r.mayModifyTests !== false)
+    .map((r) => r.id),
+);
+
+/**
+ * A write, staging or commit by an agent must be its own: the session is registered, its actor role
+ * is the registered role, the event cites the grant the session was registered under, and that
+ * grant is live at `occurredAt`. Citing another session's grant is an authority violation (KR-01).
+ */
+function actorGrantProblem(run: RunState, event: DomainEvent): string | undefined {
+  const a = event.actor;
+  const s = a.sessionId;
+  if (!s) return 'agent event without a session identity';
+  const reg = run.agents[s];
+  if (!reg) return `session ${s} is not registered under a grant`;
+  if (a.roleId !== reg.roleId)
+    return `actor role ${a.roleId ?? 'none'} differs from the registered role ${reg.roleId}`;
+  if (event.authorityGrantId !== reg.grantId)
+    return `event cites grant ${event.authorityGrantId ?? 'none'}; session ${s} is registered under ${reg.grantId}`;
+  return grantActiveFor(run, reg.grantId, reg.roleId, event.occurredAt);
+}
+
+/** Why a file write by `event` is not the actor's to make, or undefined. */
 function fileWriteProblem(run: RunState, event: DomainEvent, paths: unknown[]): string | undefined {
   for (const path of paths) {
     const n = normaliseRepoPath(path);
     if (!n.ok) return `path ${String(path)} is invalid: ${n.reason}`;
   }
-  if (event.actor.kind !== 'agent') return undefined;
-  const grant =
-    typeof event.authorityGrantId === 'string' ? run.grants[event.authorityGrantId] : undefined;
+  const a = event.actor;
+  if (a.kind === 'virgil') return 'Virgil holds no write boundary';
+  if (a.kind !== 'agent') return undefined;
+  const problem = actorGrantProblem(run, event);
+  if (problem) return problem;
+  if (!candidateWriterRoles.has(String(a.roleId)))
+    return `role ${a.roleId} may not modify the candidate or its tests`;
+  const grant = run.grants[String(event.authorityGrantId)];
   if (!grant) return 'file write without a recorded authority grant';
-  if (grant.revoked) return `file write under revoked grant ${grant.grantId}`;
   const outside = paths.filter((p) => !pathPermitted(p, grant.permittedPaths));
   return outside.length
     ? `path ${outside.map(String).join(', ')} is outside the permitted paths of grant ${grant.grantId}`
@@ -183,6 +212,8 @@ export function validateEvent(run: RunState, event: DomainEvent): EventRejection
       const id = p.decisionId;
       if (typeof id !== 'string' || !id) return consistency(`${event.type} without a decision id`);
       if (run.decisions[id]) return consistency(`owner decision ${id} is already recorded`);
+      if (p.kind === 'merge' && typeof p.appliesToSha !== 'string')
+        return consistency(`merge decision ${id} must name the candidate SHA it applies to`);
       if (
         event.type === 'owner_decision' &&
         !event.evidence.some((e) => e.kind === 'owner_decision' && e.ref === id)
@@ -269,6 +300,13 @@ export function validateEvent(run: RunState, event: DomainEvent): EventRejection
       for (const path of (p.manifest as unknown[]) ?? []) {
         const n = normaliseRepoPath(path);
         if (!n.ok) return consistency(`manifest path ${String(path)} is invalid: ${n.reason}`);
+      }
+      if (a.kind === 'virgil') return authority('Virgil holds no write boundary');
+      if (a.kind === 'agent') {
+        const problem = actorGrantProblem(run, event);
+        if (problem) return authority(problem);
+        if (a.roleId !== 'fabricator')
+          return authority(`role ${a.roleId} may not commit a candidate`);
       }
       if (!lineage || !lineage.currentSha) return undefined;
       if (p.lineageId !== lineage.lineageId)
@@ -504,17 +542,28 @@ export function validateEvent(run: RunState, event: DomainEvent): EventRejection
       if (p.lineageId !== lineage.lineageId) return consistency('merge names another lineage');
       if (p.headSha !== lineage.currentSha)
         return consistency('merge names a SHA that is not the current candidate');
+      const decision = run.decisions[String(p.decisionId)];
+      if (decision?.kind === 'merge' && decision.appliesToSha !== lineage.currentSha)
+        return authority(
+          `merge decision ${decision.decisionId} applies to ${decision.appliesToSha ?? 'no SHA'}, not the candidate ${lineage.currentSha}`,
+        );
       if (!mergeGatesPass(lineage, String(p.headSha)))
         return consistency(
           'merge gates do not pass for this SHA (verification, review seal or findings)',
         );
       return undefined;
     }
-    case 'deployment_started':
+    case 'deployment_started': {
       if (!lineage) return consistency('no candidate lineage');
       if (p.mergeSha !== lineage.mergeSha)
         return consistency('deployment names a SHA that was not merged');
+      const decision = run.decisions[String(p.decisionId)];
+      if (decision?.appliesToSha !== undefined && decision.appliesToSha !== lineage.mergeSha)
+        return authority(
+          `deployment decision ${decision.decisionId} applies to ${decision.appliesToSha}, not the merged ${lineage.mergeSha}`,
+        );
       return undefined;
+    }
     case 'deployment_failed':
     case 'deployed':
       if (!lineage) return consistency('no candidate lineage');

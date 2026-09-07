@@ -1,6 +1,6 @@
 # Enforcement boundaries: reducer, gate engine, orchestration
 
-Status: written during the Phase 0 foundation repair (Keeper findings K-01 to K-07, K-15, K-18) and extended in the consolidation branch to the owner's binding repair requirements (resume-target allowlist, repair authorisation under a recorded owner decision, repository path normalisation, permission-overlap tests). The repaired authority system described here is **pending fresh independent Keeper review and owner acceptance**. Nothing in this document ratifies it.
+Status: written during the Phase 0 foundation repair (Keeper findings K-01 to K-07, K-15, K-18), extended in the consolidation branch to the owner's binding repair requirements (resume-target allowlist, repair authorisation under a recorded owner decision, repository path normalisation, permission-overlap tests), and extended again in the owner-authorised second repair round after the independent Keeper review of candidate `956be26` (findings KR-01, KR-02, KR-04, KR-05 repaired; KR-03, KR-06, KR-07, KR-09 recorded below as accepted gaps). The repaired authority system described here is **pending fresh independent Keeper review and owner acceptance**. Nothing in this document ratifies it.
 
 Three different mechanisms enforce the constitution, and earlier documents blurred them. This document says exactly which mechanism enforces what today, and what no mechanism enforces yet.
 
@@ -27,7 +27,11 @@ Every claim of enforcement in this repository's documentation uses one of four s
 
 ## Reducer enforcement (delivered, pending review)
 
-`applyEvent` in `packages/domain/src/reducer.ts` runs three stages for every operational event. A rejected event is recorded in `invalidTransitions` with a `kind` (`order`, `authority`, `consistency`, `transition`) and a reason, and applies no effect: no auxiliary fact, no transition. Replay is deterministic over valid and invalid events alike.
+`applyEvent` in `packages/domain/src/reducer.ts` runs four stages for every event. A rejected event is recorded in `invalidTransitions` with a `kind` (`order`, `contract`, `authority`, `consistency`, `transition`) and a reason, and applies no effect: no auxiliary fact, no transition. Replay is deterministic over valid and invalid events alike.
+
+### Stage 0: contract (fail closed)
+
+After the `seq` order check, every event is parsed against the `DomainEvent` contract from `@virgil/agent-contracts` (the same Zod source the JSON Schemas are exported from). An event that fails, for any reason (unknown type, unknown actor kind, malformed payload, traversal in a path, an `authority` tag other than `operational` or `knowledge`), is rejected with kind `contract` and applies nothing. Before the second repair round the reducer skipped validation for any authority tag it did not recognise and still applied effects (Keeper finding KR-02).
 
 ### Stage 1: event validation (`validation.ts`)
 
@@ -39,8 +43,8 @@ Every claim of enforcement in this repository's documentation uses one of four s
 | `authority_revoked` | Owner or Virgil actor; grant recorded |
 | `agent_started` | Actor session and role equal the payload; grant recorded, unrevoked, unexpired and issued to that role; a session never re-registers under another role |
 | `agent_result_received` | Actor session equals the payload session |
-| `file_created`, `file_modified`, `file_moved`, `file_deleted`, `changes_staged` | Every path normalises; an agent actor needs a recorded, unrevoked grant and every path must be permitted by that grant's paths (`pathPermitted`, normalised on both sides). A rejected write records no file state |
-| `file_read`, `repository_searched`, `candidate_committed` | Every path and manifest entry normalises; a commit belongs to the same lineage and its parent is the current head |
+| `file_created`, `file_modified`, `file_moved`, `file_deleted`, `changes_staged` | Every path normalises. An agent actor must be registered under a grant, its actor role must be the registered role, the event must cite that session's own grant (not another session's), the grant must be unrevoked and unexpired at `occurredAt`, the role must be one the permission matrix allows to modify the candidate or its tests, and every path must be permitted by that grant (`pathPermitted`, normalised on both sides). Virgil holds no write boundary. Every accepted agent write records the session as a builder of the lineage. A rejected write records no file state (KR-01) |
+| `file_read`, `repository_searched`, `candidate_committed` | Every path and manifest entry normalises; a commit by an agent must be by a registered Fabricator under its own live grant, and the committing session becomes a builder; a commit belongs to the same lineage and its parent is the current head |
 | `verification_started`, `check_*`, `verification_completed` | Actor is a registered Prover session or the system, never a builder or repairer; verification id is the active one; SHA is the current candidate; a check declared required cannot be re-declared optional; `check_passed` needs exit 0, `check_failed` a non-zero exit; the completion payload's `allRequiredCompleted`, `anyRequiredFailed` and `results` must agree with the recorded checks or the event is rejected |
 | `review_started` | Agent actor whose session and role equal the payload; the role is a review-stage role in the permission matrix; the session is registered under a grant for that role |
 | `finding_raised` | Agent session that did not build or repair the candidate; finding ids are never reused |
@@ -50,7 +54,7 @@ Every claim of enforcement in this repository's documentation uses one of four s
 | `repair_authorised` | Owner or Virgil actor; a recorded owner `scope_approved` decision exists (the Tier 2 authority under which one bounded repair is permitted); lineage and current SHA; a recorded adjudication defines the contract with the same findings and cycle; every permitted file normalises and, unless issued by the owner, stays outside protected boundaries |
 | `repair_started`, `repair_completed` | The active repair contract; a Fabricator session under a valid grant |
 | `safe_to_merge` | System or Virgil actor (a gate decision); lineage and current SHA |
-| `merged_by_owner` | Lineage and current SHA; every merge gate holds (fresh verification signature, fresh passing seal, pushed and remote-equal, no unrepaired blocking finding) |
+| `merged_by_owner` | Lineage and current SHA; the cited `merge` decision names this exact SHA (`appliesToSha`); every merge gate holds (fresh verification signature, fresh passing seal, pushed and remote-equal, no unrepaired blocking finding). A `merge` owner decision without `appliesToSha` is rejected when recorded (KR-04) |
 | `deployment_started`, `deployment_failed`, `deployed` | The merged SHA; a started deployment with the same id |
 
 ### Stage 2: transition table and guards (`transitions.ts`, `guards.ts`)
@@ -63,7 +67,7 @@ Guard names are fixed by `constitution/authority.json`. Each implementation deri
 | `required_check_failed`, `required_checks_missing` | The same recorded checks; a `skipped`, `running` or absent required check is missing, never passed |
 | `reviewer_independent_of_builder` | Reviewer session is not among builder, repairer or Prover sessions of the lineage, and reviews the current SHA |
 | `repair_cycle_within_limit` | Payload count equals the derived count plus one; beyond `maxCyclesWithoutOwner` it needs a recorded, unconsumed owner decision of kind `additional_repair_round`; never beyond `maxCyclesWithOwner` |
-| `actor_is_owner` | Owner actor citing a recorded, unconsumed owner decision of kind `merge` |
+| `actor_is_owner` | Owner actor citing a recorded, unconsumed owner decision of kind `merge` whose `appliesToSha` is the current SHA |
 | `deploy_authority_present` | Owner or system actor citing a recorded owner decision of kind `deployment` for the merged SHA |
 | `new_sha_differs_from_reviewed_sha` | The new SHA is the committed current head, differs from the previous and from every sealed SHA |
 
@@ -125,5 +129,20 @@ Deferred to Phases 2 and 3, as the run record states: session launching with gra
 | 17 | Repair authorisation requires a recorded owner decision | Stage 1 `repair_authorised` (scope decision; cycle 2 additional-round decision) | `resume-and-paths.test.ts` K-03 block |
 | 18 | Repository paths normalised; traversal cannot escape an authorised pattern | `@virgil/agent-contracts` paths; Stage 1 path rules; gate `diff_within_permitted_paths` | `paths.test.ts`, `gates.test.ts`, `resume-and-paths.test.ts` |
 | 19 | Permission tests detect tool/write-authority overlap | data tests over the matrix, agent definitions and settings | `permission-matrix.test.ts` |
+| 20 | KR-01: writes, staging and commits bound to the actor's own grant, role, registration and expiry; every writer is a builder | Stage 1 `actorGrantProblem`, `fileWriteProblem`; `recordWriter` | `repair-round-2.test.ts` KR-01 block |
+| 21 | KR-02: reducer fails closed on any event the contract rejects, including unknown authority tags | Stage 0 | `repair-round-2.test.ts` KR-02 block |
+| 22 | KR-04: a `merge` decision applies to one exact SHA | Stage 1 (`owner_decision`, `merged_by_owner`), guard `actor_is_owner` | `repair-round-2.test.ts` KR-04 block |
+| 23 | KR-05: the session allow list admits no arbitrary execution; pushes to `main` by refspec and `pnpm exec`/`dlx` are denied | `.claude/settings.json` | `permission-matrix.test.ts` "session tool surface" (a model of the harness matcher; the harness itself is not exercised) |
 
-Rows 1 to 11 and 15 to 19 are **implemented now** and **validated by tests**. Rows 12 and 14 are documentation. Nothing in this table is accepted until the fresh independent review and the owner's decision.
+Rows 1 to 11 and 15 to 23 are **implemented now** and **validated by tests**. Rows 12 and 14 are documentation. Nothing in this table is accepted until the fresh independent review and the owner's decision.
+
+## Accepted gaps from the Keeper review of `956be26` (recorded, not repaired)
+
+Recorded here under the owner's authorisation of the second repair round, which limited the repair to KR-01, KR-02, KR-04 and KR-05.
+
+| Finding | Gap | Status | Why not repaired now |
+|---|---|---|---|
+| KR-03 | The set of required checks is declared by the Prover's `verification_started` and anchored to nothing owner-controlled; a Prover declaring only `lint` can reach `READY_FOR_REVIEW` honestly | design-level only | A governed required-check list belongs in an owner-controlled file (a constitution or gate-definition change, Tier 3). Until then the plan's `requiredChecks` and the Keeper's `verification incomplete` stop condition are the controls |
+| KR-06 | The protected-boundary overlap check is case-sensitive; symlinks are outside the normaliser | design-level only | Repository paths are compared as recorded; case-folding and symlink resolution need a file system, which is Phase 3 hook territory. A grant naming `Constitution/**` is refused only on a case-sensitive file system |
+| KR-07 | An owner grant may hand an agent write authority over a protected boundary (`validation.ts` owner exemption) | design-level only | Whether the owner may delegate a protected boundary is an owner decision on `AUTHORITY_TIERS.md` invariant 3; reported, not decided by a session |
+| KR-09 | Gate `reviewer_independence` takes builder and Prover session ids but no repairer ids | deferred to a privileged runtime | The Phase 2 evidence adapter must fold repairer sessions into `builderSessionIds`; the reducer already covers repairers |

@@ -300,8 +300,14 @@ describe('repository paths are normalised; traversal cannot escape an authorised
         expiresAt: at(600),
       });
       const s = replay('con', t.events);
+      // Layer 1: the domain-event contract refuses the event before the reducer sees it.
       expect(s.grants['G-bad'], path).toBeUndefined();
-      expect(lastOf(s, 'authority_granted')?.reason, path).toContain(reason);
+      expect(lastOf(s, 'authority_granted')?.kind, path).toBe('contract');
+      expect(lastOf(s, 'authority_granted')?.reason, path).toContain('traversal');
+      // Layer 2: the reducer's own validation refuses it as well, with the specific reason.
+      const direct = validateEvent(replay('con', base), t.events.at(-1) as DomainEvent);
+      expect(direct?.kind, path).toBe('authority');
+      expect(direct?.reason, path).toContain(reason);
     }
     expect(patternReachesProtectedBoundary('apps/../constitution/**')).toContain('unnormalisable');
     expect(patternReachesProtectedBoundary('apps/./mission-control/src/**')).toBeUndefined();
@@ -316,15 +322,21 @@ describe('repository paths are normalised; traversal cannot escape an authorised
         [],
         'G-fab-1',
       );
+    const outside = replay('con', write('constitution/authority.json').events);
+    expect(lastOf(outside, 'file_modified')?.kind).toBe('authority');
+    expect(lastOf(outside, 'file_modified')?.reason).toContain('outside the permitted paths');
+    expect(Object.keys(outside.files)).toEqual([]);
     for (const path of [
-      'constitution/authority.json',
       'apps/mission-control/src/world/../../../../constitution/authority.json',
       '../constitution/authority.json',
       'apps/mission-control/src/world/%2e%2e/x.ts',
     ]) {
       const s = replay('con', write(path).events);
-      expect(lastOf(s, 'file_modified')?.kind, path).toBe('authority');
+      expect(lastOf(s, 'file_modified')?.kind, path).toBe('contract');
       expect(Object.keys(s.files), path).toEqual([]);
+      const direct = validateEvent(replay('con', base), write(path).events.at(-1) as DomainEvent);
+      expect(direct?.kind, path).toBe('authority');
+      expect(direct?.reason, path).toContain('is invalid');
     }
     const inside = replay('con', write('apps/mission-control/src/./world//Capsule.tsx').events);
     expect(rejected(inside, 'file_modified')).toEqual([]);
@@ -366,7 +378,13 @@ describe('repository paths are normalised; traversal cannot escape an authorised
       },
     );
     const c = replay('con', committed.events);
-    expect(lastOf(c, 'candidate_committed')?.kind).toBe('consistency');
+    expect(lastOf(c, 'candidate_committed')?.kind).toBe('contract');
     expect(c.lineage?.currentSha).toBeUndefined();
+    const direct = validateEvent(
+      replay('con', prefixThrough(passingRun(), 'changes_staged')),
+      committed.events.at(-1) as DomainEvent,
+    );
+    expect(direct?.kind).toBe('consistency');
+    expect(direct?.reason).toContain('manifest path');
   });
 });

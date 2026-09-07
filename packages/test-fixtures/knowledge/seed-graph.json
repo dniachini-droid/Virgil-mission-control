@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:5afe71e60589ec909cd6d82338e2392ea95362718bf86da2f99ca358d41fcfa7",
+  "graphHash": "sha256:79f2e4ea7c9a9347a40dc166a0a0abdf15b846f2c8dfc073fceb1f1318729a10",
   "nodes": [
     {
       "id": "agent-roster",
@@ -47,6 +47,16 @@
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0002 — Art-direction checkpoint: rejected runtime executions and approved visual direction",
+      "epistemicClass": "ai_generated_hypothesis",
+      "authorityClass": "hypothesis",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/proposed/OD-0003-consolidation-repair-round.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0003 — Additional repair round on the consolidation candidate (Tier 3)",
       "epistemicClass": "ai_generated_hypothesis",
       "authorityClass": "hypothesis",
       "status": null,

@@ -1,4 +1,5 @@
 import type { DomainEvent } from '@virgil/agent-contracts';
+import { DomainEvent as DomainEventContract } from '@virgil/agent-contracts';
 import {
   derivedVerification,
   evaluateGuard,
@@ -42,14 +43,28 @@ const reviewerRoleIds = new Set([
   'performance-examiner',
 ]);
 
-function recordDecision(run: RunState, event: DomainEvent, decisionId: string, kind: string): void {
+function recordDecision(
+  run: RunState,
+  event: DomainEvent,
+  decisionId: string,
+  kind: string,
+  appliesToSha?: unknown,
+): void {
   run.decisions[decisionId] = {
     decisionId,
     kind,
     seq: event.seq,
     eventId: event.eventId,
+    ...(typeof appliesToSha === 'string' ? { appliesToSha } : {}),
     consumedBy: [],
   };
+}
+
+/** Every agent session that writes, stages or commits is a builder of the candidate (KR-01). */
+function recordWriter(run: RunState, event: DomainEvent): void {
+  if (event.actor.kind !== 'agent' || !event.actor.sessionId) return;
+  if (!run.lineage) run.lineage = newLineage(run.runId);
+  addUnique(run.lineage.builderSessions, event.actor.sessionId);
 }
 
 function consumeDecision(run: RunState, decisionId: unknown, eventId: string): void {
@@ -164,6 +179,7 @@ function applyAuxiliary(run: RunState, event: DomainEvent): void {
       };
       break;
     case 'file_created':
+      recordWriter(run, event);
       run.files[str(p.path)] = {
         path: str(p.path),
         status: 'unstaged',
@@ -173,6 +189,7 @@ function applyAuxiliary(run: RunState, event: DomainEvent): void {
       };
       break;
     case 'file_modified':
+      recordWriter(run, event);
       run.files[str(p.path)] = {
         path: str(p.path),
         status: 'unstaged',
@@ -182,6 +199,7 @@ function applyAuxiliary(run: RunState, event: DomainEvent): void {
       };
       break;
     case 'file_moved':
+      recordWriter(run, event);
       delete run.files[str(p.from)];
       run.files[str(p.to)] = {
         path: str(p.to),
@@ -192,6 +210,7 @@ function applyAuxiliary(run: RunState, event: DomainEvent): void {
       };
       break;
     case 'file_deleted':
+      recordWriter(run, event);
       run.files[str(p.path)] = {
         path: str(p.path),
         status: 'deleted',
@@ -225,6 +244,7 @@ function applyAuxiliary(run: RunState, event: DomainEvent): void {
       break;
     }
     case 'changes_staged':
+      recordWriter(run, event);
       for (const path of p.paths as string[]) {
         const f = run.files[path];
         if (f && f.status === 'unstaged') f.status = 'staged';
@@ -232,6 +252,7 @@ function applyAuxiliary(run: RunState, event: DomainEvent): void {
       break;
     case 'candidate_committed': {
       if (!run.lineage) run.lineage = newLineage(str(p.lineageId));
+      recordWriter(run, event);
       const l = run.lineage;
       if (!l.currentSha) l.lineageId = str(p.lineageId);
       l.currentSha = str(p.headSha);
@@ -464,7 +485,7 @@ function applyAuxiliary(run: RunState, event: DomainEvent): void {
         };
       break;
     case 'owner_decision': {
-      recordDecision(run, event, str(p.decisionId), str(p.kind));
+      recordDecision(run, event, str(p.decisionId), str(p.kind), p.appliesToSha);
       const q = run.ownerQuestions.find((x) => !x.answeredBy);
       if (q) q.answeredBy = str(p.decisionId);
       if (run.lineage) run.lineage.pendingOwnerQuestion = undefined;
@@ -561,9 +582,27 @@ export function applyEvent(input: RunState, event: DomainEvent): ApplyResult {
   run.events += 1;
   run.lastEventType = event.type;
 
-  if (event.authority === 'knowledge') {
+  /**
+   * Fail closed (KR-02): every event is parsed against the domain-event contract before anything
+   * else, and only the two authorities the contract knows may reach the read model.
+   */
+  const parsed = DomainEventContract.safeParse(event);
+  if (!parsed.success)
+    return reject(
+      run,
+      event,
+      'contract',
+      `event does not satisfy the domain-event contract: ${parsed.error.issues
+        .slice(0, 3)
+        .map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
+        .join('; ')}`,
+    );
+  const authority = (event as { authority?: unknown }).authority;
+  if (authority === 'knowledge') {
     return { run, accepted: true, transitioned: false };
   }
+  if (authority !== 'operational')
+    return reject(run, event, 'contract', `unknown event authority ${String(authority)}`);
 
   /** Authority and consistency come first: a rejected event leaves no trace except its rejection. */
   const rejection = validateEvent(run, event);

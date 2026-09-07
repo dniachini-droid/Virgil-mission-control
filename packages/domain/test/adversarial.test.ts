@@ -147,7 +147,7 @@ describe('K-01: owner_decision resume cannot manufacture a protected state', () 
       const t = new Tail(haltedRun()).add(
         'owner_decision',
         owner,
-        { decisionId: 'OD-0005', kind: 'merge', resumesTo: target },
+        { decisionId: 'OD-0005', kind: 'continue', resumesTo: target },
         [ev('owner_decision', 'OD-0005')],
       );
       const s = replay('adv', t.events);
@@ -200,7 +200,7 @@ describe('K-01: owner_decision resume cannot manufacture a protected state', () 
           newSha: HEAD_SHA_2,
         },
       )
-      .add('owner_decision', owner, { decisionId: 'OD-0009', kind: 'merge' }, [
+      .add('owner_decision', owner, { decisionId: 'OD-0009', kind: 'continue' }, [
         ev('owner_decision', 'OD-0009'),
       ]);
     const s = replay('adv', t.events);
@@ -332,9 +332,12 @@ describe('K-01: merge and deploy require a recorded owner decision of the right 
   });
   it('rejects a merge whose SHA is not the eligible candidate', () => {
     const t = new Tail(eligible())
-      .add('owner_decision', owner, { decisionId: 'OD-0003', kind: 'merge' }, [
-        ev('owner_decision', 'OD-0003'),
-      ])
+      .add(
+        'owner_decision',
+        owner,
+        { decisionId: 'OD-0003', kind: 'merge', appliesToSha: HEAD_SHA },
+        [ev('owner_decision', 'OD-0003')],
+      )
       .add('merged_by_owner', owner, merge({ headSha: HEAD_SHA_2 }));
     const s = replay('adv', t.events);
     expect(s.lineage?.state).toBe('SAFE_TO_MERGE');
@@ -342,9 +345,12 @@ describe('K-01: merge and deploy require a recorded owner decision of the right 
   });
   it('rejects a merge from a passing review that skipped the safe_to_merge gate decision', () => {
     const t = new Tail(prefixThrough(passingRun(), 'review_passed'))
-      .add('owner_decision', owner, { decisionId: 'OD-0003', kind: 'merge' }, [
-        ev('owner_decision', 'OD-0003'),
-      ])
+      .add(
+        'owner_decision',
+        owner,
+        { decisionId: 'OD-0003', kind: 'merge', appliesToSha: HEAD_SHA },
+        [ev('owner_decision', 'OD-0003')],
+      )
       .add('merged_by_owner', owner, merge({}));
     const s = replay('adv', t.events);
     expect(s.lineage?.state).toBe('PASS_WITH_NON_BLOCKING_FINDINGS');

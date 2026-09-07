@@ -23,7 +23,8 @@ This is a builder's record. It is not evidence that the foundation is safe; the 
 | 3 | `0a82850f75a32068e66f21264492e25fbf8011f7` | cherry-pick: seed graph regenerated; freshness test (K-15) |
 | 3 | `3bbf2c84ef047cd8f2418b56ea281b01f6b229ee` | four-value status vocabulary applied across the documentation; performance strategy restated as design-level; branch references replaced; art-direction pointers |
 | 4 Approved visual canon, character concepts and asset provenance | `79b80e51ad6e9f9382ffefa1b36fc609a1161e6b` | OD-0002 transcription at `proposed/`; `docs/art-direction/approved/`; `assets/` with provenance |
-| 5 Final validation record | the commit containing this file | this record, its JSON twin and test, the probe script |
+| 5 Final validation record | `956be26064171f53022f92fc4429770bb727eaa5` | this record, its JSON twin and test, the probe script; the first candidate SHA reviewed by the Keeper |
+| 6 Second repair round (owner-authorised, OD-0003 proposal) | the commit containing this section | KR-01, KR-02, KR-04, KR-05 repaired with regression tests; KR-03, KR-06, KR-07, KR-09 recorded as accepted gaps; new candidate SHA |
 
 ## Artifacts imported (all byte-identical to the bundle; SHA-256 per file in `docs/art-direction/approved/bundle/BUNDLE_MANIFEST.md`)
 
@@ -108,6 +109,29 @@ Every enforcement claim now carries one of: implemented now; validated by tests;
 - Single lineage per run; owner decisions are recorded per run.
 - Bundle needs code splitting before Phase 2.
 
+## Second repair round after the Keeper review of `956be26`
+
+The independent Keeper (a separate read-only session) reviewed `956be26` and returned **BLOCKED** (comment on pull request #1). The builder reproduced both blocking findings before reporting. The owner authorised one additional repair round in writing (`docs/decisions/proposed/OD-0003-consolidation-repair-round.md`), limited to KR-01, KR-02, KR-04 and KR-05.
+
+Correction to the record above (Keeper finding KR-10): the first candidate had 210 tests (agent-contracts 50), not 209 (49); the JSON twin and test were added after the count was written.
+
+| Finding | Severity | Disposition | Repair | Validated by |
+|---|---|---|---|---|
+| KR-01 | blocking | repaired | File, staging and commit events must cite the actor's own grant for its registered role, unrevoked and unexpired at `occurredAt`; the role must be allowed to modify the candidate or tests; Virgil has no write boundary; every accepted agent write or commit records the session as a builder | `repair-round-2.test.ts` KR-01 (5 tests); probe KR-01 |
+| KR-02 | blocking | repaired | Every event is parsed against the `DomainEvent` contract before reduction; anything the contract rejects, including an unknown `authority` tag, unknown type or actor kind, is recorded with kind `contract` and applies nothing | `repair-round-2.test.ts` KR-02 (3 tests); probe KR-02 |
+| KR-03 | major | accepted gap | Required-check list is unanchored; a governed list is an owner-controlled file change | `ENFORCEMENT_BOUNDARIES.md` accepted-gaps table |
+| KR-04 | major | repaired | `owner_decision` of kind `merge` must carry `appliesToSha`; `actor_is_owner` and `merged_by_owner` validation require it to equal the current candidate SHA; a deployment decision naming a SHA must name the merged one | `repair-round-2.test.ts` KR-04 (3 tests); probe KR-04 |
+| KR-05 | major | repaired | `Bash(pnpm --filter *)` removed from the allow list in favour of the fixed workspace commands; deny rules added for `pnpm exec`, `pnpm dlx` and pushes to `main` by refspec; a test models the harness matcher against concrete commands | `permission-matrix.test.ts` "session tool surface" (4 tests). The new deny rules took effect on the builder session itself during this round (a `pnpm exec` invocation was refused by the harness), which is evidence about the harness matcher for those two rules only |
+| KR-06 | minor | accepted gap | Case folding and symlinks are file-system semantics, outside the normaliser | accepted-gaps table |
+| KR-07 | minor | accepted gap | Owner delegation of a protected boundary is an owner decision | accepted-gaps table |
+| KR-08 | minor | not in scope | `finding_raised` accepts any non-builder agent session; consequence is denial only | noted; not repaired |
+| KR-09 | informational | accepted gap | Gate evidence adapter must fold repairer sessions into `builderSessionIds` | accepted-gaps table |
+| KR-10 | informational | corrected | Test counts corrected above; the archive hash remains unverifiable from the repository | this section |
+
+Schema change: `domain-event.schema.json` gains the optional `appliesToSha` on the `owner_decision` payload (additive; regenerated). No test skipped, disabled or weakened; three existing tests that used `kind: 'merge'` for halts unrelated to merging now use `kind: 'continue'`, and three path tests now assert both the contract layer (kind `contract`) and the reducer layer (`validateEvent` directly).
+
+Checks on the second candidate: `pnpm install --frozen-lockfile`; `pnpm check` (Biome 111 files, typecheck 8 targets, Vitest **225 passed**: agent-contracts 54, domain 104, gate-engine 19, knowledge-graph 24, visual-language 18, mission-control 6); schema export and seed-graph export with no diff; Mind Scan; `pnpm build`; `pnpm --filter @virgil/domain probe` (the nine first-round exploits plus KR-01, KR-02 and KR-04 all rejected).
+
 ## Next action
 
-The owner commissions one fresh, read-only Keeper review of the exact final SHA of this branch against `docs/art-direction/approved/bundle/KEEPER_REQUIRED_REPAIRS.md` and this record, then merges the pull request or returns findings; after the merge the owner moves `docs/decisions/proposed/OD-0002-art-direction-checkpoint.md` to `docs/decisions/` and deletes the superseded branches.
+The owner commissions one fresh, read-only Keeper review of the exact new final SHA of this branch against `docs/art-direction/approved/bundle/KEEPER_REQUIRED_REPAIRS.md`, the Keeper's first report on pull request #1 and this record, then merges the pull request or returns findings; after the merge the owner moves `docs/decisions/proposed/OD-0002-art-direction-checkpoint.md` and `OD-0003-consolidation-repair-round.md` to `docs/decisions/` and deletes the superseded branches. This is the last repair cycle permitted with owner authority; a further BLOCKED verdict stops the lineage.

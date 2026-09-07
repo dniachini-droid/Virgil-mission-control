@@ -1,7 +1,7 @@
 {
   "runId": "consolidation",
   "phase": "Consolidation \u2014 Phase 0 foundation, Keeper repairs, approved visual direction",
-  "purpose": "Consolidate the approved Phase 0 foundation, the repairs for Keeper findings K-01, K-02, K-03 and K-15, corrected documentation and the owner-approved visual direction into one branch for a single owner-reviewed pull request into main.",
+  "purpose": "Consolidate the approved Phase 0 foundation, the repairs for Keeper findings K-01, K-02, K-03 and K-15, corrected documentation and the owner-approved visual direction into one branch for a single owner-reviewed pull request into main. Second round (OD-0003 proposal): repair Keeper findings KR-01, KR-02, KR-04, KR-05 on candidate 956be26.",
   "projectId": "virgil-mission-control",
   "repository": "dniachini-droid/Virgil-mission-control",
   "branch": "claude/virgil-main-consolidation-6f5fuc",
@@ -22,6 +22,11 @@
       "exitCode": 0
     },
     {
+      "commandClass": "independent-review",
+      "summary": "fresh read-only Keeper session reviewed 956be26: BLOCKED (KR-01, KR-02); owner authorised one additional repair round",
+      "exitCode": 0
+    },
+    {
       "commandClass": "dependency-install",
       "summary": "pnpm install --frozen-lockfile",
       "exitCode": 0
@@ -33,7 +38,7 @@
     },
     {
       "commandClass": "lint",
-      "summary": "biome check (108 files)",
+      "summary": "biome check (111 files)",
       "exitCode": 0
     },
     {
@@ -43,7 +48,7 @@
     },
     {
       "commandClass": "unit-test",
-      "summary": "turbo run test (209 tests)",
+      "summary": "turbo run test (225 tests after the second repair round)",
       "exitCode": 0
     },
     {
@@ -68,7 +73,7 @@
     },
     {
       "commandClass": "adversarial-probe",
-      "summary": "K-01, K-02, K-03 and path exploits against repaired and base sources",
+      "summary": "first-round exploits plus KR-01, KR-02, KR-04 against repaired sources; first-round exploits against base sources",
       "exitCode": 0
     },
     {
@@ -101,7 +106,10 @@
     "docs/decisions/proposed/OD-0002-art-direction-checkpoint.md",
     "docs/art-direction/approved/README.md",
     "assets/licenses/ASSET_PROVENANCE.md",
-    "docs/process/CONSOLIDATION_RUN_RECORD.md"
+    "docs/process/CONSOLIDATION_RUN_RECORD.md",
+    "packages/domain/test/repair-round-2.test.ts",
+    "docs/decisions/proposed/OD-0003-consolidation-repair-round.md",
+    "schemas/domain-event.schema.json"
   ],
   "checksRun": [
     {
@@ -128,7 +136,7 @@
       "evidence": [
         {
           "kind": "command_output",
-          "ref": "biome check . (108 files, no fixes)"
+          "ref": "biome check . (111 files, no fixes)"
         }
       ]
     },
@@ -156,7 +164,7 @@
       "evidence": [
         {
           "kind": "command_output",
-          "ref": "turbo run test (209 tests: agent-contracts 49, domain 93, gate-engine 19, knowledge-graph 24, visual-language 18, mission-control 6)"
+          "ref": "turbo run test (225 tests: agent-contracts 54, domain 104, gate-engine 19, knowledge-graph 24, visual-language 18, mission-control 6)"
         }
       ]
     },
@@ -218,7 +226,7 @@
     },
     {
       "checkId": "adversarial-probe",
-      "name": "K-01, K-02, K-03 and path exploits rejected on this branch and accepted on the base",
+      "name": "First-round exploits, KR-01, KR-02 and KR-04 rejected on this branch; first-round exploits accepted on the base",
       "commandClass": "adversarial-probe",
       "required": true,
       "result": "passed",
@@ -263,11 +271,11 @@
     },
     {
       "checkId": "independent-review",
-      "name": "Fresh independent Keeper review of the final SHA",
+      "name": "Fresh independent Keeper review of the second candidate SHA",
       "commandClass": "review",
       "required": true,
       "result": "skipped",
-      "skipReason": "A different role; this session cannot review its own work",
+      "skipReason": "A different role; the first candidate was reviewed (BLOCKED) and repaired; the new SHA awaits its own review",
       "evidence": []
     }
   ],
@@ -286,7 +294,7 @@
     },
     {
       "checkId": "independent-review",
-      "reason": "A different role; this session cannot review its own work"
+      "reason": "A different role; the first candidate was reviewed (BLOCKED) and repaired; the new SHA awaits its own review"
     },
     {
       "checkId": "mutation-control",
@@ -300,7 +308,10 @@
     "role-performance.json and the art-direction prose are not yet rewritten to the approved sheets",
     "No production-ready runtime asset exists; the model candidate is unrigged and its generator licence is unverified",
     "Single lineage per run; decisions recorded per run",
-    "Bundle needs code splitting before Phase 2"
+    "Bundle needs code splitting before Phase 2",
+    "KR-03: the required-check set is declared by the Prover and anchored to no owner-controlled list (accepted gap)",
+    "KR-06, KR-07, KR-09 recorded as accepted gaps in ENFORCEMENT_BOUNDARIES.md",
+    "The settings matcher test models the harness; the harness matcher itself is not exercised by tests"
   ],
   "commits": [
     {
@@ -326,10 +337,20 @@
     {
       "sha": "79b80e51ad6e9f9382ffefa1b36fc609a1161e6b",
       "message": "feat(art): import the approved visual canon, character concept sheets, model candidate and provenance"
+    },
+    {
+      "sha": "956be26064171f53022f92fc4429770bb727eaa5",
+      "message": "docs: consolidation run record, machine-readable twin and adversarial probe script (first candidate; Keeper verdict BLOCKED)"
     }
   ],
   "candidateState": "BUILDER_REPORTED_COMPLETE",
   "openOwnerDecisions": [
+    {
+      "questionId": "OD-0003-move",
+      "question": "Move docs/decisions/proposed/OD-0003-consolidation-repair-round.md to docs/decisions/ to record the authorised additional repair round as an accepted decision?",
+      "consequence": "Until moved, the authorisation exists only in the owner's message and this transcription.",
+      "recommendedDefault": "Move it with OD-0002 after the merge."
+    },
     {
       "questionId": "OD-0002-move",
       "question": "Move docs/decisions/proposed/OD-0002-art-direction-checkpoint.md to docs/decisions/ to give the transcribed visual-direction decision authority?",
@@ -347,15 +368,22 @@
       "question": "Commission a fresh read-only Keeper review of the exact final SHA before merging?",
       "consequence": "The repaired authority system is unaccepted until reviewed.",
       "recommendedDefault": "Yes, against KEEPER_REQUIRED_REPAIRS.md and this record."
+    },
+    {
+      "questionId": "required-check-list",
+      "question": "Where should the governed list of required checks live (KR-03)?",
+      "consequence": "Until decided, a Prover may declare a smaller required set than the plan intends.",
+      "recommendedDefault": "An owner-controlled requiredChecks entry in constitution/authority.json, enforced by the reducer, in a later owner-only change."
     }
   ],
   "risks": [
     "Unreviewed reducer changes are pending independent review",
     "The model candidate's generator licence is stated, not verified",
-    "Bundle size unchanged; code splitting needed before Phase 2"
+    "Bundle size unchanged; code splitting needed before Phase 2",
+    "This is the last repair cycle permitted with owner authority; a further BLOCKED verdict stops the lineage"
   ],
-  "nextAction": "Owner commissions one fresh read-only Keeper review of the final SHA, then merges the pull request or returns findings; after the merge, moves OD-0002 to docs/decisions/ and deletes the superseded branches.",
+  "nextAction": "Owner commissions one fresh read-only Keeper review of the new final SHA, then merges the pull request or returns findings; after the merge, moves OD-0002 and OD-0003 to docs/decisions/ and deletes the superseded branches.",
   "stopReason": "Consolidation complete; merge and acceptance are owner-only",
   "startedAt": "2026-09-06T23:30:00+00:00",
-  "completedAt": "2026-09-07T00:10:00+00:00"
+  "completedAt": "2026-09-07T01:00:00+00:00"
 }
