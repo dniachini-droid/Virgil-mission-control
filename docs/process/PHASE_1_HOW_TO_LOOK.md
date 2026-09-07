@@ -144,6 +144,16 @@ If FAIL is the answer, the alternative delivery route is a GitHub Actions build 
 | Asks | can you open it |
 | Does not ask | anything about the look, the speed, or any other device |
 
+For a reviewer rather than the owner: that file is reproducible byte for byte, and this was checked rather than asserted. From a clean worktree,
+
+```sh
+VIRGIL_OWNER_SHA=cd49062eda1dfc85c27fc01ec10f7d5bbf43bc8f \
+VIRGIL_OWNER_BUILD_DATE="2026-09-07 09:02 UTC" \
+pnpm --filter mission-control build:owner
+```
+
+emits a file identical to the committed one, with the SHA-256 above. The build minute has to be supplied because it is stamped into the footer; nothing else about the output varies.
+
 The commit named above is the commit the file was **built from**, not the commit that added the file to the repository — a file cannot contain the name of the commit that has not been made yet. The two are one commit apart, and the SHA-256 above is what ties the file on your screen to the one in the repository.
 
 Rendering inside the session container that produced this file is software rendering (SwiftShader), and it is not a valid basis for any visual judgement. See `docs/process/PHASE_0_RUN_RECORD.md`.
