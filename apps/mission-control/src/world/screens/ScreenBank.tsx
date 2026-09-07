@@ -16,6 +16,14 @@ import { layout, room } from '../room/palette.js';
  * glow and the readable content lives on these. **This is geometry the
  * owner did not supply**, added for that reason and reported as such.
  *
+ * V4, on the owner's "the screens need work": legibility first. From the
+ * authored camera a 1.3 m panel is about 200 px wide, so every panel now
+ * carries one headline sized to be read from there (the verdict, the phase,
+ * the active role), a small number of secondary lines that read on
+ * approach, and a solid amber band along its foot that says ILLUSTRATIVE ·
+ * NOT REAL STATE, which reads from anywhere. The canvas is 1024 px across
+ * so the headline stays crisp when the camera comes close.
+ *
  * Everything drawn here is **illustrative** — role names from
  * `.claude/agents/`, the state vocabulary of `constitution/STATE_LANGUAGE.md`,
  * the verdicts of `constitution/REVIEW_POLICY.md`, a scrolling abbreviated
@@ -41,9 +49,18 @@ const STATES = [
   'REVIEWED',
 ];
 
-const MONO = '600 30px ui-monospace, Menlo, Consolas, "Liberation Mono", monospace';
-const MONO_SMALL = '500 21px ui-monospace, Menlo, Consolas, "Liberation Mono", monospace';
-const MONO_BIG = '700 46px ui-monospace, Menlo, Consolas, "Liberation Mono", monospace';
+const FAMILY = 'ui-monospace, Menlo, Consolas, "Liberation Mono", monospace';
+const font = (weight: number, px: number) => `${weight} ${px}px ${FAMILY}`;
+const TITLE = font(700, 52);
+const HEADLINE = font(800, 132);
+const LARGE = font(700, 80);
+const MEDIUM = font(700, 60);
+const SMALL = font(500, 40);
+const BAND = font(800, 40);
+/** The honesty band along the foot of every panel, in canvas pixels. */
+const BAND_HEIGHT = 64;
+const DIM = 'rgba(207,228,255,0.55)';
+const TEXT = 'rgba(214,232,255,0.9)';
 
 export function ScreenBank({ content }: { content: ScreenContent }) {
   const [cx, , cz] = layout.consoleCentre;
@@ -110,8 +127,8 @@ function Panel({
   const { reducedMotion } = useSettings();
   const { canvas, texture } = useMemo(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 640;
-    canvas.height = Math.round((512 * height) / width);
+    canvas.width = 1024;
+    canvas.height = Math.round((1024 * height) / width);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.minFilter = THREE.LinearFilter;
@@ -152,53 +169,82 @@ function Panel({
 
 // ------------------------------------------------------------- drawing
 
-function frame(ctx: CanvasRenderingContext2D, w: number, h: number, title: string, tint: string) {
+/**
+ * The frame every panel shares: dark glass, a tinted border, the title, and
+ * the band along the foot that keeps it honest — solid amber, dark text,
+ * every panel, every frame. Returns the height left above the band.
+ */
+function frame(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  title: string,
+  tint: string,
+): number {
   const bg = ctx.createLinearGradient(0, 0, 0, h);
   bg.addColorStop(0, '#0b1230');
   bg.addColorStop(1, '#060818');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  for (let y = 0; y < h; y += 6) ctx.fillRect(0, y, w, 2);
   ctx.strokeStyle = tint;
-  ctx.globalAlpha = 0.7;
-  ctx.lineWidth = 3;
-  ctx.strokeRect(6, 6, w - 12, h - 12);
+  ctx.globalAlpha = 0.8;
+  ctx.lineWidth = 6;
+  ctx.strokeRect(8, 8, w - 16, h - 16);
   ctx.globalAlpha = 1;
   ctx.fillStyle = tint;
-  ctx.font = MONO;
+  ctx.font = TITLE;
   ctx.textBaseline = 'top';
-  ctx.fillText(title, 22, 18);
-  // The label that keeps this honest, on every panel, every frame.
-  ctx.font = MONO_SMALL;
-  ctx.fillStyle = room.warm.amber;
-  ctx.textAlign = 'right';
-  ctx.fillText('ILLUSTRATIVE', w - 22, 22);
   ctx.textAlign = 'left';
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  for (let y = 0; y < h; y += 4) ctx.fillRect(0, y, w, 1);
+  ctx.fillText(title, 36, 28);
+  // A rule under the title.
+  ctx.globalAlpha = 0.5;
+  ctx.fillRect(36, 92, w - 72, 3);
+  ctx.globalAlpha = 1;
+  // The honesty band.
+  ctx.fillStyle = room.warm.amber;
+  ctx.fillRect(0, h - BAND_HEIGHT, w, BAND_HEIGHT);
+  ctx.fillStyle = '#1a1206';
+  ctx.font = BAND;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('ILLUSTRATIVE · NOT REAL STATE', w / 2, h - BAND_HEIGHT / 2 + 2);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  return h - BAND_HEIGHT;
 }
 
 function drawRoles(canvas: HTMLCanvasElement, t: number, content: ScreenContent) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const { width: w, height: h } = canvas;
-  frame(ctx, w, h, 'ROLES', room.emit.cyan);
-  ctx.font = MONO;
+  const floor = frame(ctx, w, h, 'ROLES', room.emit.cyan);
+  const rowHeight = Math.floor((floor - 110) / ROLES.length);
   ROLES.forEach((role, i) => {
-    const y = 78 + i * 52;
+    const y = 110 + i * rowHeight;
     const active = content.active === role;
-    ctx.fillStyle = active ? room.warm.amber : 'rgba(207,228,255,0.85)';
-    ctx.fillText(role.toUpperCase(), 30, y);
-    const state = active ? 'IN_PROGRESS' : (STATES[(i + Math.floor(t / 7)) % STATES.length] ?? '');
-    ctx.fillStyle = active ? room.warm.amber : 'rgba(207,228,255,0.45)';
-    ctx.font = MONO_SMALL;
-    ctx.fillText(state, 300, y + 8);
-    ctx.font = MONO;
     if (active) {
       ctx.fillStyle = room.warm.amber;
-      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(t * 6);
-      ctx.fillRect(14, y + 6, 10, 22);
+      ctx.globalAlpha = 0.16 + 0.08 * Math.sin(t * 6);
+      ctx.fillRect(20, y - 6, w - 40, rowHeight - 4);
       ctx.globalAlpha = 1;
+      ctx.fillRect(20, y - 6, 14, rowHeight - 4);
     }
+    ctx.font = MEDIUM;
+    ctx.fillStyle = active ? room.warm.amber : TEXT;
+    ctx.fillText(role.toUpperCase(), 52, y + 8);
+    const state = active ? 'IN_PROGRESS' : (STATES[(i + Math.floor(t / 7)) % STATES.length] ?? '');
+    // A lamp and the state word.
+    ctx.fillStyle = active ? room.warm.amber : room.emit.cyan;
+    ctx.globalAlpha = active ? 1 : 0.55;
+    ctx.beginPath();
+    ctx.arc(560, y + rowHeight / 2 - 2, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = SMALL;
+    ctx.fillStyle = active ? room.warm.amber : DIM;
+    ctx.fillText(state, 590, y + 18);
+    ctx.globalAlpha = 1;
   });
 }
 
@@ -215,24 +261,28 @@ function drawReview(canvas: HTMLCanvasElement, t: number, content: ScreenContent
         : verdict === '—'
           ? room.emit.cyan
           : room.warm.amber;
-  frame(ctx, w, h, 'REVIEW', tint);
-  ctx.font = MONO_SMALL;
-  ctx.fillStyle = 'rgba(207,228,255,0.6)';
-  ctx.fillText('verdict', 30, 80);
-  ctx.font = verdict.length > 12 ? MONO : MONO_BIG;
+  const floor = frame(ctx, w, h, 'REVIEW', tint);
+  ctx.font = SMALL;
+  ctx.fillStyle = DIM;
+  ctx.fillText('verdict', 36, 112);
+  const label = verdict === '—' ? 'AWAITING REVIEW' : verdict;
+  ctx.font = label.length <= 8 ? HEADLINE : label.length <= 16 ? LARGE : font(700, 46);
   ctx.fillStyle = tint;
   ctx.shadowColor = tint;
-  ctx.shadowBlur = 14;
-  ctx.fillText(verdict === '—' ? 'AWAITING REVIEW' : verdict, 30, 108);
+  ctx.shadowBlur = 24;
+  ctx.fillText(label, 36, label.length <= 8 ? 150 : 172);
   ctx.shadowBlur = 0;
-  ctx.font = MONO_SMALL;
-  ctx.fillStyle = 'rgba(207,228,255,0.6)';
-  ctx.fillText('evidence', 30, 196);
+  ctx.font = SMALL;
+  ctx.fillStyle = DIM;
+  ctx.fillText('evidence', 36, 318);
   const bars = ['checks', 'tethers', 'review'];
-  bars.forEach((label, i) => {
-    const y = 228 + i * 40;
-    ctx.fillStyle = 'rgba(207,228,255,0.7)';
-    ctx.fillText(label, 30, y);
+  const barTop = 366;
+  const pitch = Math.floor((floor - barTop - 8) / bars.length);
+  bars.forEach((name, i) => {
+    const y = barTop + i * pitch;
+    ctx.font = SMALL;
+    ctx.fillStyle = TEXT;
+    ctx.fillText(name, 36, y);
     const fill =
       verdict === '—'
         ? (0.5 + 0.5 * Math.sin(t * 2 + i)) * 0.6
@@ -240,9 +290,9 @@ function drawReview(canvas: HTMLCanvasElement, t: number, content: ScreenContent
           ? 0.3
           : 1;
     ctx.fillStyle = 'rgba(207,228,255,0.15)';
-    ctx.fillRect(170, y + 4, w - 200, 18);
+    ctx.fillRect(230, y + 6, w - 266, 30);
     ctx.fillStyle = tint;
-    ctx.fillRect(170, y + 4, (w - 200) * fill, 18);
+    ctx.fillRect(230, y + 6, (w - 266) * fill, 30);
   });
 }
 
@@ -250,42 +300,50 @@ function drawCandidate(canvas: HTMLCanvasElement, t: number, content: ScreenCont
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const { width: w, height: h } = canvas;
-  frame(ctx, w, h, 'CANDIDATE', room.emit.magenta);
-  ctx.font = MONO_SMALL;
-  ctx.fillStyle = 'rgba(207,228,255,0.6)';
-  ctx.fillText('phase', 30, 80);
-  ctx.font = MONO;
+  const floor = frame(ctx, w, h, 'CANDIDATE', room.emit.magenta);
+  ctx.font = SMALL;
+  ctx.fillStyle = DIM;
+  ctx.fillText('phase', 36, 112);
+  ctx.font = LARGE;
   ctx.fillStyle = room.emit.ice;
-  ctx.fillText(content.phase, 30, 106);
-  ctx.font = MONO_SMALL;
-  ctx.fillStyle = 'rgba(207,228,255,0.6)';
-  ctx.fillText('head (illustrative)', 30, 170);
+  ctx.fillText(content.phase.split(' · ')[0]?.toUpperCase() ?? '', 36, 150);
+  ctx.font = SMALL;
+  ctx.fillStyle = DIM;
+  ctx.fillText('head (illustrative)', 36, 258);
   // A scrolling abbreviated SHA. Deterministic from time so it never reads as
   // a real commit: hex digits walk, they are not looked up anywhere.
-  ctx.font = MONO_BIG;
+  ctx.font = font(800, 104);
   ctx.fillStyle = room.emit.magenta;
+  ctx.shadowColor = room.emit.magenta;
+  ctx.shadowBlur = 18;
   let sha = '';
   for (let i = 0; i < 10; i += 1) {
     sha += ((Math.floor(t * 1.5) * 7 + i * 13 + Math.floor(t / 3) * 5) % 16).toString(16);
   }
-  ctx.fillText(sha, 30, 198);
-  ctx.font = MONO_SMALL;
-  ctx.fillStyle = 'rgba(207,228,255,0.6)';
-  ctx.fillText('provenance tether', 30, 274);
+  ctx.fillText(sha, 36, 296);
+  ctx.shadowBlur = 0;
+  ctx.font = SMALL;
+  ctx.fillStyle = DIM;
+  ctx.fillText('provenance tether', 36, 420);
+  const lineY = Math.min(500, floor - 40);
   ctx.strokeStyle = room.emit.teal;
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
   ctx.beginPath();
-  for (let x = 30; x < w - 30; x += 6) {
-    const y = 330 + Math.sin(x * 0.05 + t * 2) * 8;
-    if (x === 30) ctx.moveTo(x, y);
+  for (let x = 36; x < w - 36; x += 8) {
+    const y = lineY + Math.sin(x * 0.03 + t * 2) * 10;
+    if (x === 36) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }
   ctx.stroke();
   ctx.fillStyle = room.emit.teal;
+  ctx.shadowColor = room.emit.teal;
+  ctx.shadowBlur = 14;
   ctx.beginPath();
-  const dotX = 30 + ((t * 60) % (w - 60));
-  ctx.arc(dotX, 330 + Math.sin(dotX * 0.05 + t * 2) * 8, 6, 0, Math.PI * 2);
+  const dotX = 36 + ((t * 90) % (w - 72));
+  ctx.arc(dotX, lineY + Math.sin(dotX * 0.03 + t * 2) * 10, 12, 0, Math.PI * 2);
   ctx.fill();
+  ctx.shadowBlur = 0;
 }
 
 function drawStation(canvas: HTMLCanvasElement, t: number, occupant: string | null, state: string) {
@@ -293,24 +351,28 @@ function drawStation(canvas: HTMLCanvasElement, t: number, occupant: string | nu
   if (!ctx) return;
   const { width: w, height: h } = canvas;
   const tint = occupant ? room.warm.amber : room.emit.cyan;
-  frame(ctx, w, h, 'STATION', tint);
-  ctx.font = MONO_SMALL;
-  ctx.fillStyle = 'rgba(207,228,255,0.6)';
-  ctx.fillText('occupant', 30, 76);
-  ctx.font = MONO_BIG;
+  const floor = frame(ctx, w, h, 'STATION', tint);
+  ctx.font = SMALL;
+  ctx.fillStyle = DIM;
+  ctx.fillText('occupant', 36, 112);
+  ctx.font = font(800, 116);
   ctx.fillStyle = tint;
-  ctx.fillText(occupant ? occupant.toUpperCase() : 'UNASSIGNED', 30, 100);
-  ctx.font = MONO_SMALL;
-  ctx.fillStyle = 'rgba(207,228,255,0.6)';
-  ctx.fillText('state', 30, 176);
-  ctx.font = MONO;
+  ctx.shadowColor = tint;
+  ctx.shadowBlur = 20;
+  ctx.fillText(occupant ? occupant.toUpperCase() : 'UNASSIGNED', 36, 150);
+  ctx.shadowBlur = 0;
+  ctx.font = SMALL;
+  ctx.fillStyle = DIM;
+  ctx.fillText('state', 36, 300);
+  ctx.font = LARGE;
   ctx.fillStyle = room.emit.ice;
-  ctx.fillText(state, 30, 200);
+  ctx.fillText(state, 36, 340);
   ctx.fillStyle = tint;
+  const pipY = floor - 48;
   for (let i = 0; i < 12; i += 1) {
     const active = occupant ? (i + Math.floor(t * 4)) % 12 < 6 : i < 3;
     ctx.globalAlpha = active ? 0.9 : 0.2;
-    ctx.fillRect(30 + i * 48, h - 56, 34, 14);
+    ctx.fillRect(36 + i * 80, pipY, 56, 22);
   }
   ctx.globalAlpha = 1;
 }

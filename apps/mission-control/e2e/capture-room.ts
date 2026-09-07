@@ -7,7 +7,7 @@
  * The default view is captured at several moments so the orrery's tracks are
  * seen at different rotation phases, and from two orbit positions.
  *
- * Usage: pnpm --filter mission-control build:owner && tsx e2e/capture-room.ts <outDir> [orbit]
+ * Usage: pnpm --filter mission-control build:owner && tsx e2e/capture-room.ts <outDir> [orbit] [states]
  */
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -61,13 +61,23 @@ if (orbit) {
   }
 }
 // A fresh page per close-up: a hash-only navigation does not remount the
-// canvas, so the camera would stay where it was.
-for (const cam of ['prover', 'face']) {
+// canvas, so the camera would stay where it was. Each face is then held in
+// every state (`#/?state=`) so the states can be judged at rest.
+const closeUps: { cam: string; state?: string }[] = [{ cam: 'prover' }, { cam: 'face' }];
+if (process.argv.includes('states')) {
+  for (const cam of ['face', 'prover']) {
+    for (const state of ['idle', 'attentive', 'working', 'passed', 'blocked']) {
+      closeUps.push({ cam, state });
+    }
+  }
+}
+for (const { cam, state } of closeUps) {
   const view = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  await view.goto(`${fileUrl}#/?cam=${cam}`, { waitUntil: 'load' });
+  const query = state ? `cam=${cam}&state=${state}` : `cam=${cam}`;
+  await view.goto(`${fileUrl}#/?${query}`, { waitUntil: 'load' });
   await view.waitForFunction(() => '__virgilRoomReady' in window, undefined, { timeout: 180_000 });
   await view.waitForTimeout(3000);
-  await view.screenshot({ path: resolve(outDir, `room-${cam}.png`) });
+  await view.screenshot({ path: resolve(outDir, `room-${cam}${state ? `-${state}` : ''}.png`) });
   await view.close();
 }
 console.log(`capture-room: ${outDir}, console errors ${errors.length}`);

@@ -5,6 +5,7 @@ import { useSettings } from '../../ui/settings.js';
 import { layout } from '../room/palette.js';
 import { loadRiggedVirgil } from '../virgil/virgilRigged.js';
 import { type FaceState, Visor } from './Visor.js';
+import { bonePositions, fitHeadSurface, VIRGIL_VISOR } from './visorFit.js';
 
 /**
  * Virgil, rigged and animated, standing at the centre of his console and
@@ -26,20 +27,6 @@ const CLIP_FOR: Record<VirgilPose, string> = {
   handoff: 'Agree_Gesture',
 };
 
-/**
- * The visor panel in the head joint's own space (source units, 2.34 tall):
- * the head shell spans y 1.60–2.03 and its front is at z ≈ +0.26 at rest,
- * with the joint at y 1.41 — measured from the file; the panel's extent was
- * then fitted to the bezel by close-up screenshot, since the bezel is not a
- * thing the payload can be asked for.
- */
-const VISOR_IN_HEAD = {
-  position: [0, 0.315, 0.27] as [number, number, number],
-  rotation: [-0.08, 0, 0] as [number, number, number],
-  width: 0.46,
-  height: 0.29,
-};
-
 export function VirgilRigged({
   pose = 'idle',
   face = 'idle',
@@ -51,6 +38,16 @@ export function VirgilRigged({
   const { reducedMotion } = useSettings();
   const mixer = useMemo(() => new THREE.AnimationMixer(virgil.placed), [virgil]);
   const current = useRef<THREE.AnimationAction | null>(null);
+  // The visor fitted to his head's own front surface in the head joint's
+  // frame at bind pose (`visorFit.ts`); `VIRGIL_VISOR` is the extent and
+  // nothing else is hand-set. The rigid-fit residual of the head shell is
+  // 0.9–3.3 mm across the shipped clips at this scale.
+  const surface = useMemo(() => {
+    const index = virgil.mesh.geometry.index;
+    if (!index) throw new Error('virgil rigged: the skin has no index');
+    const { positions, weights } = bonePositions(virgil.mesh, virgil.head);
+    return fitHeadSurface(positions, index.array, VIRGIL_VISOR, (v) => (weights[v] ?? 0) > 0.5);
+  }, [virgil]);
 
   useEffect(() => {
     const clip = THREE.AnimationClip.findByName(virgil.clips, CLIP_FOR[pose]);
@@ -77,19 +74,8 @@ export function VirgilRigged({
     <>
       <primitive object={virgil.placed} position={layout.virgilAt} />
       {/* Rendered into the head bone without re-parenting it: the panel rides
-          the head through every clip (the rigid-fit residual of the head
-          shell is 0.9–3.3 mm across the shipped clips at this scale). */}
-      {createPortal(
-        <Visor
-          state={face}
-          position={VISOR_IN_HEAD.position}
-          rotation={VISOR_IN_HEAD.rotation}
-          width={VISOR_IN_HEAD.width}
-          height={VISOR_IN_HEAD.height}
-          lightIntensity={1.2}
-        />,
-        virgil.head,
-      )}
+          the head through every clip. */}
+      {createPortal(<Visor state={face} surface={surface} lightIntensity={1.5} />, virgil.head)}
     </>
   );
 }

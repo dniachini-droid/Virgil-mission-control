@@ -5,9 +5,9 @@ import { Suspense, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { detectTier, prefersReducedMotion, SettingsContext } from '../../ui/settings.js';
 import { VirgilRigged } from '../characters/VirgilRigged.js';
-import { Visor } from '../characters/Visor.js';
+import type { FaceState } from '../characters/Visor.js';
 import { ScreenBank, StationPanel } from '../screens/ScreenBank.js';
-import { useDemo } from './demo.js';
+import { forcedState, useDemo } from './demo.js';
 import { LightingRig } from './LightingRig.js';
 import { ConsoleRing, PortholeFrame, ProverFigure, SideStation } from './Models.js';
 import { Orrery } from './Orrery.js';
@@ -129,9 +129,10 @@ export function VirgilRoom() {
  * otherwise resting.
  */
 function Cast({ demo }: { demo: boolean }) {
-  const state = useDemo(demo);
+  const forced = forcedFace();
+  const running = useDemo(demo && forced === null);
+  const state = forced ? forcedState(forced) : running;
   const [sx, , sz] = layout.stationAt;
-  const [px, , pz] = layout.proverAt;
   return (
     <>
       <VirgilRigged pose={state.pose} face={state.virgilFace} />
@@ -147,21 +148,7 @@ function Cast({ demo }: { demo: boolean }) {
         occupant="Prover"
         state={state.stationState}
       />
-      <ProverFigure />
-      {/* The Prover's visor: the owner made it blank, so the panel sits over
-          it directly, at the measured front of his face: the y 0.95–1.15 band
-          of his payload reaches z ≈ 0.21; the 0.36 above it is his halo. */}
-      <group position={[px, 0, pz]} rotation={[0, layout.proverRotationY, 0]}>
-        <Visor
-          state={state.proverFace}
-          position={[0, 1.08, 0.235]}
-          rotation={[-0.05, 0, 0]}
-          width={0.3}
-          height={0.19}
-          lightIntensity={0.9}
-          curve={0.6}
-        />
-      </group>
+      <ProverFigure face={state.proverFace} />
     </>
   );
 }
@@ -180,6 +167,19 @@ function Ready() {
     return () => cancelAnimationFrame(id);
   }, [invalidate]);
   return null;
+}
+
+const FACE_STATES: readonly FaceState[] = ['idle', 'attentive', 'working', 'passed', 'blocked'];
+
+/**
+ * `#/?state=blocked` holds every face and screen in one state instead of
+ * running the demo, so the captures can judge each state at rest. Not a
+ * feature; a way to see. Read once at mount, like the camera.
+ */
+function forcedFace(): FaceState | null {
+  const query = window.location.hash.split('?')[1] ?? '';
+  const value = new URLSearchParams(query).get('state');
+  return (FACE_STATES as readonly string[]).includes(value ?? '') ? (value as FaceState) : null;
 }
 
 /**

@@ -54,7 +54,8 @@ function section(name: string): Section {
   return found;
 }
 
-function decodePayload(): ArrayBuffer {
+/** The payload, decoded. Exported so a test can parse the skin without a browser. */
+export function decodeVirgilPayload(): ArrayBuffer {
   const binary = atob(payloadBase64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
@@ -81,7 +82,14 @@ async function decodeTexture(buffer: ArrayBuffer, name: string, colorSpace: Colo
   return texture;
 }
 
-function parseGlb(buffer: ArrayBuffer): Promise<{ scene: Group; animations: AnimationClip[] }> {
+/**
+ * Parses the image-free GLB from memory. `GLTFLoader.parse` issues no
+ * request for a GLB with no images, and needs no DOM, so this also runs
+ * under node in `test/visor.test.ts`.
+ */
+export function parseVirgilGlb(
+  buffer: ArrayBuffer,
+): Promise<{ scene: Group; animations: AnimationClip[] }> {
   const { offset, length } = section('glb');
   // GLTFLoader.parse wants a buffer of its own, starting at byte 0.
   const glb = buffer.slice(offset, offset + length);
@@ -91,9 +99,9 @@ function parseGlb(buffer: ArrayBuffer): Promise<{ scene: Group; animations: Anim
 }
 
 async function build(): Promise<RiggedVirgil> {
-  const buffer = decodePayload();
+  const buffer = decodeVirgilPayload();
   const [gltf, map, metallicRoughness, normalMap] = await Promise.all([
-    parseGlb(buffer),
+    parseVirgilGlb(buffer),
     decodeTexture(buffer, 'map_base_color', SRGBColorSpace),
     decodeTexture(buffer, 'map_metallic_roughness', LinearSRGBColorSpace),
     decodeTexture(buffer, 'map_normal', LinearSRGBColorSpace),

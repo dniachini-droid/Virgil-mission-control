@@ -1,7 +1,9 @@
 import { useFrame } from '@react-three/fiber';
-import { use, useRef } from 'react';
+import { use, useMemo, useRef } from 'react';
 import type * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
+import { type FaceState, Visor } from '../characters/Visor.js';
+import { fitHeadSurface, PROVER_VISOR, placedPositions } from '../characters/visorFit.js';
 import { loadConsole2 } from '../props/console2Asset.js';
 import { loadPorthole } from '../props/portholeAsset.js';
 import { loadProver } from '../props/proverAsset.js';
@@ -41,15 +43,25 @@ export function SideStation() {
 }
 
 /**
- * The Prover, at the side station. The file has no rig, so he carries idle
- * motion instead: a 1.5 cm rise and fall and a 1.5° sway, out of phase with
- * each other and with Virgil's clip, so he is never a statue and never in
- * step with anyone. Still with reduced motion.
+ * The Prover, at the side station, with his face. The file has no rig, so
+ * he carries idle motion instead: a 1.5 cm rise and fall and a 1.5° sway,
+ * out of phase with each other and with Virgil's clip, so he is never a
+ * statue and never in step with anyone. Still with reduced motion.
+ *
+ * His visor is fitted to his dome from the dome's own triangles
+ * (`visorFit.ts`, `PROVER_VISOR`) — a spherical cap, not a plate — and lives
+ * inside the same group as his body, so it breathes with him. V3 had it
+ * fixed in the room while his head rose and fell under it.
  */
-export function ProverFigure() {
+export function ProverFigure({ face = 'idle' }: { face?: FaceState }) {
   const prover = use(loadProver());
   const { reducedMotion } = useSettings();
   const group = useRef<THREE.Group>(null);
+  const surface = useMemo(() => {
+    const index = prover.mesh.geometry.index;
+    if (!index) throw new Error('prover: the mesh has no index');
+    return fitHeadSurface(placedPositions(prover.mesh), index.array, PROVER_VISOR);
+  }, [prover]);
   useFrame(({ clock }) => {
     if (!group.current || reducedMotion) return;
     const t = clock.getElapsedTime();
@@ -60,6 +72,7 @@ export function ProverFigure() {
   return (
     <group ref={group} position={layout.proverAt} rotation={[0, layout.proverRotationY, 0]}>
       <primitive object={prover.placed} />
+      <Visor state={face} surface={surface} lightIntensity={1.1} />
     </group>
   );
 }

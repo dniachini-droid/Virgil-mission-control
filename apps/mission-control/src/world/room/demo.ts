@@ -81,6 +81,50 @@ export function demoAt(seconds: number, loop: number, running: boolean): DemoSta
 }
 
 /**
+ * Every face and screen held in one state, for looking at that state at
+ * rest (`#/?state=…`). Nothing runs; nothing is real; the content says so.
+ */
+export function forcedState(face: FaceState): DemoState {
+  const base = demoAt(0, 0, false);
+  switch (face) {
+    case 'attentive':
+      return {
+        ...base,
+        virgilFace: 'attentive',
+        proverFace: 'attentive',
+        stationState: 'RECEIVING',
+        content: { verdict: '—', active: 'Prover', phase: 'hand-off · illustrative' },
+      };
+    case 'working':
+      return {
+        ...base,
+        virgilFace: 'working',
+        proverFace: 'working',
+        stationState: 'WORKING',
+        content: { verdict: '—', active: 'Prover', phase: 'verification · illustrative' },
+      };
+    case 'passed':
+      return {
+        ...base,
+        virgilFace: 'passed',
+        proverFace: 'passed',
+        stationState: 'REPORTED',
+        content: { verdict: 'PASS', active: null, phase: 'verdict · illustrative' },
+      };
+    case 'blocked':
+      return {
+        ...base,
+        virgilFace: 'blocked',
+        proverFace: 'blocked',
+        stationState: 'REPORTED',
+        content: { verdict: 'BLOCKED', active: null, phase: 'verdict · illustrative' },
+      };
+    default:
+      return base;
+  }
+}
+
+/**
  * Advances the demo clock on the render loop and returns the current state;
  * re-renders React only when a phase boundary is crossed.
  */

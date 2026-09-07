@@ -24,7 +24,7 @@ function git(args: string[]): string {
 const sha = process.env.VIRGIL_OWNER_SHA ?? git(['rev-parse', 'HEAD']);
 const worktreeDirty = git(['status', '--porcelain']) !== '';
 const stage =
-  process.env.VIRGIL_OWNER_STAGE ?? 'Phase 1 S2 / viewing point V3 — Virgil in his room';
+  process.env.VIRGIL_OWNER_STAGE ?? 'Phase 1 S2 / viewing point V4 — Virgil in his room';
 // Overridable so that a reviewer can rebuild a delivered artifact byte for byte.
 // Without it the embedded minute is the only thing that stops the output being
 // reproducible from the commit alone.

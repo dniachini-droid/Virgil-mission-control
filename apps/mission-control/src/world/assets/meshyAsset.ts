@@ -114,9 +114,12 @@ async function decodeTexture(
   return texture;
 }
 
-async function build(metadata: MeshyAssetMetadata, base64: string): Promise<MeshyAsset> {
-  const buffer = decodePayload(metadata, base64);
-
+/**
+ * The geometry alone, from a decoded payload. Exported so that a test can
+ * build exactly what the room builds without a browser: the images need
+ * `createImageBitmap`, the geometry does not.
+ */
+export function buildGeometry(metadata: MeshyAssetMetadata, buffer: ArrayBuffer): BufferGeometry {
   const position = section(metadata, 'position');
   const normal = section(metadata, 'normal');
   const uv = section(metadata, 'uv');
@@ -149,6 +152,17 @@ async function build(metadata: MeshyAssetMetadata, base64: string): Promise<Mesh
   // screen-space derivatives when the attribute is absent.
   geometry.computeBoundingSphere();
   geometry.computeBoundingBox();
+  return geometry;
+}
+
+/** `decodePayload`, for the same reason. */
+export function decodeMeshyPayload(metadata: MeshyAssetMetadata, base64: string): ArrayBuffer {
+  return decodePayload(metadata, base64);
+}
+
+async function build(metadata: MeshyAssetMetadata, base64: string): Promise<MeshyAsset> {
+  const buffer = decodePayload(metadata, base64);
+  const geometry = buildGeometry(metadata, buffer);
 
   // The normal map is optional: the porthole frame ships without one.
   const hasNormalMap = metadata.payload.sections.map_normal !== undefined;
