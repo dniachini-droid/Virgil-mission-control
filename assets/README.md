@@ -5,7 +5,7 @@ Every file under `assets/` is in exactly one of four categories. The application
 | Directory | Category | Loaded by the app | Contents |
 |---|---|---|---|
 | `concepts/characters/` | Character concept sheets (approved) | no | Five owner-approved sheets: Virgil (turnaround and multi-view), Fabricator, Prover, Keeper |
-| `models/candidates/` | Candidate 3D models (inspection only) | no | Virgil model candidate 01, unrigged, unoptimised, with its inspection report |
+| `models/candidates/` | Candidate 3D models (inspection only) | no | Virgil model candidate 01 (TripoSR, unrigged, unoptimised, untextured, with its inspection report) and candidate 02 (Meshy, textured, unrigged, no animations, 11.82 MiB — larger on its own than the whole slice's transfer budget); measured facts and consequences for both in `licenses/ASSET_PROVENANCE.md` |
 | `licenses/` | Provenance and licence register | no | `ASSET_PROVENANCE.md`: origin, licence, verification status and category of every imported file; the rule for future imports |
 | `runtime/` | Production-ready runtime assets | would be | **Does not exist.** No production-ready asset has been created or accepted |
 
