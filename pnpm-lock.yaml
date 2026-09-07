@@ -107,6 +107,9 @@ importers:
         specifier: ^4.5.4
         version: 4.5.4
     devDependencies:
+      '@virgil/gate-engine':
+        specifier: workspace:*
+        version: link:../gate-engine
       '@virgil/test-fixtures':
         specifier: workspace:*
         version: link:../test-fixtures
