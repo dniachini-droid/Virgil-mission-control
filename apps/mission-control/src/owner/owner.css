@@ -1,0 +1,43 @@
+/*
+ * Owner Build shell only. Nothing here restyles the Phase 0 spikes; it reserves
+ * the strip of screen the provenance footer occupies and styles that footer.
+ */
+.owner-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  align-items: baseline;
+  padding: 4px 12px;
+  background: rgba(5, 3, 15, 0.92);
+  border-top: 1px solid rgba(191, 233, 255, 0.22);
+  font: 10px / 1.6 var(--mono);
+  color: var(--ash);
+  pointer-events: none;
+  user-select: text;
+}
+.owner-footer b {
+  font-weight: 600;
+  color: var(--ice);
+}
+.owner-footer code {
+  font: inherit;
+  color: var(--paper);
+  word-break: break-all;
+}
+.owner-footer .owner-footer-note {
+  color: var(--amber);
+}
+.hud-bottom {
+  padding-bottom: 40px;
+}
+.owner-index {
+  height: 100%;
+  overflow: auto;
+  padding-bottom: 48px;
+  box-sizing: border-box;
+}

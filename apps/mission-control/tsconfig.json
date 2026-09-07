@@ -10,6 +10,7 @@
     "src/**/*.tsx",
     "e2e/**/*.ts",
     "vite.config.ts",
+    "vite.owner.config.ts",
     "test/**/*.tsx",
     "test/**/*.ts"
   ]
