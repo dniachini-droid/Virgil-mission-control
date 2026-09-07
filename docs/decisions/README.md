@@ -16,6 +16,7 @@ Index:
 | OD-0005 | The new reference image, and the graphics-hardware checks in Phase 1 | Accepted 2026-09-07 (owner console, filed under OD-0006) |
 | OD-0006 | Recording an owner decision on the owner's instruction | Accepted 2026-09-07 (owner console) |
 | OD-0007 | Phase 0 accepted, Phase 1 authorised, and the five other decisions of 2026-09-07 | Accepted 2026-09-07 (owner console, filed under OD-0006) |
+| OD-0008 | The owner's attestation as the licence basis for Meshy-generated models | Accepted 2026-09-07 (owner console, filed under OD-0006) |
 | ADR-0001 | Monorepo tooling: pnpm, Turborepo, TypeScript 7, Biome, Vitest | Accepted |
 | ADR-0002 | Application framework: Vite, React 19, React Router | Accepted |
 | ADR-0003 | Rendering stack: three.js, React Three Fiber, drei, postprocessing | Accepted |
@@ -27,4 +28,4 @@ Index:
 | ADR-0009 | Headless spike capture with Playwright and SwiftShader | Accepted |
 | ADR-0010 | Labels as canvas textures instead of SDF text | Accepted |
 
-`proposed/` holds no drafts at present. All seven owner decisions are filed here.
+`proposed/` holds no drafts at present. All eight owner decisions are filed here.
