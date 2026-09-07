@@ -96,6 +96,19 @@ Implemented now and validated by tests (`packages/agent-contracts/test/paths.tes
 
 Validated by tests (`packages/agent-contracts/test/permission-matrix.test.ts`, "tool and write-authority overlap"): a role has write tools if and only if it has a write boundary; only the Fabricator holds a boundary inside the candidate worktree; stage launching is exclusive to the role with the `Agent` tool; the three placeholder boundaries are each held by one role; concrete boundaries normalise, never nest across roles and never reach a protected boundary; and `.claude/settings.json` denies both `Write` and `Edit` for every path-shaped protected boundary in `authority.json`. These tests check data agreement between files; they do not make the runtime enforce the matrix (deferred, above).
 
+## Owner-decision recording (OD-0006): procedural, not enforced
+
+`docs/decisions/proposed/OD-0006-recording-owner-decisions.md` records the owner's instruction that their turn in the owner console is sufficient authority for a session to record and file an owner decision. It places two conditions on that. Neither is enforced by anything on this branch.
+
+| Control stated in OD-0006 | Status | Where it stands |
+|---|---|---|
+| Authority for an owner decision comes only from the owner's own turn in the owner console; no other channel is ever owner approval | **design-level only** | No code determines which channel an instruction arrived on. The reducer requires an owner *actor* on `owner_decision` and `scope_approved`, but the truthfulness of `actor.kind` is itself deferred to a privileged runtime (see "What the reducer does not enforce"), and a decision filed as a Markdown file emits no event at all today |
+| A record made on the owner's instruction must quote the owner's exact words verbatim | **design-level only** | No test asserts that a filed `docs/decisions/OD-*.md` contains a quote, or any particular content. The `owner_decision` event payload (`packages/agent-contracts/src/events.ts`: `decisionId`, `kind`, `resumesTo`, `appliesToSha`) and the `OwnerDecisionRecord` contract (`packages/agent-contracts/src/operational.ts`: `question`, `decision`, `consequences`, `appliesTo`, `decidedAt`, `recordPath`) have no field for the owner's words, so the reducer and the schemas have nothing to check. `.claude/settings.json` denies paths, not content |
+
+The quote is not a verification mechanism and is not recorded here as one. It is authored by the same session that files the record, and no independent copy of the owner's instruction is committed, hashed or referenced anywhere in this repository, so a later reader has nothing to compare it against. Its only effect is to make a false record detectable by the owner, who can read it and say the words are not theirs. If the owner console reports words the owner did not say, a false decision can be filed at authority layer 1 of `CLAUDE.md` and nothing in the repository will contradict it.
+
+Closing this would take an independent record of the owner's instruction, committed by something other than the session that files the decision — an exported console transcript, or a hash of one, on a path the filing session cannot write. No such record exists on this branch and nothing here produces one. It is future work, named and not done.
+
 ## Gate engine enforcement (delivered for fixtures only)
 
 `packages/gate-engine` computes eighteen gates from a `GateEvidence` object and reports per purpose (review eligibility, merge eligibility, repair authorisation, deploy authority). Missing evidence is `insufficient_evidence`, never a pass. The engine is not changed by the foundation repair. Its owner-decision kinds (`merge`, `deployment`, `additional_repair_round`) are the vocabulary the reducer now requires.
