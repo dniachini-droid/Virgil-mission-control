@@ -128,7 +128,7 @@ Correction to the record above (Keeper finding KR-10): the first candidate had 2
 | KR-09 | informational | accepted gap | Gate evidence adapter must fold repairer sessions into `builderSessionIds` | accepted-gaps table |
 | KR-10 | informational | corrected | Test counts corrected above; the archive hash remains unverifiable from the repository | this section |
 
-Schema change: `domain-event.schema.json` gains the optional `appliesToSha` on the `owner_decision` payload (additive; regenerated). No test skipped, disabled or weakened; three existing tests that used `kind: 'merge'` for halts unrelated to merging now use `kind: 'continue'`, and three path tests now assert both the contract layer (kind `contract`) and the reducer layer (`validateEvent` directly).
+Schema change: `domain-event.schema.json` gains the optional `appliesToSha` on the `owner_decision` payload (additive; regenerated). No test skipped, disabled or weakened; two existing tests that used `kind: 'merge'` for halts unrelated to merging now use `kind: 'continue'`, and three path tests now assert both the contract layer (kind `contract`) and the reducer layer (`validateEvent` directly).
 
 Checks on the second candidate: `pnpm install --frozen-lockfile`; `pnpm check` (Biome 111 files, typecheck 8 targets, Vitest **225 passed**: agent-contracts 54, domain 104, gate-engine 19, knowledge-graph 24, visual-language 18, mission-control 6); schema export and seed-graph export with no diff; Mind Scan; `pnpm build`; `pnpm --filter @virgil/domain probe` (the nine first-round exploits plus KR-01, KR-02 and KR-04 all rejected).
 
