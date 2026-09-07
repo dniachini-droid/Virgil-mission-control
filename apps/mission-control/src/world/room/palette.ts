@@ -66,54 +66,60 @@ export const room = {
 
 /**
  * Room dimensions in metres, in one place because the camera framing, the
- * window aperture and the three models' chosen sizes are all answerable to
- * each other.
+ * window aperture and the models' chosen sizes are all answerable to each
+ * other.
  *
- * All three models arrive normalised to a 2-unit box, so every absolute size
- * here is a decision read against the approved reference, not a measurement:
+ * V2, on the owner's direction after V1: Virgil stands **inside the console
+ * well, facing the screens and the camera, and replaces the sun** — the
+ * orrery's tracks turn around him. The console is turned 180° so its screen
+ * arc is on the near side; the camera is raised above the screen line so the
+ * shot reads as looking over a console at the operator beyond it. The window
+ * frame is the owner's porthole model and the wall is cut to its measured
+ * hole.
  *
- *  - **Virgil is 1.65 m.** The console top then meets him below the chest, as
- *    it does in the reference, and his eye line clears the orrery.
- *  - **The console is 2.6 m across**, top at 0.93 m. In the reference the dais
- *    is a piece of furniture he stands behind, wider than he is tall, and its
- *    rim is at his lower chest. 2.0 m (the source size) read as a table.
- *  - **The orrery is 1.1 m tall**, standing on the console's well floor,
- *    which is measured at 0.35 m (the console is a semicircular desk: low
- *    steps in front, a screen arc rising to 0.93 m behind). Placed at the
- *    rim height, as a first pass did, it hid Virgil's face from the authored
- *    camera; on the well floor its sphere clears the rim and stays below his
- *    chin. Virgil stands a little right of centre so the armillary — a sphere,
- *    not the reference's flat platter — never crosses his face.
+ * Every absolute size is a decision read against the approved reference, not
+ * a measurement, because all the models arrive normalised:
  *
- * The reference is a wide-angle frame and its dais reads larger relative to
- * him than a measurement would give; these are a considered reading of it.
+ *  - **Virgil is 1.8 m** (V1: 1.65 m; the owner asked for a little bigger,
+ *    and being the centre of the system argues for presence). On the well
+ *    floor at 0.35 m his head reaches 2.15 m, against the window.
+ *  - **The console is 2.6 m across**, screen arc to 0.93 m, well floor 0.35 m.
+ *  - **The orrery's tracks** run at his chest, radii 0.98–1.72 m: 0.37 m
+ *    clear of his widest point, above the console rim at every tilt.
+ *  - **The porthole is 11.0 m across**, hole radius 3.524 m as measured; the
+ *    wall aperture is cut fractionally smaller so no gap shows.
+ *  - **The metal orrery**, when switched in, is 1.1 m tall and stands on the
+ *    floor beside the console: it is solid and cannot share his centre.
  */
 export const layout = {
-  virgilHeight: 1.65,
-  virgilAt: [0.6, 0, -4.0] as [number, number, number],
+  virgilHeight: 1.8,
+  virgilAt: [0, 0.35, -2.4] as [number, number, number],
 
   consoleCentre: [0, 0, -2.4] as [number, number, number],
+  consoleRotationY: Math.PI,
   consoleWidth: 2.6,
   consoleTop: 0.93,
+  wellFloor: 0.35,
 
-  orreryAt: [0, 0.35, -2.4] as [number, number, number],
-  orreryHeight: 1.1,
+  orreryCentre: [0, 1.55, -2.4] as [number, number, number],
+  metalOrreryAt: [2.15, 0, -2.6] as [number, number, number],
 
   wallZ: -7,
-  ceilingY: 7.5,
+  ceilingY: 9.5,
   sideWallX: 9,
   backWallZ: 6.5,
-  floorRadius: 16,
 
   windowCentre: [0, 3.4, -7] as [number, number, number],
-  windowRadius: 3.5,
+  /** The porthole's measured hole at its chosen size, times 0.97. */
+  apertureRadius: 3.42,
+  portholeAt: [0, 3.4, -6.46] as [number, number, number],
 
-  parapetZ: -6.6,
+  parapetZ: -6.35,
   parapetHeight: 0.55,
 
   camera: {
-    position: [0.15, 2.0, 2.9] as [number, number, number],
-    target: [0.1, 1.15, -3.2] as [number, number, number],
+    position: [0, 2.6, 3.4] as [number, number, number],
+    target: [0, 1.5, -2.4] as [number, number, number],
     fov: 38,
   },
 } as const;

@@ -14,8 +14,11 @@
     "maxIndex": 37413,
     "boundsMin": [-0.9020939469337463, -1, -0.5420895218849182],
     "boundsMax": [0.9020938873291016, 1, 0.5420895218849182],
+    "minRadiusXY": 0.0042506187181526505,
     "sourceDoubleSided": true,
     "sourceHasTangent": true,
+    "sourceHasNormalMap": true,
+    "sourceIndexComponentType": "UNSIGNED_INT",
     "sourceAnimations": 0,
     "sourceSkins": 0
   },
@@ -28,20 +31,20 @@
     "textures": {
       "base_color": {
         "from": "2048x2048 image/jpeg 3905549 B",
-        "to": "1024x1024 image/webp q0.78 186692 B",
-        "bytes": 186692,
+        "to": "512x512 image/webp q0.74 50154 B",
+        "bytes": 50154,
         "sourceBytes": 3905549
       },
       "metallic_roughness": {
         "from": "2048x2048 image/jpeg 2252730 B",
-        "to": "512x512 image/webp q0.75 13774 B",
-        "bytes": 13774,
+        "to": "256x256 image/webp q0.72 4044 B",
+        "bytes": 4044,
         "sourceBytes": 2252730
       },
       "normal": {
         "from": "2048x2048 image/jpeg 2687095 B",
-        "to": "512x512 image/webp q0.85 11308 B",
-        "bytes": 11308,
+        "to": "256x256 image/webp q0.8 1038 B",
+        "bytes": 1038,
         "sourceBytes": 2687095
       }
     }
@@ -56,9 +59,9 @@
     "doubleSided": false
   },
   "payload": {
-    "bytes": 831644,
-    "base64Bytes": 1108860,
-    "sha256": "d5c1a652be4a977cebfa77f8782a8ae0ceadd5a731727020d463a4c8ed321632",
+    "bytes": 675106,
+    "base64Bytes": 900144,
+    "sha256": "a6769e6c8017d6f09e55f3dbc6e0c382ff2bc9fcbfeede3e64b1b26d0d38ca80",
     "sections": {
       "position": {
         "offset": 0,
@@ -90,27 +93,27 @@
       },
       "map_base_color": {
         "offset": 619868,
-        "length": 186692,
+        "length": 50154,
         "kind": "image",
         "mimeType": "image/webp",
-        "width": 1024,
-        "height": 1024
+        "width": 512,
+        "height": 512
       },
       "map_metallic_roughness": {
-        "offset": 806560,
-        "length": 13774,
+        "offset": 670024,
+        "length": 4044,
         "kind": "image",
         "mimeType": "image/webp",
-        "width": 512,
-        "height": 512
+        "width": 256,
+        "height": 256
       },
       "map_normal": {
-        "offset": 820336,
-        "length": 11308,
+        "offset": 674068,
+        "length": 1038,
         "kind": "image",
         "mimeType": "image/webp",
-        "width": 512,
-        "height": 512
+        "width": 256,
+        "height": 256
       }
     }
   }

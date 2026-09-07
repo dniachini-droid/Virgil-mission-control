@@ -14,8 +14,11 @@
     "maxIndex": 40178,
     "boundsMin": [-0.6704091429710388, -1, -0.2491147220134735],
     "boundsMax": [0.6704091429710388, 1, 0.2491147220134735],
+    "minRadiusXY": 0.0011905983724570808,
     "sourceDoubleSided": true,
     "sourceHasTangent": true,
+    "sourceHasNormalMap": true,
+    "sourceIndexComponentType": "UNSIGNED_INT",
     "sourceAnimations": 0,
     "sourceSkins": 0
   },
@@ -48,11 +51,11 @@
   },
   "runtime": {
     "targetAxis": "y",
-    "targetMetres": 1.65,
-    "targetReason": "The 2.000 m source height is unit-box normalisation. 1.65 m puts the console top across his lower chest as the reference does, and keeps his eye line above the orrery so one low camera holds both.",
-    "scale": 0.825,
+    "targetMetres": 1.8,
+    "targetReason": "The 2.000 m source height is unit-box normalisation. V1 used 1.65 m; the owner asked for him a little bigger and V2 makes him the centre of the orrery, which argues for more presence. At 1.8 m standing on the console well floor (0.35 m) his head reaches 2.15 m, above the near screen arc and against the window, and the rings at chest height still clear the console rim.",
+    "scale": 0.9,
     "positionScale": 1,
-    "baseOffsetY": 0.825,
+    "baseOffsetY": 0.9,
     "doubleSided": false
   },
   "payload": {

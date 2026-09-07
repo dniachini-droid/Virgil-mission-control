@@ -5,7 +5,7 @@ import { Suspense, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { detectTier, prefersReducedMotion, SettingsContext } from '../../ui/settings.js';
 import { LightingRig } from './LightingRig.js';
-import { ConsoleDais, MetalOrrery, VirgilFigure } from './Models.js';
+import { ConsoleDais, MetalOrrery, PortholeFrame, VirgilFigure } from './Models.js';
 import { Orrery as LightOrrery } from './Orrery.js';
 import { layout, room } from './palette.js';
 import { RoomShell } from './RoomShell.js';
@@ -14,10 +14,11 @@ import { WindowView } from './WindowView.js';
 /**
  * Virgil in his room: the first art-directed Owner Build.
  *
- * One camera, framed like the approved reference — low, Virgil centred, the
- * window behind him — with orbit as the only control. The owner asked to see
- * the metal orrery first and the light one second, so both are built and the
- * button in the corner switches between them.
+ * One camera, framed like the approved reference — Virgil centred, the
+ * window behind him, the camera just above the console's screen line — with
+ * orbit as the only control. V2: the owner preferred the orrery of light and
+ * asked for Virgil to replace its sun, so it opens on Light with him at the
+ * centre; the metal armillary stays behind the switch, beside the console.
  *
  * Nothing here is a measurement of performance or of how it looks; the
  * container this is built in renders in software and misrepresents bloom and
@@ -27,7 +28,7 @@ import { WindowView } from './WindowView.js';
 export type OrreryMode = 'metal' | 'light';
 
 export function VirgilRoom() {
-  const [orreryMode, setOrreryMode] = useState<OrreryMode>('metal');
+  const [orreryMode, setOrreryMode] = useState<OrreryMode>('light');
   const [settings] = useState(() => ({
     reducedMotion: prefersReducedMotion(),
     tier: detectTier(),
@@ -63,6 +64,7 @@ export function VirgilRoom() {
             <LightingRig />
             <RoomShell />
             <WindowView />
+            <PortholeFrame />
             <ConsoleDais />
             {orreryMode === 'metal' ? <MetalOrrery /> : <LightOrrery />}
             <VirgilFigure />
@@ -72,10 +74,10 @@ export function VirgilRoom() {
             makeDefault
             target={layout.camera.target}
             enablePan={false}
-            minDistance={2.2}
-            maxDistance={9}
-            minPolarAngle={0.55}
-            maxPolarAngle={1.62}
+            minDistance={3}
+            maxDistance={9.5}
+            minPolarAngle={0.5}
+            maxPolarAngle={1.42}
             minAzimuthAngle={-1.1}
             maxAzimuthAngle={1.1}
             enableDamping
@@ -101,17 +103,17 @@ export function VirgilRoom() {
           <span className="room-controls-label">Orrery</span>
           <button
             type="button"
-            className={orreryMode === 'metal' ? 'is-active' : ''}
-            onClick={() => setOrreryMode('metal')}
-          >
-            Metal
-          </button>
-          <button
-            type="button"
             className={orreryMode === 'light' ? 'is-active' : ''}
             onClick={() => setOrreryMode('light')}
           >
             Light
+          </button>
+          <button
+            type="button"
+            className={orreryMode === 'metal' ? 'is-active' : ''}
+            onClick={() => setOrreryMode('metal')}
+          >
+            Metal
           </button>
           <span className="room-controls-hint">Drag to look around. Scroll to move closer.</span>
         </div>

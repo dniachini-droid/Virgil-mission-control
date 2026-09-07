@@ -1,8 +1,11 @@
 /**
- * Screenshots the built Owner Build's room from a few angles, for catching
- * gross errors only — a black frame, Virgil buried in the floor, nothing in
- * shot. This container renders in software (SwiftShader) and the captures are
- * not evidence of how it looks; see docs/process/PHASE_1_HOW_TO_LOOK.md.
+ * Screenshots the built Owner Build's room, for catching gross errors only —
+ * a black frame, Virgil buried in the floor, a ring through his body, nothing
+ * in shot. This container renders in software (SwiftShader) and the captures
+ * are not evidence of how it looks; see docs/process/PHASE_1_HOW_TO_LOOK.md.
+ *
+ * The default view is captured at several moments so the orrery's tracks are
+ * seen at different rotation phases, and from two orbit positions.
  *
  * Usage: pnpm --filter mission-control build:owner && tsx e2e/capture-room.ts <outDir> [orbit]
  */
@@ -32,12 +35,15 @@ page.on('pageerror', (e) => errors.push(String(e)));
 await page.goto(fileUrl, { waitUntil: 'load' });
 await page.waitForFunction(() => '__virgilRoomReady' in window, undefined, { timeout: 180_000 });
 await page.waitForTimeout(2500);
+await page.screenshot({ path: resolve(outDir, 'room-light-a.png') });
+await page.waitForTimeout(4000);
+await page.screenshot({ path: resolve(outDir, 'room-light-b.png') });
+await page.getByRole('button', { name: 'Metal' }).click();
+await page.waitForTimeout(2500);
 await page.screenshot({ path: resolve(outDir, 'room-metal.png') });
 await page.getByRole('button', { name: 'Light' }).click();
-await page.waitForTimeout(2500);
-await page.screenshot({ path: resolve(outDir, 'room-light.png') });
+await page.waitForTimeout(1500);
 if (orbit) {
-  await page.getByRole('button', { name: 'Metal' }).click();
   const canvas = page.locator('canvas');
   const box = await canvas.boundingBox();
   if (box) {

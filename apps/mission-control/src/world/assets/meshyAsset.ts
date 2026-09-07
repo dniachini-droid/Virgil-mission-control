@@ -146,15 +146,17 @@ async function build(metadata: MeshyAssetMetadata, base64: string): Promise<Mesh
   geometry.computeBoundingSphere();
   geometry.computeBoundingBox();
 
+  // The normal map is optional: the porthole frame ships without one.
+  const hasNormalMap = metadata.payload.sections.map_normal !== undefined;
   const [map, metallicRoughness, normalMap] = await Promise.all([
     decodeTexture(metadata, buffer, 'map_base_color', SRGBColorSpace),
     decodeTexture(metadata, buffer, 'map_metallic_roughness', LinearSRGBColorSpace),
-    decodeTexture(metadata, buffer, 'map_normal', LinearSRGBColorSpace),
+    hasNormalMap ? decodeTexture(metadata, buffer, 'map_normal', LinearSRGBColorSpace) : null,
   ]);
 
   const material = new MeshStandardMaterial({
     map,
-    normalMap,
+    normalMap: normalMap ?? null,
     // One glTF metallic-roughness image serves both channels: three.js reads
     // roughness from green and metalness from blue.
     roughnessMap: metallicRoughness,

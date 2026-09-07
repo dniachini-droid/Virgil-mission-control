@@ -6,11 +6,12 @@ import { layout, room } from './palette.js';
 
 /**
  * The room itself: the reflective floor with its inlaid rings and star, the
- * back wall with the circular window aperture, the parapet under the glass,
- * side walls, ceiling, and the warm coves that make the room's own light.
+ * back wall with the circular aperture the owner's porthole frame sits in,
+ * the sill under the glass, side walls, ceiling, and the warm coves that make
+ * the room's own light.
  *
  * Surfaces are cream, gold and brass only. Teal and magenta never appear here
- * as a material colour; they arrive through the aperture from `SpaceBeyond`.
+ * as a material colour; they arrive through the aperture from `WindowView`.
  *
  * The floor is where the reference earns its warmth: polished stone carrying
  * the amber of the consoles and the coves back up into the frame, with the
@@ -27,7 +28,7 @@ export function RoomShell() {
       <Floor coarse={coarse} />
       <FloorInlay coarse={coarse} />
       <BackWall coarse={coarse} />
-      <Parapet />
+      <Sill />
       <SideWallsAndCeiling />
       <Coves coarse={coarse} />
     </group>
@@ -36,23 +37,31 @@ export function RoomShell() {
 
 function Floor({ coarse }: { coarse: boolean }) {
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-      <circleGeometry args={[layout.floorRadius, coarse ? 32 : 64]} />
+    <mesh
+      position={[0, 0, (layout.backWallZ + layout.wallZ) / 2]}
+      rotation={[-Math.PI / 2, 0, 0]}
+      receiveShadow
+    >
+      {/* A rectangle inside the walls, not a disc: a floor that ran on past
+          the wall showed through the aperture in V1. */}
+      <planeGeometry args={[2 * layout.sideWallX, layout.backWallZ - layout.wallZ]} />
       {/* Cream stone, polished. `mirror` short of 1 keeps the base colour in
           the surface; the blur spreads the reflection the way a waxed floor
-          does rather than a mirror. */}
+          does rather than a mirror. The depth-driven blur is what stops the
+          bright lower window reflecting as a hard hot patch (V1's flaw): the
+          further the reflected thing is from the floor, the softer it gets. */}
       <MeshReflectorMaterial
         color={room.surface.creamShadow}
         resolution={coarse ? 512 : 1024}
-        mirror={0.4}
-        mixBlur={1}
-        mixStrength={0.7}
-        blur={[320, 120]}
-        depthScale={0.9}
-        minDepthThreshold={0.6}
-        maxDepthThreshold={1.6}
-        depthToBlurRatioBias={0.25}
-        roughness={0.35}
+        mirror={0.35}
+        mixBlur={2.2}
+        mixStrength={0.55}
+        blur={[700, 260]}
+        depthScale={1.4}
+        minDepthThreshold={0.4}
+        maxDepthThreshold={1.2}
+        depthToBlurRatioBias={0.6}
+        roughness={0.45}
         metalness={0.05}
       />
     </mesh>
@@ -126,7 +135,7 @@ function FloorInlay({ coarse }: { coarse: boolean }) {
           <ringGeometry args={[r, r + w, segments]} />
         </mesh>
       ))}
-      {/* The star, in the foreground where the low camera sees it. */}
+      {/* The star, in the foreground where the camera sees it. */}
       <mesh
         geometry={star}
         material={gold}
@@ -142,8 +151,10 @@ function FloorInlay({ coarse }: { coarse: boolean }) {
 }
 
 /**
- * The back wall is one shape with a circular hole: the aperture is what crops
- * the galaxy, so there is no separate mask and no seam.
+ * The back wall is one shape with a circular hole cut to the porthole's
+ * measured aperture: the frame model (`Models.tsx`) sits in it, so nothing
+ * code-built rings the window any more, and the hole is what crops the
+ * galaxy — there is no separate mask.
  */
 function BackWall({ coarse }: { coarse: boolean }) {
   const geometry = useMemo(() => {
@@ -158,7 +169,7 @@ function BackWall({ coarse }: { coarse: boolean }) {
     hole.absarc(
       layout.windowCentre[0],
       layout.windowCentre[1],
-      layout.windowRadius,
+      layout.apertureRadius,
       0,
       Math.PI * 2,
       true,
@@ -167,33 +178,16 @@ function BackWall({ coarse }: { coarse: boolean }) {
     return new THREE.ShapeGeometry(shape, coarse ? 32 : 96);
   }, [coarse]);
 
-  const [wx, wy, wz] = layout.windowCentre;
-  const ringSegments = coarse ? 48 : 128;
+  const wz = layout.windowCentre[2];
   return (
     <group>
       <mesh geometry={geometry} position={[0, 0, layout.wallZ]} receiveShadow>
         <meshStandardMaterial color={room.surface.cream} roughness={0.75} metalness={0.02} />
       </mesh>
-      {/* The gold bezel round the aperture, and the broad cream arch outside
-          it: the reference frames the window in exactly this pairing. */}
-      <mesh position={[wx, wy, wz + 0.04]}>
-        <torusGeometry args={[layout.windowRadius + 0.06, 0.11, 12, ringSegments]} />
-        <meshStandardMaterial color={room.surface.gold} roughness={0.28} metalness={0.95} />
-      </mesh>
-      <mesh position={[wx, wy, wz + 0.02]}>
-        <ringGeometry
-          args={[layout.windowRadius + 0.17, layout.windowRadius + 0.95, ringSegments]}
-        />
-        <meshStandardMaterial color={room.surface.ivory} roughness={0.6} metalness={0.05} />
-      </mesh>
-      <mesh position={[wx, wy, wz + 0.05]}>
-        <torusGeometry args={[layout.windowRadius + 0.95, 0.05, 8, ringSegments]} />
-        <meshStandardMaterial color={room.surface.brass} roughness={0.35} metalness={0.9} />
-      </mesh>
-      {/* Pilasters either side of the window, floor to ceiling, so the wall
+      {/* Pilasters either side of the porthole, floor to ceiling, so the wall
           has the vertical rhythm of the reference's arches. */}
       {[-1, 1].map((side) => (
-        <group key={side} position={[side * (layout.windowRadius + 1.75), 0, wz + 0.25]}>
+        <group key={side} position={[side * (layout.apertureRadius + 2.6), 0, wz + 0.25]}>
           <mesh position={[0, layout.ceilingY / 2, 0]} castShadow receiveShadow>
             <boxGeometry args={[0.42, layout.ceilingY, 0.42]} />
             <meshStandardMaterial color={room.surface.ivory} roughness={0.6} metalness={0.05} />
@@ -204,36 +198,28 @@ function BackWall({ coarse }: { coarse: boolean }) {
           </mesh>
         </group>
       ))}
-      {/* Glazing bars: two thin gold ribs across the glass, offset from the
-          centre so they never cross Virgil's face from the authored camera. */}
-      {[-0.55, 0.62].map((t) => (
-        <mesh key={t} position={[wx + t * layout.windowRadius, wy, wz + 0.02]}>
-          <boxGeometry args={[0.05, 2 * Math.sqrt(1 - t * t) * layout.windowRadius + 0.1, 0.05]} />
-          <meshStandardMaterial color={room.surface.gold} roughness={0.3} metalness={0.95} />
-        </mesh>
-      ))}
     </group>
   );
 }
 
-/** The low wall under the window, with a warm cove along its top edge. */
-function Parapet() {
-  const width = 2 * (layout.windowRadius + 1.4);
+/** The low sill under the porthole, with a warm cove along its front edge. */
+function Sill() {
+  const width = 2 * (layout.apertureRadius + 2.2);
+  const depth = layout.parapetZ - layout.wallZ;
   return (
-    <group position={[0, 0, layout.parapetZ]}>
+    <group position={[0, 0, layout.parapetZ - depth / 2]}>
       <mesh position={[0, layout.parapetHeight / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[width, layout.parapetHeight, layout.wallZ * -1 + layout.parapetZ]} />
+        <boxGeometry args={[width, layout.parapetHeight, depth]} />
         <meshStandardMaterial color={room.surface.creamShadow} roughness={0.7} metalness={0.03} />
       </mesh>
       <mesh position={[0, layout.parapetHeight + 0.03, 0.02]}>
-        <boxGeometry args={[width + 0.1, 0.06, 0.9]} />
+        <boxGeometry args={[width + 0.1, 0.06, depth + 0.1]} />
         <meshStandardMaterial color={room.surface.goldBright} roughness={0.45} metalness={0.6} />
       </mesh>
-      {/* The cove: an emissive strip along the front edge. */}
-      <mesh position={[0, layout.parapetHeight - 0.07, 0.24]}>
+      <mesh position={[0, layout.parapetHeight - 0.07, depth / 2 + 0.01]}>
         <boxGeometry args={[width - 0.3, 0.03, 0.02]} />
         {/* Tone-mapped and only moderately over 1.0: untone-mapped this
-            strip reflected in the floor as a white flare (observed). */}
+            strip reflected in the floor as a white flare. */}
         <meshStandardMaterial color="#000000" emissive={room.warm.cove} emissiveIntensity={2.4} />
       </mesh>
     </group>
@@ -275,9 +261,9 @@ function SideWallsAndCeiling() {
 
 /**
  * The warm coves: a ring in the ceiling and two strips along the side walls.
- * Emissive, untone-mapped, so the bloom and the floor reflection both read
- * them as light. The `pointLight`s in `LightingRig` are what actually light
- * the room; these are what the owner sees as the source.
+ * Emissive, so the bloom and the floor reflection both read them as light.
+ * The lights in `LightingRig` are what actually light the room; these are
+ * what the owner sees as the source.
  */
 function Coves({ coarse }: { coarse: boolean }) {
   const segments = coarse ? 48 : 128;

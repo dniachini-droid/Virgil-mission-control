@@ -24,8 +24,8 @@ export function LightingRig() {
   const { tier } = useSettings();
   const coarse = tier === 'constrained' || tier === 'mobile';
   const [wx, wy, wz] = layout.windowCentre;
-  const [vx, , vz] = layout.virgilAt;
-  const [cx, cy, cz] = layout.orreryAt;
+  const [vx, vy, vz] = layout.virgilAt;
+  const [cx, , cz] = layout.consoleCentre;
 
   return (
     <group>
@@ -43,36 +43,37 @@ export function LightingRig() {
         shadow-mapSize={[coarse ? 512 : 2048, coarse ? 512 : 2048]}
         shadow-bias={-0.0004}
         shadow-normalBias={0.02}
-        target-position={[vx, 1.0, vz + 1.2]}
+        target-position={[vx, vy + 0.9, vz]}
       />
       {/* Warm second key from the right, lower and weaker, so his face is not
           a single hard slope of light. */}
       <spotLight
         color={room.warm.amber}
-        intensity={28}
+        intensity={22}
         position={[3.4, 3.8, 1.2]}
         angle={0.6}
         penumbra={0.8}
         decay={2}
-        distance={18}
-        target-position={[vx, 1.1, vz]}
+        distance={10}
+        target-position={[vx, vy + 1.0, vz]}
       />
-      {/* The console's practicals: amber from the panels up into his chest and
-          the underside of his face, which is where the reference's warmth on
-          him comes from. Two lights, offset, so the uplight has a direction. */}
+      {/* The console's practicals: the screen arc is on the near side now,
+          facing him, so its amber comes up into his chest and the underside
+          of his face from in front — the reference's uplight. Two lights,
+          offset, so it has a direction. */}
       <pointLight
         color={room.warm.amberDeep}
         intensity={3.5}
         distance={6}
         decay={2}
-        position={[cx - 0.7, cy + 0.25, cz + 0.9]}
+        position={[cx - 0.6, 0.85, cz + 1.0]}
       />
       <pointLight
         color={room.warm.amber}
         intensity={2.5}
         distance={6}
         decay={2}
-        position={[cx + 0.8, cy + 0.25, cz + 0.6]}
+        position={[cx + 0.7, 0.85, cz + 1.0]}
       />
       {/* The cool side. A directional from beyond the window, low enough to
           come through the aperture and catch the top of his crown and the gold
@@ -81,16 +82,18 @@ export function LightingRig() {
         color={room.cool.window}
         intensity={2.6}
         position={[wx + 1.5, wy + 2.5, wz - 6]}
-        target-position={[vx, 1.2, vz]}
+        target-position={[vx, vy + 1.3, vz]}
       />
-      {/* Violet fill from the window centre, so the shadow side of everything
-          the window sees goes blue instead of black. */}
+      {/* Violet fill from beyond the aperture, so the shadow side of everything
+          the window sees goes blue instead of black. Placed outside the wall:
+          sitting just inside it, it lit the sill so hard that the sill's
+          reflection in the floor read as a lilac hot patch (V1's flaw). */}
       <pointLight
         color={room.cool.violet}
-        intensity={11}
-        distance={16}
+        intensity={14}
+        distance={18}
         decay={2}
-        position={[wx, wy, wz + 0.6]}
+        position={[wx, wy + 1.6, wz - 3.5]}
       />
       {/* Ambient: warm above and below. The walls are cream and the coves are
           amber, so the room's own ambient is warm; the cool arrives only

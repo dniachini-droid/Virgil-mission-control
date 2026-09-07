@@ -1,12 +1,15 @@
 /**
  * Builds a runtime asset payload from one committed Meshy model candidate.
  *
- * This generalises the earlier `reduce-virgil.mjs` to the three models the
- * room needs — Virgil, the console dais and the armillary orrery — which all
- * arrive from the same generator with the same shape: one mesh, one primitive,
- * one material, three embedded 2048² JPEGs, `doubleSided: true`, no factors on
- * the material, and a bounding box normalised to a 2-unit cube centred on the
- * origin.
+ * This generalises the earlier `reduce-virgil.mjs` to the models the room
+ * needs — Virgil, the console dais, the armillary orrery and the porthole
+ * frame. The first three arrive from `meshy-scene` with the same shape: one
+ * mesh, one primitive, one material, three embedded 2048² JPEGs,
+ * `doubleSided: true`, no factors on the material, and a bounding box
+ * normalised to a 2-unit cube centred on the origin. The porthole went through
+ * Blender (`Khronos glTF Blender I/O`): PNG images, no normal map, indices
+ * already `UNSIGNED_SHORT`, a node with no transform. Nothing here assumes the
+ * generator; every property used is read from the file and checked.
  *
  * Input:  `assets/models/candidates/<file>.glb`, read only and never written.
  *         Each is the source of record and stays byte for byte as the owner
@@ -77,9 +80,9 @@ const MODELS = {
     outDir: 'src/world/virgil',
     target: {
       axis: 'y',
-      metres: 1.65,
+      metres: 1.8,
       reason:
-        'The 2.000 m source height is unit-box normalisation. 1.65 m puts the console top across his lower chest as the reference does, and keeps his eye line above the orrery so one low camera holds both.',
+        'The 2.000 m source height is unit-box normalisation. V1 used 1.65 m; the owner asked for him a little bigger and V2 makes him the centre of the orrery, which argues for more presence. At 1.8 m standing on the console well floor (0.35 m) his head reaches 2.15 m, above the near screen arc and against the window, and the rings at chest height still clear the console rim.',
     },
     // Virgil is the hero and nearest the camera: 1024 for the two maps whose
     // detail shows, 512 for metallic-roughness, which is two smooth masks.
@@ -108,6 +111,24 @@ const MODELS = {
       metallic_roughness: { size: 512, quality: 0.75 },
     },
   },
+  porthole: {
+    source: 'assets/models/candidates/porthole-model-candidate-01.glb',
+    expectedSha: '59a8b86ed5f986027f2e1104a0dd738d0baa9d3142dc2f0c76049ac7f0a7acb0',
+    outDir: 'src/world/props',
+    target: {
+      axis: 'x',
+      metres: 11.0,
+      reason:
+        'The 1.9 m source width is a normalised export, not a size. The measured hole is about 60 % of the width, so 11.0 m across gives an aperture of roughly 3.3 m radius — the window the owner approved in V1 — with the frame band filling the remaining 2.2 m to the wall.',
+    },
+    // Two maps only, no normal map in the source. Base colour at 1024 because
+    // the band is large on screen; metallic-roughness is smooth and 512 is
+    // plenty (the source PNG is 11.5 MB for what is mostly flat values).
+    textures: {
+      base_color: { size: 1024, quality: 0.8 },
+      metallic_roughness: { size: 512, quality: 0.75 },
+    },
+  },
   orrery: {
     source: 'assets/models/candidates/orrery-model-candidate-01.glb',
     expectedSha: 'a3d859613825199019b36c386f843a372249165a311d069d5b8825ef9454d2e8',
@@ -118,12 +139,13 @@ const MODELS = {
       reason:
         'The 2.000 m source height is unit-box normalisation. Standing on the console’s well floor (measured 0.35 m), 1.1 m lifts the sphere just clear of the 0.93 m screen arc and keeps it below a 1.65 m Virgil’s chin, so it reads against his chest as the reference’s orrery does.',
     },
-    // Thin rings and a stand: the base colour carries the brass; 512 is enough
-    // for a normal map on members this narrow on screen.
+    // The owner prefers the light orrery (V2), so this is the alternative
+    // behind a switch and is reduced harder: 512 base colour on members this
+    // narrow on screen, 256 for the two smooth masks.
     textures: {
-      base_color: { size: 1024, quality: 0.78 },
-      normal: { size: 512, quality: 0.85 },
-      metallic_roughness: { size: 512, quality: 0.75 },
+      base_color: { size: 512, quality: 0.74 },
+      normal: { size: 256, quality: 0.8 },
+      metallic_roughness: { size: 256, quality: 0.72 },
     },
   },
 };
@@ -246,6 +268,13 @@ async function reduce(name, model) {
       if (v > max[c]) max[c] = v;
     }
   }
+  // The smallest distance from the model's axis in its own XY plane: for a
+  // ring this is the radius of the hole, which the wall aperture is cut to.
+  let minRadiusXY = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < position.count; i += 1) {
+    const r = Math.hypot(position.array[i * 3], position.array[i * 3 + 1]);
+    if (r < minRadiusXY) minRadiusXY = r;
+  }
   let maxIndex = 0;
   for (let i = 0; i < index.array.length; i += 1) {
     if (index.array[i] > maxIndex) maxIndex = index.array[i];
@@ -303,8 +332,24 @@ async function reduce(name, model) {
       material.pbrMetallicRoughness?.metallicRoughnessTexture,
       'metallicRoughnessTexture',
     ),
-    normal: imageFor(material.normalTexture, 'normalTexture'),
   };
+  // A normal map is optional in the source (the porthole has none); the plan
+  // must agree with the file either way, so a mismatch is an error, not a skip.
+  if (material.normalTexture) maps.normal = imageFor(material.normalTexture, 'normalTexture');
+  for (const key of Object.keys(model.textures)) {
+    if (!maps[key]) fail(`${name}: texture plan names "${key}" but the source has no such map`);
+  }
+  for (const key of Object.keys(maps)) {
+    if (!model.textures[key]) fail(`${name}: source has "${key}" but the texture plan omits it`);
+  }
+  const node = gltf.nodes?.[gltf.scenes?.[0]?.nodes?.[0] ?? 0] ?? {};
+  const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  const nodeIsIdentity =
+    !node.translation &&
+    !node.rotation &&
+    !node.scale &&
+    (!node.matrix || node.matrix.every((v, i) => Math.abs(v - identity[i]) < 1e-9));
+  if (!nodeIsIdentity) fail(`${name}: node carries a transform; not handled`);
 
   // --------------------------------------------- re-encode through Chromium
 
@@ -416,14 +461,17 @@ async function reduce(name, model) {
       maxIndex,
       boundsMin: min,
       boundsMax: max,
+      minRadiusXY,
       sourceDoubleSided: material.doubleSided === true,
       sourceHasTangent: tangentDropped,
+      sourceHasNormalMap: material.normalTexture !== undefined,
+      sourceIndexComponentType: index.type,
       sourceAnimations: gltf.animations?.length ?? 0,
       sourceSkins: gltf.skins?.length ?? 0,
     },
     reductions: {
       tangentDropped,
-      indicesNarrowedToU16: true,
+      indicesNarrowedToU16: index.type !== 'UNSIGNED_SHORT',
       positionQuantised: 'INT16 normalised, scaled by positionScale',
       normalQuantised: 'INT8 normalised',
       uvQuantised: 'UINT16 normalised',
@@ -481,5 +529,6 @@ async function reduce(name, model) {
   log(
     `scale ${scale.toFixed(4)} (${model.target.axis} -> ${model.target.metres} m), baseOffsetY ${(-min[1] * scale).toFixed(4)}`,
   );
+  log(`minRadiusXY ${minRadiusXY.toFixed(4)} (${(minRadiusXY * scale).toFixed(3)} m at scale)`);
   log(`source   ${file.length} B unchanged at ${sourcePath}`);
 }
