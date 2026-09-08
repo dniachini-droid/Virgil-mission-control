@@ -295,6 +295,41 @@ Recorded as direction the owner gave, not as decisions. None of it is a decision
   the after frames use the identical entry points. The comparison is registered before the change rather
   than chosen after it.
 
+- **A fast replay of a real run — the owner's direction of 8 September, queued behind V9.** His words:
+  *"once this is all done, queue up a job that runs an example script (just take one from this chat
+  window) - but not normal speed. Make it faster so I can see. With the new text on screens too."*
+
+  What it is: the world plays a **run that actually happened**, at faster than real time, with V9's
+  screens, ledger and panel carrying its real content.
+
+  **This changes the nature of what is on screen, and the labelling must change with it.** Every
+  viewing point so far has been a scripted demonstration of invented content, marked
+  `ILLUSTRATIVE · NOT REAL STATE`. A replay of a real run is not illustrative — it is real evidence,
+  played back. Keeping the old band would understate the truth as badly as dropping it would overstate
+  it. The band must say what the thing actually is: a replay of a recorded run, not live state.
+
+  **The source must be the repository's own record, not this chat.** `docs/process/PHASE_1_RUN_RECORD.md`
+  carries, for V8 through V8.3, the real commit SHAs, the real measurements and the check output as
+  printed; `docs/process/PHASE_0_RUN_RECORD.md` and `docs/decisions/OD-0004` carry the Phase 0
+  consolidation and the Keeper's verdict on candidate `3b9a964e7de4c53560fd3128090cdba39b005c6c`. Those
+  are committed and traceable; a chat transcript is not. Every line the replay shows should be
+  answerable with "where in the repository does this come from".
+
+  **The trap to avoid, and it is the interesting one.** The V8.x passes had a builder and deterministic
+  checks but **no independent review hop** — no Keeper reviewed V8.1, V8.2 or V8.3. If the replay of one
+  of those runs shows a Keeper row with a verdict, it is a lie, and precisely the class of lie the owner
+  caught in V7 when a slab said "awaiting review" during a build. Two honest options, and the pass should
+  choose one with a stated reason:
+  1. **Replay a V8.x pass and show the missing hop as missing** — the ledger reads the Fabricator, the
+     checks, and then no review. Truthful, and it surfaces a real gap in how this project has been
+     working, which is worth the owner seeing.
+  2. **Replay the Phase 0 consolidation**, which is a complete loop with a real candidate SHA, a real
+     Keeper verdict of `PASS_WITH_NON_BLOCKING_FINDINGS`, real findings (KR-01, KR-02, KR-04, KR-05) and
+     the owner's real disposition in OD-0004.
+
+  Also required: **a speed control** — fast by default, since that is what he asked for, but able to slow
+  down so a beat can be looked at rather than only glimpsed.
+
 ## Waiting on the owner
 
 - **Delete the scratch branch `claude/ci-failure-demo`** — needs owner. One commit on top of `dd2c48f` carrying a deliberate external `fetch()`, pushed on 2026-09-08 to prove CI fails on a network escape (it did). The session cannot remove it: `git push origin --delete` returns 403 and the REST ref deletion is refused by the proxy. One `git push origin --delete claude/ci-failure-demo` from a machine that can. Nothing from it is merged.
