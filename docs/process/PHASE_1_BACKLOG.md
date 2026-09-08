@@ -160,8 +160,34 @@ Recorded as direction the owner gave, not as decisions. None of it is a decision
   added download. It must keep V7's reason for existing: the boundary comes from the head's own
   painted triangles, which is what stopped the visor reading as pasted on in V6.
 
-- **A persistent ledger on Virgil's far-left screen — the owner's direction of 8 September. Next pass,
-  ahead of the visors.** His words: *"if im not looking at the screen the moment an agent is giiven a
+  **Built in the V8.3 pass of 8 September** (`src/world/characters/visorSmooth.ts`;
+  `docs/process/PHASE_1_RUN_RECORD.md`, "V8.3"). Two levels of Loop subdivision with the boundary
+  pinned: the facet goes 47.7 → 11.30, 34.6 → 8.29, 39.3 → 9.16 and 43.5 → 10.33 mm, the outline
+  moves 23–108 **nanometres** and its total length is unchanged to six decimal places, and a
+  per-vertex lift with a bounded slope clears the head's own facets (2.1–4.7 mm of them) without
+  putting a step round the pinned rim. No sphere is fitted and nothing is snapped to one.
+  **23,184 triangles in the four faces and the same again in their glass — 43,470 more than the 2,898
+  they replace, and no added download**; `mobile` and `constrained` get one level rather than two,
+  because two is 36.2 % of the constrained tier's 120k triangles for four faces ten pixels across.
+
+  **Two things this entry got wrong, corrected with numbers.** The convexity check — a quadric fitted
+  over a fixed 25 mm radius, never a sphere — finds the **Prover the most convex of the three role
+  visors** (95.1 % of patches) and the **Keeper the one that is not** (49.0 %, worst wrong-way
+  curvature 539 /m, largest quadric residual at 1.38 mm: his selection includes a fold in his hood).
+  His 154.53 mm best-fit-sphere residual measures how far from *spherical* his band is, not how far
+  from *convex*, and the same is true of the wide spread of his triangle normals. No visor needed its
+  own treatment, because subdividing with a pinned boundary preserves whatever shape it is given and
+  assumes no cap. And the concavity that remains is the owner's own design; flattening it would be the
+  deformation this entry forbids, so it is reported per visor instead of forced.
+
+  **A dimple correction was written, measured and removed**: moving a dimpled vertex onto a quadric
+  fitted to its neighbourhood changed the dimple count by a few per cent, made the worst one worse as
+  often as better, and tripled the time. The subdivision is what removes the facets.
+
+- **A persistent ledger on Virgil's far-left screen — the owner's direction of 8 September. Still
+  open.** *(This entry said "next pass, ahead of the visors". The order went the other way: the owner
+  put the glass and the visors first, and V8.3 built them. Nothing here changed; the ledger has not
+  been begun.)* His words: *"if im not looking at the screen the moment an agent is giiven a
   job, i'll miss the 'receiiving' animaton, or when it gets back to virgil, the 'pass' animation. So Im
   thining.... the screen on the far left (virgils far left screen) should really have a list of the
   agents used, and next to it the outcome, and that updates (with fancy animations) as it happens, but
@@ -242,6 +268,14 @@ Recorded as direction the owner gave, not as decisions. None of it is a decision
   that collapse to one on a phone. **The decision the item exists for is now decidable by looking, and
   the frames say: the consoles no longer look dead, and they still show their faceting where the new
   highlight crosses a decimated edge.** Nothing here is measured for speed; OD-0005 still applies.
+
+  **The wash this entry's fourth change ran into is fixed in V8.3.** V8.2 tried raising the baked
+  environment, saw every screen and every visor come back grey-brown, reverted it and recorded the
+  cause — the set's one glass is additive and reflects the environment. That was the diagnosis and not
+  the fix, and the screens stayed grey: measured on the committed V8.2 artifact, the picture's own
+  near-black ink read at **luminance 93–99 of 255**. V8.3 shapes the glass's environment term by angle
+  instead of turning the environment down, and the same rectangles now read **39–40** (the centre slab
+  56, which is the verdict's own green and not the glass). See `PHASE_1_RUN_RECORD.md`, "V8.3", item 1.
 
   **The A/B must isolate the lighting, so its "before" frames come from the V8.1 build, not from V8.**
   V8.1 replaces the console screens with fitted flat planes; a comparison taken against V8 would show

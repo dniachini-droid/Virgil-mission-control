@@ -127,6 +127,7 @@ export function slabPlan(width: number, height: number) {
   // never seen.
   const overhang = (bezel * 0.5) / 2;
   const displayWidth = width + bezel * 0.5;
+  const displayHeight = height + bezel * 0.5;
   return {
     bezel,
     plate: 0.05,
@@ -139,7 +140,7 @@ export function slabPlan(width: number, height: number) {
     radius,
     openingRadius,
     displayWidth,
-    displayHeight: height + bezel * 0.5,
+    displayHeight,
     /**
      * The corner radius the picture is laid out inside, in the canvas's own
      * pixels, measured from the **canvas's** edge rather than the opening's:
@@ -148,9 +149,29 @@ export function slabPlan(width: number, height: number) {
      * is the conservative direction, and `test/console-screens.test.ts`
      * checks the band's words against the real opening.
      */
-    cornerPixels: ((openingRadius + overhang) / displayWidth) * 1024,
+    cornerPixels: ((openingRadius + overhang) / displayWidth) * SLAB_CANVAS_PIXELS,
+    /**
+     * **The canvas is drawn at the display plane's aspect, not the
+     * opening's (V8.3).** It is mapped onto a plane `displayWidth` by
+     * `displayHeight`, and it was sized `width` by `height` — the opening's
+     * — so a 1.3 × 0.8 m opening behind a 1.36 × 0.86 m plane stretched the
+     * whole picture horizontally by **2.78 %**: every letter, the verdict
+     * ring out of round, the honesty band's four words wider than they were
+     * set. V8.1 fixed exactly this fault for the consoles' screens
+     * (`screenPlane.ts`); V8.2 measured it here, recorded it in the run
+     * record and left it as outside its two items. It is inside this one,
+     * because it is the same surface.
+     */
+    canvasWidthPixels: SLAB_CANVAS_PIXELS,
+    canvasHeightPixels: Math.max(
+      64,
+      Math.round((SLAB_CANVAS_PIXELS * displayHeight) / displayWidth),
+    ),
   };
 }
+
+/** The width of a slab's canvas, in pixels. Its height follows the display plane's aspect. */
+export const SLAB_CANVAS_PIXELS = 1024;
 
 function Slab({
   width,
@@ -161,7 +182,8 @@ function Slab({
   height: number;
   texture: THREE.Texture;
 }) {
-  const { bezel, plate, recess, bulge, radius, openingRadius } = slabPlan(width, height);
+  const { bezel, plate, recess, bulge, radius, openingRadius, displayWidth, displayHeight } =
+    slabPlan(width, height);
   const { front, shell, glass } = useMemo(() => {
     const outer = roundedRect(width + 2 * bezel, height + 2 * bezel, radius);
     outer.holes.push(roundedRectPath(width, height, openingRadius));
@@ -208,9 +230,11 @@ function Slab({
       >
         <meshStandardMaterial color={room.surface.castCream} roughness={0.55} metalness={0} />
       </mesh>
-      {/* The display, under the glass: a little wider than the opening so its edges hide behind the lip. */}
+      {/* The display, under the glass: a little wider than the opening so its
+          edges hide behind the lip. Its plane's own size, which the canvas
+          is now drawn at (V8.3). */}
       <mesh position={[0, 0, -recess]}>
-        <planeGeometry args={[width + bezel * 0.5, height + bezel * 0.5]} />
+        <planeGeometry args={[displayWidth, displayHeight]} />
         <meshBasicMaterial map={texture} toneMapped={false} />
       </mesh>
       {/* The glass, curved outwards. */}
@@ -266,17 +290,19 @@ function Panel({
   // them and never in the fallback.
   use(loadScreenFonts());
   const { reducedMotion } = useSettings();
+  const plan = useMemo(() => slabPlan(width, height), [width, height]);
   const { canvas, texture } = useMemo(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = Math.round((1024 * height) / width);
+    // The display plane's aspect, not the opening's: see `slabPlan`.
+    canvas.width = plan.canvasWidthPixels;
+    canvas.height = plan.canvasHeightPixels;
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = false;
     return { canvas, texture };
-  }, [width, height]);
+  }, [plan]);
   const clock = useRef({ t: 0, last: -1 });
 
   useFrame((_, delta) => {
@@ -284,7 +310,7 @@ function Panel({
     if (!reducedMotion) c.t += Math.min(delta, 0.1);
     if (c.last >= 0 && c.t - c.last < 1 / fps) return;
     c.last = c.t;
-    draw(canvas, c.t, slabPlan(width, height).cornerPixels);
+    draw(canvas, c.t, plan.cornerPixels);
     texture.needsUpdate = true;
   });
 

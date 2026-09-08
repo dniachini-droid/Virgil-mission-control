@@ -25,7 +25,7 @@ const sha = process.env.VIRGIL_OWNER_SHA ?? git(['rev-parse', 'HEAD']);
 const worktreeDirty = git(['status', '--porcelain']) !== '';
 const stage =
   process.env.VIRGIL_OWNER_STAGE ??
-  'Phase 1 S2 / viewing point V8.2 — the screens go to the edge of the model’s own opening with rounded corners, and the set is lit';
+  'Phase 1 S2 / viewing point V8.3 — the displays read black with a travelling reflection, and the four visors are smooth';
 // Overridable so that a reviewer can rebuild a delivered artifact byte for byte.
 // Without it the embedded minute is the only thing that stops the output being
 // reproducible from the commit alone.

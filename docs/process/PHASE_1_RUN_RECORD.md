@@ -1,4 +1,4 @@
-# Phase 1 run record — stage S2, viewing points V0 to V8.2
+# Phase 1 run record — stage S2, viewing points V0 to V8.3
 
 Opened 2026-09-08 by the V6 pass, on finding KR-56 of the review of `a4f8b70`: no Phase 1 run record with commit SHAs existed. Every earlier viewing point is recorded here from the repository's own history (`git log`, the committed artifacts and their `.sha256` files, the `PHASE_1_HOW_TO_LOOK_V*.md` documents); V6 is recorded from the session that built it. This is a record of what was run and what it produced. It decides nothing. It is not an event log in `packages/domain/` — the backlog item "record real runs as events" stays open, and this file is the prose that item says should be events.
 
@@ -19,6 +19,7 @@ Everything below was built and checked on a machine that renders in software. No
 | V8 | `934554159f8021478887603c9230d459eed763da` | `v8-s2-virgil-934554159f.html` | `PHASE_1_HOW_TO_LOOK_V8.md` | Symmetrical consoles carrying their own screens; the receiving and the return; four verdicts; the turn |
 | **V8.1** | **`64e2e746782930c0efc6a494177511cc54f3956c`** | **`v8-1-s2-virgil-64e2e74678.html`** | **`PHASE_1_HOW_TO_LOOK_V8.md` (V8.1 note appended)** | **Four rendering defects repaired: the close-ups reach their pose and show the whole screen, the screens are flat, the chrome is opaque** |
 | **V8.2** | **`40106793c7aff850c9a46970a17fde9d4b96b76a`** | **`v8-2-s2-virgil-40106793c7.html`** | **`PHASE_1_HOW_TO_LOOK_V8.md` (V8.2 note appended)** | **Two authorised items: the screens go to the edge of the model's own opening with the corners it has, and the set is lit** |
+| **V8.3** | **(this pass; the artifact's own commit)** | **`v8-3-s2-virgil-*.html`** | **`PHASE_1_HOW_TO_LOOK_V8.md` (V8.3 note appended)** | **Two authorised items that share one file: the displays read black with a travelling reflection, and the four visors are smooth** |
 
 The V5 source commit `868971a` and its documents were merged to `main` by the owner as pull request #7 (`90b116c`); the V6 branch was restarted forward from that merge.
 
@@ -493,3 +494,105 @@ The five registered frames were then captured again from `docs/process/PHASE_1_o
 - mobile: **134.2 % of 6 MiB, 140.7 % of 6 MB — over on both readings**, as every viewing point has been.
 
 Nothing was cut for the number.
+
+## V8.3 — the bounded visual pass of 2026-09-08, from two owner-authorised items that share one file
+
+Branch `claude/virgil-phase-1-slice`, from `547343a`. Two items and nothing else: the displays reading black with a real reflection instead of a milky wash, and the four visors made smooth. They are one pass because they are one file — `src/world/glass.ts` is shared by the three console screens, Virgil's three slabs and the four visors, eleven surfaces in all. No new direction was invented, the close-up cameras were not re-framed, the lighting V8.2 landed was not touched, and neither the ledger nor the conversation panel was begun.
+
+### Item 1 — the displays are milky grey, and the reason is arithmetic
+
+The owner's instruction for the console screens (§0.9): *"make them compleetyley black, reflective, and text sitting slightly under it."* V8.2 diagnosed why they were not and left it; this pass measured it and fixed it.
+
+**What was measured, off the committed V8.2 artifact** (`v8-2-s2-virgil-40106793c7.html`), at the registered entry points, sampling the picture's own area: the Fabricator's screen read at a **median luminance of 93.4 of 255**, the Keeper's 93.1, and Virgil's three slabs 94.2, 99.2 and 93.4 — where the picture's own background ink is `#070a18` (`draw.ts`), luminance 11. Between the ink and what the owner sees, something was adding a grey.
+
+**The cause, and it is not a taste call.** A dielectric reflects about 4 % of what it faces at normal incidence; the glass has `clearcoat: 1`, which adds a second such layer; and what these surfaces face — the screens squarely, because the close-up camera stands on the screen's own axis — is `LightingRig.tsx`'s **20 × 6 m warm panel at z = +16, directly behind the camera**. Eight per cent of a large soft warm source, added, is a full-screen milky grey, and 0.08 × the panel's radiance works out at the 93 that was measured. V8.2 met the same arithmetic from the other end when it raised the environment, saw every screen wash out, and reverted; it recorded the diagnosis and left the defect.
+
+**What was done.** Not turning the environment down, which would take the glass's reason for existing with it. The environment's contribution is **shaped by angle** (`glass.ts`, `REFLECTION_PATCH`, inserted into three.js's own physical shader after `<lights_fragment_maps>`): `radiance` and `clearcoatRadiance` are multiplied by `mix(GLASS_ENV_FACING, 1, (1 − N·V)^5)`, so a surface facing you keeps **a sixteenth** of it and one turning away keeps all of it — the display goes black across its middle and keeps its bright rim where the convex profile rolls off. And the **direct** specular, which is the room's own lamps and therefore small and sharp, is lifted 2.6× after `<lights_fragment_begin>`. Schlick's Fresnel alone is not enough and that is the point: at normal incidence it still passes the dielectric's own 4 %, and 4 % of a twenty-metre panel is the grey.
+
+**What the frames show, measured on the same rectangles at the same beats:**
+
+| surface | V8.2 median luminance | V8.3 | 
+|---|---|---|
+| the Fabricator's screen (`fab-close`, 16 s) | 93.4 | **39.9** |
+| the Keeper's screen (`keeper-close`, 46 s) | 93.1 | **39.2** |
+| Virgil's left slab (`board`, 30 s) | 94.2 | **38.9** |
+| Virgil's centre slab | 99.2 | **55.9** |
+| Virgil's right slab | 93.4 | **39.0** |
+
+The centre slab is the one that does not reach the others, and the reason is not the glass: it is the verdict's own green — the frame rule lifted for the verdict moment, the converging ring and its glow. Nothing in this pass touched it.
+
+**A floor this cannot go below, stated rather than implied.** The picture's ink is luminance 11 and the post chain (`Bloom`, `HueSaturation`, `BrightnessContrast` at `brightness 0.02, contrast −0.1`, `Noise 0.09`, `Vignette`) lifts it. Solving the two measurements for the glass's share puts the glass-free floor at about **30**, so 39 is nine levels above the darkest this pipeline can render and the remaining 8 % of the wash. Cutting `GLASS_ENV_FACING` from 0.06 to 0.03 would reach about 34 and was not done: it buys five levels and costs the mid-angle reflection.
+
+**That the highlight is a reflection and not a wash was checked by moving the camera and nothing else.** At the Fabricator's console, held at the same beat and orbited about seven degrees between frames, the specular moved from a streak at the top right of the display to a broad ellipse at the top centre with a separate dot at the top right; the console, the lights and the screen's content did not move. Two frames from that probe are in this session's working directory and are not committed; what is committed is the six registered frames, where the highlight sits differently on every surface. (The probe also found a trap worth recording: dragging on empty space fires `onPointerMissed`, which resets the view to *All*, so the first attempt at it produced a wide shot of a different console and looked like a moved highlight. The drag has to start on an object.)
+
+**What survives, and was checked in the frames rather than assumed:** the convex CRT profile, the parallax between the recessed display and the glass in front of it, the text under the glass, and the `ILLUSTRATIVE · NOT REAL STATE` band fully legible on all eleven surfaces that carry it.
+
+### Item 1's small defect — Virgil's slabs were drawn at the wrong aspect
+
+V8.2 found this while reading the slab code, measured it and left it as outside its two items. The canvas is mapped onto a display plane `bezel / 2` larger than the opening on each side — 1.36 × 0.86 m for a 1.3 × 0.8 m opening — and it was sized at the **opening's** aspect, 1024 × 630. So the whole picture was stretched horizontally by **2.78 %**: every letter, the verdict's ring out of round, the band's four words wider than they were set. It is now 1024 × **648**, the plane's own aspect, and the residual is the half pixel the integer height rounds by — 0.63 mm on a 0.86 m plane. `test/console-screens.test.ts` computes the 2.78 % from the two sizes rather than quoting it, so the fix cannot be taken on trust. This is the same fault V8.1 fixed for the consoles' screens (`screenPlane.ts`), on the authored geometry that is supposed to be their reference.
+
+### Item 2 — the visors are faceted; they are now the limit surface of their own triangles
+
+The owner: *"the agents' visors… they are not compleely smooth and black…… I wonder if we can spend a lot of time on this…. since even small inperfections make them look cheap"*, and then: *"if we replace the visors, they need to be curved like they currently are, but completley smooth, convex."*
+
+**The method** (`src/world/characters/visorSmooth.ts`): Loop subdivision of the head's own selected triangles, **two levels**, with the **boundary pinned exactly** — a boundary edge splits at its own midpoint and a boundary vertex never moves — then normals recomputed on the welded surface, then a lift that clears the head's own facets. No sphere is fitted and nothing is snapped to one: the backlog's measurement (42, 155 and 122 mm from a best-fit sphere) is the reason, and it stands.
+
+**Measured on the committed payloads, per visor, at two levels:**
+
+| | triangles | mean facet | boundary | penetration, before → after the lift | lift, peak / mean | convex patches | worst wrong-way curvature | quadric fit residual |
+|---|---|---|---|---|---|---|---|---|
+| Fabricator | 235 → **3,760** | 47.7 → **11.30 mm** | 578 points, moved **42.5 nm** | 4.67 mm → **0.04 µm** | 6.16 / 1.30 mm | **379 of 487 (77.8 %)** | 38.6 /m (p95 10.28) | 0.51 mm |
+| Prover | 207 → **3,312** | 34.6 → **8.29 mm** | 567 points, **28.4 nm** | 3.19 mm → **0.03 µm** | 4.02 / 1.10 mm | **407 of 428 (95.1 %)** | 18.3 /m (p95 0.46) | 0.30 mm |
+| Keeper | 549 → **8,784** | 39.3 → **9.16 mm** | 972 points, **23.0 nm** | 2.57 mm → **0.02 µm** | 4.65 / 0.67 mm | **1,054 of 2,149 (49.0 %)** | 539.1 /m (p95 121.33) | 1.38 mm |
+| Virgil | 458 → **7,328** | 43.5 → **10.33 mm** | 354 points, **107.6 nm** | 2.08 mm → **0.07 µm** | 2.55 / 0.76 mm | **2,346 of 2,406 (97.5 %)** | 13.4 /m (p95 0.16) | 0.16 mm |
+
+**The silhouette is provably the owner's, and that is checked twice.** `test/visor.test.ts` takes the boundary of the built face and the boundary of the mask's own triangles, welded by position, and requires every point of each to lie on the other to a micrometre; it also requires exactly `2^levels` times as many segments, because a pinned boundary splits each edge at its own midpoint and adds no length. `test/visor-smoothing.test.ts` adds the total-length check: 6.139701 m before and 6.139701 m after on the Fabricator. This is V7's reason for existing — an overlaid cap in V6 made the owner say the face looked *"pasted on"* — and it is now a stronger statement than the one it replaces, which compared twelve triangles.
+
+**The lift, and why it is a field rather than a number.** Loop's limit surface lies inside its control mesh, so the flat facet the head still draws stands 2.1–4.7 mm in front of the smoothed face and would show as black flecks across an eye. A single lift big enough for the deepest point would stand 5 mm proud of a pinned rim, which is a cap sitting on a head — the V6 fault, reintroduced. So the lift is per vertex, spread until its slope is at most 0.12, and zero at the rim: peak 2.55–6.16 mm, **mean 0.67–1.30 mm**, and the penetration afterwards is zero to within a tenth of a micrometre on all four.
+
+**Convexity, verified and not forced, with the number.** The check is a quadric fitted over a **fixed 25 mm radius** — fixed in metres, so the answer is about the shape and not the tessellation — with the band one radius wide inside the rim left out, because a patch that runs off the edge of the surface is fitted to less than a patch. A patch counts as concave when a principal curvature bends the wrong way by more than 0.5 /m, which is a bowl of radius 2 m on a face of radius 0.25 m. **The Prover and Virgil are convex** (95.1 % and 97.5 % of patches, worst 18.3 and 13.4 /m, p95 at or below 0.5). **The Fabricator is mostly convex** (77.8 %). **The Keeper is not, and it is not close**: 49.0 %, a worst of 539 /m, a 95th percentile of 121 /m, and the largest quadric residual of the four at 1.38 mm — his selection is a hood with a fold in it, not a cap. Flattening that out would be deforming a face the owner designed, which is the one thing the backlog entry forbids, so it is measured and reported instead.
+
+**The backlog's guess about the Prover is wrong, and here is the number.** The entry reads his 154.53 mm best-fit-sphere residual as *"his selection probably wraps around the sides of the head rather than being a single front-facing cap"* and asks for that to be checked before he is treated. Checked: **a sphere residual measures how far from spherical a surface is, not how far from convex.** The Prover's selection is a wide, strongly elliptical band — far from any sphere, and the most convex of the three role visors after smoothing at 95.1 %. The spread of his triangle normals (85 of 207 more than 75° from the mean) is what a wide convex dome gives too, and reading it as wrap was the same mistake. **He needed no different treatment.** The one that would have, if forcing convexity had been the method, is the Keeper. Nothing here forces convexity on anybody: subdividing with a pinned boundary preserves whatever shape it is given, so no visor needs its own method.
+
+**What was tried, measured and removed.** A dimple correction — fit a quadric to a dimpled vertex's neighbourhood and move it onto the fit — was written, run against all four payloads and deleted. It changed the count of dimpled vertices by a few per cent, made the worst dimple worse as often as better, and tripled the time. The subdivision is what removes the facets. What is left is reported: at two levels, 551 of 1,602 interior vertices on the Fabricator have a neighbour above their tangent plane (worst slope 0.598), 284 of 1,386 on the Prover (0.375), 1,829 of 3,919 on the Keeper (0.957) and 514 of 3,489 on Virgil (0.765). Those are the folds of the owner's own selections; the frames are the test of whether they matter, and they do not show.
+
+**Two defects this pass caused and fixed, recorded because both were invisible to every check until a frame was looked at.**
+
+1. **A 24 mm slit torn through the Fabricator's face.** The head mesh duplicates a vertex at a hard crease and gives the two copies opposing normals; the first implementation decided each vertex normal's direction *per wedge*, so the two copies of one point got opposite normals and the lift pushed them apart. Measured: 145 boundary edges before, **149** after, and 182 mm of boundary length that should not exist. One point, one normal — the orientation is now decided once per welded point. `test/visor-smoothing.test.ts` compares the boundary's total length, which is what caught it.
+2. **Virgil's eyes came back lumpy.** `faceUv` is a *planar* map of position, and subdivision was averaging it along each edge like every other attribute — putting each new vertex's canvas coordinate at the straight edge's midpoint while its position was at Loop's. The error is a few millimetres per facet and it showed as wobbly edges on eyes that had been clean rounded rectangles. It is now re-projected through the affine map fitted to the control mesh (`reprojectFaceUv`). With the re-projection removed the new test fails with a residual of 0.026–0.055 of the canvas — 27 to 56 pixels — which was checked by removing it.
+
+**Reduced motion still draws both faces.** Captured with `prefers-reduced-motion: reduce` at Virgil's close-up: his face and the Fabricator's and Keeper's are all present. `Visor.tsx` still has no `return null` and `test/visor.test.ts` still fails if one appears (KR-55).
+
+### The triangle count, against the tiers that have a budget
+
+Two levels put **23,184** triangles in the four faces, and the glass is the same mesh a gap in front, so it is the same again: **43,470 more than the 2,898 they replace**. Against `docs/architecture/PERFORMANCE_STRATEGY.md` — mobile ≤ 300 k, constrained ≤ 120 k — that is **14.5 % of the mobile tier and 36.2 % of the constrained tier**, which is too much of a small budget for four faces that are ten pixels across on a phone. So `mobile` and `constrained` get **one** level: 8,694 more, **7.2 %** of the constrained tier, the same shape of decision as the three rim lights collapsing to one there. `visorSubdivisions(tier)` is the whole of it and a test holds both branches.
+
+**It adds nothing to the download.** Every payload is byte-identical to V8.2: the subdivision is runtime geometry built from the masks that already ship. Building the four faces takes **179 ms** on this machine at two levels, once, at mount; the convexity verification would add another 210 ms and is off outside the tests. **None of this is a frame time.** No performance has been measured on this branch or any other, and OD-0005's two graphics-hardware checks remain **not performed**.
+
+### The A/B, at the registered entry points
+
+Registered before the change. "Before" is the committed V8.2 artifact `v8-2-s2-virgil-40106793c7.html`; "after" is this pass's build at the identical entry point, viewport, seek time and view key. The demonstration clock advances per rendered frame, so each frame was reached by polling `window.__virgilDemo`, and each view key was pressed only after that object existed and then confirmed by reading `.room-controls button.is-active`.
+
+| tag | viewport | entry | key | before, reached | after, reached | view confirmed |
+|---|---|---|---|---|---|---|
+| idle-wide | 1280 × 800 | `#/?loop=0&demo=48` | none | 51.10 s | 51.10 s | All |
+| fab-close | 1280 × 800 | `#/?loop=0&demo=13` | `2` | 16.20 s | 16.30 s | Fabricator |
+| keeper-close | 1280 × 800 | `#/?loop=0&demo=43` | `4` | 46.10 s | 46.20 s | Keeper |
+| board | 1280 × 800 | `#/?loop=0&demo=27` | `5` | 30.10 s | 30.10 s | Board |
+| virgil-face | 1280 × 800 | `#/?loop=0&demo=17` | `1` | 20.20 s | 20.20 s | Virgil |
+| idle-phone | 390 × 664 | `#/?loop=0&demo=48` | none | 51.23 s | 51.22 s | All |
+
+**What the frames show, judged honestly.** Item 1 is answered and it is not a subtle change: at the Fabricator's close-up the display goes from a grey-brown plate with white lettering floating on it to black glass with the lettering under it, a warm specular streak across the top of the curve and a second highlight where the profile rolls off; `FILES 8 · COMMITS 3`, which was lost in the grey, is legible. The Keeper's `PASS` is green on black instead of green on olive. At the Board, `VIRGIL` is white on black where it was grey on grey — the legibility fault V8.2 named and left. On the phone all three slabs read black. Item 2 is answered too, and Virgil's close-up is where it shows: the jagged shading band that ran across the top of his visor and the hard grey step below it are gone, and the surface reads as one smooth dome with a single clean highlight. The same is visible at the wide view on all three agents, smaller. **Two reservations.** The centre slab still reads olive rather than black, for the reason above, and it is the verdict's colour rather than the glass. And the visors are smooth but they are still the owner's own painted regions: where his selection folds — the Keeper most — the fold is still there, because straightening it would be redesigning his face.
+
+### Nothing was weakened to make this pass
+
+Two assertions in `test/visor.test.ts` described geometry that no longer exists and were replaced by stronger ones, and the replacement is stated here rather than buried. `expect(faceIndex.count).toBe(mask.triangles.length * 3)` is now `× 3 × 4 ** VISOR_SUBDIVISIONS`, which is exact and would fail on a lost or duplicated triangle just as the old one did. The check that the first twelve face triangles were the head's own is replaced by a two-way boundary comparison over the **whole** outline to a micrometre, plus the segment count and the total length — which is the property that assertion existed to protect and covers 145 edges where the old form covered twelve. Everything else in that file is untouched: the glass is still the face pushed out along its own normal by exactly `GLASS_GAP_M`, the face's uvs still stay on the canvas, and the flags KR-57 turns on are still checked on the objects. Nothing in `console-screens.test.ts` was removed; four tests were added for the slab canvas. Fifteen tests were added in all — ten in a new `test/visor-smoothing.test.ts`, one on the glass patch in `visor.test.ts`, four on the slab canvas in `console-screens.test.ts` — and the count goes from 386 to **401**.
+
+### What this pass did not do
+
+No performance measurement and no look on real graphics hardware; OD-0005's two checks remain **not performed**. The close-up cameras are not re-framed, so the characters are still largely cropped out of their own close-ups. Neither the ledger nor the conversation panel was begun. The CRT collapse has still never been seen by anybody in a frame. The centre slab's olive cast is not fixed and is not the glass. **One inaccuracy was found in a comment and left, because correcting it would have meant editing the lighting this pass was told not to touch:** `LightingRig.tsx` says the hemisphere light goes *"0.3 → 0.95"* in two places, and the value in the file — and in V8.2's own record — is **0.8**. The number in the code is right and the comment beside it is wrong; it is named here for the next pass in that file.
+
+### Checks run on the working tree of this commit, every one in the foreground
+
+- **`pnpm check`** with `TURBO_FORCE=true` — biome **197 files** clean, no fixes applied; `turbo run typecheck` 8 tasks; **166 tests passed** across 14 test files in `mission-control` and **235 across the five packages** (agent-contracts 70, domain 104, gate-engine 19, knowledge-graph 24, visual-language 18), **401 in total, 0 failed, 0 skipped**; then `build:owner` and `verify:owner` — `browser chromium 141.0.7390.37 — /opt/pw-browsers/chromium (preinstalled, substituted for the pinned build)`; `routes (tabletop), (retired room), #/s1, #/spike/foundry, #/spike/mind`; `requests 1, off-document 0`; `renderer ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)…), SwiftShader driver)`; footer `viewing point V8.3`; `console errors 0`; **PASS — opens from `file://`, no console errors, no off-document requests**. The same warnings printed and not failed on as in V6–V8.2: the `THREE.Clock` and `PCFSoftShadowMap` deprecations and SwiftShader's ReadPixels stalls.
+- **Mind Scan** (`pnpm --filter @virgil/knowledge-lint run lint`) — `knowledge graph: 82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `graph hash sha256:a86250498e12d01d9be701610b1947b0bec39c34739816ddb2e0334ea6e0d6d1`; **`mind scan: no findings`**.

@@ -6,6 +6,7 @@ import {
   screenPlan,
   screenUvBounds,
 } from '../screens/screenPlane.js';
+import { type SmoothingReport, smoothVisor, type WedgeMesh } from './visorSmooth.js';
 
 /**
  * Fits a face to a head's own geometry.
@@ -117,6 +118,8 @@ export interface VisorGeometry {
   glass: THREE.BufferGeometry;
   /** What was built, for a console's screen: its outline, lift and feather. */
   screen?: FlatScreen['plan'];
+  /** What the smoothing did, for a visor (`visorSmooth.ts`); absent for a screen. */
+  smoothing?: SmoothingReport;
 }
 
 /**
@@ -133,6 +136,7 @@ export function buildVisorGeometry(
   metresPerUnit: number,
   gapMetres = GLASS_GAP_M,
   flat: { toSource: THREE.Matrix4 } | null = null,
+  smoothing: { levels?: number; verify?: boolean } = {},
 ): VisorGeometry {
   // **A console's screen is drawn flat** (`screens/screenPlane.ts`): the
   // selection is still the model's, but the surface is a plane fitted to
@@ -168,7 +172,6 @@ export function buildVisorGeometry(
   }
   const count = order.length;
   const positions = new Float32Array(count * 3);
-  const glassPositions = new Float32Array(count * 3);
   const normals = new Float32Array(count * 3);
   const uvs = new Float32Array(count * 2);
   const faceUv = new Float32Array(count * 2);
@@ -188,9 +191,6 @@ export function buildVisorGeometry(
     positions[i * 3] = x;
     positions[i * 3 + 1] = y;
     positions[i * 3 + 2] = z;
-    glassPositions[i * 3] = x + n.x * gap;
-    glassPositions[i * 3 + 1] = y + n.y * gap;
-    glassPositions[i * 3 + 2] = z + n.z * gap;
     normals[i * 3] = n.x;
     normals[i * 3 + 1] = n.y;
     normals[i * 3 + 2] = n.z;
@@ -212,20 +212,177 @@ export function buildVisorGeometry(
       weights[i * 4 + 3] = skinWeight.getW(v);
     }
   }
+  // **V8.3: the visor is subdivided and smoothed with its boundary pinned**
+  // (`visorSmooth.ts`, item 2 of this pass). The owner: *"they need to be
+  // curved like they currently are, but completley smooth, convex."* The
+  // triangles above are the control mesh; what is drawn is its Loop limit
+  // surface, lifted clear of the head's own facets and checked for
+  // convexity. The boundary is the same polyline it was, so the silhouette
+  // is still the head's own painted edge — which is V7's whole reason for
+  // existing and the thing that stopped the face reading as pasted on.
+  const control: WedgeMesh = {
+    position: positions,
+    uv: uvs,
+    faceUv,
+    skinIndex: joints,
+    skinWeight: weights,
+    normalHint: normals,
+    index: faceIndex,
+    parent: mask.triangles.map((_, i) => i),
+  };
+  const smoothed = smoothVisor(control, metresPerUnit, smoothing);
+  const out = smoothed.mesh;
+  const smoothNormals = smoothed.normal;
+  // **The face's canvas coordinates are re-projected, not interpolated.**
+  // `faceUv` is a *planar* map of the mask frame's x and y, and the mask
+  // frame is an affine image of this one — a placed mesh's matrix, or a
+  // joint's inverse bind — so `faceUv` is an affine function of position and
+  // can be evaluated exactly at the new vertices. Averaging it along each
+  // edge, which is what subdivision does to every other attribute, puts each
+  // new vertex's canvas coordinate at the *straight* edge's midpoint while
+  // its position is at Loop's, and the difference is a few millimetres that
+  // vary from facet to facet: the first build of this pass had Virgil's eyes
+  // come back with wobbly, lumpy edges where they had been clean rounded
+  // rectangles. Re-projected, they are clean again.
+  reprojectFaceUv(positions, faceUv, out.position, out.faceUv);
+  // The glass is still the face pushed out along its own normal by exactly
+  // the gap — the invariant `test/visor.test.ts` has held since V7, now on
+  // the smoothed normals.
+  const glassPositions = new Float32Array(out.position.length);
+  for (let i = 0; i < out.position.length; i += 1)
+    glassPositions[i] = (out.position[i] as number) + (smoothNormals[i] as number) * gap;
   const make = (pos: Float32Array) => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    g.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
-    g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-    g.setAttribute('faceUv', new THREE.BufferAttribute(faceUv, 2));
-    if (joints) g.setAttribute('skinIndex', new THREE.BufferAttribute(joints, 4));
-    if (weights) g.setAttribute('skinWeight', new THREE.BufferAttribute(weights, 4));
-    g.setIndex(faceIndex);
+    g.setAttribute('normal', new THREE.BufferAttribute(smoothNormals, 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(out.uv, 2));
+    g.setAttribute('faceUv', new THREE.BufferAttribute(out.faceUv, 2));
+    if (out.skinIndex) g.setAttribute('skinIndex', new THREE.BufferAttribute(out.skinIndex, 4));
+    if (out.skinWeight) g.setAttribute('skinWeight', new THREE.BufferAttribute(out.skinWeight, 4));
+    g.setIndex(out.index);
     g.computeBoundingBox();
     g.computeBoundingSphere();
     return g;
   };
-  return { face: make(positions), glass: make(glassPositions) };
+  return {
+    face: make(out.position),
+    glass: make(glassPositions),
+    smoothing: smoothed.report,
+  };
+}
+
+/**
+ * Rewrites a smoothed mesh's `faceUv` as the affine map the control mesh's
+ * own `faceUv` defines, evaluated at the new positions. The map is fitted by
+ * least squares over the control vertices; it is an exact fit by
+ * construction, and if it comes back with a residual worth anything — which
+ * would mean `faceUv` is not what this file says it is — nothing is
+ * rewritten and the interpolated values stand.
+ */
+export function reprojectFaceUv(
+  controlPosition: Float32Array,
+  controlFaceUv: Float32Array,
+  position: Float32Array,
+  faceUv: Float32Array,
+): { rewritten: boolean; residual: number } {
+  const n = controlPosition.length / 3;
+  if (n < 8) return { rewritten: false, residual: Number.POSITIVE_INFINITY };
+  // Centre the control points, so the normal equations are conditioned.
+  let cx = 0;
+  let cy = 0;
+  let cz = 0;
+  for (let i = 0; i < n; i += 1) {
+    cx += controlPosition[i * 3] as number;
+    cy += controlPosition[i * 3 + 1] as number;
+    cz += controlPosition[i * 3 + 2] as number;
+  }
+  cx /= n;
+  cy /= n;
+  cz /= n;
+  let spread = 0;
+  for (let i = 0; i < n; i += 1)
+    spread = Math.max(
+      spread,
+      Math.hypot(
+        (controlPosition[i * 3] as number) - cx,
+        (controlPosition[i * 3 + 1] as number) - cy,
+        (controlPosition[i * 3 + 2] as number) - cz,
+      ),
+    );
+  if (spread <= 0) return { rewritten: false, residual: Number.POSITIVE_INFINITY };
+  const basis = (i: number, source: Float32Array) => [
+    ((source[i * 3] as number) - cx) / spread,
+    ((source[i * 3 + 1] as number) - cy) / spread,
+    ((source[i * 3 + 2] as number) - cz) / spread,
+    1,
+  ];
+  const ata = Array.from({ length: 4 }, () => new Array<number>(4).fill(0));
+  const atb: number[][] = [new Array<number>(4).fill(0), new Array<number>(4).fill(0)];
+  for (let i = 0; i < n; i += 1) {
+    const g = basis(i, controlPosition);
+    for (let a = 0; a < 4; a += 1) {
+      for (let b = 0; b < 4; b += 1)
+        (ata[a] as number[])[b] =
+          ((ata[a] as number[])[b] as number) + (g[a] as number) * (g[b] as number);
+      (atb[0] as number[])[a] =
+        ((atb[0] as number[])[a] as number) + (g[a] as number) * (controlFaceUv[i * 2] as number);
+      (atb[1] as number[])[a] =
+        ((atb[1] as number[])[a] as number) +
+        (g[a] as number) * (controlFaceUv[i * 2 + 1] as number);
+    }
+  }
+  const solved = [solveSmall(ata, atb[0] as number[]), solveSmall(ata, atb[1] as number[])];
+  if (!solved[0] || !solved[1]) return { rewritten: false, residual: Number.POSITIVE_INFINITY };
+  let residual = 0;
+  for (let i = 0; i < n; i += 1) {
+    const g = basis(i, controlPosition);
+    for (let c = 0; c < 2; c += 1) {
+      let value = 0;
+      for (let a = 0; a < 4; a += 1)
+        value += ((solved[c] as number[])[a] as number) * (g[a] as number);
+      residual = Math.max(residual, Math.abs(value - (controlFaceUv[i * 2 + c] as number)));
+    }
+  }
+  // A tenth of a canvas pixel on a 1024-pixel canvas.
+  if (!(residual < 1e-4)) return { rewritten: false, residual };
+  const count = position.length / 3;
+  for (let i = 0; i < count; i += 1) {
+    const g = basis(i, position);
+    for (let c = 0; c < 2; c += 1) {
+      let value = 0;
+      for (let a = 0; a < 4; a += 1)
+        value += ((solved[c] as number[])[a] as number) * (g[a] as number);
+      faceUv[i * 2 + c] = value;
+    }
+  }
+  return { rewritten: true, residual };
+}
+
+/** Gaussian elimination with partial pivoting on a small dense system. */
+function solveSmall(a: number[][], b: number[]): number[] | null {
+  const n = b.length;
+  const m = a.map((row, i) => [...row, b[i] as number]);
+  for (let col = 0; col < n; col += 1) {
+    let pivot = col;
+    for (let r = col + 1; r < n; r += 1)
+      if (
+        Math.abs((m[r] as number[])[col] as number) >
+        Math.abs((m[pivot] as number[])[col] as number)
+      )
+        pivot = r;
+    const pr = m[pivot] as number[];
+    if (Math.abs(pr[col] as number) < 1e-18) return null;
+    m[pivot] = m[col] as number[];
+    m[col] = pr;
+    for (let r = 0; r < n; r += 1) {
+      if (r === col) continue;
+      const row = m[r] as number[];
+      const f = (row[col] as number) / (pr[col] as number);
+      if (f === 0) continue;
+      for (let k = col; k <= n; k += 1) row[k] = (row[k] as number) - f * (pr[k] as number);
+    }
+  }
+  return m.map((row, i) => (row[n] as number) / ((row as number[])[i] as number));
 }
 
 /**
@@ -413,7 +570,7 @@ export function buildVisorMeshes(
   metresPerUnit: number,
   faceTexture: THREE.Texture,
   paint: THREE.Texture,
-  options: { gapMetres?: number; flat?: boolean } = {},
+  options: { gapMetres?: number; flat?: boolean; subdivisions?: number } = {},
 ): VisorMeshes {
   const gapMetres = options.gapMetres ?? GLASS_GAP_M;
   head.updateMatrix();
@@ -424,6 +581,7 @@ export function buildVisorMeshes(
     metresPerUnit,
     gapMetres,
     options.flat ? { toSource: head.matrix.clone().invert() } : null,
+    options.subdivisions === undefined ? {} : { levels: options.subdivisions },
   );
   const outline = geometry.screen
     ? {

@@ -26,7 +26,7 @@ import {
   cornerMargin,
   RULE,
 } from '../src/world/screens/draw.js';
-import { slabPlan } from '../src/world/screens/ScreenBank.js';
+import { SLAB_CANVAS_PIXELS, slabPlan } from '../src/world/screens/ScreenBank.js';
 import {
   fitScreenOutline,
   insideFootprint,
@@ -626,5 +626,82 @@ describe('the floating panels are gone', () => {
     const tabletop = src('world/room/Tabletop.tsx');
     expect(tabletop).not.toContain('<Arch');
     expect(src('world/room/Models.tsx')).not.toContain('export function Arch');
+  });
+});
+
+/**
+ * **Virgil's slabs, item 1's small defect (V8.3).** V8.2 found it while
+ * reading the slab code, measured it and left it as outside its two items:
+ * the canvas is mapped onto a display plane that is `bezel/2` larger than
+ * the opening on each side, and it was sized at the *opening's* aspect, so
+ * the whole picture was stretched horizontally. V8.1 fixed exactly this
+ * fault for the consoles' screens (`screenPlane.ts`, which draws its canvas
+ * at the fitted outline's aspect); this is the same fault on the geometry
+ * that is supposed to be their reference.
+ */
+describe("Virgil's slab canvas", () => {
+  const authored: [number, number][] = [
+    [1.3, 0.8],
+    [0.9, 0.6],
+  ];
+
+  it('is drawn at the display plane’s aspect, not the opening’s', () => {
+    for (const [width, height] of authored) {
+      const plan = slabPlan(width, height);
+      expect(plan.displayWidth).toBeCloseTo(width + plan.bezel * 0.5, 12);
+      expect(plan.displayHeight).toBeCloseTo(height + plan.bezel * 0.5, 12);
+      expect(plan.canvasWidthPixels).toBe(SLAB_CANVAS_PIXELS);
+      // The canvas's aspect is the plane's, to within the rounding of one
+      // pixel of height — which is 0.16 % on a 648-pixel canvas.
+      const planeAspect = plan.displayWidth / plan.displayHeight;
+      const canvasAspect = plan.canvasWidthPixels / plan.canvasHeightPixels;
+      expect(Math.abs(canvasAspect / planeAspect - 1)).toBeLessThan(0.002);
+    }
+  });
+
+  it('measures the stretch it removes, so the fix is not taken on trust', () => {
+    const [width, height] = authored[0] as [number, number];
+    const plan = slabPlan(width, height);
+    // What V8.2 shipped: 1024 by round(1024 · height / width).
+    const wasHeight = Math.round((SLAB_CANVAS_PIXELS * height) / width);
+    expect(wasHeight).toBe(630);
+    expect(plan.canvasHeightPixels).toBe(648);
+    const stretch = (SLAB_CANVAS_PIXELS / wasHeight) * (plan.displayHeight / plan.displayWidth) - 1;
+    // 2.78 %: the number the V8.2 run record recorded as "about 2.8 %".
+    expect(stretch * 100).toBeCloseTo(2.78, 1);
+    // And it is gone.
+    const now =
+      (plan.canvasWidthPixels / plan.canvasHeightPixels) *
+        (plan.displayHeight / plan.displayWidth) -
+      1;
+    expect(Math.abs(now)).toBeLessThan(0.002);
+  });
+
+  it('is the size the display plane is actually drawn at', () => {
+    const bank = src('world/screens/ScreenBank.tsx');
+    // The canvas comes from the plan, and the plane from the same two numbers.
+    expect(bank).toContain('canvas.width = plan.canvasWidthPixels');
+    expect(bank).toContain('canvas.height = plan.canvasHeightPixels');
+    expect(bank).toContain('<planeGeometry args={[displayWidth, displayHeight]} />');
+    // Nothing left that sizes either from the opening.
+    expect(bank).not.toContain('Math.round((1024 * height) / width)');
+    expect(bank).not.toContain('args={[width + bezel * 0.5, height + bezel * 0.5]}');
+  });
+
+  it('lays the rounded corner out in the same pixels', () => {
+    const plan = slabPlan(1.3, 0.8);
+    // The corner radius is expressed against the canvas's width, and the
+    // canvas now has one scale, so it means the same thing in both axes.
+    const metresPerPixel = plan.displayWidth / plan.canvasWidthPixels;
+    expect(plan.cornerPixels * metresPerPixel).toBeCloseTo(
+      plan.openingRadius + (plan.bezel * 0.5) / 2,
+      9,
+    );
+    // To within the half pixel the integer height is rounded by: 0.63 mm on
+    // a 0.86 m plane, which is the whole of what is left of the 2.78 %.
+    expect(plan.canvasHeightPixels * metresPerPixel).toBeCloseTo(plan.displayHeight, 2);
+    expect(Math.abs(plan.canvasHeightPixels * metresPerPixel - plan.displayHeight)).toBeLessThan(
+      metresPerPixel,
+    );
   });
 });

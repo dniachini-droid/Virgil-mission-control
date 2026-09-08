@@ -20,6 +20,31 @@ import { roundedRectSurface } from './screens/screenOutline.js';
  * depth, so the thing under it still occludes correctly against the
  * world. Optionally masked to a texture's paint (`PaintMask`), which is
  * how a visor's glass stops at the paint's edge.
+ *
+ * **V8.3: a reflection, not a wash.** The owner's instruction for the
+ * console screens was *"make them compleetyley black, reflective, and text
+ * sitting slightly under it"* (§0.9), and in V8.2 they came out grey-brown:
+ * measured off the committed artifact, the picture's own near-black ink
+ * (`draw.ts`, `#070a18`) read at **luminance 93 of 255** on the
+ * Fabricator's screen and 93–99 on Virgil's three slabs. The arithmetic
+ * says exactly where that came from. A dielectric reflects about 4 % of
+ * what it faces at normal incidence, the clearcoat adds another 4 %, and
+ * what these screens face is `LightingRig.tsx`'s **20 × 6 m warm panel at
+ * z = +16 — directly behind the camera**. Eight per cent of a large soft
+ * warm source, added, is a full-screen milky grey. V8.2 found the same
+ * thing from the other end when it raised the environment and had to
+ * revert; it left the diagnosis in the run record and the defect in place.
+ *
+ * It is not solved by turning the environment down, which would take the
+ * glass's whole reason for existing with it. It is solved by **shaping the
+ * environment's contribution by angle**: the indirect specular is scaled by
+ * `GLASS_ENV_FACING` where the glass faces you and left alone where it
+ * turns away, so a convex screen is near-black across its middle and keeps
+ * its bright rim where the curve rolls off. The **direct** specular — the
+ * room's own lamps, which are small — is not damped but lifted, so what is
+ * left is a hard highlight that travels across the CRT profile as the
+ * camera moves. That is the picture the owner asked for: a reflection of
+ * something, not a veil over everything.
  */
 
 export interface PaintRule {
@@ -41,6 +66,60 @@ export const PAINT_TEST = /* glsl */ `
   if (paintLuminance >= uPaintLuminance || paintChroma >= uPaintChroma) discard;
 `;
 
+/**
+ * How much of the reflected environment survives where the glass faces the
+ * camera. One in sixteen: measured against the frames, this is what takes
+ * the display's own ink back to near-black while leaving the rim.
+ */
+export const GLASS_ENV_FACING = 0.06;
+
+/**
+ * How much the direct specular is lifted. The room's lamps are small, so
+ * their reflection in the glass is a highlight rather than a wash, and it
+ * has to carry the "reflective" reading now that the environment does not.
+ */
+export const GLASS_DIRECT_GAIN = 2.6;
+
+/**
+ * The patch that makes the glass reflect rather than wash. Inserted into
+ * three.js's own physical shader at two named points:
+ *
+ *  - after `<lights_fragment_begin>`, where `reflectedLight.directSpecular`
+ *    holds the room's lamps and nothing else — lifted;
+ *  - after `<lights_fragment_maps>`, where `radiance` and
+ *    `clearcoatRadiance` hold the reflected environment before the BRDF
+ *    weighs them — scaled by an angle, so a surface facing the camera keeps
+ *    a sixteenth of it and one turning away keeps all of it.
+ *
+ * Fresnel already does some of this and is not enough: at normal incidence
+ * Schlick still passes the dielectric's own 4 %, and 4 % of a twenty-metre
+ * light panel is the grey the owner is looking at.
+ */
+export const REFLECTION_PATCH = /* glsl */ `
+  float facing = saturate( dot( geometryNormal, geometryViewDir ) );
+  float grazing = pow( 1.0 - facing, 5.0 );
+  float envKeep = mix( uEnvFacing, 1.0, grazing );
+  radiance *= envKeep;
+  clearcoatRadiance *= envKeep;
+`;
+
+function reflectionUniforms(shader: {
+  uniforms: Record<string, { value: unknown }>;
+  fragmentShader: string;
+}) {
+  shader.uniforms.uEnvFacing = { value: GLASS_ENV_FACING };
+  shader.uniforms.uDirectGain = { value: GLASS_DIRECT_GAIN };
+  shader.fragmentShader = `uniform float uEnvFacing;\nuniform float uDirectGain;\n${shader.fragmentShader
+    .replace(
+      '#include <lights_fragment_begin>',
+      '#include <lights_fragment_begin>\n  reflectedLight.directSpecular *= uDirectGain;',
+    )
+    .replace(
+      '#include <lights_fragment_maps>',
+      `#include <lights_fragment_maps>\n${REFLECTION_PATCH}`,
+    )}`;
+}
+
 export function createGlassMaterial(mask?: PaintMask): THREE.MeshPhysicalMaterial {
   const material = new THREE.MeshPhysicalMaterial({
     color: '#000000',
@@ -57,9 +136,9 @@ export function createGlassMaterial(mask?: PaintMask): THREE.MeshPhysicalMateria
     side: THREE.FrontSide,
     name: mask ? 'glass-masked' : 'glass',
   });
-  if (mask) {
-    material.defines = { USE_UV: '' };
-    material.onBeforeCompile = (shader) => {
+  if (mask) material.defines = { USE_UV: '' };
+  material.onBeforeCompile = (shader) => {
+    if (mask) {
       shader.uniforms.tPaint = { value: mask.paint };
       shader.uniforms.uPaintLuminance = { value: mask.rule.luminance };
       shader.uniforms.uPaintChroma = { value: mask.rule.chroma };
@@ -67,9 +146,10 @@ export function createGlassMaterial(mask?: PaintMask): THREE.MeshPhysicalMateria
         '#include <clipping_planes_fragment>',
         `#include <clipping_planes_fragment>\n${PAINT_TEST.replace('PAINT_UV', 'vUv')}`,
       )}`;
-    };
-    material.customProgramCacheKey = () => 'glass-masked-v7';
-  }
+    }
+    reflectionUniforms(shader);
+  };
+  material.customProgramCacheKey = () => (mask ? 'glass-masked-v8-3' : 'glass-v8-3');
   return material;
 }
 

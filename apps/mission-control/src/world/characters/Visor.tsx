@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
 import { room } from '../room/palette.js';
 import { buildVisorMeshes, faceAspect, type VisorMask } from './visorFit.js';
+import { visorSubdivisions } from './visorSmooth.js';
 
 /**
  * A character's face, drawn per frame onto a canvas texture in the
@@ -220,7 +221,7 @@ export function Visor({
   /** False for a character whose visor the owner made blank: colour and pulse only. */
   eyes?: boolean;
 }) {
-  const { reducedMotion } = useSettings();
+  const { reducedMotion, tier } = useSettings();
   const { canvas, texture } = useMemo(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -243,8 +244,12 @@ export function Visor({
         anchor.metresPerUnit,
         texture,
         anchor.paint,
+        // **V8.3: the face is smoothed** (`visorSmooth.ts`), one level fewer
+        // on a phone, where four faces are ten pixels across and the
+        // triangle budget is a third of the desktop's.
+        { subdivisions: visorSubdivisions(tier) },
       ),
-    [anchor, texture],
+    [anchor, texture, tier],
   );
   const light = useRef<THREE.PointLight>(null);
   const clock = useRef<FaceClock>({

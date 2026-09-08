@@ -188,3 +188,33 @@ Your three slabs above Virgil were checked too, since they are the reference. Th
 **One fault this pass did not cause and did not fix.** Press `5` for the Board and look at Virgil's left and centre slabs: `VIRGIL` reads grey on grey and `PASS` olive on grey. The same wash is in the V8.1 file at the same moment, so it is not from today — it is the glass reflecting the room onto a near-black display at that angle. The amber bands stay legible. It is the next legibility thing to fix and it sits with the glass, which the visors share, so it was left rather than half-done.
 
 And the two things the V8.1 note left with you are unchanged: **you will still see little or nothing of the character in their own close-up** (the camera has to clear the screen), and the television turn-off has still never been caught in a still frame by anybody.
+
+---
+
+## Note for V8.3 — what changed since the V8.2 note
+
+**The build to open is now `v8-3-s2-virgil-<sha>.html`, and its footer reads "viewing point V8.3".** Everything above still describes what you are looking at. This pass did the two things you authorised and nothing else — and they are one pass because they turned out to be one file: the same piece of glass is in front of the three consoles' screens, your three slabs and all four faces.
+
+**1. The screens are black now, and the shine is a reflection.** Your instruction was *"make them compleetyley black, reflective, and text sitting slightly under it"*, and what you had been getting was grey-brown. The reason was measurable, so it was measured before anything was changed: the picture's own background is very nearly black, but the glass over it was adding about eight per cent of everything in front of it — and what is in front of a console screen is a twenty-metre-wide soft warm light that sits behind your shoulder. Eight per cent of that, spread evenly, is a milky film over the whole screen. On the V8.2 file the "black" of the Fabricator's screen measured **93 out of 255**. It now measures **40**, and the darkest this pipeline can render at all is about 30.
+
+The shine did not go with it, and that is the point of the change. The glass now keeps almost none of that broad reflection where it faces you and all of it where the curve turns away, so what you see is a **hard specular highlight travelling across the curve as you drag the camera** and a bright rim at the edges, instead of a veil. Press `2` and look at the top of the Fabricator's screen, then drag a little: the highlight moves and the black stays black. `FILES 8 · COMMITS 3` under the big word is readable now; it was lost in the grey.
+
+Press `5` for the Board. `VIRGIL` is white on black. That is the fault the last note left with you, and it is fixed.
+
+One thing did not come all the way with the others, and it is not the glass: the **centre** slab still reads a little olive, because during a verdict it is carrying the verdict's own green — the frame, the ring and its glow. Nothing in this pass touched that, and if you want it darker it is a separate decision about the verdict's colour.
+
+While in there, one small thing you never mentioned was fixed because it was the same surface: your slabs' picture was being drawn **2.8 % too wide** — the canvas was sized to the opening but stretched onto a slightly larger plate behind it. Every letter on all three slabs was a hair fatter than it was set. It is now exact.
+
+**2. The visors are smooth.** You said: *"the agents' visors… they are not compleely smooth and black…… I wonder if we can spend a lot of time on this…. since even small inperfections make them look cheap"*, and then: *"if we replace the visors, they need to be curved like they currently are, but completley smooth, convex."*
+
+Nothing was replaced. Each face is still exactly the region of your model's own paint it always was — the same triangles, the same outline — but what is now drawn is the **smooth surface those triangles describe** rather than the triangles themselves. Each one is split four ways twice over, which takes the flat facet from **35–48 mm across down to 8–11 mm**, and the surface between them curves. The count went from 1,449 triangles across the four faces to 23,184, all of it built when the file opens; **not one byte was added to the download.**
+
+The thing that mattered most is what did *not* change. **The outline is still yours, to the nanometre.** V6 put a smooth cap over the face and you said it looked *"pasted on"*; V7's whole answer was to make the face the head's own painted triangles. So the edge of every face is pinned: it is the same outline, made of the same points, the same total length — 6.139701 m on the Fabricator before and 6.139701 m after. A test fails if it moves by a micrometre.
+
+Press `1` and look at Virgil. In the V8.2 file there is a jagged line across the top of his visor and a hard grey step below it, both of them the edges of flat facets. They are gone. The visor is one smooth dark dome with one clean highlight on it. The same is true of all three agents at the wide view, smaller.
+
+**Two honest answers about "convex".** First: after smoothing, the Prover's and Virgil's faces are convex almost everywhere (95 % and 98 % of the surface measured), the Fabricator's mostly (78 %), and the **Keeper's is not** — about half of his is, because the region your paint covers on him includes a fold in his hood. Straightening that out would mean changing the shape of a face you designed, so it was measured and left. Second: an earlier note guessed the *Prover* was the problem one, because his face sits 155 mm away from a best-fit sphere. That guess was wrong, and the number is why — being far from a *sphere* is not the same as being far from *convex*. His face is a wide oval; it is nowhere near spherical and it is the most convex of the three. Nobody needed a different method.
+
+**And the cost, stated where it lands.** On a phone each face is subdivided once instead of twice, because four faces at two levels would take a third of the whole triangle budget for the smallest devices, and at ten pixels across you would not see the difference. Nothing here is a speed measurement: no frame time has been taken on real graphics hardware on this branch, and it is not recorded as if it had been.
+
+The two things the last two notes left with you are still unchanged: **you will see little of the character in their own close-up**, and the television turn-off has still never been caught in a still frame.

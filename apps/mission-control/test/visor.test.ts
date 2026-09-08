@@ -18,6 +18,17 @@ import {
   type VisorRegion,
 } from '../src/world/characters/visorFit.js';
 import {
+  distanceToSegments,
+  surfaceBoundary,
+  VISOR_SUBDIVISIONS,
+} from '../src/world/characters/visorSmooth.js';
+import {
+  createGlassMaterial as createPlainGlass,
+  GLASS_DIRECT_GAIN,
+  GLASS_ENV_FACING,
+  REFLECTION_PATCH,
+} from '../src/world/glass.js';
+import {
   fabricator2Base64Payload,
   keeper2Base64Payload,
   prover2Base64Payload,
@@ -140,7 +151,10 @@ function expectVisor(
   const paint = new THREE.Texture();
   const geometry = buildVisorGeometry(head.geometry, mask, fitPositions, metresPerUnit);
   const faceIndex = geometry.face.index as THREE.BufferAttribute;
-  expect(faceIndex.count).toBe(mask.triangles.length * 3);
+  // **V8.3: the face is the Loop limit surface of the mask's triangles**
+  // (`visorSmooth.ts`), so each of them is exactly four to the level.
+  const split = 4 ** VISOR_SUBDIVISIONS;
+  expect(faceIndex.count).toBe(mask.triangles.length * 3 * split);
   expect(geometry.glass.index).toBe(geometry.glass.index);
   const facePos = geometry.face.getAttribute('position');
   const glassPos = geometry.glass.getAttribute('position');
@@ -166,18 +180,72 @@ function expectVisor(
     expect(v, `${label}: faceUv v of vertex ${i}`).toBeGreaterThanOrEqual(-0.2);
     expect(v).toBeLessThanOrEqual(1.2);
   }
-  // The head's own triangles: every face triangle is a triangle of the head.
+  // **The silhouette is still the head's own painted edge.** V7's whole
+  // reason for existing was that an overlaid cap read as pasted on, and
+  // until V8.3 that was held by the face being the head's triangles
+  // unchanged. It is now the limit surface of those triangles, so the
+  // statement is made where it belongs — on the boundary — and in both
+  // directions: every boundary point of what is drawn lies on the
+  // selection's own boundary polyline, and every boundary point of the
+  // selection lies on what is drawn. Both to a micrometre, which is
+  // stronger than the old form, because the old form checked twelve
+  // triangles and this checks the whole outline.
   const headIndex = head.geometry.index as THREE.BufferAttribute;
   const headPos = head.geometry.getAttribute('position');
-  for (let t = 0; t < 12; t += 1) {
-    const source = mask.triangles[t] as number;
-    for (let k = 0; k < 3; k += 1) {
-      const hv = headIndex.getX(source * 3 + k);
-      a.fromBufferAttribute(headPos, hv);
-      b.fromBufferAttribute(facePos, faceIndex.getX(t * 3 + k));
-      expect(a.distanceTo(b), `${label}: face triangle ${t} is not the head's`).toBeLessThan(1e-6);
+  const control = new Float32Array(headPos.count * 3);
+  for (let i = 0; i < headPos.count; i += 1) {
+    control[i * 3] = headPos.getX(i);
+    control[i * 3 + 1] = headPos.getY(i);
+    control[i * 3 + 2] = headPos.getZ(i);
+  }
+  const controlIndex: number[] = [];
+  for (const t of mask.triangles)
+    for (let k = 0; k < 3; k += 1) controlIndex.push(headIndex.getX(t * 3 + k));
+  const controlEdges = surfaceBoundary(control, controlIndex, metresPerUnit);
+  const builtPositions = new Float32Array(facePos.count * 3);
+  for (let i = 0; i < facePos.count; i += 1) {
+    builtPositions[i * 3] = facePos.getX(i);
+    builtPositions[i * 3 + 1] = facePos.getY(i);
+    builtPositions[i * 3 + 2] = facePos.getZ(i);
+  }
+  const builtEdges = surfaceBoundary(builtPositions, faceIndex.array, metresPerUnit);
+  expect(controlEdges.length, `${label}: the selection has a boundary`).toBeGreaterThan(20);
+  // Exactly twice as many segments per level: each boundary edge is split
+  // at its own midpoint, which is what leaves the polyline where it was.
+  expect(builtEdges.length).toBe(controlEdges.length * 2 ** VISOR_SUBDIVISIONS);
+  const micron = 1e-6 / metresPerUnit;
+  for (const [x, y, z, x2, y2, z2] of builtEdges) {
+    for (const [px, py, pz] of [
+      [x, y, z],
+      [x2, y2, z2],
+    ] as [number, number, number][]) {
+      expect(
+        distanceToSegments(px, py, pz, controlEdges) * metresPerUnit,
+        `${label}: a drawn boundary point left the selection's outline`,
+      ).toBeLessThan(1e-6);
     }
   }
+  for (const [x, y, z, x2, y2, z2] of controlEdges) {
+    for (const [px, py, pz] of [
+      [x, y, z],
+      [x2, y2, z2],
+    ] as [number, number, number][]) {
+      expect(
+        distanceToSegments(px, py, pz, builtEdges) * metresPerUnit,
+        `${label}: the selection's outline is not all drawn`,
+      ).toBeLessThan(1e-6);
+    }
+  }
+  void micron;
+  // And what the builder reports about it agrees with what was measured here.
+  const report = geometry.smoothing;
+  expect(report, `${label}: the smoothing reports what it did`).toBeDefined();
+  expect((report as NonNullable<typeof report>).boundaryMovedM).toBeLessThan(1e-6);
+  // The head's own facets do not poke through the smoothed face.
+  expect((report as NonNullable<typeof report>).penetrationAfterM).toBeLessThan(1e-6);
+  expect((report as NonNullable<typeof report>).facetAfterMm).toBeLessThan(
+    (report as NonNullable<typeof report>).facetBeforeMm / 3,
+  );
 
   const visor = buildVisorMeshes(head, mask, fitPositions, metresPerUnit, face, paint);
   for (const mesh of [visor.face, visor.glass]) {
@@ -237,6 +305,77 @@ describe('the visor materials (KR-57)', () => {
     expect(typeof material.onBeforeCompile).toBe('function');
   });
 
+  /**
+   * **V8.3, item 1: the glass reflects rather than washes.** The owner's
+   * instruction for the console screens was *"make them compleetyley black,
+   * reflective, and text sitting slightly under it"*, and in V8.2 the
+   * picture's own near-black ink read at luminance 93 of 255 because the
+   * glass added eight per cent of a twenty-metre light panel across the
+   * whole surface. These hold the shape of the answer: the environment is
+   * kept where the glass turns away and cut where it faces you, the room's
+   * own lamps are lifted, and the paint mask that stops a visor's glass at
+   * the paint's edge still runs first.
+   */
+  it('glass: the environment is shaped by angle and the direct highlight is lifted', () => {
+    expect(GLASS_ENV_FACING).toBeGreaterThan(0);
+    expect(GLASS_ENV_FACING).toBeLessThan(0.1);
+    expect(GLASS_DIRECT_GAIN).toBeGreaterThan(1);
+    // The patch keeps everything at grazing and only a sixteenth facing.
+    expect(REFLECTION_PATCH).toContain('radiance *= envKeep');
+    expect(REFLECTION_PATCH).toContain('clearcoatRadiance *= envKeep');
+    expect(REFLECTION_PATCH).toContain('mix( uEnvFacing, 1.0, grazing )');
+
+    for (const material of [createPlainGlass(), createGlassMaterial(new THREE.Texture())]) {
+      const shader = {
+        uniforms: {} as Record<string, { value: unknown }>,
+        vertexShader: '',
+        fragmentShader: [
+          '#include <clipping_planes_fragment>',
+          '#include <lights_fragment_begin>',
+          '#include <lights_fragment_maps>',
+          '#include <lights_fragment_end>',
+        ].join('\n'),
+      };
+      (material.onBeforeCompile as (s: typeof shader) => void)(shader);
+      expect(shader.uniforms.uEnvFacing?.value).toBe(GLASS_ENV_FACING);
+      expect(shader.uniforms.uDirectGain?.value).toBe(GLASS_DIRECT_GAIN);
+      const out = shader.fragmentShader;
+      // The direct specular is lifted after the lamps have been summed, and
+      // the environment shaped after the maps have been sampled: both after
+      // the chunk that defines what they touch, never before it.
+      expect(out.indexOf('reflectedLight.directSpecular *= uDirectGain')).toBeGreaterThan(
+        out.indexOf('#include <lights_fragment_begin>'),
+      );
+      expect(out.indexOf('radiance *= envKeep')).toBeGreaterThan(
+        out.indexOf('#include <lights_fragment_maps>'),
+      );
+      expect(out.indexOf('radiance *= envKeep')).toBeLessThan(
+        out.indexOf('#include <lights_fragment_end>'),
+      );
+    }
+    // And the masked glass still discards the unpainted pixels first, so a
+    // visor's glass still stops exactly where the paint stops.
+    const masked = {
+      uniforms: {} as Record<string, { value: unknown }>,
+      fragmentShader: [
+        '#include <clipping_planes_fragment>',
+        '#include <lights_fragment_begin>',
+        '#include <lights_fragment_maps>',
+        '#include <lights_fragment_end>',
+      ].join('\n'),
+    };
+    const material = createGlassMaterial(new THREE.Texture());
+    (material.onBeforeCompile as (s: typeof masked) => void)(masked);
+    expect(masked.fragmentShader).toContain('discard');
+    expect(masked.fragmentShader.indexOf('discard')).toBeLessThan(
+      masked.fragmentShader.indexOf('radiance *= envKeep'),
+    );
+    // The two programs must not share a cache entry: one discards, one does not.
+    expect(createPlainGlass().customProgramCacheKey?.()).not.toBe(
+      material.customProgramCacheKey?.(),
+    );
+  });
+
   it('is the only way Visor.tsx makes a mesh, and nothing there re-sides, culls or hides it', () => {
     const visor = src('world/characters/Visor.tsx');
     expect(visor).toContain('buildVisorMeshes(');
@@ -255,6 +394,8 @@ describe('the visor materials (KR-57)', () => {
     expect(visor).not.toMatch(/visible=\{/);
     // KR-55: no early return that removes the face.
     expect(visor).not.toMatch(/return null/);
+    // V8.3: the level of subdivision comes from the tier, in one place.
+    expect(visor).toContain('subdivisions: visorSubdivisions(tier)');
     // And no panel is left: the head's own triangles are the face.
     expect(src('world/characters/visorFit.ts')).not.toContain('fitHeadSurface');
     expect(src('world/characters/Figure.tsx')).not.toContain('PanelFace');
