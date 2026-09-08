@@ -160,6 +160,41 @@ Recorded as direction the owner gave, not as decisions. None of it is a decision
   added download. It must keep V7's reason for existing: the boundary comes from the head's own
   painted triangles, which is what stopped the visor reading as pasted on in V6.
 
+- **A persistent ledger on Virgil's far-left screen — the owner's direction of 8 September. Next pass,
+  ahead of the visors.** His words: *"if im not looking at the screen the moment an agent is giiven a
+  job, i'll miss the 'receiiving' animaton, or when it gets back to virgil, the 'pass' animation. So Im
+  thining.... the screen on the far left (virgils far left screen) should really have a list of the
+  agents used, and next to it the outcome, and that updates (with fancy animations) as it happens, but
+  also remains on the screen so at a glance you can see where its up to."*
+
+  The defect he has found is real and structural: **the information currently *is* the animation.** Every
+  state in the slice is announced by a transient beat — receiving, working, the verdict converging — and
+  nothing persists to be read by someone who looked away. The interface has an alarm and no status board.
+
+  What this session would add to his design, none of it his instruction:
+  - **It is a ledger, not a status light: rows are appended and never rewritten**, and a row stays when
+    the next agent starts. That is the same shape as the domain — `packages/domain`'s event log is the
+    truth and the current state is derived from it — so the display mirrors the model instead of
+    inventing a parallel one. The far-left slab's present `ROLES` indicator is a light that moves and is
+    strictly dominated by this; it merges into the ledger rather than sitting beside it.
+  - **Elapsed time is the missing column.** Who and what came back tells the story; how long ago tells
+    you whether the board is live or stale. Without it a finished board reads as a working one, which is
+    the same class of untruth as the "awaiting review" during a build that the owner caught in V7.
+  - **In flight must read as unresolved, not blank** — an open verdict, distinguishable from "no answer
+    is coming".
+  - **It must survive the wide view, which is what "at a glance" means.** `screen-fonts` measured text
+    readable to about 96 px and collapsing by 64 px; four rows of words on a 0.9 m slab at 11 m will be
+    mush. So each row must read as **shape and colour at distance and as text up close**: role glyph,
+    the verdict's own shape (the four already exist in `verdicts.ts`), its colour, an elapsed bar. A
+    ledger that only works in the Board close-up has not done the job asked of it.
+  - The returning convergence then **lands into its row**, so the same event is both the beat and the
+    record, with no second source of truth.
+
+  **Open decision for the owner:** across the demonstration's three loops, does the board clear for each
+  new candidate, showing the candidate id so a fresh run is visible, or accumulate all three? This
+  session's recommendation is to clear per candidate, because a real one would group by candidate and
+  let the reader scroll back.
+
 ## Waiting on the owner
 
 - **Delete the scratch branch `claude/ci-failure-demo`** — needs owner. One commit on top of `dd2c48f` carrying a deliberate external `fetch()`, pushed on 2026-09-08 to prove CI fails on a network escape (it did). The session cannot remove it: `git push origin --delete` returns 403 and the REST ref deletion is refused by the proxy. One `git push origin --delete claude/ci-failure-demo` from a machine that can. Nothing from it is merged.
