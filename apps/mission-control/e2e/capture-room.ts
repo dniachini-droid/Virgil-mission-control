@@ -63,21 +63,43 @@ if (orbit) {
 // A fresh page per close-up: a hash-only navigation does not remount the
 // canvas, so the camera would stay where it was. Each face is then held in
 // every state (`#/?state=`) so the states can be judged at rest.
-const closeUps: { cam: string; state?: string }[] = [{ cam: 'prover' }, { cam: 'face' }];
+const closeUps: { cam: string; state?: string; at?: number[] }[] = [
+  { cam: 'prover' },
+  { cam: 'face' },
+];
 if (process.argv.includes('states')) {
   for (const cam of ['face', 'prover']) {
     for (const state of ['idle', 'attentive', 'working', 'passed', 'blocked']) {
       closeUps.push({ cam, state });
     }
   }
+  // The station's panel runs an arrival in RECEIVING (`state=attentive`) and
+  // a run of checks in WORKING, from the moment the state is set; several
+  // frames of each, at named moments, or a single frame would only ever
+  // show their ends.
+  closeUps.push({ cam: 'station', state: 'idle' });
+  closeUps.push({ cam: 'station', state: 'attentive', at: [700, 1400, 2200, 3200] });
+  closeUps.push({ cam: 'station', state: 'working', at: [800, 2300, 4200, 6200] });
+  closeUps.push({ cam: 'station', state: 'passed' });
+  closeUps.push({ cam: 'station', state: 'blocked' });
 }
-for (const { cam, state } of closeUps) {
+for (const { cam, state, at } of closeUps) {
   const view = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const query = state ? `cam=${cam}&state=${state}` : `cam=${cam}`;
   await view.goto(`${fileUrl}#/?${query}`, { waitUntil: 'load' });
   await view.waitForFunction(() => '__virgilRoomReady' in window, undefined, { timeout: 180_000 });
-  await view.waitForTimeout(3000);
-  await view.screenshot({ path: resolve(outDir, `room-${cam}${state ? `-${state}` : ''}.png`) });
+  const name = `room-${cam}${state ? `-${state}` : ''}`;
+  if (at) {
+    let elapsed = 0;
+    for (const ms of at) {
+      await view.waitForTimeout(ms - elapsed);
+      elapsed = ms;
+      await view.screenshot({ path: resolve(outDir, `${name}-${ms}ms.png`) });
+    }
+  } else {
+    await view.waitForTimeout(3000);
+    await view.screenshot({ path: resolve(outDir, `${name}.png`) });
+  }
   await view.close();
 }
 console.log(`capture-room: ${outDir}, console errors ${errors.length}`);

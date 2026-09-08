@@ -142,12 +142,8 @@ function Cast({ demo }: { demo: boolean }) {
           turned to the camera, clear of the Prover who now stands at its
           centre. No stand: the owner approved floating panels. */}
       <StationPanel
-        position={[
-          sx + Math.cos(layout.stationRotationY) * -0.52 + Math.sin(layout.stationRotationY) * -0.2,
-          1.06,
-          sz - Math.sin(layout.stationRotationY) * -0.52 + Math.cos(layout.stationRotationY) * -0.2,
-        ]}
-        rotation={[0, layout.stationRotationY + 0.3, 0]}
+        position={stationPanel().position}
+        rotation={stationPanel().rotation}
         occupant="Prover"
         state={state.stationState}
         verdict={state.content.verdict}
@@ -156,6 +152,32 @@ function Cast({ demo }: { demo: boolean }) {
       <StationLight activity={state.proverActivity} verdict={state.content.verdict} />
     </>
   );
+}
+
+/**
+ * Where the station's panel floats: over the desk on the camera's left,
+ * at head height, turned a little toward the camera, clear of the Prover
+ * at the station's centre. No stand: the owner approved floating panels.
+ */
+function stationPanel(): {
+  position: [number, number, number];
+  rotation: [number, number, number];
+} {
+  const [sx, , sz] = layout.stationAt;
+  const r = layout.stationRotationY;
+  // (-0.66, -0.04) in the station's frame, rotated into the room, at
+  // 1.32 m: beside him and above his shoulder line, so his eye-stalks (at
+  // 1.2 m) hide as little of it as possible from the front.
+  const dx = -0.66;
+  const dz = -0.04;
+  return {
+    position: [
+      sx + Math.cos(r) * dx + Math.sin(r) * dz,
+      1.32,
+      sz - Math.sin(r) * dx + Math.cos(r) * dz,
+    ],
+    rotation: [0, r + 0.35, 0],
+  };
 }
 
 /**
@@ -189,7 +211,8 @@ function forcedFace(): FaceState | null {
 
 /**
  * The authored camera, or a named close-up for the gross-error captures:
- * `#/?cam=prover` looks at the side station. Not a feature; a way to see.
+ * `#/?cam=prover` looks at the Prover, `#/?cam=station` at his panel,
+ * `#/?cam=face` at Virgil's face. Not a feature; a way to see.
  */
 function initialCamera(): { position: [number, number, number]; target: [number, number, number] } {
   const query = window.location.hash.split('?')[1] ?? '';
@@ -201,6 +224,22 @@ function initialCamera(): { position: [number, number, number]; target: [number,
     return {
       position: [px + Math.sin(f) * 2.2 + Math.cos(f) * 0.4, py + 1.55, pz + Math.cos(f) * 2.2],
       target: [px, py + 1.15, pz],
+    };
+  }
+  if (cam === 'station') {
+    // Square-ish on to the station's panel from its own left, close enough
+    // to read it, with the Prover (on its right) out of the line of sight.
+    const {
+      position: [px, py, pz],
+      rotation: [, ry],
+    } = stationPanel();
+    const nx = Math.sin(ry);
+    const nz = Math.cos(ry);
+    const lx = -Math.cos(ry);
+    const lz = Math.sin(ry);
+    return {
+      position: [px + nx * 1.2 + lx * 0.7, py + 0.42, pz + nz * 1.2 + lz * 0.7],
+      target: [px, py, pz],
     };
   }
   if (cam === 'face') {

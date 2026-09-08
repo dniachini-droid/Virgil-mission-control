@@ -653,8 +653,6 @@ function drawStation(
   label(ctx, 'STATE', 560, 126);
   // The state word; in RECEIVING it resolves out of hex, letter by letter,
   // as the packets land.
-  ctx.font = display(64);
-  spaced(ctx, '0.08em');
   let word = state as string;
   if (state === 'RECEIVING') {
     const s = since % RECEIVING_LOOP;
@@ -662,10 +660,13 @@ function drawStation(
       .map((ch, i) => (s > 0.35 + i * 0.24 ? ch : hex(Math.floor(t * 18) + i * 7, 1).toUpperCase()))
       .join('');
   }
+  // Fitted to its column: RECEIVING is the widest word and must not be cut.
+  spaced(ctx, '0.06em');
+  fitFont(ctx, display, 60, 'RECEIVING', w - 560 - 48);
   ctx.fillStyle = stateColour;
   ctx.shadowColor = stateColour;
   ctx.shadowBlur = 18;
-  ctx.fillText(word, 560, 160);
+  ctx.fillText(word, 560, 164);
   ctx.shadowBlur = 0;
   spaced(ctx, '0em');
 
@@ -696,8 +697,9 @@ function drawStation(
     // The channel.
     const reach = ease(clamp01(s / 0.4));
     ctx.strokeStyle = room.emit.ice;
-    ctx.globalAlpha = 0.35;
-    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(48, channelY);
     ctx.lineTo(48 + (boxX - 48) * reach, channelY);
@@ -728,15 +730,21 @@ function drawStation(
     // Segments inside the box, one per packet.
     const segW = (boxW - 36 - (PACKETS - 1) * 6) / PACKETS;
     for (let k = 0; k < PACKETS; k += 1) {
-      ctx.fillStyle = k < landed ? (sealed ? PASS_GREEN : room.emit.ice) : 'rgba(207,228,255,0.12)';
-      roundRect(ctx, boxX + 18 + k * (segW + 6), boxY + 52, segW, 14, 4);
+      const lit = k < landed;
+      ctx.fillStyle = lit ? (sealed ? PASS_GREEN : room.emit.ice) : 'rgba(207,228,255,0.12)';
+      if (lit) {
+        ctx.shadowColor = ctx.fillStyle;
+        ctx.shadowBlur = 12;
+      }
+      roundRect(ctx, boxX + 18 + k * (segW + 6), boxY + 52, segW, 24, 5);
       ctx.fill();
+      ctx.shadowBlur = 0;
     }
     // The landed chunks, listed.
-    ctx.font = mono(22);
+    ctx.font = mono(26);
     for (let k = 0; k < landed; k += 1) {
       ctx.fillStyle = k === landed - 1 ? room.emit.ice : DIM;
-      ctx.fillText(`${hex(k + 3, 8)}  ${hex(k * 5 + 1, 4)}`, boxX + 18, boxY + 84 + k * 27);
+      ctx.fillText(`${hex(k + 3, 8)}  ${hex(k * 5 + 1, 4)}`, boxX + 18, boxY + 96 + k * 30);
     }
     // The packets in flight, with a trail.
     for (let k = 0; k < PACKETS; k += 1) {
@@ -744,19 +752,19 @@ function drawStation(
       const p = (s - start) / PACKET_FLIGHT;
       if (p < 0 || p >= 1) continue;
       const x = 48 + (boxX - 48) * ease(p);
-      const trail = 90 * (1 - p) + 30;
+      const trail = 160 * (1 - p) + 50;
       const grad = ctx.createLinearGradient(x - trail, 0, x, 0);
       grad.addColorStop(0, 'rgba(207,228,255,0)');
       grad.addColorStop(1, room.emit.ice);
       ctx.fillStyle = grad;
-      ctx.fillRect(x - trail, channelY - 3, trail, 6);
-      ctx.font = mono(26);
+      ctx.fillRect(x - trail, channelY - 6, trail, 12);
+      ctx.font = mono(32);
       ctx.fillStyle = room.emit.ice;
       ctx.shadowColor = room.emit.ice;
-      ctx.shadowBlur = 16;
-      ctx.fillText(hex(k + 3, 4), x - 28, channelY - 44);
-      ctx.beginPath();
-      ctx.arc(x, channelY, 8, 0, Math.PI * 2);
+      ctx.shadowBlur = 18;
+      ctx.fillText(hex(k + 3, 4), x - 40, channelY - 56);
+      // The packet: a bright bar, not a dot, so it reads from across the room.
+      roundRect(ctx, x - 22, channelY - 14, 44, 28, 6);
       ctx.fill();
       ctx.shadowBlur = 0;
     }
@@ -768,8 +776,8 @@ function drawStation(
       ctx.globalAlpha = 1 - f;
       ctx.fillStyle = room.emit.ice;
       ctx.shadowColor = room.emit.ice;
-      ctx.shadowBlur = 24;
-      ctx.fillRect(boxX - 3, channelY - 26 - f * 20, 6, 52 + f * 40);
+      ctx.shadowBlur = 28;
+      ctx.fillRect(boxX - 5, boxY + 8 + f * 10, 10, boxH - 16 - f * 20);
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
     }
@@ -788,23 +796,32 @@ function drawStation(
     const s = since % WORKING_LOOP;
     const done = Math.min(CHECKS.length, Math.floor(s / CHECK_SECONDS));
     const complete = s >= runFor;
-    // The pulse line: a beat every half check, travelling right.
+    // The pulse line: a beat every half check, travelling right. Once the
+    // run is complete it gives way to the report line.
     const pulseY = top + 8;
-    ctx.strokeStyle = room.warm.amber;
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.globalAlpha = complete ? 0.45 : 0.85;
-    ctx.beginPath();
-    for (let x = 48; x <= 640; x += 4) {
-      const phase = ((x - 48) / 592) * 3 - ((s / BEAT) % 3);
-      const frac = ((phase % 1) + 1) % 1;
-      const spike = frac < 0.12 ? Math.sin((frac / 0.12) * Math.PI) : 0;
-      const y = pulseY + 14 - spike * 22;
-      if (x === 48) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+    if (complete) {
+      ctx.font = mono(26);
+      ctx.fillStyle = room.warm.amber;
+      ctx.globalAlpha = 0.7 + 0.3 * Math.sin(s * 5);
+      ctx.fillText('run complete · reporting · scripted', 48, pulseY + 2);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.strokeStyle = room.warm.amber;
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      for (let x = 48; x <= 640; x += 4) {
+        const phase = ((x - 48) / 592) * 3 - ((s / BEAT) % 3);
+        const frac = ((phase % 1) + 1) % 1;
+        const spike = frac < 0.12 ? Math.sin((frac / 0.12) * Math.PI) : 0;
+        const y = pulseY + 14 - spike * 22;
+        if (x === 48) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
     }
-    ctx.stroke();
-    ctx.globalAlpha = 1;
     // The count.
     ctx.font = display(64);
     ctx.textAlign = 'right';
@@ -838,7 +855,7 @@ function drawStation(
           ctx.shadowColor = room.warm.amber;
           ctx.shadowBlur = 14;
         }
-        roundRect(ctx, x0 + k * (stepW + 6), y + 8, stepW, 16, 4);
+        roundRect(ctx, x0 + k * (stepW + 6), y + 6, stepW, 24, 5);
         ctx.fill();
         ctx.shadowBlur = 0;
       }
@@ -851,13 +868,6 @@ function drawStation(
         ctx.globalAlpha = 1;
       }
     });
-    if (complete) {
-      ctx.font = mono(24);
-      ctx.fillStyle = room.warm.amber;
-      ctx.globalAlpha = 0.7 + 0.3 * Math.sin(s * 5);
-      ctx.fillText('run complete · reporting · scripted', 48, bottom - 26 + 20);
-      ctx.globalAlpha = 1;
-    }
     return;
   }
 
