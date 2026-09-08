@@ -8,7 +8,7 @@ import {
 import { BREATH_EXTREMES } from '../src/world/characters/breathing.js';
 import { OVERSHOOT } from '../src/world/characters/locomotion.js';
 import { CLIP_FOR } from '../src/world/characters/VirgilRigged.js';
-import type { VisorMask } from '../src/world/characters/visorFit.js';
+import { placedPositions, type VisorMask } from '../src/world/characters/visorFit.js';
 import {
   console3Base64Payload,
   console3Metadata,
@@ -30,6 +30,11 @@ import {
 import { MAX_FOV, MIN_FOV, screenAxis, screenCorners } from '../src/world/room/closeUp.js';
 import { layout } from '../src/world/room/palette.js';
 import { cameraPose, limitsFor } from '../src/world/room/VirgilRoom.js';
+import {
+  fitScreenPlane,
+  SCREEN_INSET_M,
+  SCREEN_LIFT_MARGIN_M,
+} from '../src/world/screens/screenPlane.js';
 import {
   decodeVirgilPayload,
   parseVirgilGlb,
@@ -155,6 +160,52 @@ function consoleParts(role: Role, station: THREE.Mesh) {
  * normal so a ray reaches them rather than grazing their plane.
  */
 function screenSamples(role: Role, station: THREE.Mesh): THREE.Vector3[] {
+  return [...maskSamples(role, station), ...flatCorners(role, station)];
+}
+
+/**
+ * The four corners of the flat rectangle the picture is actually drawn on
+ * (V8.1, `screens/screenPlane.ts`), in the room. They stand 6–30 mm in
+ * front of the model's own surface, so they are easier to see than the
+ * samples below — but they are what a reader reads, so they are asserted
+ * rather than argued.
+ */
+function flatCorners(role: Role, station: THREE.Mesh): THREE.Vector3[] {
+  const mask = CAST[role].station.screen as VisorMask;
+  const { scale, positionScale, baseOffsetY } = CAST[role].station.metadata.runtime;
+  const local = new THREE.Mesh(station.geometry);
+  local.scale.setScalar(scale * positionScale);
+  local.position.y = baseOffsetY;
+  const index = (station.geometry.index as THREE.BufferAttribute).array;
+  const plane = fitScreenPlane(mask, placedPositions(local), index);
+  const halfWidth = plane.halfWidth - SCREEN_INSET_M;
+  const halfHeight = plane.halfHeight - SCREEN_INSET_M;
+  const origin = plane.centre
+    .clone()
+    .addScaledVector(plane.normal, plane.maxFrontUnderRect + SCREEN_LIFT_MARGIN_M);
+  // The placed frame into the room: the station's own yaw and position.
+  const toRoom = new THREE.Matrix4()
+    .makeRotationY(CAST[role].rotationY)
+    .premultiply(new THREE.Matrix4().makeTranslation(...CAST[role].at));
+  const out: THREE.Vector3[] = [];
+  for (const [u, v] of [
+    [-1, -1],
+    [1, -1],
+    [1, 1],
+    [-1, 1],
+  ] as [number, number][]) {
+    out.push(
+      origin
+        .clone()
+        .addScaledVector(plane.right, u * halfWidth)
+        .addScaledVector(plane.up, v * halfHeight)
+        .applyMatrix4(toRoom),
+    );
+  }
+  return out;
+}
+
+function maskSamples(role: Role, station: THREE.Mesh): THREE.Vector3[] {
   const mask = CAST[role].station.screen as VisorMask;
   const index = station.geometry.index as THREE.BufferAttribute;
   const position = station.geometry.getAttribute('position');

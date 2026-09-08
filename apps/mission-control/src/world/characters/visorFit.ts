@@ -1,5 +1,11 @@
 import * as THREE from 'three';
-import { createGlassMaterial as createGlass, PAINT_TEST, type PaintRule } from '../glass.js';
+import {
+  createConvexGlassGeometry,
+  createGlassMaterial as createGlass,
+  PAINT_TEST,
+  type PaintRule,
+} from '../glass.js';
+import { buildFlatScreen, fitScreenPlane, screenUvBounds } from '../screens/screenPlane.js';
 
 /**
  * Fits a face to a head's own geometry.
@@ -124,7 +130,14 @@ export function buildVisorGeometry(
   fitPositions: ArrayLike<number>,
   metresPerUnit: number,
   gapMetres = GLASS_GAP_M,
+  flat: { toSource: THREE.Matrix4 } | null = null,
 ): VisorGeometry {
+  // **A console's screen is drawn flat** (`screens/screenPlane.ts`): the
+  // selection is still the model's, but the surface is a plane fitted to
+  // it and one rectangle in that plane, because a screen that follows a
+  // Meshy console's lumps reads as crooked and the owner said so. A
+  // visor is never flattened: a face should follow the skull.
+  if (flat) return buildFlatVisorGeometry(source, mask, fitPositions, gapMetres, flat.toSource);
   const index = source.index;
   if (!index) throw new Error('visor: the head geometry has no index');
   const position = source.getAttribute('position');
@@ -211,6 +224,46 @@ export function buildVisorGeometry(
     return g;
   };
   return { face: make(positions), glass: make(glassPositions) };
+}
+
+/**
+ * The flat variant, for a console's screen: the plane `screenPlane.ts`
+ * fits to the model's own screen triangles, one rectangle in it, and the
+ * convex glass Virgil's slabs use in front of it. `fitPositions` are the
+ * selection's vertices in the mask's frame — metres, base at the origin —
+ * which is the frame the fit and the rectangle are computed in; the
+ * geometry is returned in the source's own units, as the lumpy variant
+ * is, so the two are interchangeable under the same mesh transform.
+ */
+function buildFlatVisorGeometry(
+  source: THREE.BufferGeometry,
+  mask: VisorMask,
+  fitPositions: ArrayLike<number>,
+  gapMetres: number,
+  toSource: THREE.Matrix4,
+): VisorGeometry {
+  const index = source.index;
+  const uv = source.getAttribute('uv');
+  if (!index || !uv) throw new Error('screen: the console geometry lacks an index or uv');
+  const plane = fitScreenPlane(mask, fitPositions, index.array);
+  const flat = buildFlatScreen(
+    plane,
+    gapMetres,
+    (width, height, bulge) => createConvexGlassGeometry(width, height, bulge, 24),
+    screenUvBounds(mask, uv, index.array),
+  );
+  // The fit is in the mask's frame — metres, base at the origin. The mesh
+  // these go beside carries the model's own scale and base lift, so that
+  // is divided back out here rather than assumed to be identity.
+  flat.face.applyMatrix4(toSource);
+  flat.glass.applyMatrix4(toSource);
+  flat.face.computeVertexNormals();
+  flat.glass.computeVertexNormals();
+  flat.face.computeBoundingBox();
+  flat.face.computeBoundingSphere();
+  flat.glass.computeBoundingBox();
+  flat.glass.computeBoundingSphere();
+  return { face: flat.face, glass: flat.glass };
 }
 
 const FACE_VERTEX = /* glsl */ `
@@ -327,10 +380,18 @@ export function buildVisorMeshes(
   metresPerUnit: number,
   faceTexture: THREE.Texture,
   paint: THREE.Texture,
-  options: { gapMetres?: number } = {},
+  options: { gapMetres?: number; flat?: boolean } = {},
 ): VisorMeshes {
   const gapMetres = options.gapMetres ?? GLASS_GAP_M;
-  const geometry = buildVisorGeometry(head.geometry, mask, fitPositions, metresPerUnit, gapMetres);
+  head.updateMatrix();
+  const geometry = buildVisorGeometry(
+    head.geometry,
+    mask,
+    fitPositions,
+    metresPerUnit,
+    gapMetres,
+    options.flat ? { toSource: head.matrix.clone().invert() } : null,
+  );
   const faceMaterial = createFaceMaterial(faceTexture, paint, mask.paint, faceAspect(mask));
   const glassMaterial = createGlassMaterial(paint, mask.paint);
   const skinned = (head as THREE.SkinnedMesh).isSkinnedMesh ? (head as THREE.SkinnedMesh) : null;

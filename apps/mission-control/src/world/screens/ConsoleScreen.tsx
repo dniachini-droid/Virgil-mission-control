@@ -2,11 +2,12 @@ import { createPortal, useFrame } from '@react-three/fiber';
 import { use, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
-import { buildVisorMeshes, faceAspect, placedPositions } from '../characters/visorFit.js';
+import { buildVisorMeshes, placedPositions } from '../characters/visorFit.js';
 import { CAST, type Role } from '../room/cast.js';
 import type { Outcome, Report, StationState } from '../room/demo.js';
 import { crtFrame, POWER_OFF_SECONDS } from './crt.js';
 import { loadScreenFonts } from './fonts.js';
+import { flatScreenAspect } from './screenPlane.js';
 import { drawStation } from './stationScreen.js';
 
 /**
@@ -57,17 +58,25 @@ export function ConsoleScreen({
   const asset = use(member.station.load());
   const { reducedMotion } = useSettings();
   const mask = member.station.screen;
+  // The live canvas is drawn at the **flat rectangle's** aspect, not the
+  // selection's paint bounds': the selection spans a surface tilted back
+  // by 12.6°–14.1°, so its height in the fitted plane is longer than its
+  // height in y (`screenPlane.ts`).
+  const aspect = useMemo(() => {
+    const index = (asset.mesh.geometry.index as THREE.BufferAttribute).array;
+    return flatScreenAspect(mask, placedPositions(asset.mesh), index);
+  }, [asset, mask]);
   const { canvas, texture } = useMemo(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 1024;
-    canvas.height = Math.max(64, Math.round(1024 / faceAspect(mask)));
+    canvas.height = Math.max(64, Math.round(1024 / aspect));
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = false;
     return { canvas, texture };
-  }, [mask]);
+  }, [aspect]);
   // The one way a screen is made: the visor's builder, on the console's
   // own triangles, with its paint (the mask's rule keeps every pixel).
   const screen = useMemo(() => {
@@ -81,7 +90,7 @@ export function ConsoleScreen({
       scale * positionScale,
       texture,
       paint,
-      { gapMetres: SCREEN_GLASS_GAP_M },
+      { gapMetres: SCREEN_GLASS_GAP_M, flat: true },
     );
   }, [asset, mask, texture, role]);
   const parent = asset.mesh.parent;
