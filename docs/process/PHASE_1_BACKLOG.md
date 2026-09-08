@@ -101,6 +101,25 @@ Recorded as direction the owner gave, not as decisions. None of it is a decision
   that item's portraits-and-notifications direction still stands for the command-centre
   view the conversation returns to.
 
+- **Simpler consoles — the owner's thought of 8 September, under consideration, not a decision.** His words:
+  *"im honeslty thinking we clean this up even further and making the consoles even simpler. like
+  ultra futuristic white stands with a screen. I think the simpler the better, and the focus is on
+  the screens and the info in them. Just a thought at the moment."* Authored white stands in place of
+  the three Meshy role consoles, the screen the only detail. Recorded now so the thought is not lost
+  while he weighs it; **nothing is built and nothing is deleted** — the three station models stay in
+  `assets/models/candidates/` with their provenance rows whatever he decides.
+  What it would cost and save, measured: the three station payloads are 279,076 + 260,224 + 282,976 =
+  **822,276 bytes** of the bundle's base64, so dropping them takes the artifact from 8,426,374 bytes to
+  about 7.6 MB — mobile goes from 133.9 % of 6 MiB to about 121 %, still over, so this does not solve
+  the budget on its own. The screen work already done carries over: drawing a flat screen with convex
+  glass in front of it survives, and only the derivation of that plane from Meshy's faceted triangles
+  is discarded. The risk to name is that the ornate consoles are doing real work — they make the set a
+  place and give each character something to belong to; three bare stands could read as a slideshow with
+  robots beside it. The obvious hedge is to keep Virgil's ring console as it is and simplify only the
+  three role stands, which also strengthens the "Virgil is the conductor" reading he asked for.
+  A change of this size is an art-direction change and wants an owner decision record, not a silent
+  drift away from `docs/decisions/OD-0002-art-direction-checkpoint.md`.
+
 ## Waiting on the owner
 
 - **Delete the scratch branch `claude/ci-failure-demo`** — needs owner. One commit on top of `dd2c48f` carrying a deliberate external `fetch()`, pushed on 2026-09-08 to prove CI fails on a network escape (it did). The session cannot remove it: `git push origin --delete` returns 403 and the REST ref deletion is refused by the proxy. One `git push origin --delete claude/ci-failure-demo` from a machine that can. Nothing from it is merged.
