@@ -624,3 +624,197 @@ The six registered frames were then captured again from `docs/process/PHASE_1_ow
 ### Continuous integration, on the pushed head
 
 [Run #34262502937](https://github.com/dniachini-droid/Virgil-mission-control/actions/runs/34262502937), `push` to `claude/virgil-phase-1-slice` at `47acb84` — **success**, both jobs, every step, read back from the API's per-step conclusions: *lint, typecheck, tests, owner build, owner verify* (11 steps, including `pnpm check`, the Mind Scan, `build:owner`, `verify:owner` and the committed digests) and *newest Owner Build rebuilds byte for byte*. That second job is the reproducibility rebuild of `v8-3-s2-virgil-02f9b504c1.html` on a GitHub runner rather than in this container, which is the only part of this record that was checked on a machine this session does not control. It runs the Chromium the lockfile pins (`153.0.8010.12`) where this container substitutes a preinstalled `141.0.7390.37`, so a local pass and a CI pass are still not passes on the same browser; that divergence is unrepaired and is recorded in the CI section above.
+
+## V9 — the pass of 2026-09-08: a screen opens a panel, the ledger keeps the board, the visors read as black glass
+
+Branch `claude/virgil-phase-1-slice`, from `94eb9ab`. The pass began with five items and finished with eight: three more (6, 7 and 8) were added mid-pass at the owner's instruction, and the owner also answered one diagnostic question from his own machine while it ran. **Six of the eight were built. Two were not, and they are named here and at the top of the report rather than in a footnote: item 4, the entry point that would let the CRT collapse be seen, and item 5, re-framing the close-ups for the characters.** Both were droppable by the coordinator's own priority once the extra items arrived, and both are unchanged from V8.3 — the collapse has still never been seen by anybody in a frame, and the characters are still largely cropped out of their own close-ups.
+
+### Item 1 — a screen opens a panel with the full record
+
+The owner's decisions, already taken (`docs/process/PHASE_1_CONVERSATION_INTERFACE.md` §5b): one tap opens the panel and starts the camera flight **concurrently**; the panel renders from data and never waits for the camera; dismissing it leaves the reader at the station; the entry animates **on the compositor only**; `ILLUSTRATIVE · NOT REAL STATE` is prominent, not a footnote; and the affordance is persistent, because a phone has no hover.
+
+**The design step was done first and outside the build**, as the brief required. Four standalone HTML studies were written in `build/v9/study/`, rendered at 1280 × 800 and 390 × 664, screenshotted open and mid-entry, and looked at side by side (the sixteen frames and the study itself are in this session's working directory; they are not committed):
+
+| candidate | what it is | why it lost or won |
+|---|---|---|
+| **A — the instrument plate** | a window inset from the viewport's edges, corner brackets at its four corners, the ground opening from a horizontal line | **Lost on its entry.** With the ground the same near-black as the backdrop, an opening rectangle is invisible: the mid-entry frame shows nothing happening. It also covers the centre of the frame, which is where the set is, and its header ate 390 of a phone's 664 pixels |
+| **B — the docked sheet** | the right 46 % of a desktop viewport, the whole of a phone's; a rail draws down the inner edge and the ground wipes open from it | **Won.** See below |
+| **C — the console drawer** | the lower 64 %, rising from the foot; a bright line at its top edge and the ground opening downward | Read best of the three at desktop — a compact header band, three filled columns — and its entry was the clearest, but it covers the set and leaves the empty sky, and its three columns collapse to one on a phone, so the desktop and phone forms are different layouts |
+| **D** | B taken further, with C's header band and A's brackets | the one integrated |
+
+**The reason B won is where the set sits in the frame.** The tabletop composition is a band across the middle of the picture (`PHASE_1_STYLISED_SPEC.md` §0.10.4), and the owner's decision is that the camera travels to the station *while the panel is being read* — which is worth nothing if the station is hidden. A centred window covers the characters; a bottom drawer covers them and leaves the sky; a sheet on one side leaves the cast visible for the whole flight, and its mid-entry frame shows exactly that. It is also the layout the full conversation will want at a larger size (§2, §7), so the expanded screen and the conversation are one layout at two sizes rather than two designs. From C it took the one-row header band and the columns; from A the corner brackets; from C's entry the bright line, stood upright as the rail the ground opens from.
+
+Against the design direction it was given: the ground is the screens' own ink `#070a18`; the rules are hairlines; there is no rounded-corner card, no drop shadow and **no default browser scrollbar** — a thin custom rail in the world's own ice, with edge-fade masks. The corner brackets are the marks `draw.ts` strokes on every screen, and the top one frames the panel's one control. The verdict mark is the twelve-segment ring of `verdicts.ts`, broken on every third for `BLOCKED` and outlined with a gap for `INSUFFICIENT_EVIDENCE`, in the same colours. **No new colour is introduced**, and a test scans the stylesheet and fails on any hex that is not already in `draw.ts` or `room/palette.ts`. **No role accent was used, because `palette.ts` has none**: the world's accents are per *state* — ice while receiving, amber while working, the verdict's own colour once reported — and the panel takes its tint from the same place the screen does.
+
+**Type costs nothing.** Outfit Bold's subset has **no lower case**, so it sets the upper-case display type only — the role name, the state, the section titles, the honesty band, the mark's word — and Geist Mono Bold, which does have lower case, sets everything data-shaped; body prose uses the reader's own system stack. **Not one font byte is added**, and a test holds that every string set in the display face is upper case at every beat.
+
+**The motion**: 380 ms in, 260 ms out, every animated property `transform` or `opacity` and nothing else — a test collects every `.style.<prop> =` in the component and fails on anything but those two (the one exception is the scroll rail's thumb height, which is set from a scroll event and not per frame, and the test names it). Under `prefers-reduced-motion` the panel is **rendered open on the first frame**, never hidden: KR-55 is the history, and the test asserts the shape of the branch as well as its effect.
+
+The composer is present, typeable, honest — `Not connected to a session`, `Nothing is sent: there is no session behind this build` — and what is typed is kept. A test forbids `fetch`, `XMLHttpRequest`, `WebSocket` and `sendBeacon` anywhere in the component.
+
+**One panel, many sources.** Every fact the panel states comes from the function the screen draws from: `tally.ts` for the counts, `verdicts.ts` for the verdict's word and colour, `stationScreen.ts`'s own `countsFor` for the rows under a verdict, and the demonstration's own `CandidateState`. The candidate's identity moved into `screens/candidate.ts` so the slab and the panel cannot disagree about which candidate they describe; its value is unchanged, so the picture on the slab did not change.
+
+### Item 1's defect, found by rendering the committed artifact and looking
+
+The first build of the panel read **"The Fabricator holds no work. Its console is dark."** while his console, visible in the same frame, was lit and reading `FABRICATOR / READY`. **Two surfaces saying opposite things at the same instant** — the V7 defect again, and worse in the panel, because prose in clean HTML is far more believable than a small glowing screen.
+
+Which was wrong: the panel. `READY` is what a station shows for the 2.4 s between its report and its picture collapsing (`crt.ts`), and it is a true word for a station that holds no work. The panel had made a claim about the console's *picture*, a thing it does not own and cannot know.
+
+The durable fix is not the sentence. The prose is authored per station state, and `test/panel.test.ts` audits it at every beat of all three loops for every role, the way `demo.test.ts` audits the slab labels against the constitution's transition table: **every state has prose**; **no prose uses "dark", "lit", "screen" or "console is"**; and each state's prose must describe that state and must not claim what the state does not hold — a `READY` station is never "implementing", a `WORKING` one has never "returned". The test also proves the demonstration puts every role through all four states, so no state is unauthored.
+
+Two smaller checks made on the committed artifact rather than by eye. **The remaining rows of `FILES CHANGED` are reachable and not cut off**: the body holds eleven rows against a 455 px view in an 834 px scroll height, scrolling to the bottom brings the last row fully inside the body's box, all eight paths and three commit subjects are in the DOM, and the custom rail's thumb measures 230 px. **The ledger's two `12.0S` values are derived and not a placeholder**: the demonstration gives every hop exactly twelve seconds — 14 − 2, 29 − 17 and 44 − 32 — from `demo.ts`'s own `BEATS`, which `ledger.test.ts` reads back rather than restating.
+
+### Item 2 — the ledger on Virgil's far-left slab
+
+The owner: *"the screen on the far left (virgils far left screen) should really have a list of the agents used, and next to it the outcome, and that updates (with fancy animations) as it happens, but also remains on the screen so at a glance you can see where its up to."* The defect is structural: **the information was the animation**, and nothing persisted to be read by someone who looked away.
+
+`src/world/screens/ledger.ts` derives the board and draws nothing, so the properties are held over the whole demonstration rather than over a screenshot:
+
+- **rows are appended and never rewritten.** `test/ledger.test.ts` walks every beat of every loop at a tenth of a second and fails if any row's identity, order, start, report or end ever changes once written;
+- **the beats come from `demo.ts`'s own `BEATS`**, and a test forbids a second literal copy of the timeline;
+- **elapsed time is a column**: it runs while a hop runs, freezes when the hop reports, and every bar is measured against the longest hop so two rows compare;
+- **in flight reads as unresolved, not blank** — an open mark that breathes, a bar with a bright head, and a running number;
+- **it clears per candidate**, with the candidate's identity on it;
+- a blocked or insufficient-evidence candidate never reaches review, so the board has **two rows and not a blank third**;
+- **the returning convergence lands into its row**: the mark's seal is driven from the report's own arrival over the same `RETURNING` window the console and the verdict slab use, so the beat and the record are one event;
+- **clicking a row opens that hop in the panel.** The row is derived from the texture coordinate the raycast returns, through the same layout the drawing uses, and a test walks every row's centre to prove the row hit is the row seen.
+
+The old `ROLES` indicator is gone rather than placed beside this: it was a light that moved and is strictly dominated by a board.
+
+**One thing found by looking**: the `SCRIPTED DEMONSTRATION` badge sat under the controls at the top left, which is exactly where the far-left slab is at the wide view — so the board the owner asked to be readable at a glance was behind the one label that may never be hidden. The badge moved to the foot of the stage: still fixed, still always visible, still opaque, and now over nothing that carries state.
+
+**Judged honestly at the wide view**, which is the bar the owner set: at 1280 × 800 the row's colour, its bar's length and the verdict's ring read; the role glyph reads as a shape in a box; the elapsed number is at the edge of legibility; **the role names are not legible.** That is the design working as intended — shape and colour at distance, text up close, everything in the panel — and it is also the honest limit: a reader at the wide view learns *three hops, all green, all the same length, all finished*, and has to approach or open the panel to learn which is which.
+
+### Item 3 — four display defects, all in the screen-drawing code
+
+1. **`INSUFFICIENT EVIDENCE` overlapped the tally line.** Arithmetic: the verdict's second line sat at `wordY + 190` and was set at up to 56 px, so its glyphs reached 376, while two tally rows started at `floor − 40 − 96` = 340 on the Prover's 1024 × 594 canvas — **36 pixels of overlap**, on the longest word the demonstration shows, present since V8 and skipped twice. The second line now reports where its glyphs end, the rows start at least 22 px under that, and where the wish and the clearance cannot both be met the pitch closes up rather than the type colliding. `evidenceRows` is pure and is held for every role, every verdict, every row count and every console's own measured aspect; the test also reproduces the 36 px so the defect stays on record.
+2. **The phone's slab honesty bands.** Measured rather than guessed: each slab is about 110 screen pixels wide at the wide view and the band's twenty-nine characters get **3.8 pixels each**, which no size or weight can rescue. On the coarse tiers the four words are set on **two lines**, at the division the sentence already has, which takes the per-character width to **7.9 — 2.1×** — inside the same band height. **Nothing is abbreviated, dropped or dimmed**: the layout changes and the words do not, and a test holds that the sentence is declared exactly once and the two lines come from it.
+3. **The centre slab reading olive.** The largest single contributor was a flat fill of the tint over the **whole picture** at up to 0.16 alpha — the definition of a wash. It is a radial gradient centred on the ring now: brighter at the centre than the flat wash was, so the verdict keeps its force, and zero by 1.9 radii, so the ground away from the ring is as black as every other display. Measured on the two committed artifacts at the board entry point, the centre rectangle went **60.2 → 47.7** while the right slab's went 34.4 → 33.6 — but those rectangles also contain a display plane that item 8 resized, so **the two changes are confounded and the whole of the drop is not claimed for this one**. What remains above the other slabs is the verdict's own drawn geometry — twelve ring segments 26 px wide, the tick, the held ring breathing at 34 px — which is the verdict reading as its colour.
+4. **`LightingRig.tsx`'s false comment.** It said the hemisphere light goes *"0.3 → 0.95"* in two places; the value in the file, and in V8.2's own record, is **0.8**. Corrected, not changed.
+
+### Item 6 — the eye indents Meshy left in the visors
+
+The owner: *"The keeper's visor has indents where I think meshy ai believed its eyes are meant to be. So you'll actually have to remove the indent on the actual model, and make it smooth."*
+
+**This overrules a judgment V8.3 recorded, and the reversal is the owner's to make.** V8.3 measured the Keeper as the least convex of the four — 1,054 of 2,149 interior vertices bending the wrong way, 49.0 % convex, a worst wrong-way curvature of 539 /m, the largest quadric residual at 1.38 mm — attributed it to *"a fold in his hood"*, and left it deliberately on the ground that straightening it *"would be redesigning his face"*. The owner has now said those are not his design: they are Meshy's guess at where eyes go.
+
+**His `.glb` is not touched.** Nothing in `assets/` changes, no provenance row is created, and the correction runs when the visor is built, on the geometry extracted from his model. He wrote "remove the indent on the actual model" and is entitled to know that his file on disk is byte for byte what it was.
+
+The method (`visorSmooth.ts`, `fillIndents`): every interior vertex more than `CONVEXITY_RADIUS_M` from the rim is measured against **a quadric fitted to the surface around it** — the annulus from 22 to 50 mm, so the dent is not in its own reference — and **never against a sphere**, because these selections are 42–155 mm from one. A depressed vertex is moved out along its own normal by its own depth, which is zero at the region's edge, so nothing steps. Four passes, because filling one dent changes the surface its neighbour is measured against.
+
+| visor | regions filled | deepest | area corrected | convexity | boundary moved |
+|---|---|---|---|---|---|
+| Virgil | 71 | 2.26 mm | 36,859 mm² | 97.5 % → **99.1 %** | 0 nm |
+| Prover | 21 | 2.23 mm | 17,426 mm² | 95.1 % → **98.1 %** | 0 nm |
+| Fabricator | 22 | **9.40 mm** | 22,415 mm² | 77.8 % → **82.5 %** | 0 nm |
+| Keeper | 35 | **13.65 mm** | 33,659 mm² | 49.0 % → **51.7 %** | 0 nm |
+
+The Fabricator's deepest two are **9.40 mm and 7.54 mm at (±0.12–0.16, 0.64, 0.17)** — a mirrored pair, which is what a pair of guessed eye sockets looks like. The Keeper's are **13.65 mm and 12.60 mm at (±0.09, 0.22, 0.18)**, also mirrored. His 95th-percentile wrong-way curvature falls 121.3 → 75.8 /m.
+
+**The boundary moved exactly zero**, which is a stronger statement than the 23–108 nanometres the subdivision is held to, because no vertex within 25 mm of the rim is a candidate at all. The pinned-outline figures are unchanged: 42.5, 28.4, 23.0 and 107.6 nm.
+
+**Three regions on the Keeper are reported and left**, and this is the judgment the coordinator's instruction asked for: **30.42 mm over 47,886 mm² and 720 vertices** at (−0.006, 0.287, 0.161), **21.88 mm over 4,186 mm²**, and **20.67 mm over 49 mm²**. Filling everything concave was tried and measured, and it made him **worse** — 49.0 → **41.6 %** convex, worst wrong-way curvature 539 → **1,016 /m**. So the fill is capped at **15 mm deep and 8,000 mm²**: past that it is a fold in the owner's own design, not a guessed eye socket, and it is measured and reported rather than forced. The caps and both numbers are asserted in `test/visor-smoothing.test.ts`, which also fails if a kept region breaks neither cap.
+
+The drawn face is untouched: `faceUv` is still the planar map `visor-smoothing.test.ts` holds it to, and the eyes are where they were. Reduced motion still draws all four faces (KR-55).
+
+### Item 7 — the light-coloured marks on the black
+
+The owner: *"Virgil's visor is completely smooth but there's still a light coloured mark in the middle on the black. And the fabricator same thing."* Then: *"Prover as well when you look closely. Fix them all."* And, answering the discriminating test from his own machine: *"The marks stay in the same place I think."*
+
+**Two causes, both measured on the committed payloads before a line changed.**
+
+**The first is the paint mask.** The rule is per pixel and selects dark paint, so anything Meshy painted lighter than it inside the visor was discarded and the head's own base colour showed through. Sampling every one of the mask's triangles at 78 points and recording each sample's distance to the mask's **own boundary polyline** put the discards overwhelmingly at the rim, where they are the paint's ragged edge and *are* the silhouette:
+
+| visor | surface | discarded | 0–5 mm from the rim | 10–15 mm | 20–30 mm | beyond 30 mm | deeper than 15 mm |
+|---|---|---|---|---|---|---|---|
+| Virgil | 327,117 mm² | 8,297 (2.5 %) | 43 % | 1 % | 0 % | 0 % | **208 mm²** |
+| Fabricator | 174,091 mm² | 44,019 (25.3 %) | 72 % | 30 % | 7 % | 2 % | **3,912 mm²** |
+| Prover | 101,428 mm² | 17,256 (17.0 %) | 68 % | 8 % | 0 % | 0 % | **216 mm²** |
+| Keeper | 303,713 mm² | 122,099 (40.2 %) | 82 % | 69 % | 39 % | 12 % | **34,689 mm²** |
+
+Virgil's deep marks cluster at **0.49–0.53 across and 0.24–0.33 down his face** — between his eyes, which is exactly where he said the mark was. The rule is now confined to a **15 mm band along the mask's own boundary**, measured per vertex in metres against the polyline the paint gave; beyond it nothing is discarded and the display's own ink covers the surface. **No threshold was lowered**, because lowering the luminance rule would have enlarged the outer boundary as well as filling the marks. The glass carries the same attribute and the same band, so it stops exactly where the face does.
+
+**The second is the face's own point light**, and it is the one the owner could see. It sat **0.12 m in front of the glass** at the visor's centre — it exists to spill the face's colour onto the chest — and the glass reflected it as a bright dot between the eyes, **fixed to the head**, so it travelled with the face and not with the camera, which is what he reported. V8.3 made it brighter by lifting the direct specular 2.6× for every light, that one included. It now sits **behind the display**, where a front-facing glass cannot see it.
+
+**Proved by looking, not by a number.** The first fix — the rim band — removed a dark squiggle above the dot in Virgil's close-up but left the dot. The second removed the dot. The two crops are `v9-virgil-visor-before.png`, `-after.png` and `-nolight.png` in this session's working directory. At the wide view all four visors read as black glass with their eyes and nothing else on them; there is a faint travelling colour from the room, which is the reflection V8.3 built and is what makes them read as glass.
+
+The assertion `expect(visor.lightAt.z).toBeGreaterThan(paintBounds.max[2])` described the old design and is replaced by `toBeLessThan`, which is the stronger of the two: a light behind a front-facing glass cannot be reflected at all, rather than merely dimly.
+
+### Item 8 — Virgil's slab display fills its opening
+
+The owner: *"Virgil's screen doesn't go all the way to the bottom - there's a gap and it's awkward."*
+
+Measured on the authored geometry. The display plane stands a little outside the opening so its own cut edge hides behind the plate's lip. From V7 to V8.3 that margin was `bezel / 4` — **30 mm on a 1.3 × 0.8 m slab, which is 3.49 % of the plane's height at the top and the same at the bottom, and therefore 22.6 of the honesty band's 118 canvas pixels, a fifth of the band, permanently behind the bezel.** The gap is symmetric in the geometry and reads as worse at the bottom because the slabs tilt back 0.1 rad and the board camera sits above their centre.
+
+It is **6 mm** now — the same 6 mm the glass has stood off the opening's curve since V8.2, so one constant governs the plane, the canvas, the corner radius and the glass instead of three literals. Per edge the hidden share goes **3.49 % → 0.74 %**, the band's hidden pixels **22.6 → 4.7**, and the canvas follows the plane at **1024 × 634**.
+
+**V8.3's aspect fix is not lost.** The 2.78 % horizontal stretch it removed is a fact about the plane V8.2 had (1.36 × 0.86 m), so the test computes it from those dimensions rather than from today's, and separately asserts that today's plane has no stretch. The expected number was **re-derived, not adjusted**.
+
+Looked at, at the board entry point: the picture is visibly larger in the opening and the band's words are larger with it. **What remains below the band is the plate's own 120 mm bezel seen at that camera's angle** — the authored geometry, not a mismatch between two definitions — and that is stated rather than fixed by redesigning the owner's slab.
+
+### Items 4 and 5 — not done
+
+- **Item 4, the entry point that would let the CRT collapse be seen.** Not built. The collapse is still driven by each station's own power clock from the moment its state leaves `RECEIVING`/`WORKING`/`REPORTED`, so `#/?demo=` cannot reach it, and **no one has still ever seen it in a frame.** V8.1 named the fix — a `#/?off=<role>` that seeds `ConsoleScreen`'s `powerAt` — and V8.1, V8.2, V8.3 and now V9 have all left it.
+- **Item 5, re-framing the close-ups for the characters.** Not done. The characters are still largely cropped out of their own close-ups, for the reason V8.1 recorded. **The panel makes this worse in one specific way that is worth recording:** the panel takes the right 48 % of a desktop viewport, and the close-up centres the console's screen in the frame, so with the panel open about half the screen it flew to is behind it. The owner's decision is that the world has arrived by the time the panel is dismissed, so the framing that matters is the one after dismissal — but a close-up composed for the left 52 % while the panel is up would be better, and item 5 is where that belongs.
+
+### Nothing was weakened to make this pass
+
+Six assertions changed and each is stated here rather than buried, with what it protected and why the replacement is at least as strong:
+
+1. `console-screens.test.ts` asserted the face primitive is rendered with no props. It now asserts there are **exactly two primitives**, that they are the builder's own two meshes, that the glass carries nothing at all, and that the only thing added to the face is the click — which is the stronger form of what the old line protected, and still fails on a stray `<mesh>` or material.
+2. `visor.test.ts`'s masked-glass fixture had no vertex shader and threw once the rim attribute was added. It gains one, and the assertion now also checks the rim varying, the rim uniform, the band's value on a visor and on a screen, and that the band is a real length.
+3. `visor.test.ts`'s "the light sits in front of the paint" becomes "behind it". It described the old design; the new form is the property that makes the reflection impossible rather than merely dim.
+4. `visor-smoothing.test.ts`'s recorded convex shares move 0.78 → 0.83, 0.95 → 0.98, 0.49 → 0.52 and 0.97 → 0.99. These are facts about the payloads under the new builder, and the file additionally asserts that **the fill improved the convexity** against the value recorded before it, that the boundary moved exactly zero, and that no filled region broke either cap and no kept region broke neither.
+5. `console-screens.test.ts`'s 2.78 % stretch is re-derived from V8.2's own plane rather than adjusted to today's, and today's plane is separately asserted to have no stretch.
+6. `console-screens.test.ts`'s corner-radius assertion changes its reference from `bezel / 2 / 2` to the single margin item 8 introduced; it is the same rule against one number instead of two.
+
+Nothing else in any test file was removed. **Forty-eight tests were added** — 20 for the panel (two of them the prose audit added by the repair), 13 for the ledger, 7 for the display defects, 6 for the visors, 2 for the slab fill — and `mission-control` goes from **166 to 216**, with the workspace total **401 → 449**.
+
+### Checks run on the working tree of `6357cce`, every one in the foreground
+
+- **`pnpm check`** with `TURBO_FORCE=true` — biome **205 files** clean, no fixes applied; `turbo run typecheck` 8 tasks; **216 tests passed** across 16 test files in `mission-control` and **235 across the five packages** (agent-contracts 70, domain 104, gate-engine 19, knowledge-graph 24, visual-language 18), **451 in total, 0 failed, 0 skipped**; then `build:owner` and `verify:owner` — `browser chromium 141.0.7390.37 — /opt/pw-browsers/chromium (preinstalled, substituted for the pinned build)`; `routes (tabletop), (retired room), #/s1, #/spike/foundry, #/spike/mind`; `requests 1, off-document 0`; `renderer ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)…), SwiftShader driver)`; footer `viewing point V9`; `console errors 0`; **PASS — opens from `file://`, no console errors, no off-document requests**. The same warnings printed and not failed on as in V6–V8.3: the `THREE.Clock` and `PCFSoftShadowMap` deprecations and SwiftShader's ReadPixels stalls.
+- **Mind Scan** (`pnpm --filter @virgil/knowledge-lint run lint`) — `knowledge graph: 82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `graph hash sha256:a86250498e12d01d9be701610b1947b0bec39c34739816ddb2e0334ea6e0d6d1`; **`mind scan: no findings`**.
+
+### The artifact, its digest and the rebuild
+
+- **`build:owner` from a clean tree** at `6357cce` (`git status --porcelain` empty before it ran, `VIRGIL_OWNER_BUILD_DATE="2026-09-08 21:10 UTC"`) — `v9-s2-virgil-6357cceafe.html`, **8,488,594 bytes**, `sha256 9a2a5e618906b171f8f670af1f45e6405268c56b863e03f2dfd9eee09ce37313`. The footer carries no `+uncommitted changes` marker and its stage line reads `viewing point V9`.
+- **`sha256sum -c`** over every committed Owner Build digest — all **thirteen OK**, including the new one.
+- **`pnpm reproduce:owner`** — recovered source commit `6357cceafedff97ca5dfc98d1d8e6ddff03fb37d` and the build date from the artifact's own bytes, rebuilt in a detached worktree at that commit, `cmp` **identical**, `sha256 9a2a5e618906b171f8f670af1f45e6405268c56b863e03f2dfd9eee09ce37313 (8488594 bytes)`. **PASS — the committed artifact is byte-for-byte derivable from its commit.**
+- An artifact built at `6d2da93` was committed by accident — a `git rm` of a still-untracked file failed silently and `git add -A` then took it — and is removed in the same commit as the real one. It is the build with the panel defect the repair fixed and was never a viewing point.
+
+### Size, against both readings of the budget
+
+**8,488,594 bytes**: 8.095 MiB, or 8.489 MB. V8.3 was 8,456,305 bytes, so V9 is **32,289 bytes (0.382 %) larger** — the panel, the ledger, the indent fill, the rim attribute and the four display fixes. **No payload changed**: every model, mask, font and window layer is byte-identical to V8.3, and **no font byte was added**. Against `docs/architecture/PERFORMANCE_STRATEGY.md`'s ≤ 12 MB desktop and ≤ 6 MB mobile, which does not say which unit it means:
+
+- desktop: **67.5 % of 12 MiB, 70.7 % of 12 MB — inside on both readings**;
+- mobile: **134.9 % of 6 MiB, 141.5 % of 6 MB — over on both readings**, as every viewing point has been.
+
+Nothing was cut for the number.
+
+### What this pass did not do
+
+No performance measurement and no look on real graphics hardware; OD-0005's two checks remain **not performed**, and the panel adds a DOM layer and 43,470 runtime triangles' worth of neighbours to that unmeasured question. Items 4 and 5 are not done, as above. The dropped-transcript reader is not built and was deliberately deferred by the brief. The Keeper's 30 mm hood fold is not flattened and is reported. The remaining thickness of the slabs' bottom bezel is the authored plate seen at the board camera's angle and is not changed. The role names in the ledger are not legible at the wide view, by design and by measurement.
+
+### The A/B, at the registered entry points, on the committed artifacts
+
+Registered before the change. "Before" is the committed V8.3 artifact `v8-3-s2-virgil-02f9b504c1.html`; "after" is the committed V9 artifact `v9-s2-virgil-6357cceafe.html` — the file the owner opens, not a working-tree build. Every frame used the identical entry point, viewport, seek time and view key. The demonstration clock advances per rendered frame, so each frame was reached by polling `window.__virgilDemo`, and each view key was pressed only after that object existed and then confirmed by reading the **last** active button in `.room-controls` (the first is the Demo group's `On`, which is the trap an earlier pass fell into). Zero console errors on all eighteen.
+
+| tag | viewport | entry | key | before, reached | after, reached | view confirmed |
+|---|---|---|---|---|---|---|
+| idle-wide | 1280 × 800 | `#/?loop=0&demo=48` | none | 51.00 s | 51.00 s | All |
+| fab-close | 1280 × 800 | `#/?loop=0&demo=13` | `2` | 16.10 s | 16.10 s | Fabricator |
+| keeper-close | 1280 × 800 | `#/?loop=0&demo=43` | `4` | 46.00 s | 46.00 s | Keeper |
+| board | 1280 × 800 | `#/?loop=0&demo=27` | `5` | 30.00 s | 30.00 s | Board |
+| virgil-face | 1280 × 800 | `#/?loop=0&demo=17` | `1` | 20.00 s | 20.00 s | Virgil |
+| idle-phone | 390 × 664 | `#/?loop=0&demo=48` | none | 51.03 s | 51.03 s | All |
+| **ledger** | 1280 × 800 | `#/?loop=0&demo=40` | `5` | 44.00 s | 44.00 s | Board |
+
+And four after-only frames, because V8.3 has nothing to compare them with: **panel-desk** and **panel-phone** (`#/?loop=0&demo=13`, 15 s, key `2`, then `P`), **panel-keeper-desk** (`#/?loop=0&demo=43`, 45 s, key `4`, then `P`), and **panel-reduced-motion**, the same as the first with `prefers-reduced-motion: reduce`.
+
+**What the frames show, judged honestly.**
+
+- **The panel.** It reads as a display surface of the same family as the consoles: the screens' own ink, the corner brackets, the amber band at full width under the header, the twelve-segment claim ring beside `COMPLETE`, a thin ice rail instead of a scrollbar. The world stays visible on the left for the whole of the flight, which is what the docked form was chosen for. The Fabricator's console is behind the panel's left edge in the same frame, lit and legible, and the two now say the same thing.
+- **Reduced motion**: the panel renders fully open on the first frame, and both faces are still drawn. KR-55 holds.
+- **The ledger** at the board close-up: `LEDGER`, `CANDIDATE 9abcdef012`, three rows with their glyph boxes, names, bars, `12.0S` and their rings; the badge no longer covers it. At the wide view the colour, the bar and the ring carry; the names do not.
+- **The visors**: the bright mark in the middle of Virgil's is gone in the after frame and present in the before, and the crops that prove which fix removed which are named under item 7. At the wide view all four read as black glass with their eyes and a faint travelling colour from the room.
+- **Virgil's slabs** fill their openings further than they did, and the honesty band's words are correspondingly larger.
