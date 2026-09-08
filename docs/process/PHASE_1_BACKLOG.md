@@ -228,7 +228,17 @@ Recorded as direction the owner gave, not as decisions. None of it is a decision
   same models under the new lighting, in one frame beside what he saw. If they still look cheap when well
   lit, replace them — and it will have been established rather than guessed.
 
-  Sequencing put to the owner: this pass ahead of the ledger and the visors. Awaiting his answer.
+  **Authorised by the owner, 8 September:** *"i agree with all your choices. on the lighting. they. are
+  all good. implement all."* All four changes are approved — the lit idle baseline with the spotlight as
+  a lift over it, roughness near 0.4 with a sheen, the cheap blurred floor reflection, and the rim light
+  behind each console — ahead of the ledger and the visors.
+
+  **The A/B must isolate the lighting, so its "before" frames come from the V8.1 build, not from V8.**
+  V8.1 replaces the console screens with fitted flat planes; a comparison taken against V8 would show
+  flat screens *and* new lighting together and prove nothing about either. So the order is forced: V8.1
+  pushes, the before frames are captured from it at named beats and cameras, the lighting pass runs, and
+  the after frames use the identical entry points. The comparison is registered before the change rather
+  than chosen after it.
 
 ## Waiting on the owner
 
