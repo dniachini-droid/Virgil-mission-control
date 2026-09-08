@@ -82,6 +82,25 @@ Recorded as direction the owner gave, not as decisions. None of it is a decision
 - **A refusal/blocked animation clip** — needs owner. The owner said they would supply it (`PHASE_1_HOW_TO_LOOK_V3.md`, "Owner direction, recorded", item 4); until then a blocked state is expressed through face, light and colour.
 - **Mobile performance levers** — open. 512² textures, a faked floor reflection, quarter-resolution bloom, characters loaded on demand. None is measured; `docs/decisions/OD-0005-phase-1-visual-checks-and-reference.md` requires performance recorded as unmeasured until it is measured on real hardware.
 
+## Product direction — the owner's direction of 2026-09-08
+
+- **The Virgil conversation — "to do soon", the owner's own priority.** Clicking Virgil
+  opens the working interface: full conversation history, Markdown, code and terminal
+  output, plans and progress, owner decisions, attachments, image previews, diffs and
+  PR summaries, and approve/reject/pause/resume controls. Desktop compresses the 3D
+  world to ~35% with a draggable boundary and a focus button; mobile gives the
+  conversation nearly the whole screen with Virgil in an animated header and the
+  composer pinned. Per-agent records exist for inspection only — Virgil stays the one
+  conversation. Opening beat: a greeting naming the real state, three suggested
+  actions, and an unrestricted chat box beneath them.
+  Recorded in full, with its costs and a proposed order, in
+  `docs/process/PHASE_1_CONVERSATION_INTERFACE.md`. **Nothing of it is built.** The
+  read-only shell is buildable inside Phase 1; the live transport and the control
+  buttons are Phase 2/3 capability and are not authorised by that record. This
+  supersedes the shape of the "Mobile-first UI" item above, which it does not delete —
+  that item's portraits-and-notifications direction still stands for the command-centre
+  view the conversation returns to.
+
 ## Waiting on the owner
 
 - **Delete the scratch branch `claude/ci-failure-demo`** — needs owner. One commit on top of `dd2c48f` carrying a deliberate external `fetch()`, pushed on 2026-09-08 to prove CI fails on a network escape (it did). The session cannot remove it: `git push origin --delete` returns 403 and the REST ref deletion is refused by the proxy. One `git push origin --delete claude/ci-failure-demo` from a machine that can. Nothing from it is merged.
