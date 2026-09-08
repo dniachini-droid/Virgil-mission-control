@@ -119,14 +119,16 @@ export const layout = {
   /**
    * The three stations, each facing the room's camera. Fabricator left and
    * Prover right behind the line of the console; Keeper right and forward,
-   * turned in toward the centre. In the room view the Keeper sits at the
-   * frame's right edge from the authored camera and clears on a small
-   * orbit; the tabletop sees all three.
+   * turned in toward the centre. `cameraSide` is which side of a character
+   * the eye-level camera stands on (+1 their right): the first V6 captures
+   * put the Prover's camera on the Keeper's side of him, and the Keeper
+   * filled the frame. The Keeper's own station is placed so his panel just
+   * fits the room's frame from the authored camera.
    */
   stations: {
-    fabricator: { at: [-3.5, 0, -3.3] as const, rotationY: 0.62 },
-    prover: { at: [3.5, 0, -3.3] as const, rotationY: -0.62 },
-    keeper: { at: [3.5, 0, -0.5] as const, rotationY: -1.1 },
+    fabricator: { at: [-3.5, 0, -3.3] as const, rotationY: 0.62, cameraSide: 1 },
+    prover: { at: [3.5, 0, -3.3] as const, rotationY: -0.62, cameraSide: -1 },
+    keeper: { at: [3.3, 0, -0.9] as const, rotationY: -1.0, cameraSide: 1 },
   },
 
   wallZ: -7,

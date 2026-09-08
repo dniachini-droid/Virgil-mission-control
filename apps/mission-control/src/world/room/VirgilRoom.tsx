@@ -272,12 +272,13 @@ export function cameraPose(view: View, focus: Focus): Pose {
   if (focus !== 'all') {
     const { at, rotationY: f } = figurePlacement(focus);
     const eye = eyeHeight(focus);
+    const side = layout.stations[focus].cameraSide;
     const fx = Math.sin(f);
     const fz = Math.cos(f);
     const rx = Math.cos(f);
     const rz = -Math.sin(f);
     return {
-      position: [at[0] + fx * 2.7 + rx * 0.6, eye + 0.3, at[2] + fz * 2.7 + rz * 0.6],
+      position: [at[0] + fx * 2.7 + rx * 0.6 * side, eye + 0.3, at[2] + fz * 2.7 + rz * 0.6 * side],
       target: [at[0] + rx * 0.4, eye - 0.05, at[2] + rz * 0.4],
       fov: 38,
     };
