@@ -23,7 +23,12 @@ import {
   staggered,
   staggerLength,
 } from '../src/world/screens/motion.js';
-import { evidenceRows, type ReturnLayout, withAlpha } from '../src/world/screens/returning.js';
+import {
+  evidenceRows,
+  type ReturnLayout,
+  SECOND_LINE_MIN,
+  withAlpha,
+} from '../src/world/screens/returning.js';
 import {
   fabricatorTally,
   keeperTally,
@@ -244,6 +249,43 @@ describe('the return’s layout leaves the rows clear of the words', () => {
     'INSUFFICIENT_EVIDENCE',
     'COMPLETE',
   ];
+
+  /**
+   * **And the second line fits its box across, not only down** (V10).
+   *
+   * V9 measured the second line's foot and stopped there. Its width was
+   * never checked, and one string in the vocabulary did not fit: `WITH
+   * NON-BLOCKING FINDINGS` measures **673 px at 40 px** — `fitFont`'s
+   * floor until V10 — in this build's own Outfit Bold at 0.04em, against
+   * a **566 px** box. It ran 107 px past its box and into the verdict's
+   * mark, on the one verdict this project's real run ended on.
+   *
+   * The number below is that single measurement, taken in the built
+   * artifact with the committed subset loaded and recorded in the V10 run
+   * record. Only the string that was measured is asserted: the others are
+   * shorter, and modelling their widths from a character count would be
+   * inventing a figure. If the subset changes this must be re-measured,
+   * not adjusted.
+   */
+  const MEASURED = { text: 'WITH NON-BLOCKING FINDINGS', px: 40, width: 673 };
+  const FIT_STEP = 6;
+  const FIT_FROM = 56;
+
+  it('sets the longest second line small enough to fit its box', () => {
+    const box = 1024 - 128 - 330;
+    expect(verdictLook('PASS_WITH_NON_BLOCKING_FINDINGS').lines[1]).toBe(MEASURED.text);
+    // The measured width is linear in the font size, which is what a
+    // canvas does with a scalable face.
+    const widthAt = (px: number) => (MEASURED.width * px) / MEASURED.px;
+    // The fitter's own walk, with the floor `drawReturn` gives it.
+    let size = FIT_FROM;
+    while (size > SECOND_LINE_MIN && widthAt(size) > box) size -= FIT_STEP;
+    expect(size, 'the fitter could not go small enough to fit the box').toBeLessThan(40);
+    expect(
+      Math.round(widthAt(size)),
+      `“${MEASURED.text}” is ${Math.round(widthAt(size))} px in a ${box} px box`,
+    ).toBeLessThanOrEqual(box);
+  });
 
   it('never puts a row inside the second line’s glyph box, on any surface', () => {
     for (const surface of SURFACES) {

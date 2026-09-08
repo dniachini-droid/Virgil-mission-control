@@ -44,16 +44,29 @@ export function spaced(ctx: Ctx, em: string) {
 }
 
 /** Sets `font` at the largest size, at most `px`, at which `text` fits `maxWidth`. */
+/**
+ * The largest size at or below `px`, in steps of 6, whose `text` fits
+ * `maxWidth` — stopping at `min` whether it fits or not.
+ *
+ * **`min` is a parameter and not the constant 40 it was until V10.** A
+ * floor is a promise that the fitter will overflow rather than set type
+ * below it, and 40 was the wrong promise for one string in the verdict
+ * vocabulary: `WITH NON-BLOCKING FINDINGS` measures 673 px at 40 px in
+ * this build’s own Outfit Bold at 0.04em, and its box on a slab is 566 px
+ * — so it ran 107 px past its box and into the verdict’s mark. Every
+ * caller that does not pass a `min` keeps the 40 it had.
+ */
 export function fitFont(
   ctx: Ctx,
   kind: (px: number) => string,
   px: number,
   text: string,
   maxWidth: number,
+  min = 40,
 ) {
   let size = px;
   ctx.font = kind(size);
-  while (size > 40 && ctx.measureText(text).width > maxWidth) {
+  while (size > min && ctx.measureText(text).width > maxWidth) {
     size -= 6;
     ctx.font = kind(size);
   }

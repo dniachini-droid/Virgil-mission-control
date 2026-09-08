@@ -136,6 +136,27 @@ export function drawConvergence(
  * The whole return: convergence, the seal and its pulse, the mark, the
  * words, the lines beneath. `findings` rides on a passing ring.
  */
+/**
+ * **How small the verdict’s second line may be set** (V10).
+ *
+ * The words under a verdict are fitted to a box that ends where the
+ * verdict’s mark begins. `fitFont`’s floor was 40 px for every caller,
+ * and one string in the vocabulary does not fit at 40: `WITH
+ * NON-BLOCKING FINDINGS` measures **673 px** in this build’s own Outfit
+ * Bold at 0.04em against a **566 px** box on a slab, so it ran 107 px —
+ * about four characters — past its box and under the mark. The replay
+ * made it plain, because `PASS_WITH_NON_BLOCKING_FINDINGS` is the real
+ * verdict this run ended on and it stands on the centre slab for three
+ * beats; but the scripted demonstration has shown the same collision
+ * since V8 raised that verdict on the third loop.
+ *
+ * A floor of 26 lets the fitter reach 32 px, where the line measures
+ * 538 px and fits. **The line is set smaller rather than shortened** —
+ * the same choice the honesty band makes on a phone, for the same
+ * reason: an abbreviation loses a word, and a smaller line loses none.
+ */
+export const SECOND_LINE_MIN = 26;
+
 export function drawReturn(
   ctx: Ctx,
   w: number,
@@ -224,14 +245,14 @@ export function drawReturn(
     // The size is fitted whether or not the line is visible yet, so the
     // rows below never move as it arrives.
     spaced(ctx, '0.04em');
-    const size = fitFont(ctx, display, 56, words[1], layout.wordWidth);
+    const size = fitFont(ctx, display, 56, words[1], layout.wordWidth, SECOND_LINE_MIN);
     spaced(ctx, '0em');
     wordsBottom = layout.wordY + SECOND_LINE_TOP + size;
     if (arriveSecond > 0) {
       ctx.save();
       ctx.globalAlpha = easeOut(arriveSecond);
       spaced(ctx, '0.04em');
-      fitFont(ctx, display, 56, words[1], layout.wordWidth);
+      fitFont(ctx, display, 56, words[1], layout.wordWidth, SECOND_LINE_MIN);
       ctx.fillStyle = tint;
       ctx.textBaseline = 'top';
       const slide = (1 - landing(arriveSecond, 0.1)) * 30;
