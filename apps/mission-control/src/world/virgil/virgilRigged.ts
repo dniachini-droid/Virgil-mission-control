@@ -27,10 +27,14 @@ import {
   Texture,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import type { VisorMask } from '../characters/visorFit.js';
 import payloadBase64 from './virgil-rigged-asset.b64.txt?raw';
 import metadata from './virgil-rigged-asset.json';
+import visorMask from './virgil-rigged-visor.json';
 
 export const virgilRiggedMetadata = metadata;
+/** Which of his head's triangles carry the painted visor (`asset-pipeline/fit-visor.mjs`). */
+export const virgilVisorMask: VisorMask = visorMask;
 
 export interface RiggedVirgil {
   /** Scene root at the chosen size, origin at his feet. Place this. */

@@ -4,8 +4,8 @@ import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
 import { CAST, figurePlacement, ROLES, type Role } from '../room/cast.js';
 import { breathe } from './breathing.js';
-import { type FaceState, Visor } from './Visor.js';
-import { fitHeadSurface, placedPositions } from './visorFit.js';
+import { type FaceState, Visor, type VisorAnchor } from './Visor.js';
+import { placedPositions } from './visorFit.js';
 
 /** What a character is doing at their station; a rigged one reads the same prop later. */
 export type Activity = 'rest' | 'receiving' | 'working' | 'reported';
@@ -17,9 +17,10 @@ export type Activity = 'rest' | 'receiving' | 'working' | 'reported';
  * The three stay unrigged this round by the owner's explicit note
  * (`docs/process/PHASE_1_STYLISED_SPEC.md` §1.5), so each idles on
  * breathing alone (`breathing.ts`), out of phase with the others and a
- * little quicker while working. The visor is fitted to the model's own
- * head from the spec that travels with the model (`cast.ts`) and lives
- * inside the same group, so it breathes with the figure.
+ * little quicker while working. The face is drawn on the model's own
+ * head triangles from the mask that travels with the model (`cast.ts`,
+ * `visorFit.ts`), beside the head mesh under the same placed group, so
+ * it breathes with the figure; its light sits in the breathing group.
  *
  * The seam for rigs is here and only here: `activity` is the whole of what
  * this component knows, and today it only changes the breathing rate. A
@@ -45,10 +46,21 @@ export function Figure({
   const group = useRef<THREE.Group>(null);
   const placement = useMemo(() => figurePlacement(role), [role]);
   const phase = ROLES.indexOf(role) * 2.1 + 1.3;
-  const surface = useMemo(() => {
-    const index = asset.mesh.geometry.index;
-    if (!index) throw new Error(`${role}: the mesh has no index`);
-    return fitHeadSurface(placedPositions(asset.mesh), index.array, member.model.visor);
+  const anchor = useMemo<VisorAnchor>(() => {
+    const parent = asset.mesh.parent;
+    if (!parent) throw new Error(`${role}: the mesh has no parent`);
+    if (!asset.mesh.material.map) throw new Error(`${role}: the mesh has no base colour`);
+    const { scale, positionScale } = asset.metadata.runtime;
+    return {
+      head: asset.mesh,
+      mask: member.model.visor,
+      fitPositions: placedPositions(asset.mesh),
+      metresPerUnit: scale * positionScale,
+      paint: asset.mesh.material.map,
+      meshParent: parent,
+      // The placed group's frame is the breathing group's: metres, feet at the origin.
+      lightParent: parent,
+    };
   }, [asset, member, role]);
   useFrame(({ clock }) => {
     if (!group.current || reducedMotion) return;
@@ -68,7 +80,7 @@ export function Figure({
       }}
     >
       <primitive object={asset.placed} />
-      <Visor state={face} surface={surface} lightIntensity={1.1} />
+      <Visor state={face} anchor={anchor} lightIntensity={1.1} />
     </group>
   );
 }

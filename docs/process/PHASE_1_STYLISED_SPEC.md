@@ -2,7 +2,81 @@
 
 **Status: owner direction, not owner decisions.** Everything in this file was agreed between the owner and the owner console in conversation on 2026-09-08 and relayed to the build session in the same session's brief. It is written down here because until this file existed the whole of it lived in one console transcript, which is the exact failure `docs/process/PHASE_1_BACKLOG.md` records under "record real runs as events" and which has already cost this project an hour of unpushed work. It is direction the owner gave; it is not a decision record, it does not carry authority layer 1, and nothing in it changes `constitution/`, the commission, or any accepted `OD-*`. Where it narrows or supersedes an earlier document, that is said in the section "Contradictions reported, not resolved" at the end, as `CLAUDE.md` requires.
 
+**Superseded in part by the V7 direction of 2026-09-08 (§0 below).** The owner looked at V6 on their phone and gave new direction; §0 records it and says which sections below it overrides. Nothing else in this file is rewritten: the V6 sections stand as the record of what V6 was asked to be.
+
 This is the largest single pass in the project: a new cartoony cast and props replacing the ornate ones, a rigged Virgil with a refusal clip, and a second presentation beside the room. It is built on branch `claude/virgil-phase-1-slice`, restarted forward from `main` at `90b116c` (pull request #7 merged the previous branch, which is fully contained in it).
+
+---
+
+## 0. V7 — the owner's direction after V6, and what it supersedes
+
+Relayed by the owner console on 2026-09-08 from the owner's reaction to V6 on their phone; built by the V7 pass from `e144e9f`. The owner's words are quoted where they were given; the rest is the console's reading of them, and is marked as such.
+
+### 0.1 The room is retired, not removed; no window; tabletop only
+
+The owner: *"Room retired for now. No window. I might go back to it. But for the time being, we proceed with tabletop."*
+
+**Supersedes §2's "as a SECOND view".** The tabletop is the default and the only presentation the owner is asked to judge. The room's code — `RoomShell.tsx`, `WindowView.tsx`, the aperture, `layout.wallZ` and the rest of the room's dimensions in `palette.ts` — **stays in the repository and stays reachable** behind the `V` key, the "Room (retired)" button and `#/?view=room`, and `verify:owner` visits it so a retirement never silently becomes a removal. Nothing of it is deleted, because the owner has said they may go back to it. "No window" is read as the window in the wall; the porthole stays as the **free-standing arch** on the disc, the skyline element §2 gave it, because a flat disc without it reads as a straight line. If that reading is wrong the arch is one line to remove.
+
+### 0.2 The visor: the face on the head's own triangles
+
+The owner's biggest complaint, and a real one: *"you can kind of see that his visor underneath is like a different colour black and looks like it's kinda pasted on… I really want us to map the entire visor and have the face where we edit the eyes to be almost perfectly mapped to where the visor starts and ends… I wanted it to actually wrap around. Whereas right now, it looks like a little screen that's patched onto his visor."* And: *"For the visor also have the eyes underneath the layer of the glass."* And the order of work: *"if we can just try that with Virgil firstly"*.
+
+**Supersedes the V4–V6 panel** (`fitHeadSurface`, the grid ray-cast onto the head and lifted off it, inset to clear a brow groove — the inset was exactly what read as pasted on). What V7 built instead, in `asset-pipeline/fit-visor.mjs` and `src/world/characters/visorFit.ts`:
+
+- every model the owner generated has its visor **painted** into its own base-colour texture as near-black neutral paint; the pipeline samples that texture across the head's front triangles (seven samples each) and records, beside each payload, **which of the head's own triangles carry the paint** (`*-visor.json`), with the rule it used, the paint's measured bounds and the payload digest it was read off;
+- at runtime those triangles are copied out of the head's geometry — with their skin weights, for Virgil, so both meshes are bound to his skeleton and deform exactly with his head — and drawn twice: the **face**, a shader that samples the model's own paint per pixel and keeps only the painted ones, so the face starts and ends where the paint does, by construction, and wraps because it *is* the head's surface; and the **glass**, the same triangles pushed 6 mm out along their normals with a glossy clear-coated near-black physical material masked to the same paint, so the eyes sit under a layer of glass and a highlight travels across it as the camera moves;
+- the paint rule is on linear colour, luminance < 0.045 and chroma < 0.03 by default, which is what excludes the Keeper's navy hood and the Prover's navy collar. **The Prover's dome needed the rule relaxed** (luminance 0.06, chroma 0.06, his region trimmed above the collar): 15 % of the samples inside his mask were dark but tinted blue-grey, and at full texture resolution the shader discarded them as speckle, so close up his eyes went missing while from across the disc a lower mip passed. The relaxed rule is recorded in his mask, and the shader is given the mask's rule, never a constant, so pipeline and shader always agree;
+- measured per head (triangles carrying paint; wholly painted; straddling the paint's edge): Virgil 466 (370 / 96), the Fabricator 259 (73 / 186), the Prover 222 (40 / 182), the Keeper 523 (226 / 297). The straddling count is how ragged each head's paint edge is at triangle level; the per-pixel mask is what makes the visible edge the paint's own.
+
+**Virgil first, then all three**, as instructed: his was built and looked at first (the face fills his painted visor to its edges and follows the head's curve in the side view; the orrery's ring and the pink planet reflect across the glass; it rides the stomp with no separation), and the three figures were converted once his was seen to work. `test/visor.test.ts` was rewritten for the mechanism, not removed: it holds each mask to its payload's digest and to head-front triangles only, the glass to the face's normals at the recorded gap, the face's UVs to the canvas, the meshes uncullable and visible, and the face double-sided (KR-57). The 15 mm floating bound of V4–V6 has no object any more — the face is at 0 mm by construction — and is retired with the panel rather than kept as a dead number.
+
+### 0.3 The screens are objects — and the V6 brief's error about specular
+
+The owner: *"the animations on the screens are good… it just looks cheap and everything else looks really nice."* And: *"I don't want richer details. I just want it to look nicer. More detailed. Or more like a screen. Shiny and a bit of light reflecting off it."* And, precisely: *"try to make them curved if it is at all possible. Not flat. Like a slight curve outwards. That makes it look cartoony."* — *"Have the text sit below the glass."* — *"make the actual screen case be cute — the same white as the characters main colour, but make it bulge out, like the old apple Mac computers."*
+
+**Supersedes §3's "Matte throughout" and §4's "less specular" for the screens and the visors only.** The console's correction of its own V6 brief: the rule is now **everything matte except the screens and the visors**; in a matte world the only glossy things draw the eye, and the screens are the information, so that is correct rather than a compromise. Not more content — no words, panels or data are added. The `ILLUSTRATIVE · NOT REAL STATE` band stays baked in and undismissable. The case colour is sampled from the characters' own textures: the dominant bright low-saturation colour of all four is `#fcecd4`/`#fceccc` (measured 2026-09-08 from the shipped base-colour maps), so the case is that cream rather than the room palette's.
+
+### 0.4 Composition: in depth, not across; a portrait camera
+
+The owner: *"at least on the phone, you have to zoom out too far to see all of them."* The console's reading, which the V7 pass agrees with: a composition problem, not a camera problem — the V6 set was arranged wide and a phone is tall, and no camera reconciles that.
+
+**Supersedes §2's arrangement and `layout.stations`.** Virgil forward at his console; the Fabricator, Keeper and Prover receding behind him at three depths, the cluster compacted from stations near the rim of a 13 m disc to a 10.8 m disc with stations about three to five metres apart; the review board of three slabs raised behind and above the agents rather than at head height in front of them. The tabletop camera is a function of the viewport's aspect (`tabletopCamera` in `palette.ts`): 30° and 12.5 m in landscape as §2 authored, 38° and 12 m for a phone held upright, the lens widened only as far as the set's width needs. Verified at 1440 × 900 and 390 × 664: all four in frame at both. The control bar fits 390 px (V6's cut "Keeper" off the right edge) and the footer publishes its height so the stage reserves exactly that strip.
+
+Worth recording: this problem largely dissolves once spawning exists, because the real system shows Virgil plus whoever is active, not the whole cast at once. Four at once is an artefact of a demonstration built to be judged.
+
+### 0.5 The floor flicker
+
+The owner: *"the gold circles on the floor, they flicker, and it doesn't look very nice."* Z-fighting: V6's rings, navy disc and star were separate meshes a millimetre apart over the floor with the same polygon offset. Repaired by drawing the whole inlay as **one texture on the disc's one top face** (`floorGraphic.ts`), so there is no second surface to fight; the near plane raised from 0.1 to 0.2 m for depth precision; `test/floor.test.ts` holds the graphic to the layout and the tabletop to one floor face with no coplanar inlay.
+
+### 0.6 Size, and an honest uncertainty
+
+The owner lost two hours because the 9.8 MB V6 file would not open from Files on iOS (blank), fell back to Netlify, and served themselves an older build. V7 makes the file as small as it can without degrading what the owner praised, and names the artifact with the version at the front so seven files in one Downloads folder cannot be confused again. **Nobody has established that file size is why iOS failed**; it is the console's hypothesis, untested, and no session here can test iOS Safari. The owner document reports the size achieved and does not claim it fixes the local-open problem.
+
+### 0.7 Walking, coming next — a seam only
+
+The owner is sending rigged Fabricator, Prover and Keeper with walk clips, **later, once the rest is right** (confirmed by the console during V7). Not built in V7. The seam: each station has an idle position and a working position, and the move between them is one swappable behaviour (`locomotion.ts`), a procedural glide as the placeholder, so a walk clip drops in without rework.
+
+### 0.8 Root configuration: permission granted, used once, CI deferred
+
+For the first time any session here has been permitted to touch the repository root. The owner, verbatim: *"You may edit the root config files."* V7 used it for exactly one line: `"!docs/process/PHASE_1_owner-builds/**"` added to `biome.json`'s exclusions beside `!schemas/**` and `!constitution/**`, which retires **KR-54** (Biome warning on every committed artifact since S1). No rule or formatter setting was changed — an exclusion for a generated artifact is not a weakened check; a rule change would be, and `CLAUDE.md` forbids it.
+
+**CI is unblocked and deliberately deferred.** KR-50/KR-59 — no automated checks, so the only guard that catches a network escape is the one nothing requires — is the largest item on the backlog and is to be its own bounded pass with its own review, commissioned by the console after V7 is delivered. The next session should not read the old restriction as still standing, and should not add CI as a tail to another pass.
+
+### 0.9 Queued for the pass after V7: the consoles' own screens (owner direction, not built)
+
+The owner: *"Every one of the consoles has a screen big enough to put the actual information, instead of on a seperate screen! Yes, the screens have static writing on it, but if you map the screens just like you're doing with the visors, we should be able to use them instead which is much better"* — and then, settling the division: *"the only console whjere there isnt room is Virgils. So leave his 3 screens above him as is. But the other ones, you can map the scrteens, make them compleetyley black, reflective, and text sitting slightly under it!"*
+
+Recorded here so it survives the conversation; **not a V7 build item**, and its scope does not change V7's.
+
+- **It is the same technique as the visor:** extract the screen's own triangles from the console's mesh and draw live content onto them. Whatever V7 built for the visor generalises directly.
+- **Virgil's three slab panels stay.** They are the owner's accepted solution for his station, not a stand-in to be retired: his ring console's own screens face inward and stand a few dozen pixels tall from the camera. A later session must not read an earlier note and delete them as leftovers. Being permanent, they carry the full glass treatment of §0.3.
+- **The three role consoles get their own screens mapped**, in the material the owner specified — completely black, reflective, the text sitting slightly under the glass. One material, two hosts: code-built slabs for Virgil, extracted model geometry for the agents. **The material and its parallax are to be shared code, not implemented twice**; that is what keeps them one system rather than two attempts. This *extends* the treatment from three slabs to three consoles; it retires nothing.
+- **Why it works now and did not at V3:** the V3 ring console's screens ring the inside of the well, tilt inward and are unreadable at any arrangement; the three role consoles are 1.4 to 2.0 m tall with outward-facing surfaces, a genuinely readable size.
+- **Two things it gives for free:** the baked static writing on those screens disappears, because drawing on the geometry replaces that surface entirely, as it does the visors' baked eyes; and it narrows the set at the agents' stations, which helps the portrait framing directly.
+- **The owner's earlier prompt may pay off:** they asked Meshy for screens *"completely blank, flat, matte, pure-black rectangles"*. If the consoles honoured that, the screen regions may be findable from the texture automatically, as the visors are, rather than measured by hand. To be tested when the pass comes.
+- **The honest trade, recorded rather than discovered:** at the wide tabletop view on a phone a console screen is roughly 40–60 px, against this project's measured limit of text readable to about 96 px and gone by 64. At distance those screens carry **state — colour, glow, one large word — not sentences**; the detail is legible only when a character is selected and the camera drops in. That is the layered approach already agreed for the screens.
+- **Sequencing:** the extraction technique was proven on Virgil's visor first, in V7, so that if it failed the visors and the consoles did not break at once.
 
 ---
 

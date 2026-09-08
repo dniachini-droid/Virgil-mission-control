@@ -10,18 +10,22 @@
  * `portholeAsset.ts` because it is the one ornate-set model still used.
  */
 import { loadMeshyAsset, type MeshyAsset, type MeshyAssetMetadata } from '../assets/meshyAsset.js';
+import type { VisorMask } from '../characters/visorFit.js';
 import console3Base64 from './console3-asset.b64.txt?raw';
 import console3Json from './console3-asset.json';
 import fabricator2Base64 from './fabricator2-asset.b64.txt?raw';
 import fabricator2Json from './fabricator2-asset.json';
+import fabricator2Visor from './fabricator2-visor.json';
 import fabricatorStationBase64 from './fabricatorStation-asset.b64.txt?raw';
 import fabricatorStationJson from './fabricatorStation-asset.json';
 import keeper2Base64 from './keeper2-asset.b64.txt?raw';
 import keeper2Json from './keeper2-asset.json';
+import keeper2Visor from './keeper2-visor.json';
 import keeperStationBase64 from './keeperStation-asset.b64.txt?raw';
 import keeperStationJson from './keeperStation-asset.json';
 import prover2Base64 from './prover2-asset.b64.txt?raw';
 import prover2Json from './prover2-asset.json';
+import prover2Visor from './prover2-visor.json';
 import proverStationBase64 from './proverStation-asset.b64.txt?raw';
 import proverStationJson from './proverStation-asset.json';
 
@@ -32,6 +36,11 @@ export const keeperStationMetadata: MeshyAssetMetadata = keeperStationJson;
 export const fabricator2Metadata: MeshyAssetMetadata = fabricator2Json;
 export const prover2Metadata: MeshyAssetMetadata = prover2Json;
 export const keeper2Metadata: MeshyAssetMetadata = keeper2Json;
+
+/** Which of each head's triangles carry the painted visor (`asset-pipeline/fit-visor.mjs`). */
+export const fabricator2VisorMask: VisorMask = fabricator2Visor;
+export const prover2VisorMask: VisorMask = prover2Visor;
+export const keeper2VisorMask: VisorMask = keeper2Visor;
 
 export const console3Base64Payload = console3Base64;
 export const fabricatorStationBase64Payload = fabricatorStationBase64;

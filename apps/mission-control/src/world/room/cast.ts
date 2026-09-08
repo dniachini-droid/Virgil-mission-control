@@ -1,14 +1,11 @@
 import type { MeshyAsset, MeshyAssetMetadata } from '../assets/meshyAsset.js';
-import {
-  FABRICATOR_VISOR,
-  KEEPER_VISOR,
-  PROVER_VISOR,
-  type VisorSpec,
-} from '../characters/visorFit.js';
+import type { VisorMask } from '../characters/visorFit.js';
 import {
   fabricator2Metadata,
+  fabricator2VisorMask,
   fabricatorStationMetadata,
   keeper2Metadata,
+  keeper2VisorMask,
   keeperStationMetadata,
   loadFabricator2,
   loadFabricatorStation,
@@ -17,6 +14,7 @@ import {
   loadProver2,
   loadProverStation,
   prover2Metadata,
+  prover2VisorMask,
   proverStationMetadata,
 } from '../props/v6Assets.js';
 import { layout } from './palette.js';
@@ -44,8 +42,8 @@ export const ROLES: readonly Role[] = ['fabricator', 'prover', 'keeper'];
 export interface FigureModel {
   load: () => Promise<MeshyAsset>;
   metadata: MeshyAssetMetadata;
-  /** The visor spec fitted to this model's own head. Travels with the model. */
-  visor: VisorSpec;
+  /** Which of this model's own triangles carry its painted visor. Travels with the model. */
+  visor: VisorMask;
 }
 
 export interface StationModel {
@@ -70,19 +68,19 @@ export interface CastMember {
 const FABRICATOR_MODEL: FigureModel = {
   load: loadFabricator2,
   metadata: fabricator2Metadata,
-  visor: FABRICATOR_VISOR,
+  visor: fabricator2VisorMask,
 };
 /** `prover-model-candidate-02.glb` — the deepest; assigned from its upload filename. */
 const PROVER_MODEL: FigureModel = {
   load: loadProver2,
   metadata: prover2Metadata,
-  visor: PROVER_VISOR,
+  visor: prover2VisorMask,
 };
 /** `keeper-model-candidate-02.glb` — the slimmest; assigned by elimination. */
 const KEEPER_MODEL: FigureModel = {
   load: loadKeeper2,
   metadata: keeper2Metadata,
-  visor: KEEPER_VISOR,
+  visor: keeper2VisorMask,
 };
 
 export const CAST: Record<Role, CastMember> = {
@@ -180,8 +178,7 @@ export function panelPlacement(role: Role): {
   };
 }
 
-/** A character's eye height, from the visor spec that travels with the model. */
+/** A character's eye height: the centre of the painted visor that travels with the model. */
 export function eyeHeight(role: Role): number {
-  const { y0, y1 } = CAST[role].model.visor;
-  return (y0 + y1) / 2;
+  return CAST[role].model.visor.measured.centre[1] as number;
 }

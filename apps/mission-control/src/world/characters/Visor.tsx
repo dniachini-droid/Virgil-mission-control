@@ -1,32 +1,37 @@
-import { useFrame } from '@react-three/fiber';
+import { createPortal, useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
 import { room } from '../room/palette.js';
-import { buildVisorMesh, type HeadSurface, visorCentre } from './visorFit.js';
+import { buildVisorMeshes, faceAspect, type VisorMask } from './visorFit.js';
 
 /**
- * A character's face: an emissive panel drawn per frame onto a canvas
- * texture, in the pattern `ADR-0010` approved for labels — no font fetch, no
- * `data:` URI, nothing outside the document.
+ * A character's face, drawn per frame onto a canvas texture in the
+ * pattern `ADR-0010` approved for labels — no font fetch, no `data:` URI,
+ * nothing outside the document — and shown **on the head's own triangles**.
  *
- * The panel is a mesh fitted to the head's own front surface
- * (`visorFit.ts`) and its outline is a rounded visor shape cut from the
- * canvas. It is parented wherever the head is: Virgil's head joint, a
- * figure's breathing group.
+ * V7 (`docs/process/PHASE_1_STYLISED_SPEC.md` §2.1): there is no panel.
+ * `buildVisorMeshes` copies the triangles that carry the model's painted
+ * visor out of the head, and the face material keeps only the painted
+ * pixels, so the face starts and ends where the paint does and wraps
+ * because it is the head's curve. Over it, the same triangles a few
+ * millimetres out carry a layer of glossy glass, so the eyes sit under
+ * the glass and a highlight travels across it as the camera moves. The
+ * meshes go beside the head mesh under its parent (for the rigged Virgil,
+ * bound to his skeleton); the face's light goes wherever the head's frame
+ * is — his head joint, a figure's breathing group.
  *
  * What the face does: irregular blinking with a fast close and slow open,
  * a blink on every change of state, eye forms per state, a wash of the
- * state's colour across the glass and a rim of it along the bottom so the
+ * state's colour up from below and a rim of it along the bottom so the
  * colour reads even when the eyes are a few pixels, and a point light in
- * the state's colour that lights the chest. V6 draws it bolder: thicker
- * strokes and larger eyes, for the cartoon.
+ * the state's colour that lights the chest.
  *
  * **Reduced motion (KR-55).** V5 returned nothing under reduced motion,
  * which removed the face and its light entirely — Virgil showed a baked
  * grin, the Prover a blank dome — and lost the blocked-versus-passed
  * distinction `docs/art-direction/OPERATIONAL_ANIMATION.md` forbids losing.
- * Now the clock is frozen and a **static face** is drawn: eyes open, no
+ * The clock is frozen and a **static face** is drawn: eyes open, no
  * blink, no pulse, the state's form and colour, redrawn only when the state
  * changes. `faceAppearance` is the pure decision and is tested.
  */
@@ -113,7 +118,7 @@ export interface FaceAppearance {
   draw: boolean;
 }
 
-interface FaceClock {
+export interface FaceClock {
   t: number;
   nextBlink: number;
   blinkStart: number;
@@ -168,15 +173,31 @@ export function faceAppearance(
   return { style, colour, open, pulse, draw };
 }
 
+/** Where a visor is: the head, the mask that names its triangles, and the frames things go in. */
+export interface VisorAnchor {
+  /** The head mesh whose triangles carry the visor. */
+  head: THREE.Mesh;
+  mask: VisorMask;
+  /** The head's vertices in the mask's frame, for the face's UVs. */
+  fitPositions: ArrayLike<number>;
+  /** Metres per unit of the head geometry's own frame. */
+  metresPerUnit: number;
+  /** The head's own base-colour texture: the paint the face is masked to. */
+  paint: THREE.Texture;
+  /** Where the visor meshes go: beside the head mesh, under its parent. */
+  meshParent: THREE.Object3D;
+  /** Where the light goes: an object whose frame is the mask's frame. */
+  lightParent: THREE.Object3D;
+}
+
 export function Visor({
   state = 'idle',
-  surface,
+  anchor,
   lightIntensity = 1.6,
   eyes = true,
 }: {
   state?: FaceState;
-  /** The head surface the panel is fitted to, from `fitHeadSurface`. */
-  surface: HeadSurface;
+  anchor: VisorAnchor;
   lightIntensity?: number;
   /** False for a character whose visor the owner made blank: colour and pulse only. */
   eyes?: boolean;
@@ -184,19 +205,29 @@ export function Visor({
   const { reducedMotion } = useSettings();
   const { canvas, texture } = useMemo(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 384;
-    canvas.height = 240;
+    canvas.width = 512;
+    canvas.height = Math.max(64, Math.round(512 / faceAspect(anchor.mask)));
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = false;
     return { canvas, texture };
-  }, []);
-  // The one way a visor mesh is made (KR-57): its material, culling and
-  // visibility are set in `buildVisorMesh` and tested on the object.
-  const mesh = useMemo(() => buildVisorMesh(surface, texture), [surface, texture]);
-  const centre = useMemo(() => visorCentre(surface), [surface]);
+  }, [anchor.mask]);
+  // The one way a visor is made (KR-57): its geometry, materials, culling
+  // and visibility are set in `buildVisorMeshes` and tested on the objects.
+  const visor = useMemo(
+    () =>
+      buildVisorMeshes(
+        anchor.head,
+        anchor.mask,
+        anchor.fitPositions,
+        anchor.metresPerUnit,
+        texture,
+        anchor.paint,
+      ),
+    [anchor, texture],
+  );
   const light = useRef<THREE.PointLight>(null);
   const clock = useRef<FaceClock>({
     t: 0,
@@ -222,46 +253,60 @@ export function Visor({
       light.current.intensity = lightIntensity * look.pulse * (state === 'blocked' ? 1.4 : 1);
     }
     if (!look.draw) return;
-    draw(canvas, look.style, look.colour, look.open, look.pulse, eyes, surface.spec.corner, c.t);
+    drawFace(canvas, look.style, look.colour, look.open, look.pulse, eyes, c.t);
     texture.needsUpdate = true;
   });
 
   return (
-    <group>
-      <primitive object={mesh} />
-      {/* The face's own light, just in front of the panel, onto the chest. */}
-      <pointLight
-        ref={light}
-        position={[centre.x, centre.y - 0.04, centre.z + 0.12]}
-        distance={2.2}
-        decay={2}
-      />
-    </group>
+    <>
+      {createPortal(
+        <>
+          <primitive object={visor.face} />
+          <primitive object={visor.glass} />
+        </>,
+        anchor.meshParent,
+      )}
+      {createPortal(
+        // The face's own light, just in front of the glass, onto the chest.
+        <pointLight
+          ref={light}
+          position={[visor.lightAt.x, visor.lightAt.y, visor.lightAt.z]}
+          distance={2.2}
+          decay={2}
+        />,
+        anchor.lightParent,
+      )}
+    </>
   );
 }
 
-function draw(
+/**
+ * Draws the face into the whole canvas. There is no outline here: the
+ * face is shown only where the head's own paint is the visor's
+ * (`visorFit.ts`), so the paint is the outline.
+ */
+export function drawFace(
   canvas: HTMLCanvasElement,
   style: FaceStyle,
   colour: string,
   open: number,
   pulse: number,
   eyes: boolean,
-  corner: number,
   t: number,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const w = canvas.width;
   const h = canvas.height;
-  ctx.clearRect(0, 0, w, h);
-  // The visor's outline: everything outside it is transparent and the
-  // material cuts it away, so the head shows through the corners.
   ctx.save();
-  roundRect(ctx, 0, 0, w, h, corner * h);
-  ctx.clip();
-  // Near-black glass, flat: no gradient in this style.
+  // Near-black glass, flat: no gradient in this style. A little darker at
+  // the edges, so the eyes sit in a depth rather than on a sticker.
   ctx.fillStyle = '#070a18';
+  ctx.fillRect(0, 0, w, h);
+  const depth = ctx.createRadialGradient(w / 2, h / 2, h * 0.35, w / 2, h / 2, w * 0.75);
+  depth.addColorStop(0, 'rgba(0,0,0,0)');
+  depth.addColorStop(1, 'rgba(0,0,0,0.55)');
+  ctx.fillStyle = depth;
   ctx.fillRect(0, 0, w, h);
   // The state's colour washed up from below, and a rim of it along the
   // bottom edge: the colour is legible even when the eyes are not.

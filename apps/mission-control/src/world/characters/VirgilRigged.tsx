@@ -1,12 +1,12 @@
-import { createPortal, useFrame } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import { use, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
 import { layout } from '../room/palette.js';
-import { loadRiggedVirgil } from '../virgil/virgilRigged.js';
+import { loadRiggedVirgil, virgilVisorMask } from '../virgil/virgilRigged.js';
 import { breathe } from './breathing.js';
-import { type FaceState, Visor } from './Visor.js';
-import { bonePositions, fitHeadSurface, VIRGIL_VISOR } from './visorFit.js';
+import { type FaceState, Visor, type VisorAnchor } from './Visor.js';
+import { bonePositions } from './visorFit.js';
 
 /**
  * Virgil, rigged, standing on his console's deck and facing the camera.
@@ -94,14 +94,26 @@ export function VirgilRigged({
     return byPose;
   }, [mixer, virgil]);
 
-  // The visor fitted to his head's own front surface in the head joint's
-  // frame at bind pose (`visorFit.ts`); `VIRGIL_VISOR` is the extent and
-  // nothing else is hand-set.
-  const surface = useMemo(() => {
-    const index = virgil.mesh.geometry.index;
-    if (!index) throw new Error('virgil rigged: the skin has no index');
-    const { positions, weights } = bonePositions(virgil.mesh, virgil.head);
-    return fitHeadSurface(positions, index.array, VIRGIL_VISOR, (v) => (weights[v] ?? 0) > 0.5);
+  // His face, on his head's own triangles (V7, `visorFit.ts`): the mask
+  // names the triangles that carry his painted visor, the face's UVs come
+  // from his head joint's frame at bind pose, the visor meshes go beside
+  // his skin under the same parent bound to the same skeleton, and the
+  // face's light rides the head joint.
+  const anchor = useMemo<VisorAnchor>(() => {
+    const parent = virgil.mesh.parent;
+    if (!parent) throw new Error('virgil rigged: the skin has no parent');
+    const material = virgil.mesh.material as THREE.MeshStandardMaterial;
+    if (!material.map) throw new Error('virgil rigged: the skin has no base colour');
+    const { positions } = bonePositions(virgil.mesh, virgil.head);
+    return {
+      head: virgil.mesh,
+      mask: virgilVisorMask,
+      fitPositions: positions,
+      metresPerUnit: virgil.metadata.runtime.scale,
+      paint: material.map,
+      meshParent: parent,
+      lightParent: virgil.head,
+    };
   }, [virgil]);
 
   const toRest = useMemo(
@@ -192,9 +204,9 @@ export function VirgilRigged({
       >
         <primitive object={virgil.placed} />
       </group>
-      {/* Rendered into the head bone without re-parenting it: the panel rides
-          the head through every clip and the nod. */}
-      {createPortal(<Visor state={face} surface={surface} lightIntensity={1.2} />, virgil.head)}
+      {/* Places its own meshes beside the skin and its light in the head
+          joint; both ride the head through every clip and the nod. */}
+      <Visor state={face} anchor={anchor} lightIntensity={1.2} />
     </>
   );
 }

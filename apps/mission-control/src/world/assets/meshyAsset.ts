@@ -69,7 +69,12 @@ export interface MeshyAssetMetadata {
     metalness?: number;
     roughness?: number;
   };
-  payload: { bytes: number; sections: Record<string, Section> };
+  payload: {
+    bytes: number;
+    /** The payload's digest, as the pipeline recorded it; a visor mask names the payload it was read off. */
+    sha256: string;
+    sections: Record<string, Section>;
+  };
 }
 
 export interface MeshyAsset {

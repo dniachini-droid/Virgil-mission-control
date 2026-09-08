@@ -1,324 +1,348 @@
 import * as THREE from 'three';
 
 /**
- * Fits a visor panel to a head's own geometry.
+ * Fits a face to a head's own geometry.
  *
- * V3 placed each face as a curved plate at hand-set coordinates, fitted to
- * the bezel by close-up screenshot; V4 replaced that with a panel **derived
- * from the head**: a grid over the panel's extent in the head's frame, each
- * node ray-cast onto the head's front triangles along −z, and lifted
- * `offset` off the surface it hit. A flat face gets a flat panel, a dome
- * gets a spherical cap, and there is no coordinate to eyeball.
- * `test/visor.test.ts` runs the same fit on the same geometry in node and
- * fails if a panel leaves its head or stops hugging it — the defect V3
- * found (both panels silently culled) hid itself once, and nothing here is
- * allowed to hide again.
+ * **V7: the face is drawn on the head's own triangles.** The owner, of V6:
+ * "you can kind of see that his visor underneath is like a different colour
+ * black and looks like it's kinda pasted on … I really want us to map the
+ * entire visor and have the face … almost perfectly mapped to where the
+ * visor starts and ends … I wanted it to actually wrap around." V4 to V6
+ * fitted a separate panel over the head — a grid ray-cast onto the front
+ * triangles and lifted a few millimetres — and inset it to clear a brow
+ * groove; that inset is exactly what read as pasted on.
  *
- * V6: four heads, all from the stylised cast, and every one of them is a
- * black plate or dome the model was made with — Virgil's is a rounded
- * screen filling most of his head, the Fabricator's a rectangular screen,
- * the Prover's an astronaut dome, the Keeper's the dark opening of a hood.
- * The specs below were read off ray scans of each model (recorded in
- * `docs/process/PHASE_1_HOW_TO_LOOK_V6.md`) and held to the geometry by the
- * test. The panel mesh itself is built by `buildVisorMesh`, so that its
- * culling and visibility flags are set in one tested place (KR-57).
+ * So there is no panel. `asset-pipeline/fit-visor.mjs` reads each model's
+ * own base-colour texture, finds the triangles that carry the painted
+ * visor (near-black, neutral paint; the rule is `VISOR_PAINT`), and
+ * records them as a `VisorMask` beside the payload. `buildVisorMeshes`
+ * copies **those triangles** out of the head's geometry, with their skin
+ * weights if the head is skinned, and gives them two materials:
+ *
+ *  - the **face**: a shader that samples the model's own paint at each
+ *    pixel and keeps only the painted ones, drawing the live face canvas
+ *    there — so the face starts and ends where the paint does, by
+ *    construction, and wraps because it *is* the head's surface. It is
+ *    coplanar with the head and wins by polygon offset;
+ *  - the **glass**: the same triangles pushed `GLASS_GAP_M` out along their
+ *    normals, a glossy transparent physical material masked to the same
+ *    paint, so the eyes sit under a layer of glass and a highlight travels
+ *    across it as the camera moves. The owner: "have the eyes underneath
+ *    the layer of the glass."
+ *
+ * For the rigged Virgil both are `SkinnedMesh`es bound to his skeleton, so
+ * they deform exactly with his head through every clip and there is no
+ * residual to hide. `test/visor.test.ts` builds each visor exactly as the
+ * set does and checks the mask against the geometry, the glass against
+ * the face, and the flags a culled or hidden face depends on (KR-57).
+ *
+ * All four heads use it — Virgil first, by the owner's instruction, then
+ * the three figures once his was seen to work. The pipeline records, per
+ * head, how ragged the paint's edge is.
  *
  * Everything in this file is pure three.js and runs without a renderer.
  */
 
-export interface VisorSpec {
-  /** Half the panel's width, in the parent frame's units. */
-  halfWidth: number;
-  /** Bottom and top of the panel in the parent frame. */
-  y0: number;
-  y1: number;
-  /** Grid cells across and up. */
-  cols: number;
-  rows: number;
-  /** How far the panel stands off the surface, along +z. */
-  offset: number;
-  /** Only geometry in front of this z counts as the face. */
-  zMin: number;
-  /** Corner rounding of the visor's outline, as a fraction of its height. */
-  corner: number;
+/**
+ * The default paint rule, on linear colour: near-black and neutral.
+ * `fit-visor.mjs` starts from these numbers, may relax them for one head
+ * whose paint needs it, and records the rule it used in the mask; the
+ * shader is given the mask's rule, never this constant, so the two agree.
+ */
+export const VISOR_PAINT = { luminance: 0.045, chroma: 0.03 } as const;
+
+export interface PaintRule {
+  luminance: number;
+  chroma: number;
 }
 
-export interface HeadSurface {
-  spec: VisorSpec;
-  /** Surface z at each grid node, row-major, (rows + 1) × (cols + 1). */
-  z: Float32Array;
-  /** Bounds of the front triangles the fit used. */
-  bounds: THREE.Box3;
-  /** How many triangles were candidates. */
-  triangles: number;
+/** How far the glass stands off the face, in metres. */
+export const GLASS_GAP_M = 0.006;
+
+/** What `fit-visor.mjs` writes. */
+export interface VisorMask {
+  source: { asset: string; payloadSha256: string };
+  frame: string;
+  joint: string | null;
+  paint: PaintRule & { space: string; samplesPerTriangle: number; overridesDefault: boolean };
+  region: { halfWidth: number; y0: number; y1: number; zMin: number };
+  measured: {
+    trianglesConsidered: number;
+    trianglesPainted: number;
+    trianglesWhollyPainted: number;
+    trianglesPartlyPainted: number;
+    triangleBounds: { min: number[]; max: number[] };
+    paintBounds: { min: number[]; max: number[] };
+    centre: number[];
+  };
+  /** Triangle indices into the head geometry's index buffer (triangle n is indices 3n..3n+2). */
+  triangles: number[];
+}
+
+export interface VisorGeometry {
+  face: THREE.BufferGeometry;
+  glass: THREE.BufferGeometry;
 }
 
 /**
- * Virgil's screen in the `Head` joint's frame (source units of the rigged
- * candidate 05; the scene is scaled 0.6 to 1.8 m). Measured by ray scan on
- * 2026-09-08: his face front is a shallow dome from y 0.20 to 0.85 and
- * x ±0.55, z 0.53 at its centre falling to 0.44 at x ±0.5 and 0.41 at the
- * top; below y 0.2 the rays pass under his chin. The panel stops inside
- * that on every side.
+ * The visor's geometry, copied out of the head's own. `source` is the head
+ * mesh's geometry in the frame it is rendered in; `fitPositions` are the
+ * same vertices, in the mask's frame, used only for the face's planar UVs
+ * (`faceUv`: the paint's bounds mapped to the canvas); `metresPerUnit`
+ * converts the glass gap into the source's units.
  */
-export const VIRGIL_VISOR: VisorSpec = {
-  halfWidth: 0.42,
-  y0: 0.27,
-  y1: 0.78,
-  cols: 24,
-  rows: 14,
-  offset: 0.005,
-  zMin: 0.3,
-  corner: 0.3,
-};
+export function buildVisorGeometry(
+  source: THREE.BufferGeometry,
+  mask: VisorMask,
+  fitPositions: ArrayLike<number>,
+  metresPerUnit: number,
+): VisorGeometry {
+  const index = source.index;
+  if (!index) throw new Error('visor: the head geometry has no index');
+  const position = source.getAttribute('position');
+  const normal = source.getAttribute('normal');
+  const uv = source.getAttribute('uv');
+  if (!position || !normal || !uv)
+    throw new Error('visor: the head geometry lacks position, normal or uv');
+  const skinIndex = source.getAttribute('skinIndex');
+  const skinWeight = source.getAttribute('skinWeight');
 
-/**
- * The Fabricator's screen, in his placed frame (metres, feet at the
- * origin, scale 0.85). His head is a box with a rectangular black screen
- * on its front, measured at x ±0.22 and y 0.42–0.69 in source units
- * (placed: ±0.19 m, 1.21–1.44 m), its surface at z 0.45–0.47 source. The
- * panel sits inside the black.
- */
-export const FABRICATOR_VISOR: VisorSpec = {
-  halfWidth: 0.16,
-  y0: 1.23,
-  y1: 1.41,
-  cols: 20,
-  rows: 12,
-  offset: 0.003,
-  zMin: 0.25,
-  corner: 0.28,
-};
-
-/**
- * The Prover's visor: a black dome on an astronaut helmet, measured at
- * x ±0.24 and y 0.28–0.62 source (placed 1.09–1.38 m), the helmet sphere
- * reaching z 0.49 source at its centre. His eye-stalks stand at x ±0.5 and
- * his halo above y 0.85, both outside the panel. The first V6 close-up
- * showed the face drawn small in the middle of the black, so the panel
- * was widened to fill it; the test holds it to the dome. Its top stops at
- * 1.295 m: the helmet's brim ridge stands proud of the visor from about
- * 1.30 m up, and a panel that reached 1.32 m was lifted 16.5 mm over it —
- * past the 15 mm bound, which is the helmet's fact and not the bound's.
- */
-export const PROVER_VISOR: VisorSpec = {
-  halfWidth: 0.17,
-  y0: 1.09,
-  y1: 1.295,
-  cols: 24,
-  rows: 12,
-  offset: 0.003,
-  // The dome curves back at the panel's upper corners (nothing in front of
-  // z 0.3 there); a lower floor lets the fit follow it, and the rounded
-  // outline cuts those corners from the canvas anyway.
-  zMin: 0.2,
-  corner: 0.45,
-};
-
-/**
- * The Keeper's face: the dark opening of his hood, x ±0.16 and y 0.14–0.43
- * source (placed 0.97–1.22 m). The hood's brow overhangs the opening from
- * y 0.40 up (z 0.30 against a face at 0.21), so the panel stops below it;
- * inside the opening the face is a smooth dark surface at z 0.21–0.25.
- */
-export const KEEPER_VISOR: VisorSpec = {
-  halfWidth: 0.1,
-  y0: 1.0,
-  y1: 1.14,
-  cols: 16,
-  rows: 12,
-  offset: 0.003,
-  zMin: 0.1,
-  corner: 0.45,
-};
-
-/**
- * Samples the head's front surface under the panel. `positions` is a flat
- * xyz array in the parent frame; `index` triangulates it; `keep` may drop
- * vertices that do not belong to the head (for a skinned mesh, those not
- * weighted to the head joint). Throws if any grid node finds no surface —
- * the fit is only allowed to succeed completely.
- */
-export function fitHeadSurface(
-  positions: ArrayLike<number>,
-  index: ArrayLike<number>,
-  spec: VisorSpec,
-  keep?: (vertex: number) => boolean,
-): HeadSurface {
-  // A triangle is a candidate when it belongs to the head, reaches in front
-  // of `zMin`, and any of its vertices falls under the panel (plus a margin):
-  // a flat plate is made of large triangles whose corners lie well outside
-  // the panel, and requiring all three inside would leave holes under it.
-  const margin = 0.03;
-  const under = (v: number) =>
-    Math.abs(positions[v * 3] as number) <= spec.halfWidth + margin &&
-    (positions[v * 3 + 1] as number) >= spec.y0 - margin &&
-    (positions[v * 3 + 1] as number) <= spec.y1 + margin;
-  const z = (v: number) => positions[v * 3 + 2] as number;
-  const inBox = (ia: number, ib: number, ic: number) =>
-    (keep ? keep(ia) && keep(ib) && keep(ic) : true) &&
-    Math.max(z(ia), z(ib), z(ic)) > spec.zMin &&
-    (under(ia) || under(ib) || under(ic));
-
-  const a = new THREE.Vector3();
-  const b = new THREE.Vector3();
-  const c = new THREE.Vector3();
-  const tris: [THREE.Vector3, THREE.Vector3, THREE.Vector3][] = [];
-  const bounds = new THREE.Box3();
-  for (let i = 0; i < index.length; i += 3) {
-    const ia = index[i] as number;
-    const ib = index[i + 1] as number;
-    const ic = index[i + 2] as number;
-    if (!inBox(ia, ib, ic)) continue;
-    const ta = a.fromArray(positions, ia * 3).clone();
-    const tb = b.fromArray(positions, ib * 3).clone();
-    const tc = c.fromArray(positions, ic * 3).clone();
-    tris.push([ta, tb, tc]);
-    bounds.expandByPoint(ta).expandByPoint(tb).expandByPoint(tc);
-  }
-  if (tris.length === 0) throw new Error('visor fit: no front triangles under the panel');
-
-  const ray = new THREE.Ray(new THREE.Vector3(), new THREE.Vector3(0, 0, -1));
-  const hit = new THREE.Vector3();
-  const heights = new Float32Array((spec.rows + 1) * (spec.cols + 1));
-  const misses: string[] = [];
-  for (let r = 0; r <= spec.rows; r += 1) {
-    const y = spec.y0 + ((spec.y1 - spec.y0) * r) / spec.rows;
-    for (let col = 0; col <= spec.cols; col += 1) {
-      const x = -spec.halfWidth + (2 * spec.halfWidth * col) / spec.cols;
-      ray.origin.set(x, y, bounds.max.z + 1);
-      let best = Number.NEGATIVE_INFINITY;
-      for (const [ta, tb, tc] of tris) {
-        if (ray.intersectTriangle(ta, tb, tc, false, hit) && hit.z > best) best = hit.z;
+  // Unique vertices of the mask's triangles, remapped to a compact range.
+  const remap = new Map<number, number>();
+  const order: number[] = [];
+  const faceIndex: number[] = [];
+  for (const t of mask.triangles) {
+    for (let k = 0; k < 3; k += 1) {
+      const v = index.getX(t * 3 + k);
+      let mapped = remap.get(v);
+      if (mapped === undefined) {
+        mapped = order.length;
+        remap.set(v, mapped);
+        order.push(v);
       }
-      if (best === Number.NEGATIVE_INFINITY) misses.push(`(${x.toFixed(3)}, ${y.toFixed(3)})`);
-      heights[r * (spec.cols + 1) + col] = best;
+      faceIndex.push(mapped);
     }
   }
-  if (misses.length > 0) {
-    throw new Error(`visor fit: no surface under ${misses.length} node(s): ${misses.join(' ')}`);
-  }
-
-  // Clearing pass. A ray samples the surface at a point; a rivet or a groove
-  // edge between two nodes can still stand in front of the panel drawn
-  // between them. Every head vertex under the panel is checked against the
-  // bilinear surface at its own (x, y), and the four nodes around it are
-  // lifted by any deficit — the interpolation weights sum to one, so one
-  // pass leaves nothing in front. `test/visor.test.ts` checks that it did.
-  const stride = spec.cols + 1;
-  const cellW = (2 * spec.halfWidth) / spec.cols;
-  const cellH = (spec.y1 - spec.y0) / spec.rows;
-  for (const [ta, tb, tc] of tris) {
-    for (const p of [ta, tb, tc]) {
-      if (Math.abs(p.x) > spec.halfWidth || p.y < spec.y0 || p.y > spec.y1) continue;
-      const u = Math.min(spec.cols - 1e-9, (p.x + spec.halfWidth) / cellW);
-      const v = Math.min(spec.rows - 1e-9, (p.y - spec.y0) / cellH);
-      const c0 = Math.floor(u);
-      const r0 = Math.floor(v);
-      const fu = u - c0;
-      const fv = v - r0;
-      const i00 = r0 * stride + c0;
-      const i01 = i00 + 1;
-      const i10 = i00 + stride;
-      const i11 = i10 + 1;
-      const here =
-        (heights[i00] as number) * (1 - fu) * (1 - fv) +
-        (heights[i01] as number) * fu * (1 - fv) +
-        (heights[i10] as number) * (1 - fu) * fv +
-        (heights[i11] as number) * fu * fv;
-      const deficit = p.z - here;
-      if (deficit > 0) {
-        heights[i00] = (heights[i00] as number) + deficit;
-        heights[i01] = (heights[i01] as number) + deficit;
-        heights[i10] = (heights[i10] as number) + deficit;
-        heights[i11] = (heights[i11] as number) + deficit;
-      }
+  const count = order.length;
+  const positions = new Float32Array(count * 3);
+  const glassPositions = new Float32Array(count * 3);
+  const normals = new Float32Array(count * 3);
+  const uvs = new Float32Array(count * 2);
+  const faceUv = new Float32Array(count * 2);
+  const joints = skinIndex ? new Uint16Array(count * 4) : null;
+  const weights = skinWeight ? new Float32Array(count * 4) : null;
+  const { min, max } = mask.measured.paintBounds;
+  const width = (max[0] as number) - (min[0] as number);
+  const height = (max[1] as number) - (min[1] as number);
+  const gap = GLASS_GAP_M / metresPerUnit;
+  const n = new THREE.Vector3();
+  for (let i = 0; i < count; i += 1) {
+    const v = order[i] as number;
+    n.set(normal.getX(v), normal.getY(v), normal.getZ(v)).normalize();
+    const x = position.getX(v);
+    const y = position.getY(v);
+    const z = position.getZ(v);
+    positions[i * 3] = x;
+    positions[i * 3 + 1] = y;
+    positions[i * 3 + 2] = z;
+    glassPositions[i * 3] = x + n.x * gap;
+    glassPositions[i * 3 + 1] = y + n.y * gap;
+    glassPositions[i * 3 + 2] = z + n.z * gap;
+    normals[i * 3] = n.x;
+    normals[i * 3 + 1] = n.y;
+    normals[i * 3 + 2] = n.z;
+    uvs[i * 2] = uv.getX(v);
+    uvs[i * 2 + 1] = uv.getY(v);
+    // The canvas over the paint's own extent; the canvas's top at the paint's top.
+    faceUv[i * 2] = ((fitPositions[v * 3] as number) - (min[0] as number)) / width;
+    faceUv[i * 2 + 1] = ((fitPositions[v * 3 + 1] as number) - (min[1] as number)) / height;
+    if (joints && skinIndex) {
+      joints[i * 4] = skinIndex.getX(v);
+      joints[i * 4 + 1] = skinIndex.getY(v);
+      joints[i * 4 + 2] = skinIndex.getZ(v);
+      joints[i * 4 + 3] = skinIndex.getW(v);
+    }
+    if (weights && skinWeight) {
+      weights[i * 4] = skinWeight.getX(v);
+      weights[i * 4 + 1] = skinWeight.getY(v);
+      weights[i * 4 + 2] = skinWeight.getZ(v);
+      weights[i * 4 + 3] = skinWeight.getW(v);
     }
   }
-  return { spec, z: heights, bounds, triangles: tris.length };
+  const make = (pos: Float32Array) => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    g.setAttribute('faceUv', new THREE.BufferAttribute(faceUv, 2));
+    if (joints) g.setAttribute('skinIndex', new THREE.BufferAttribute(joints, 4));
+    if (weights) g.setAttribute('skinWeight', new THREE.BufferAttribute(weights, 4));
+    g.setIndex(faceIndex);
+    g.computeBoundingBox();
+    g.computeBoundingSphere();
+    return g;
+  };
+  return { face: make(positions), glass: make(glassPositions) };
 }
 
-/**
- * The panel mesh: the grid lifted `offset` off the surface, with UVs that
- * put the canvas's top at the panel's top. Winding faces +z; the material
- * is double-sided regardless, because which side faces the viewer depends
- * on the parent frame and a culled visor is a face that is not there.
- */
-export function buildVisorGeometry(surface: HeadSurface): THREE.BufferGeometry {
-  const { spec, z } = surface;
-  const stride = spec.cols + 1;
-  const count = (spec.rows + 1) * stride;
-  const position = new Float32Array(count * 3);
-  const uv = new Float32Array(count * 2);
-  for (let r = 0; r <= spec.rows; r += 1) {
-    const v = r / spec.rows;
-    const y = spec.y0 + (spec.y1 - spec.y0) * v;
-    for (let col = 0; col <= spec.cols; col += 1) {
-      const u = col / spec.cols;
-      const i = r * stride + col;
-      position[i * 3] = -spec.halfWidth + 2 * spec.halfWidth * u;
-      position[i * 3 + 1] = y;
-      position[i * 3 + 2] = (z[i] as number) + spec.offset;
-      uv[i * 2] = u;
-      uv[i * 2 + 1] = v;
-    }
+const PAINT_TEST = /* glsl */ `
+  vec3 paint = texture2D(tPaint, PAINT_UV).rgb;
+  float paintLuminance = dot(paint, vec3(0.2126, 0.7152, 0.0722));
+  float paintChroma = max(max(paint.r, paint.g), paint.b) - min(min(paint.r, paint.g), paint.b);
+  if (paintLuminance >= uPaintLuminance || paintChroma >= uPaintChroma) discard;
+`;
+
+const FACE_VERTEX = /* glsl */ `
+  #include <common>
+  #include <skinning_pars_vertex>
+  attribute vec2 faceUv;
+  varying vec2 vUv;
+  varying vec2 vFaceUv;
+  void main() {
+    vUv = uv;
+    vFaceUv = faceUv;
+    #include <skinbase_vertex>
+    #include <begin_vertex>
+    #include <skinning_vertex>
+    #include <project_vertex>
   }
-  const index: number[] = [];
-  for (let r = 0; r < spec.rows; r += 1) {
-    for (let col = 0; col < spec.cols; col += 1) {
-      const i = r * stride + col;
-      index.push(i, i + 1, i + stride, i + 1, i + stride + 1, i + stride);
-    }
+`;
+
+const FACE_FRAGMENT = /* glsl */ `
+  uniform sampler2D tFace;
+  uniform sampler2D tPaint;
+  uniform float uPaintLuminance;
+  uniform float uPaintChroma;
+  varying vec2 vUv;
+  varying vec2 vFaceUv;
+  void main() {
+    ${PAINT_TEST.replace('PAINT_UV', 'vUv')}
+    gl_FragColor = vec4(texture2D(tFace, vFaceUv).rgb, 1.0);
+    #include <colorspace_fragment>
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(position, 3));
-  geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-  geometry.setIndex(index);
-  geometry.computeVertexNormals();
-  geometry.computeBoundingBox();
-  geometry.computeBoundingSphere();
-  return geometry;
-}
+`;
 
 /**
- * The one material a visor may use. Double-sided (see above); emissive in
- * the sense that it is unlit and untone-mapped, so the canvas's colours are
- * the colours seen; cut out by alpha so the visor's rounded outline, not the
- * grid's rectangle, is its silhouette.
+ * The face's material: the live canvas, shown only where the head's own
+ * paint is the visor's; unlit and untone-mapped, so the canvas's colours
+ * are the colours seen; double-sided, because a culled visor is a face
+ * that is not there; and offset toward the camera, because it shares its
+ * triangles with the head underneath.
  */
-export function createVisorMaterial(map: THREE.Texture): THREE.MeshBasicMaterial {
-  return new THREE.MeshBasicMaterial({
-    map,
-    toneMapped: false,
+export function createFaceMaterial(
+  face: THREE.Texture,
+  paint: THREE.Texture,
+  rule: PaintRule = VISOR_PAINT,
+): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      tFace: { value: face },
+      tPaint: { value: paint },
+      uPaintLuminance: { value: rule.luminance },
+      uPaintChroma: { value: rule.chroma },
+    },
+    vertexShader: FACE_VERTEX,
+    fragmentShader: FACE_FRAGMENT,
     side: THREE.DoubleSide,
-    alphaTest: 0.5,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+    name: 'visor-face',
   });
 }
 
 /**
- * The whole visor mesh, and the only way `Visor.tsx` may make one (KR-57).
- * Three things a culled or hidden face depends on are set here and checked
- * by `test/visor.test.ts` on the object this returns, not on the source
- * text: the material is the double-sided one above and is not re-sided
- * afterwards; `frustumCulled` is off, because the panel rides a joint whose
- * bounds three.js does not track; and it is visible.
+ * The glass: glossy, clear-coated, nearly black, so what it adds is the
+ * reflection of the lights and the environment and nothing else — a
+ * highlight that slides across the curve as the camera moves, and a rim
+ * where the glass turns away. Masked to the same paint as the face.
  */
-export function buildVisorMesh(
-  surface: HeadSurface,
-  map: THREE.Texture,
-): THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> {
-  const mesh = new THREE.Mesh(buildVisorGeometry(surface), createVisorMaterial(map));
-  mesh.frustumCulled = false;
-  mesh.visible = true;
-  mesh.name = 'visor';
-  return mesh;
+export function createGlassMaterial(
+  paint: THREE.Texture,
+  rule: PaintRule = VISOR_PAINT,
+): THREE.MeshPhysicalMaterial {
+  const material = new THREE.MeshPhysicalMaterial({
+    color: '#0a0f1e',
+    roughness: 0.07,
+    metalness: 0,
+    clearcoat: 1,
+    clearcoatRoughness: 0.08,
+    envMapIntensity: 1.4,
+    specularIntensity: 1,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+    side: THREE.FrontSide,
+    name: 'visor-glass',
+  });
+  material.defines = { USE_UV: '' };
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.tPaint = { value: paint };
+    shader.uniforms.uPaintLuminance = { value: rule.luminance };
+    shader.uniforms.uPaintChroma = { value: rule.chroma };
+    shader.fragmentShader = `uniform sampler2D tPaint;\nuniform float uPaintLuminance;\nuniform float uPaintChroma;\n${shader.fragmentShader.replace(
+      '#include <clipping_planes_fragment>',
+      `#include <clipping_planes_fragment>\n${PAINT_TEST.replace('PAINT_UV', 'vUv')}`,
+    )}`;
+  };
+  material.customProgramCacheKey = () => 'visor-glass-v7';
+  return material;
 }
 
-/** The centre of the panel's front, for placing its light. */
-export function visorCentre(surface: HeadSurface): THREE.Vector3 {
-  const { spec, z } = surface;
-  const i = Math.floor(spec.rows / 2) * (spec.cols + 1) + Math.floor(spec.cols / 2);
-  return new THREE.Vector3(0, (spec.y0 + spec.y1) / 2, (z[i] as number) + spec.offset);
+export interface VisorMeshes {
+  face: THREE.Mesh;
+  glass: THREE.Mesh;
+  /** Where the face's light goes, in the mask's frame: the paint's centre, a little in front. */
+  lightAt: THREE.Vector3;
+}
+
+/**
+ * The whole visor, and the only way `Visor.tsx` may make one (KR-57):
+ * two meshes sharing the head's triangles and, if the head is skinned,
+ * its skeleton and bind matrix; both uncullable — they ride a joint whose
+ * bounds three.js does not track — and visible; the face double-sided.
+ * The meshes carry the head mesh's own local transform so they can be
+ * placed beside it under the same parent.
+ */
+export function buildVisorMeshes(
+  head: THREE.Mesh,
+  mask: VisorMask,
+  fitPositions: ArrayLike<number>,
+  metresPerUnit: number,
+  faceTexture: THREE.Texture,
+  paint: THREE.Texture,
+): VisorMeshes {
+  const geometry = buildVisorGeometry(head.geometry, mask, fitPositions, metresPerUnit);
+  const faceMaterial = createFaceMaterial(faceTexture, paint, mask.paint);
+  const glassMaterial = createGlassMaterial(paint, mask.paint);
+  const skinned = (head as THREE.SkinnedMesh).isSkinnedMesh ? (head as THREE.SkinnedMesh) : null;
+  const make = (g: THREE.BufferGeometry, m: THREE.Material, name: string) => {
+    const mesh = skinned ? new THREE.SkinnedMesh(g, m) : new THREE.Mesh(g, m);
+    if (skinned) (mesh as THREE.SkinnedMesh).bind(skinned.skeleton, skinned.bindMatrix);
+    mesh.position.copy(head.position);
+    mesh.quaternion.copy(head.quaternion);
+    mesh.scale.copy(head.scale);
+    mesh.frustumCulled = false;
+    mesh.visible = true;
+    mesh.name = name;
+    return mesh;
+  };
+  const face = make(geometry.face, faceMaterial, 'visor-face');
+  const glass = make(geometry.glass, glassMaterial, 'visor-glass');
+  glass.renderOrder = 1;
+  const [cx, cy] = mask.measured.centre;
+  const front = mask.measured.paintBounds.max[2] as number;
+  return {
+    face,
+    glass,
+    lightAt: new THREE.Vector3(cx as number, cy as number, front + 0.12 / metresPerUnit),
+  };
+}
+
+/** The face canvas's aspect for a mask: the paint's width over its height. */
+export function faceAspect(mask: VisorMask): number {
+  const { min, max } = mask.measured.paintBounds;
+  return ((max[0] as number) - (min[0] as number)) / ((max[1] as number) - (min[1] as number));
 }
 
 /**
