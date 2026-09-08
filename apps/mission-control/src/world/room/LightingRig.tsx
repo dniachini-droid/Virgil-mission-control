@@ -42,7 +42,7 @@ import { layout, room } from './palette.js';
  * Virgil was in shadow. So:
  *
  *  - **the ambient and the fill carry an idle console.** The hemisphere
- *    goes 0.3 → 0.95, the violet fill 9 → 12, and a wide, shadowless
+ *    goes 0.3 → 0.8, the violet fill 9 → 12, and a wide, shadowless
  *    **back-row fill** stands over the three stations, which the warm key
  *    barely reaches: they sit 9–11 m from it with `decay: 2`, which is the
  *    arithmetic of the shadowed band;
@@ -146,9 +146,13 @@ export function LightingRig({ view }: { view: 'room' | 'tabletop' }) {
         decay={2}
         position={[wx, wy + 1.6, wz - 3.5]}
       />
-      {/* Ambient: warm above and below. **V8.2: 0.3 to 0.95** — this one
+      {/* Ambient: warm above and below. **V8.2: 0.3 to 0.8** — this one
           number is most of what "normal means lit" is. It is what an idle
-          console is lit by when no spotlight is on it. */}
+          console is lit by when no spotlight is on it.
+          (V9, item 3.4: this comment and the one in the file's header both
+          said 0.95, which the value below and V8.2's own run record never
+          were. The code was right and the comment was wrong; V8.3 found it
+          and left it as outside its two items. Corrected, not changed.) */}
       <hemisphereLight color={room.warm.key} groundColor={room.warm.amberDeep} intensity={0.8} />
       {/* **The rim behind each console (V8.2).** Cool, low, close: it does
           not light the console's front, it edges its silhouette so a cream

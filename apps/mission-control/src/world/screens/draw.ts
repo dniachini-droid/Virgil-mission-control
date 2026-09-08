@@ -86,6 +86,38 @@ export function flicker(t: number): number {
 export const BAND_WORDS = 'ILLUSTRATIVE · NOT REAL STATE';
 
 /**
+ * **The band on two lines, for a small screen** (V9, item 3.2).
+ *
+ * The defect, which V8.1 named and left as "an owner decision about type
+ * size" and V8.2 and V8.3 left again: at the wide view on a phone the
+ * slabs' honesty bands are unreadable. Measured rather than guessed —
+ * each slab is about 110 screen pixels wide there, and the band's
+ * twenty-nine characters on one line get **3.8 pixels each**, which no
+ * size or weight can rescue. The banner above the canvas still says it in
+ * words, so the truth is not lost, but the band is not doing its job.
+ *
+ * What is done about it is a **layout** change and not a content one:
+ * on the coarse tiers the four words are set on **two lines**, at the two
+ * words the sentence already divides into, which takes the per-character
+ * width to **7.9 pixels — 2.1× — inside the same band height.** Nothing
+ * is abbreviated, nothing is dropped, nothing is dimmed, and the rule
+ * above still holds exactly as written.
+ *
+ * It is a module setting rather than a parameter because every screen and
+ * every slab in the set shares one answer to it, and it is read once from
+ * the tier at mount (`room/VirgilRoom.tsx`).
+ */
+let bandOnTwoLines = false;
+export function setBandOnTwoLines(value: boolean): void {
+  bandOnTwoLines = value;
+}
+export function bandIsOnTwoLines(): boolean {
+  return bandOnTwoLines;
+}
+/** The two lines the band divides into. Their words are the band's words. */
+export const BAND_LINES = BAND_WORDS.split(' · ');
+
+/**
  * How far in from a straight edge the rounded corner has eaten, at
  * `depth` pixels along that edge from the corner. Zero past the corner's
  * own radius. V8.2: a console's picture is drawn to the model's own
@@ -227,10 +259,23 @@ export function band(ctx: Ctx, w: number, h: number, corner = 0) {
   // Spacing is set before fitting, so the measure includes it and the
   // four words never run under the bezel or into the corner's curve.
   spaced(ctx, '0.06em');
-  fitFont(ctx, display, 64, BAND_WORDS, bandTextWidth(w, corner));
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(BAND_WORDS, w / 2 + 4, h - BAND_HEIGHT / 2 + RULE / 2 + 2);
+  const middle = h - BAND_HEIGHT / 2 + RULE / 2 + 2;
+  if (bandOnTwoLines) {
+    // Two lines in the same band: each is fitted on its own, so the
+    // shorter one is not held down to the longer one's size.
+    const width = bandTextWidth(w, corner);
+    const pitch = (BAND_HEIGHT - RULE) * 0.42;
+    const cap = Math.floor(pitch * 0.95);
+    BAND_LINES.forEach((line, i) => {
+      fitFont(ctx, display, cap, line, width);
+      ctx.fillText(line, w / 2 + 4, middle + (i - (BAND_LINES.length - 1) / 2) * pitch);
+    });
+  } else {
+    fitFont(ctx, display, 64, BAND_WORDS, bandTextWidth(w, corner));
+    ctx.fillText(BAND_WORDS, w / 2 + 4, middle);
+  }
   spaced(ctx, '0em');
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';

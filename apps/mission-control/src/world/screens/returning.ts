@@ -29,6 +29,26 @@ import { drawVerdictMark, verdictLook } from './verdicts.js';
 
 const PIECES = 150;
 
+/**
+ * A hex colour at an alpha, as an `rgba()` string: the gradient stops of
+ * the verdict's tint need it, and every colour in this world is a hex
+ * literal (`draw.ts`, `room/palette.ts`).
+ */
+export function withAlpha(colour: string, alpha: number): string {
+  const hex = colour.replace('#', '');
+  const full =
+    hex.length === 3
+      ? hex
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : hex;
+  const r = Number.parseInt(full.slice(0, 2), 16);
+  const g = Number.parseInt(full.slice(2, 4), 16);
+  const b = Number.parseInt(full.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
+}
+
 export interface ReturnLayout {
   /** The ring's centre and radius. */
   cx: number;
@@ -136,8 +156,26 @@ export function drawReturn(
   );
   const mark = clamp01((since - RETURNING.land) / 0.55);
   drawVerdictMark(ctx, cx, cy, r, report, seal, mark, findings);
-  // The moment: a pulse expanding out of the sealed ring, once, and a
-  // wash of the tint across the screen that drains away.
+  /*
+   * The moment: a pulse expanding out of the sealed ring, once, and the
+   * tint spreading from it.
+   *
+   * **V9, item 3.3 — the verdict's colour is a tint on a black ground,
+   * not a wash over it.** The owner has asked repeatedly for the displays
+   * to be black, and V8.3 measured the centre slab at a median luminance
+   * of **52.4** against 39.0–39.9 for the other four surfaces, and
+   * established that the excess is the verdict's own green rather than
+   * the glass. This is where most of it was: a flat `fillRect` of the
+   * tint over the **whole picture** at up to 0.16 alpha, which lifts
+   * every pixel of a luminance-11 ink by about thirteen levels and is the
+   * definition of a wash.
+   *
+   * It is now a radial gradient centred on the ring — brighter at the
+   * centre than the flat wash was, so the verdict's force is not lost,
+   * and zero by 1.9 radii, so the ground away from the ring stays exactly
+   * as black as every other display. The expanding ring itself is
+   * untouched: that is the event, and it is drawn, not washed.
+   */
   const pulse = clamp01((since - RETURNING.seal) / 0.7);
   if (pulse > 0 && pulse < 1) {
     ctx.strokeStyle = tint;
@@ -146,18 +184,49 @@ export function drawReturn(
     ctx.beginPath();
     ctx.arc(cx, cy, r + easeOut(pulse) * r * 1.6, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.globalAlpha = 0.16 * (1 - pulse);
-    ctx.fillStyle = tint;
-    ctx.fillRect(0, 0, w, h);
     ctx.globalAlpha = 1;
+    const spread = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.9);
+    const strength = 0.26 * (1 - pulse);
+    spread.addColorStop(0, withAlpha(tint, strength));
+    spread.addColorStop(0.55, withAlpha(tint, strength * 0.45));
+    spread.addColorStop(1, withAlpha(tint, 0));
+    ctx.fillStyle = spread;
+    ctx.fillRect(0, 0, w, h);
   }
   // The words land with weight; the second line follows a beat later.
   const arriveWord = clamp01((since - RETURNING.land) / 0.5);
   if (arriveWord > 0) {
     bigWord(ctx, words[0], layout.wordX, layout.wordY, layout.wordWidth, tint, arriveWord);
   }
+  /*
+   * **The second line's own foot, measured** (V9, item 3.1). The owner's
+   * defect: on the Prover's console `INSUFFICIENT EVIDENCE` ran over the
+   * tally beneath it. It was arithmetic and not taste — the second line
+   * sat at `wordY + 190` and was set at up to 56 px, so its glyphs
+   * reached `wordY + 246`, while the lines beneath started at
+   * `floor - 40 - lines · 48`. On the Prover's screen, whose canvas is
+   * 1024 × 594 at its own aspect, that is 376 against 340: **36 pixels of
+   * overlap**, on the longest word the demonstration shows. It has been
+   * there since V8 and was deliberately skipped twice.
+   *
+   * The fix is to measure rather than to nudge: the second line reports
+   * where its glyphs end, the rows below start at least `WORD_GAP` under
+   * that, and if honouring both would push the last row past the band the
+   * pitch closes up instead of the text colliding.
+   * `test/screen-motion.test.ts` checks it for every role, every verdict
+   * and every console's real aspect, so it cannot come back.
+   */
+  const SECOND_LINE_TOP = 190;
+  const WORD_GAP = 22;
+  let wordsBottom = layout.wordY;
   if (words[1]) {
     const arriveSecond = clamp01((since - RETURNING.land - 0.25) / 0.45);
+    // The size is fitted whether or not the line is visible yet, so the
+    // rows below never move as it arrives.
+    spaced(ctx, '0.04em');
+    const size = fitFont(ctx, display, 56, words[1], layout.wordWidth);
+    spaced(ctx, '0em');
+    wordsBottom = layout.wordY + SECOND_LINE_TOP + size;
     if (arriveSecond > 0) {
       ctx.save();
       ctx.globalAlpha = easeOut(arriveSecond);
@@ -166,11 +235,12 @@ export function drawReturn(
       ctx.fillStyle = tint;
       ctx.textBaseline = 'top';
       const slide = (1 - landing(arriveSecond, 0.1)) * 30;
-      ctx.fillText(words[1], layout.wordX, layout.wordY + 190 + slide);
+      ctx.fillText(words[1], layout.wordX, layout.wordY + SECOND_LINE_TOP + slide);
       spaced(ctx, '0em');
       ctx.restore();
     }
   }
+  const rows = evidenceRows(layout, lines.length, wordsBottom + WORD_GAP, h);
   // The lines beneath, in sequence: each slides up into place.
   lines.forEach((line, i) => {
     const p = staggered(since - RETURNING.evidence, i, 0.45, 0.22);
@@ -182,10 +252,10 @@ export function drawReturn(
       ctx,
       line,
       layout.linesX,
-      layout.linesY + i * layout.pitch + slide,
+      rows.top + i * rows.pitch + slide,
       layout.linesWidth,
       i === 0 ? tint : DIM,
-      layout.pitch * 0.72,
+      rows.pitch * 0.72,
     );
     ctx.restore();
   });
@@ -199,6 +269,28 @@ export function drawReturn(
     ctx.stroke();
     ctx.globalAlpha = 1;
   }
+}
+
+/**
+ * Where the evidence rows go, given the layout's wish, how many there
+ * are, the lowest point the words above reach, and the height available.
+ * Pure, so `test/screen-motion.test.ts` can hold it against every
+ * console's own aspect (V9, item 3.1).
+ */
+export function evidenceRows(
+  layout: ReturnLayout,
+  count: number,
+  clearOf: number,
+  height: number,
+): { top: number; pitch: number } {
+  const top = Math.max(layout.linesY, clearOf);
+  if (count === 0) return { top, pitch: layout.pitch };
+  // The rows must also finish above the foot of the picture. Where the
+  // wish and the clearance cannot both be met, the pitch closes up — the
+  // one thing never done is letting two lines of type cross.
+  const room = height - 12 - top;
+  const pitch = Math.min(layout.pitch, Math.max(26, room / count));
+  return { top, pitch };
 }
 
 /** How far the previous content should have withdrawn, 0..1, at the start of a return. */

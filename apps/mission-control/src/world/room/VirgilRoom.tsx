@@ -23,6 +23,7 @@ import { Panel } from '../panel/Panel.js';
 import type { PanelTarget, SlabName } from '../panel/panelContent.js';
 import { publishDemoState } from '../panel/panelStore.js';
 import { ConsoleScreen } from '../screens/ConsoleScreen.js';
+import { setBandOnTwoLines } from '../screens/draw.js';
 import { ScreenBank } from '../screens/ScreenBank.js';
 import { CAST, ROLES, type Role } from './cast.js';
 import { closeUpPose } from './closeUp.js';
@@ -88,6 +89,15 @@ export function VirgilRoom() {
     softwareRenderer: false,
   }));
   const coarse = settings.tier === 'constrained' || settings.tier === 'mobile';
+  /*
+   * **The honesty band goes on two lines on a small screen** (V9, item
+   * 3.2). At the wide view on a phone each slab is about 110 pixels
+   * across and the band's twenty-nine characters get 3.8 pixels each; on
+   * two lines they get 7.9. Nothing is abbreviated, dropped or dimmed —
+   * the layout changes, the words do not. Read once, before the first
+   * canvas is drawn.
+   */
+  setBandOnTwoLines(coarse);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

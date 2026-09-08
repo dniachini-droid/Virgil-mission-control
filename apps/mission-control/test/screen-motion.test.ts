@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import type { Report } from '../src/world/room/demo.js';
 import { spotLevel } from '../src/world/room/Models.js';
 import { RECEIVING, RETURNING } from '../src/world/screens/arrival.js';
 import {
@@ -10,6 +13,7 @@ import {
   POWER_ON_SECONDS,
   warmUp,
 } from '../src/world/screens/crt.js';
+import { BAND_HEIGHT, BAND_LINES, BAND_WORDS } from '../src/world/screens/draw.js';
 import {
   easeInOut,
   easeOut,
@@ -19,6 +23,7 @@ import {
   staggered,
   staggerLength,
 } from '../src/world/screens/motion.js';
+import { evidenceRows, type ReturnLayout, withAlpha } from '../src/world/screens/returning.js';
 import {
   fabricatorTally,
   keeperTally,
@@ -26,6 +31,9 @@ import {
   proverTally,
 } from '../src/world/screens/tally.js';
 import { verdictLook } from '../src/world/screens/verdicts.js';
+
+const src = (relative: string) =>
+  readFileSync(fileURLToPath(new URL(`../src/${relative}`, import.meta.url)), 'utf8');
 
 /**
  * The screens' motion, held by shape rather than by look — what a
@@ -208,5 +216,182 @@ describe('the four verdicts', () => {
     expect(verdictLook('INSUFFICIENT_EVIDENCE').tint).not.toBe(verdictLook('PASS').tint);
     expect(verdictLook('PASS_WITH_NON_BLOCKING_FINDINGS').lines).toHaveLength(2);
     expect(verdictLook('COMPLETE').lines).toEqual(['COMPLETE']);
+  });
+});
+
+/**
+ * **V9, item 3.1 — the verdict's words must not run over the rows
+ * beneath them.** The owner's defect: on the Prover's console
+ * `INSUFFICIENT EVIDENCE` overlapped the tally line under it. It was
+ * arithmetic, it had been there since V8, and it was deliberately skipped
+ * twice. So the layout is measured here, for every role, every report and
+ * every console's own aspect, rather than looked at once.
+ */
+describe('the return’s layout leaves the rows clear of the words', () => {
+  const SECOND_LINE_TOP = 190;
+  const WORD_GAP = 22;
+  /** The three consoles' measured aspects (`console-screens.test.ts`), and the slabs'. */
+  const SURFACES: { label: string; aspect: number; slab: boolean }[] = [
+    { label: 'fabricator', aspect: 1.731, slab: false },
+    { label: 'prover', aspect: 1.725, slab: false },
+    { label: 'keeper', aspect: 1.562, slab: false },
+    { label: 'slab', aspect: 1024 / 634, slab: true },
+  ];
+  const REPORTS: Report[] = [
+    'PASS',
+    'PASS_WITH_NON_BLOCKING_FINDINGS',
+    'BLOCKED',
+    'INSUFFICIENT_EVIDENCE',
+    'COMPLETE',
+  ];
+
+  it('never puts a row inside the second line’s glyph box, on any surface', () => {
+    for (const surface of SURFACES) {
+      const width = 1024;
+      const height = Math.max(64, Math.round(width / surface.aspect));
+      const floor = height - BAND_HEIGHT;
+      for (const report of REPORTS) {
+        const words = verdictLook(report).lines;
+        // The counts under a verdict: two rows for a console, three for
+        // the slab's evidence.
+        for (const count of [2, 3]) {
+          const layout: ReturnLayout = surface.slab
+            ? {
+                cx: width - 64 - 150,
+                cy: 150 + (floor - 150) / 2 - 30,
+                r: 118,
+                wordX: 64,
+                wordY: 130,
+                wordWidth: width - 128 - 330,
+                linesX: 64,
+                linesY: floor - 30 - 3 * 48,
+                linesWidth: width - 128 - 330,
+                pitch: 48,
+              }
+            : {
+                cx: width - 64 - 150,
+                cy: 150 + (floor - 150) / 2 - 20,
+                r: 118,
+                wordX: 64,
+                wordY: 130,
+                wordWidth: width - 128 - 330,
+                linesX: 64,
+                linesY: floor - 40 - count * 48,
+                linesWidth: width - 128 - 330,
+                pitch: 48,
+              };
+          // The worst case for the second line's size: the largest the
+          // fitter may return, which is what `drawReturn` measures.
+          const wordsBottom = words[1] ? layout.wordY + SECOND_LINE_TOP + 56 : layout.wordY;
+          const rows = evidenceRows(layout, count, wordsBottom + WORD_GAP, floor);
+          const message = `${surface.label} · ${report} · ${count} rows`;
+          if (words[1]) {
+            expect(rows.top, `${message}: a row inside the second line`).toBeGreaterThanOrEqual(
+              wordsBottom + WORD_GAP,
+            );
+          }
+          // Every row is above the honesty band, and the rows do not
+          // overlap each other.
+          const lastFoot = rows.top + (count - 1) * rows.pitch + rows.pitch * 0.72;
+          expect(lastFoot, `${message}: a row under the band`).toBeLessThanOrEqual(floor);
+          expect(rows.pitch, `${message}: the rows overlap each other`).toBeGreaterThanOrEqual(26);
+        }
+      }
+    }
+  });
+
+  it('reproduces the 36 pixels of overlap the old layout had, so the defect is on record', () => {
+    // The Prover's console: 1024 × 594, floor 476. `INSUFFICIENT` /
+    // `EVIDENCE` set the second line at 130 + 190 = 320 with glyphs to
+    // 376, and two tally rows started at 476 − 40 − 96 = 340.
+    const height = Math.round(1024 / 1.725);
+    expect(height).toBe(594);
+    const floor = height - BAND_HEIGHT;
+    expect(floor).toBe(476);
+    const oldTop = floor - 40 - 2 * 48;
+    expect(oldTop).toBe(340);
+    const secondFoot = 130 + 190 + 56;
+    expect(secondFoot).toBe(376);
+    expect(secondFoot - oldTop).toBe(36);
+    // And it is gone: the row is pushed clear.
+    const layout: ReturnLayout = {
+      cx: 810,
+      cy: 313,
+      r: 118,
+      wordX: 64,
+      wordY: 130,
+      wordWidth: 566,
+      linesX: 64,
+      linesY: oldTop,
+      linesWidth: 566,
+      pitch: 48,
+    };
+    const rows = evidenceRows(layout, 2, secondFoot + 22, floor);
+    expect(rows.top).toBeGreaterThanOrEqual(secondFoot);
+  });
+});
+
+/**
+ * **V9, item 3.3 — the verdict's colour is a tint on a black ground.**
+ * V8.3 measured Virgil's centre slab at a median luminance of 52.4
+ * against 39.0–39.9 for the other four surfaces and established that the
+ * excess is the verdict's own green. Most of it was a flat fill of the
+ * tint over the whole picture. It is a radial gradient centred on the
+ * ring now, so the ground away from the ring is exactly as black as
+ * every other display.
+ */
+describe('the verdict’s moment tints rather than washes', () => {
+  it('spreads the tint from the ring and not across the picture', () => {
+    const returning = src('world/screens/returning.ts');
+    expect(returning).toContain('createRadialGradient');
+    // No flat fill of the tint over the whole picture.
+    expect(returning).not.toMatch(/ctx\.fillStyle = tint;\s*\n\s*ctx\.fillRect\(0, 0, w, h\)/);
+    // The gradient reaches zero, so there is a black ground to tint.
+    expect(returning).toContain('withAlpha(tint, 0)');
+  });
+
+  it('turns a hex colour into an rgba stop without inventing one', () => {
+    expect(withAlpha('#b6ff5c', 0.5)).toBe('rgba(182, 255, 92, 0.5)');
+    expect(withAlpha('#000', 1)).toBe('rgba(0, 0, 0, 1)');
+    // Clamped, so a stop can never be out of range.
+    expect(withAlpha('#ffffff', 2)).toBe('rgba(255, 255, 255, 1)');
+    expect(withAlpha('#ffffff', -1)).toBe('rgba(255, 255, 255, 0)');
+  });
+});
+
+/**
+ * **V9, item 3.2 — the honesty band on two lines for a small screen.**
+ * The layout changes; the words do not. This is the assertion that keeps
+ * the second half of that sentence true.
+ */
+describe('the honesty band on a small screen', () => {
+  it('divides the same four words in two and abbreviates nothing', () => {
+    expect(BAND_LINES).toHaveLength(2);
+    expect(BAND_LINES.join(' · ')).toBe(BAND_WORDS);
+    for (const word of ['ILLUSTRATIVE', 'NOT', 'REAL', 'STATE']) {
+      expect(BAND_LINES.join(' ')).toContain(word);
+    }
+    // Every character is one the display subset can set.
+    expect(BAND_LINES.join('')).toMatch(/^[A-Z ]+$/);
+  });
+
+  it('is switched by the tier, once, and defaults to one line', () => {
+    const room = src('world/room/VirgilRoom.tsx');
+    expect(room).toContain('setBandOnTwoLines(coarse)');
+    const draw = src('world/screens/draw.ts');
+    expect(draw).toContain('let bandOnTwoLines = false;');
+    // The words are never rewritten, only laid out differently: the
+    // sentence is declared exactly once and the two lines come from it.
+    expect(draw).not.toMatch(/BAND_WORDS\s*=\s*bandOnTwoLines/);
+    expect(draw.match(/'ILLUSTRATIVE · NOT REAL STATE'/g) ?? []).toHaveLength(1);
+    expect(draw).toContain("export const BAND_LINES = BAND_WORDS.split(' · ');");
+  });
+
+  it('more than doubles the width each character gets', () => {
+    // A slab at the wide view on a phone is about 110 screen pixels wide.
+    const oneLine = 110 / BAND_WORDS.length;
+    const twoLine = 110 / Math.max(...BAND_LINES.map((l) => l.length));
+    expect(oneLine).toBeLessThan(4);
+    expect(twoLine / oneLine).toBeGreaterThan(2);
   });
 });
