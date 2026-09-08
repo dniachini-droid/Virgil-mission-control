@@ -21,7 +21,8 @@ import { VirgilRigged } from '../characters/VirgilRigged.js';
 import type { FaceState } from '../characters/Visor.js';
 import { ConsoleScreen } from '../screens/ConsoleScreen.js';
 import { ScreenBank } from '../screens/ScreenBank.js';
-import { CAST, eyeHeight, figurePlacement, ROLES, type Role, screenCentre } from './cast.js';
+import { CAST, ROLES, type Role } from './cast.js';
+import { closeUpPose } from './closeUp.js';
 import { forcedState, useDemo } from './demo.js';
 import { LightingRig } from './LightingRig.js';
 import { PortholeFrame, Station, StationLight, VirgilConsole } from './Models.js';
@@ -298,28 +299,13 @@ export function cameraPose(view: View, focus: Focus, aspect = 16 / 9): Pose {
     const distance = Math.max(5, halfWidth / (Math.tan((fov / 2) * (Math.PI / 180)) * aspect));
     return { position: [0, y - 0.1, z + distance], target: [0, y - 0.15, z], fov };
   }
-  if (focus !== 'all') {
-    const { at, rotationY: f } = figurePlacement(focus);
-    const eye = eyeHeight(focus);
-    const screen = screenCentre(focus);
-    const side = layout.stations[focus].cameraSide;
-    const fx = Math.sin(f);
-    const fz = Math.cos(f);
-    const rx = Math.cos(f);
-    const rz = -Math.sin(f);
-    // Look between the face and the screen, from in front, a little to
-    // the screen's side, so both are in the frame.
-    const tx = at[0] * 0.5 + screen[0] * 0.5;
-    const tz = at[2] * 0.5 + screen[2] * 0.5;
-    const ty = eye * 0.6 + screen[1] * 0.4;
-    // Well to the screen's side, so the camera looks past the character's
-    // shoulder at the screen once they have turned to it.
-    return {
-      position: [tx + fx * 3.1 + rx * 1.3 * side, ty + 0.3, tz + fz * 3.1 + rz * 1.3 * side],
-      target: [tx, ty - 0.05, tz],
-      fov: 40,
-    };
-  }
+  // A character's close-up is derived from their console's own screen
+  // (`closeUp.ts`), not posed: on the screen's measured axis, with the
+  // lens the screen needs at this aspect. V8 posed it by hand out to one
+  // side, and at that obliquity the Prover's own dial and the Keeper's
+  // body stood in front of his screen and a phone cropped the
+  // Fabricator's; `test/close-up-sight.test.ts` holds the sight lines now.
+  if (focus !== 'all') return closeUpPose(focus, aspect);
   if (view === 'tabletop') return tabletopCamera(aspect);
   const cam = layout.camera;
   return { position: [...cam.position], target: [...cam.target], fov: cam.fov };
@@ -353,14 +339,23 @@ export function limitsFor(view: View, focus: Focus, pose: Pose): Limits {
   const dx = pose.position[0] - pose.target[0];
   const dz = pose.position[2] - pose.target[2];
   const azimuth = Math.atan2(dx, dz);
+  const dy = pose.position[1] - pose.target[1];
+  const polar = Math.atan2(Math.hypot(dx, dz), dy);
   if (focus !== 'all') {
+    // Every bound is taken from the pose the rig just authored, so a
+    // clamp can never be a number that disagrees with where the camera
+    // has been put. V8 held the polar angle to a fixed 1.0–1.6 and the
+    // distance to 1.4–6, which happened to contain its hand-set poses;
+    // a derived pose has no such guarantee, and a bound that excludes
+    // the pose is how a close-up ends up somewhere else.
+    const distance = Math.hypot(dx, dy, dz);
     return {
-      minPolarAngle: 1.0,
-      maxPolarAngle: 1.6,
+      minPolarAngle: polar - 0.35,
+      maxPolarAngle: polar + 0.35,
       minAzimuthAngle: azimuth - 0.7,
       maxAzimuthAngle: azimuth + 0.7,
-      minDistance: 1.4,
-      maxDistance: focus === 'board' ? 14 : 6,
+      minDistance: Math.min(1.4, distance),
+      maxDistance: Math.max(focus === 'board' ? 14 : 6, distance),
     };
   }
   if (view === 'room') {
@@ -376,8 +371,6 @@ export function limitsFor(view: View, focus: Focus, pose: Pose): Limits {
   // The tabletop: from a little below the pose's own elevation to some
   // way above it, on a 120° arc — the owner can rise to look over the
   // set but not sink under the disc.
-  const dy = pose.position[1] - pose.target[1];
-  const polar = Math.atan2(Math.hypot(dx, dz), dy);
   return {
     minPolarAngle: polar - 0.45,
     maxPolarAngle: polar + 0.1,
@@ -388,11 +381,35 @@ export function limitsFor(view: View, focus: Focus, pose: Pose): Limits {
   };
 }
 
+/** Writes a set of limits onto the controls, now, with no React in between. */
+function applyLimits(controls: ComponentRef<typeof OrbitControls>, limits: Limits): void {
+  controls.minPolarAngle = limits.minPolarAngle;
+  controls.maxPolarAngle = limits.maxPolarAngle;
+  controls.minAzimuthAngle = limits.minAzimuthAngle;
+  controls.maxAzimuthAngle = limits.maxAzimuthAngle;
+  controls.minDistance = limits.minDistance;
+  controls.maxDistance = limits.maxDistance;
+}
+
 /**
  * Orbit, and the driver that carries the camera to a view's or a focus's
  * pose: a smooth move of under a second (instant with reduced motion),
  * with the orbit's limits lifted while it travels and restored when it
  * arrives, so no clamp can snatch the camera mid-flight.
+ *
+ * **The limits are written onto the controls imperatively, in the same
+ * frame as the pose, and never as React props.** V8 held them in
+ * component state and called `setLimits(UNBOUNDED)` when the focus
+ * changed; that lands a frame or two later, and on a renderer where one
+ * frame is a second long the whole flight finished inside the first
+ * frame. So `OrbitControls.update()` clamped the new pose against the
+ * **previous** view's bounds — the wide tabletop's `minDistance: 6` —
+ * and pushed the camera 2.62 m back along its own view axis, straight
+ * into Virgil, whose head then filled the frame while the pose the code
+ * had authored was 3.38 m from its target. Measured on the V8 artifact:
+ * every one of the three close-ups came to rest at exactly 6.000 m from
+ * its target. The rig's own comment claimed no clamp could snatch the
+ * camera mid-flight; asynchronous state is exactly how one did.
  */
 function Rig({ view, focus }: { view: View; focus: Focus }) {
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
@@ -402,7 +419,8 @@ function Rig({ view, focus }: { view: View; focus: Focus }) {
   // and out does not re-pose the camera, while turning the phone does.
   const aspect = Math.round((size.width / Math.max(1, size.height)) * 10) / 10;
   const { reducedMotion } = useSettings();
-  const [limits, setLimits] = useState<Limits>(UNBOUNDED);
+  /** The limits in force. A ref, not state: a frame must never see a stale bound. */
+  const limits = useRef<Limits>(UNBOUNDED);
   const flight = useRef<{
     from: { p: THREE.Vector3; t: THREE.Vector3 };
     to: Pose;
@@ -426,29 +444,39 @@ function Rig({ view, focus }: { view: View; focus: Focus }) {
       limits: limitsFor(view, focus, to),
     };
     first.current = false;
-    setLimits(UNBOUNDED);
+    // Lifted here and again on every frame of the flight, so that no
+    // ordering between React and the render loop can leave a bound in
+    // force that the pose being flown to does not satisfy.
+    limits.current = UNBOUNDED;
+    if (c) applyLimits(c, UNBOUNDED);
   }, [view, focus, camera, reducedMotion, aspect]);
 
   useFrame((_, delta) => {
     const f = flight.current;
     const c = controls.current;
-    if (!f || !c) return;
-    f.elapsed += delta;
-    const k = f.seconds === 0 ? 1 : smooth(Math.min(1, f.elapsed / f.seconds));
-    camera.position.lerpVectors(f.from.p, new THREE.Vector3(...f.to.position), k);
-    c.target.lerpVectors(f.from.t, new THREE.Vector3(...f.to.target), k);
-    const persp = camera as THREE.PerspectiveCamera;
-    if (persp.isPerspectiveCamera && Math.abs(persp.fov - f.to.fov) > 0.01) {
-      persp.fov += (f.to.fov - persp.fov) * (f.seconds === 0 ? 1 : Math.min(1, delta * 4));
-      persp.updateProjectionMatrix();
+    if (!c) return;
+    if (f) {
+      f.elapsed += delta;
+      const k = f.seconds === 0 ? 1 : smooth(Math.min(1, f.elapsed / f.seconds));
+      camera.position.lerpVectors(f.from.p, new THREE.Vector3(...f.to.position), k);
+      c.target.lerpVectors(f.from.t, new THREE.Vector3(...f.to.target), k);
+      const persp = camera as THREE.PerspectiveCamera;
+      if (persp.isPerspectiveCamera && Math.abs(persp.fov - f.to.fov) > 0.01) {
+        persp.fov += (f.to.fov - persp.fov) * (f.seconds === 0 ? 1 : Math.min(1, delta * 4));
+        persp.updateProjectionMatrix();
+      }
+      // Unbounded while travelling; the arrival's own bounds from the
+      // moment it arrives — both written before `update()` reads them.
+      limits.current = k >= 1 ? f.limits : UNBOUNDED;
+      if (k >= 1) flight.current = null;
     }
+    applyLimits(c, limits.current);
     c.update();
-    if (k >= 1) {
-      flight.current = null;
-      setLimits(f.limits);
-    }
   });
 
+  // No limit props: they are written on the object above, in the frame
+  // that needs them. A prop here would be re-applied on every React
+  // render and would race the rig for the same six numbers.
   return (
     <OrbitControls
       ref={controls}
@@ -456,7 +484,6 @@ function Rig({ view, focus }: { view: View; focus: Focus }) {
       enablePan={false}
       enableDamping
       dampingFactor={0.08}
-      {...limits}
     />
   );
 }
