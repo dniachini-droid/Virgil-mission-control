@@ -15,12 +15,12 @@ Same kind of thing as before: one file, download it, double-click it. It is **sm
 ### 1. Find the file
 
 ```
-https://github.com/dniachini-droid/Virgil-mission-control/blob/claude/virgil-phase-1-slice/docs/process/PHASE_1_owner-builds/virgil-s2-v6-a927c5b70c.html
+https://github.com/dniachini-droid/Virgil-mission-control/blob/claude/virgil-phase-1-slice/docs/process/PHASE_1_owner-builds/virgil-s2-v6-5b4b52fb8b.html
 ```
 
 ### 2. Download it
 
-Click **Download** (the arrow into a tray, top right). It lands in Downloads as `virgil-s2-v6-a927c5b70c.html`. If you see raw text instead, `Ctrl+S` / `Cmd+S` and save with that name ending in `.html`.
+Click **Download** (the arrow into a tray, top right). It lands in Downloads as `virgil-s2-v6-5b4b52fb8b.html`. If you see raw text instead, `Ctrl+S` / `Cmd+S` and save with that name ending in `.html`.
 
 ### 3. Open it
 
@@ -102,7 +102,16 @@ Three edits survived all of V5's tests: re-siding the visor material after it wa
 
 ## What the screenshots showed
 
-*Incomplete in this commit: the full capture set was still rendering when the artifact was filed, and a container restart destroyed unpushed work on this project yesterday. The section is completed in the next commit from the frames as they actually are.*
+Captured from the built file on this machine's software renderer at 1440 × 900: the room and the tabletop at several moments of the demonstration and on the orbit, the switch made with the `V` key, each character at eye level, the stomp at four moments, the Prover's receiving beat, and every face and panel held in BLOCKED. What they showed, including what is not right:
+
+- **The room opens with all four in frame.** Virgil on his console's deck at the centre with the three slabs behind him; the Fabricator at his bench on the left with his panel beside him; the Prover at his rig behind on the right; the Keeper at his lectern on the right in front, now inside the frame. The window, the planet and the station are as they were. The floor is matte and the inlaid star and rings read as a graphic. **Not right:** from the opening camera the Keeper's panel, nearest the lens, stands in front of the Prover's and hides most of it; a small orbit, or the Prover button, clears it.
+- **The key switches.** Pressing `V` in the room lands on the tabletop without a reload: the disc, its edge, the arch standing over the set, the nebula wrapped behind with the planet on the left and the station on the right, crisp star points over it. The set reads as an object floating in space, which is what the spec asked. The first V6 capture did *not* show this — the nebula's bottom edge cut across the frame because a camera looking down at 30° sees below the horizon — and the backdrop was rebuilt as a cylinder before the artifact was filed.
+- **The stomp plays.** At 300 ms after BLOCKED: the red slit-eyed face with its heavy brows, the REVIEW slab reading BLOCKED with a broken ring and a cross, the CANDIDATE slab reading VERDICT. At 800 ms his head is thrown down so far the camera sees the top of his crown — **and that crown is blown out to white**, because it faces the key light square; the lighting was halved from V5's for the matte cast and this one angle still overexposes on this renderer. At 1300 ms he is back up, glaring; at 2400 ms at rest, still glaring. Whether the stomp is the refusal you meant is yours to say; that it plays, and on BLOCKED only, is held by a test.
+- **Every face is a face.** The Fabricator's teal eyes and smile inside his black screen; the Keeper's inside his hood, with the hood's brow above them; the Prover's ice eyes and smile in his dome, now filling it; Virgil's across most of his head. Working faces are amber and half-lidded with the stepping bar; BLOCKED faces are red with brows and a flat mouth, and the light on each figure goes red with them. **Held in BLOCKED from the tabletop, the whole set is red at once** — four faces, four panels with crosses, the review slab, and Virgil mid-stomp — and it is legible from across the disc.
+- **The panels read at every distance the owner will use.** From the room's camera: ROLES / VIRGIL or the active role, REVIEW / AWAITING or PASS or BLOCKED with the gauge ring, CANDIDATE / the phase word and the walking hex, and each character's name and state; the stripe reads in full on every one. Close up: RECEIVING with its blocks landing one by one, WORKING with five bars ticking, PASS with its huge tick, BLOCKED with its cross, COMPLETE with a ring and not a tick. The first capture clipped the stripe ("LLUSTRATIVE · NOT REAL STAT") because the letter-spacing was applied after the text was fitted; fixed before filing.
+- **Eye level.** Each of the four "Look at" poses lands near the character's eyes with their panel beside them. **Not right:** the Prover's close-up in the room has the Keeper at its right edge, with one eye-stalk crossing the stripe of the Prover's panel. This was worse before the last commit (the Keeper's hood filled the right of the frame and his head-gem covered the panel); the camera now stands on the Prover's other side and the Keeper's station moved, and what remains is the tension between fitting the Keeper into the room's opening frame and keeping him out of the Prover's close-up. Both were not achieved at once, and the opening frame was preferred.
+- **Nothing through anything**, in any frame: no figure in a station, no station in a body, no panel through a head. The tests hold the same for every extreme of breathing and for Virgil at bind pose on his deck.
+- The machines that produce these screenshots draw in software and show glow and colour differently from a real screen; they are for catching gross errors and for judging the panels at close range, not for judging the look.
 
 ## Not in this viewing point
 
@@ -116,12 +125,12 @@ Rigs for the three characters, sound, real events, any performance measurement, 
 
 ## The honest size
 
-The file is **9,804,673 bytes** — 9.35 MiB, or 9.80 MB at a million bytes each — 5,526,183 bytes (36 %) smaller than V5. Against the project's budget of "12 MB desktop, 6 MB mobile", which does not say which unit it means: **inside the desktop budget on both readings** (77.9 % of 12 MiB, 81.7 % of 12 MB), the first viewing point since V2 to be; **over the mobile budget on both readings** (155.8 % of 6 MiB, 163.4 % of 6 MB), as every viewing point has been. The owner console estimated 6–8 MB for this pass; the file is **over that estimate by 1.8–3.8 MB**. Where the estimate went wrong: every payload is carried as base64, which is four thirds of its bytes, and the porthole and the three window layers (2.4 MB encoded) were kept unchanged because you praised the window. Nothing was cut for the number. Of the file, 8.0 MB is payloads (the seven V6 models 3.95 MB, the rigged Virgil 1.62 MB, the porthole 1.11 MB, the window layers 1.28 MB, the fonts 35 KB) and about 1.8 MB is code.
+The file is **9,804,742 bytes** — 9.35 MiB, or 9.80 MB at a million bytes each — 5,526,114 bytes (36 %) smaller than V5. Against the project's budget of "12 MB desktop, 6 MB mobile", which does not say which unit it means: **inside the desktop budget on both readings** (77.9 % of 12 MiB, 81.7 % of 12 MB), the first viewing point since V2 to be; **over the mobile budget on both readings** (155.8 % of 6 MiB, 163.4 % of 6 MB), as every viewing point has been. The owner console estimated 6–8 MB for this pass; the file is **over that estimate by 1.8–3.8 MB**. Where the estimate went wrong: every payload is carried as base64, which is four thirds of its bytes, and the porthole and the three window layers (2.4 MB encoded) were kept unchanged because you praised the window. Nothing was cut for the number. Of the file, 8.0 MB is payloads (the seven V6 models 3.95 MB, the rigged Virgil 1.62 MB, the porthole 1.11 MB, the window layers 1.28 MB, the fonts 35 KB) and about 1.8 MB is code.
 
 SHA-256 of the file:
 
 ```
-79a8c3bbc4f908aa3f87c93301334e19967049ed147181367372533b2b2b89af
+80e64a1517829db7a660f02e67f4f4a54c5b9e9d7eb94a706109359f8c879f99
 ```
 
-Built from source commit `a927c5b70c68de288ccbcb8e740c2c5ab54d8985` with `VIRGIL_OWNER_BUILD_DATE="2026-09-08 04:50 UTC"`, and rebuilt byte for byte from a clean tree with `VIRGIL_OWNER_SHA` set to the same value; the second build's SHA-256 matched the first. Checks run on that source, all with `TURBO_FORCE=true`, with their printed results in `docs/process/PHASE_1_RUN_RECORD.md`: `pnpm check` (lint, typecheck, and the workspace's tests, 51 of them in the application), the Mind Scan (`knowledge-lint`: no findings), `build:owner`, `verify:owner` (opens from `file://`, one request and it is the document, no console errors), and `sha256sum -c` against the committed digest.
+Built from source commit `5b4b52fb8bc1c93ab9ee6ef789c16dd61a614d00` with `VIRGIL_OWNER_BUILD_DATE="2026-09-08 05:20 UTC"`, and rebuilt byte for byte from a clean tree with `VIRGIL_OWNER_SHA` set to the same value; the second build's SHA-256 matched the first. Checks run on that source, all with `TURBO_FORCE=true`, with their printed results in `docs/process/PHASE_1_RUN_RECORD.md`: `pnpm check` (lint, typecheck, and the workspace's tests, 51 of them in the application), the Mind Scan (`knowledge-lint`: no findings), `build:owner`, `verify:owner` (opens from `file://`, one request and it is the document, no console errors), and `sha256sum -c` against the committed digest.
