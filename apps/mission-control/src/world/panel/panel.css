@@ -320,18 +320,60 @@
   border-bottom: 1px solid var(--panel-faint);
   white-space: nowrap;
 }
-.panel-table td:first-child,
-.panel-table th:first-child {
+/*
+ * **A table of exactly two columns: a label and a value.**
+ *
+ * The label absorbs the slack and ellipsises if it must; the value sits
+ * against the right edge. That is right for `FIELD / VALUE` and it is the
+ * only shape it is right for, which is why it is now behind a class
+ * rather than applying to every table.
+ */
+.panel-table-pairs td:first-child,
+.panel-table-pairs th:first-child {
   width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 0;
 }
-.panel-table td:last-child,
-.panel-table th:last-child {
+.panel-table-pairs td:last-child,
+.panel-table-pairs th:last-child {
   text-align: right;
   padding-right: 0;
   padding-left: 16px;
+}
+/*
+ * **A table of one column, or of three and four** (V10 repair).
+ *
+ * The two-column rule above was applied to every table until V10, and the
+ * replay brought tables it is wrong for: the findings carry an ID, a
+ * severity, what the reviewer found and its disposition; the windows
+ * carry two instants, a length and what is inside them; the provenance
+ * carries a file, a section and a commit. Under the two-column rule the
+ * first column was given `max-width: 0` and collapsed to 14 px — a
+ * finding read `KR` where the record says `KR-01`, and a source read
+ * nothing where the record says
+ * `docs/process/run-records/consolidation.run-record.json` — while the
+ * middle columns, being `nowrap`, could not shrink, so the table grew to
+ * 876 px inside a 614 px panel and its last column was pushed off the
+ * edge of the window. The measurements are in the V10 run record.
+ *
+ * A document whose provenance column cannot be read does not answer
+ * "where in the repository does this come from", which is the whole claim
+ * the replay rests on. So these tables lay themselves out: every column
+ * takes the width its content needs, prose wraps, and a token longer than
+ * its column — a forty-character SHA, a long path — breaks rather than
+ * overflow. **Nothing is abbreviated, ellipsised or hidden**, which is
+ * the same rule the honesty band's phone layout keeps.
+ */
+.panel-table-columns td,
+.panel-table-columns th {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+.panel-table-columns td:last-child,
+.panel-table-columns th:last-child {
+  padding-right: 0;
 }
 /* The result chips: the verdict colours of `draw.ts`, and nothing new. */
 .panel-chip {

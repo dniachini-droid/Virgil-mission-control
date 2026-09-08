@@ -3,7 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { CandidateState } from '@virgil/agent-contracts';
 import { describe, expect, it } from 'vitest';
 import authority from '../../../constitution/authority.json' with { type: 'json' };
-import type { PanelTarget } from '../src/world/panel/panelContent.js';
+import { tableShape } from '../src/world/panel/Panel.js';
+import type { PanelSection, PanelTarget } from '../src/world/panel/panelContent.js';
 import { panelDoc } from '../src/world/panel/panelContent.js';
 import {
   BUILD_1_FROM,
@@ -583,5 +584,116 @@ describe('the replay reuses the world and adds no second renderer', () => {
       expect(beat.what.length).toBeGreaterThan(20);
       expect(evidenceFor(beat)).toHaveLength(3);
     }
+  });
+});
+
+/**
+ * **The V10 repair: a table the reader can finish.**
+ *
+ * The replay's documents were the first in this panel to carry tables of
+ * three and four columns and prose inside them. Every table until then was
+ * a label and a value, and the CSS that suited that shape — the first
+ * column absorbs the slack and ellipsises, the last sits against the right
+ * edge — collapsed the new tables' first column to 14 px and pushed their
+ * last column off the edge of the window. Measured in the built artifact
+ * at 1280 × 800: a finding's `KR-01` was given 14 px of the 52 px it
+ * needs, the provenance's `docs/process/run-records/consolidation.run-record.json`
+ * 14 px of 419 px, and the findings table was 876 px wide inside a 614 px
+ * panel, so its DISPOSITION column could not be seen at all.
+ *
+ * These hold the repair in place. A document that says where every figure
+ * comes from, in a column too narrow to show it, does not say it.
+ */
+describe('the panel’s tables can be read to their end', () => {
+  const targets: PanelTarget[] = [
+    ...ROLES.map((role) => ({ kind: 'role' as const, role })),
+    { kind: 'slab', slab: 'roles' },
+    { kind: 'slab', slab: 'verdict' },
+    { kind: 'slab', slab: 'candidate' },
+    { kind: 'ledger', row: 0 },
+    { kind: 'ledger', row: 1 },
+    { kind: 'ledger', row: 2 },
+  ];
+  const everyTable = () => {
+    const out: { key: string; title: string; section: PanelSection }[] = [];
+    for (const speed of REPLAY_SPEEDS) {
+      for (const t of everyMoment(speed)) {
+        const state = replayAt(t, speed, true);
+        for (const target of targets) {
+          const doc = panelDoc(state, target);
+          for (const section of doc.sections) {
+            if (section.kind === 'table') out.push({ key: doc.key, title: section.title, section });
+          }
+        }
+      }
+    }
+    return out;
+  };
+
+  it('puts the two-column layout on a pair and on nothing else', () => {
+    let pairs = 0;
+    let columns = 0;
+    for (const { key, title, section } of everyTable()) {
+      const width = Math.max(
+        section.head?.length ?? 0,
+        ...section.rows.map((row) => row.cells.length),
+      );
+      const shape = tableShape(section);
+      expect(shape, `${key} · ${title} has ${width} columns`).toBe(
+        width === 2 ? 'panel-table-pairs' : 'panel-table-columns',
+      );
+      if (shape === 'panel-table-pairs') pairs += 1;
+      else columns += 1;
+    }
+    // Both layouts are in use, so neither assertion is vacuous.
+    expect(pairs).toBeGreaterThan(0);
+    expect(columns).toBeGreaterThan(0);
+  });
+
+  it('never puts a cell of prose in the layout that ellipsises its first column', () => {
+    for (const { key, title, section } of everyTable()) {
+      if (tableShape(section) !== 'panel-table-pairs') continue;
+      for (const row of section.rows) {
+        // A pair's first column is the label; a label is short. Anything
+        // long enough to be a sentence or a path belongs in a layout that
+        // wraps it, because this one cuts it off.
+        expect(
+          (row.cells[0] as string).length,
+          `${key} · ${title} would ellipsise “${row.cells[0]}”`,
+        ).toBeLessThan(40);
+      }
+    }
+  });
+
+  it('scopes the ellipsis to the pair, and lets the other shape wrap', () => {
+    const css = src('world/panel/panel.css');
+    // The collapse that caused it exists only behind the pair's class.
+    for (const match of css.matchAll(/max-width: 0;/g)) {
+      const rule = css.slice(css.lastIndexOf('}', match.index) + 1, match.index);
+      expect(rule, 'a table collapses its first column outside the pair layout').toContain(
+        '.panel-table-pairs',
+      );
+    }
+    expect(css).toMatch(
+      /\.panel-table-columns td,\s*\n\.panel-table-columns th \{[^}]*white-space: normal/,
+    );
+    expect(css).toMatch(
+      /\.panel-table-columns td,\s*\n\.panel-table-columns th \{[^}]*overflow-wrap: anywhere/,
+    );
+    // And nothing in that shape hides or abbreviates a cell.
+    const columnsRules = css
+      .split('}')
+      .filter((rule) => rule.includes('.panel-table-columns'))
+      .join('}');
+    expect(columnsRules).not.toContain('text-overflow');
+    expect(columnsRules).not.toContain('overflow: hidden');
+  });
+
+  it('gives every table in the markup a shape, including the provenance', () => {
+    const panel = src('world/panel/Panel.tsx');
+    expect(panel).toContain('className={`panel-table ${tableShape(section)}`}');
+    expect(panel).toContain('className="panel-table panel-table-columns"');
+    // No table is left with the bare class, which now has no layout at all.
+    expect(panel).not.toContain('className="panel-table"');
   });
 });

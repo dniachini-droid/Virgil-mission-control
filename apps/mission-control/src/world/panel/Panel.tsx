@@ -288,7 +288,7 @@ export function Panel({ target, onClose }: { target: PanelTarget | null; onClose
                   ))}
                 </ul>
               ) : (
-                <table className="panel-table">
+                <table className={`panel-table ${tableShape(section)}`}>
                   {section.head ? (
                     <thead>
                       <tr>
@@ -330,7 +330,7 @@ export function Panel({ target, onClose }: { target: PanelTarget | null; onClose
           {doc.provenance ? (
             <section className="panel-block wide">
               <h3 className="panel-section-title">Where this comes from</h3>
-              <table className="panel-table">
+              <table className="panel-table panel-table-columns">
                 <thead>
                   <tr>
                     <th>DOCUMENT</th>
@@ -463,6 +463,33 @@ function Mark({
       ) : null}
     </svg>
   );
+}
+
+/**
+ * **Which of the two table layouts a section gets** (V10 repair).
+ *
+ * A table of exactly two columns is a label and a value, and gets
+ * `panel-table-pairs`: the label absorbs the slack, the value sits
+ * against the right edge. Every other shape — one column of paths, the
+ * findings' four, the windows' four, the provenance's three — gets
+ * `panel-table-columns` and lays itself out, because the two-column rule
+ * collapsed their first column to nothing and pushed their last one off
+ * the edge of the window. `panel.css` carries the measurements and the
+ * reasoning.
+ *
+ * Counted from the widest row rather than from the head, because a
+ * section may have rows and no head.
+ */
+export function tableShape(section: {
+  head?: readonly string[];
+  rows: readonly { cells: readonly string[] }[];
+}): string {
+  const columns = Math.max(
+    section.head?.length ?? 0,
+    ...section.rows.map((row) => row.cells.length),
+    1,
+  );
+  return columns === 2 ? 'panel-table-pairs' : 'panel-table-columns';
 }
 
 /** Whether the panel is at its phone size. Matches `panel.css`'s one query. */
