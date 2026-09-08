@@ -17,7 +17,7 @@ Everything below was built and checked on a machine that renders in software. No
 | V6 | `5b4b52fb8bc1c93ab9ee6ef789c16dd61a614d00` | `virgil-s2-v6-5b4b52fb8b.html` | `PHASE_1_HOW_TO_LOOK_V6.md` | The stylised set, in the room and on a tabletop, with the refusal |
 | V7 | `ffa3e18cffb17ec55588ac8facc544d9ee1f4043` | `v7-s2-virgil-ffa3e18cff.html` | `PHASE_1_HOW_TO_LOOK_V7.md` | The tabletop: faces on the head, screens as objects |
 | V8 | `934554159f8021478887603c9230d459eed763da` | `v8-s2-virgil-934554159f.html` | `PHASE_1_HOW_TO_LOOK_V8.md` | Symmetrical consoles carrying their own screens; the receiving and the return; four verdicts; the turn |
-| **V8.1** | **`SOURCE_SHA`** | **`ARTIFACT_NAME`** | **`PHASE_1_HOW_TO_LOOK_V8.md` (V8.1 note appended)** | **Four rendering defects repaired: the close-ups reach their pose and show the whole screen, the screens are flat, the chrome is opaque** |
+| **V8.1** | **`64e2e746782930c0efc6a494177511cc54f3956c`** | **`v8-1-s2-virgil-64e2e74678.html`** | **`PHASE_1_HOW_TO_LOOK_V8.md` (V8.1 note appended)** | **Four rendering defects repaired: the close-ups reach their pose and show the whole screen, the screens are flat, the chrome is opaque** |
 
 The V5 source commit `868971a` and its documents were merged to `main` by the owner as pull request #7 (`90b116c`); the V6 branch was restarted forward from that merge.
 
@@ -355,6 +355,23 @@ The screen builder's original behaviour is unchanged and still its default — a
 ### Frames looked at
 
 The V8 artifact, pressing `2` after `__virgilDemo` existed, at 1280 × 800: Virgil's head filling the right half, the Fabricator's screen a sliver at the upper left. The same route on the V8.1 build: the Fabricator's screen filling the frame, legible, unoccluded, the panel opaque. The Prover at loop 2 t = 33.8 s (`INSUFFICIENT_EVIDENCE`): V8's dial across the right end of the screen, V8.1's screen whole and flat. The Keeper at loop 0 t = 40 s. The Fabricator in portrait at 390 × 664, before and after. Before defect 4, the honesty band and the corner brackets are visibly warped on all three consoles; after, they are straight.
+
+### Checks run on `64e2e74`, every one in the foreground
+
+- **`pnpm check`** — biome 190 files clean, no fixes applied; `turbo run typecheck` 8 tasks; **129 tests passed** across 12 test files in `mission-control` and **235 across the five packages** (agent-contracts 70, domain 104, gate-engine 19, knowledge-graph 24, visual-language 18), 364 in total, 0 failed, 0 skipped; then `build:owner` and `verify:owner` — `browser chromium 141.0.7390.37 — /opt/pw-browsers/chromium (preinstalled, substituted for the pinned build)`; `routes (tabletop), (retired room), #/s1, #/spike/foundry, #/spike/mind`; `requests 1, off-document 0`; `console errors 0`; **PASS — opens from `file://`, no console errors, no off-document requests**. Warnings printed and not failed on, as in V6–V8: the `THREE.Clock` and `PCFSoftShadowMap` deprecations and SwiftShader's ReadPixels stalls.
+- **Mind Scan** (`pnpm --filter @virgil/knowledge-lint run lint`) — `knowledge graph: 82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `graph hash sha256:a86250498e12d01d9be701610b1947b0bec39c34739816ddb2e0334ea6e0d6d1`; **`mind scan: no findings`**.
+- **`build:owner` from a clean tree** at `64e2e74` (`git status --short` empty before it ran) — `v8-1-s2-virgil-64e2e74678.html`, `8.04 MB (8432557 bytes)`, `sha256 c6ade0cc0871b714cbdde45689cd02facd3f4cd6fa4d977311afd2968eb1390b`. The footer carries no `+uncommitted changes` marker.
+- **`sha256sum -c`** over every committed Owner Build digest — all **ten OK**, including the new one.
+- **`pnpm reproduce:owner`** — see below.
+
+### Size, against both readings of the budget
+
+**8,432,557 bytes**: 8.04 MiB, or 8.43 MB. `docs/architecture/PERFORMANCE_STRATEGY.md` sets ≤ 12 MB desktop and ≤ 6 MB mobile without saying which unit:
+
+- desktop: **67.0 % of 12 MiB, 70.3 % of 12 MB — inside on both readings**;
+- mobile: **134.0 % of 6 MiB, 140.5 % of 6 MB — over on both readings**, as every viewing point has been.
+
+V8 was 8,426,374 bytes; V8.1 is **6,183 bytes (0.073 %) larger** — the plane fit, the flat-screen builder and the close-up rule, less the hand-posed camera. No payload changed: every model, mask, font and window layer is byte-identical to V8. Nothing was cut for the number.
 
 ### What this pass did not do
 

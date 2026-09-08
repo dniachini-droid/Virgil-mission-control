@@ -152,7 +152,7 @@ Built from source commit `9345541` with `VIRGIL_OWNER_BUILD_DATE="2026-09-08 10:
 
 ## Note for V8.1 — what changed since this document was written
 
-**The build to open is now `ARTIFACT_NAME`, and its footer reads "viewing point V8.1".** Everything above still describes what you are looking at; this pass added no direction of its own. It repaired four rendering faults, three of which were found by rendering the V8 file and looking at the frames, and one of which you found yourself.
+**The build to open is now `v8-1-s2-virgil-64e2e74678.html`, and its footer reads "viewing point V8.1".** Everything above still describes what you are looking at; this pass added no direction of its own. It repaired four rendering faults, three of which were found by rendering the V8 file and looking at the frames, and one of which you found yourself.
 
 - **The close-ups now go where they were meant to go.** Pressing `2`, `3` or `4` used to leave the camera 2.62 m behind its own intended position, so `2` put you behind Virgil's head instead of at the Fabricator's console. It was an orbit limit from the wide view still in force when the camera arrived; all three close-ups came to rest at exactly 6.00 m from their target instead of 3.38 m. Fixed, and held by a test.
 - **A close-up now shows the whole of that console's screen.** From the old angle a dial on the Prover's own console and the Keeper's body stood in front of his screen — `INSUFFICIENT EVIDENCE` was clipped — and a phone cropped the Fabricator's screen off the right of the frame. The camera now stands on each screen's own measured axis with the lens that screen needs, so nothing on the console or in the room covers it, on a laptop or a phone.
