@@ -144,10 +144,23 @@ neither has to compromise.
   detail set in clean HTML is far more believable than a small glowing screen in a 3D scene, so
   the marking matters more there, not less. This is the one new risk the feature carries.
 
-**Open decision for the owner:** tapping a character already moves the camera to them, so does
-tapping a screen open the panel at once, or move there first? This session's recommendation is
-that a tap at a station takes the camera there and a second tap on the screen opens the panel —
-one meaning per tap, and the panel reads as leaning in.
+**Decided by the owner, 8 September**, and against this session's recommendation, which had the
+reader waiting for a camera flight before anything could be read: *"tapping a screen opens the
+panel straight away and takes you there — but the panel opens up so you can see it instantly,
+while you are being taken there. So you arent waiting to be taken there first."* One tap does
+both, concurrently: the panel is up immediately and the camera travels underneath it, so the
+world has arrived by the time the panel is dismissed. Three consequences, recorded because they
+constrain the build:
+
+- **The panel is driven by data, never by the camera arriving.** It renders complete before the
+  flight starts. This is free if one source feeds both levels, as recorded above, and it is the
+  reason that rule is not merely tidiness.
+- **Dismissing the panel leaves the reader at the station**, never snapped back. The tap did two
+  things and neither is thrown away. Going back is then one step per level — panel, station, wide
+  view — which matches the three distances.
+- **The panel's entry must animate on the compositor only** (transform and opacity, no layout),
+  because it plays at the same moment as the camera flight and, on a phone, both land on the
+  worst frame budget in the product.
 
 Consequence for sequencing: the panel is the first piece of this interface, so the flat mock
 offered to the owner should cover both — the expanded screen panel and the full-conversation

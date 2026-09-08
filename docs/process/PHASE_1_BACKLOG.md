@@ -190,10 +190,10 @@ Recorded as direction the owner gave, not as decisions. None of it is a decision
   - The returning convergence then **lands into its row**, so the same event is both the beat and the
     record, with no second source of truth.
 
-  **Open decision for the owner:** across the demonstration's three loops, does the board clear for each
-  new candidate, showing the candidate id so a fresh run is visible, or accumulate all three? This
-  session's recommendation is to clear per candidate, because a real one would group by candidate and
-  let the reader scroll back.
+  **Decided by the owner, 8 September: the ledger clears per candidate.** Each new candidate starts a
+  fresh board, with the candidate's identity shown so a new run is visible as one. Accumulating all
+  three loops was the alternative and is not what he wants; a real Mission Control would group by
+  candidate and let the reader scroll back, which stays a Phase 2 concern.
 
 - **"Dark, bland, dead and lifeless" — the owner's observation of 8 September, diagnosed before acting.**
   His words: *"the consoles of the agents, and the floor... it looks a bit dark.... like they are in
