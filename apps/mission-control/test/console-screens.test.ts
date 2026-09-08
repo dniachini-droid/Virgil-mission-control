@@ -26,7 +26,7 @@ import {
   cornerMargin,
   RULE,
 } from '../src/world/screens/draw.js';
-import { SLAB_CANVAS_PIXELS, slabPlan } from '../src/world/screens/ScreenBank.js';
+import { SLAB_CANVAS_PIXELS, SLAB_OVERHANG_M, slabPlan } from '../src/world/screens/ScreenBank.js';
 import {
   fitScreenOutline,
   insideFootprint,
@@ -657,8 +657,8 @@ describe("Virgil's slab canvas", () => {
   it('is drawn at the display plane’s aspect, not the opening’s', () => {
     for (const [width, height] of authored) {
       const plan = slabPlan(width, height);
-      expect(plan.displayWidth).toBeCloseTo(width + plan.bezel * 0.5, 12);
-      expect(plan.displayHeight).toBeCloseTo(height + plan.bezel * 0.5, 12);
+      expect(plan.displayWidth).toBeCloseTo(width + 2 * SLAB_OVERHANG_M, 12);
+      expect(plan.displayHeight).toBeCloseTo(height + 2 * SLAB_OVERHANG_M, 12);
       expect(plan.canvasWidthPixels).toBe(SLAB_CANVAS_PIXELS);
       // The canvas's aspect is the plane's, to within the rounding of one
       // pixel of height — which is 0.16 % on a 648-pixel canvas.
@@ -671,19 +671,78 @@ describe("Virgil's slab canvas", () => {
   it('measures the stretch it removes, so the fix is not taken on trust', () => {
     const [width, height] = authored[0] as [number, number];
     const plan = slabPlan(width, height);
-    // What V8.2 shipped: 1024 by round(1024 · height / width).
+    /*
+     * **V8.2's fault, re-derived from V8.2's own geometry.** It sized the
+     * canvas at the *opening's* aspect — 1024 by round(1024 · height /
+     * width) — and mapped it onto a plane `bezel / 2` larger on each side,
+     * which stretched the picture horizontally by 2.78 %. That 2.78 % is a
+     * fact about the plane V8.2 had (1.36 × 0.86 m), so it is computed
+     * from those dimensions and not from today's, which V9's item 8
+     * changed. Adjusting the expected number to whatever today's geometry
+     * gives would have destroyed the measurement instead of keeping it.
+     */
+    const v82PlaneWidth = width + plan.bezel * 0.5;
+    const v82PlaneHeight = height + plan.bezel * 0.5;
     const wasHeight = Math.round((SLAB_CANVAS_PIXELS * height) / width);
     expect(wasHeight).toBe(630);
-    expect(plan.canvasHeightPixels).toBe(648);
-    const stretch = (SLAB_CANVAS_PIXELS / wasHeight) * (plan.displayHeight / plan.displayWidth) - 1;
+    const stretch = (SLAB_CANVAS_PIXELS / wasHeight) * (v82PlaneHeight / v82PlaneWidth) - 1;
     // 2.78 %: the number the V8.2 run record recorded as "about 2.8 %".
     expect(stretch * 100).toBeCloseTo(2.78, 1);
-    // And it is gone.
+    // And it is gone, on the plane the slab actually has now.
+    expect(plan.canvasHeightPixels).toBe(634);
     const now =
       (plan.canvasWidthPixels / plan.canvasHeightPixels) *
         (plan.displayHeight / plan.displayWidth) -
       1;
     expect(Math.abs(now)).toBeLessThan(0.002);
+  });
+
+  /**
+   * **V9, item 8: the display fills the opening to all four edges.** The
+   * owner: *"Virgil's screen doesn't go all the way to the bottom -
+   * there's a gap and it's awkward."* The plane has to stand a little
+   * outside the opening so its own cut edge hides behind the plate's lip,
+   * and from V7 to V8.3 that margin was 30 mm — 3.49 % of the plane's
+   * height at each edge, and a fifth of the honesty band behind the
+   * bezel. It is 6 mm now, which is the same 6 mm the glass has stood off
+   * the opening's curve since V8.2, so one number governs both.
+   */
+  it('hides no more of each edge than it must, and the band is inside the opening', () => {
+    for (const [width, height] of authored) {
+      const plan = slabPlan(width, height);
+      const hiddenTop = SLAB_OVERHANG_M / plan.displayHeight;
+      const hiddenSide = SLAB_OVERHANG_M / plan.displayWidth;
+      // What V8.3 hid, from its own geometry, and what this hides.
+      const wasHidden = (plan.bezel * 0.5) / 2 / (height + plan.bezel * 0.5);
+      expect(wasHidden).toBeGreaterThan(0.03);
+      expect(hiddenTop, `${width}×${height}: the share of each edge hidden`).toBeLessThan(0.01);
+      expect(hiddenSide).toBeLessThan(0.01);
+      expect(hiddenTop).toBeLessThan(wasHidden / 3);
+      // The band's own words: all but a few pixels of the stripe are in
+      // the opening, where V8.3 put 22.6 of its 118 behind the lip.
+      const bandHidden = hiddenTop * plan.canvasHeightPixels;
+      // 4.7 px on the 1.3 × 0.8 slabs the set actually carries, 6.7 on the
+      // 0.9 × 0.6 one it does not, against V8.3's 22.6 on both.
+      expect(bandHidden, `${width}×${height}: band pixels behind the bezel`).toBeLessThan(7);
+      const wasBandHidden = wasHidden * plan.canvasHeightPixels;
+      expect(bandHidden).toBeLessThan(wasBandHidden / 3);
+      // Every part of the plane that is outside the opening is under the
+      // lip, which is 50 mm deep: the edge cannot show.
+      expect(SLAB_OVERHANG_M).toBeLessThan(plan.plate);
+      expect(SLAB_OVERHANG_M).toBeGreaterThan(0.002);
+    }
+  });
+
+  it('derives the opening, the plane, the canvas and the glass from one margin', () => {
+    const bank = src('world/screens/ScreenBank.tsx');
+    expect(bank).toContain('const overhang = SLAB_OVERHANG_M;');
+    expect(bank).toContain('const displayWidth = width + 2 * overhang;');
+    expect(bank).toContain('const displayHeight = height + 2 * overhang;');
+    // The glass uses the same margin, not a second literal.
+    expect(bank).toContain('width + 2 * SLAB_OVERHANG_M');
+    expect(bank).toContain('openingRadius + SLAB_OVERHANG_M');
+    expect(bank).not.toContain('height + bezel * 0.5');
+    expect(bank).not.toContain('width + 0.012');
   });
 
   it('is the size the display plane is actually drawn at', () => {
@@ -702,10 +761,10 @@ describe("Virgil's slab canvas", () => {
     // The corner radius is expressed against the canvas's width, and the
     // canvas now has one scale, so it means the same thing in both axes.
     const metresPerPixel = plan.displayWidth / plan.canvasWidthPixels;
-    expect(plan.cornerPixels * metresPerPixel).toBeCloseTo(
-      plan.openingRadius + (plan.bezel * 0.5) / 2,
-      9,
-    );
+    // The corner the picture is laid out inside is the opening's own
+    // radius plus the margin the plate hides — the same margin the plane
+    // stands outside the opening by (V9, item 8), not a second number.
+    expect(plan.cornerPixels * metresPerPixel).toBeCloseTo(plan.openingRadius + SLAB_OVERHANG_M, 9);
     // To within the half pixel the integer height is rounded by: 0.63 mm on
     // a 0.86 m plane, which is the whole of what is left of the 2.78 %.
     expect(plan.canvasHeightPixels * metresPerPixel).toBeCloseTo(plan.displayHeight, 2);

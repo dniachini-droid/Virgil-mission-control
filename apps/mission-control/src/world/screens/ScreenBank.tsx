@@ -139,9 +139,9 @@ export function slabPlan(width: number, height: number) {
   // The display plane is wider than the opening, so its own edge hides
   // behind the plate's lip; that overhang is how much of the canvas is
   // never seen.
-  const overhang = (bezel * 0.5) / 2;
-  const displayWidth = width + bezel * 0.5;
-  const displayHeight = height + bezel * 0.5;
+  const overhang = SLAB_OVERHANG_M;
+  const displayWidth = width + 2 * overhang;
+  const displayHeight = height + 2 * overhang;
   return {
     bezel,
     plate: 0.05,
@@ -187,6 +187,36 @@ export function slabPlan(width: number, height: number) {
 /** The width of a slab's canvas, in pixels. Its height follows the display plane's aspect. */
 export const SLAB_CANVAS_PIXELS = 1024;
 
+/**
+ * **How far the display plane stands outside the opening, in metres**
+ * (V9, item 8). The owner: *"Virgil's screen doesn't go all the way to
+ * the bottom - there's a gap and it's awkward. Fix that too."*
+ *
+ * The plane has to be a little larger than the opening so that its own
+ * cut edge is hidden behind the plate's lip rather than showing as a hard
+ * line inside the picture. From V7 to V8.3 that margin was `bezel / 4` —
+ * **30 mm on a 1.3 × 0.8 m slab**, which is 3.49 % of the plane's height
+ * at the top and the same again at the bottom, and therefore **22.6 of
+ * the honesty band's 118 canvas pixels, a fifth of the band, permanently
+ * behind the bezel.** The picture stopped short of the frame, and the
+ * band's own words sat higher in the opening than they were set to.
+ *
+ * It is now **6 mm**: the smallest margin that still hides the plane's
+ * edge behind a lip 50 mm deep at every angle the board camera reaches,
+ * and the same 6 mm the glass has stood off the opening's own curve
+ * since V8.2, so the two are one number instead of two. The hidden share
+ * of each edge goes from 3.49 % to 0.73 %, and 116 of the band's 118
+ * pixels are now inside the opening. `test/console-screens.test.ts`
+ * computes both fractions rather than quoting them.
+ *
+ * **This is authored geometry — ours, not Meshy's** — so unlike a
+ * console's screen there is no irregular opening to fit and no excuse for
+ * a mismatch: the opening, the plane, the canvas, the corner radius and
+ * the glass all now come from this one number and the two the slab is
+ * authored at.
+ */
+export const SLAB_OVERHANG_M = 0.006;
+
 function Slab({
   width,
   height,
@@ -221,9 +251,9 @@ function Slab({
     // supposed to be their reference. Its radius is the opening's plus the
     // 6 mm it overhangs by, so the two curves are concentric.
     const glass = createRoundedConvexGlassGeometry(
-      width + 0.012,
-      height + 0.012,
-      openingRadius + 0.006,
+      width + 2 * SLAB_OVERHANG_M,
+      height + 2 * SLAB_OVERHANG_M,
+      openingRadius + SLAB_OVERHANG_M,
       bulge + 0.004,
       160,
     );
