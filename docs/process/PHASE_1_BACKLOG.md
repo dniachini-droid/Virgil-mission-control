@@ -195,6 +195,41 @@ Recorded as direction the owner gave, not as decisions. None of it is a decision
   session's recommendation is to clear per candidate, because a real one would group by candidate and
   let the reader scroll back.
 
+- **"Dark, bland, dead and lifeless" — the owner's observation of 8 September, diagnosed before acting.**
+  His words: *"the consoles of the agents, and the floor... it looks a bit dark.... like they are in
+  shadows, it looks bland, and dead and lifeless.... Im thining of changing the consoles, because you can
+  see that they arent made straight/smooth etc.... unless you have any ideas."*
+
+  He was ready to replace the three station models. This session read the code first, and three values in
+  it account for what he is seeing. Recorded so the decision is made on them rather than on impressions:
+
+  1. **Every console is `metalness 0, roughness 0.8`** (`fabricatorStation`, `keeperStation`,
+     `proverStation`, `console3`, all in their `-asset.json` runtime blocks). At that roughness there is
+     effectively no specular highlight, which is what reads as lifeless — and matte under flat light is
+     the one condition that *reveals* faceting, because nothing but the shading step between flats is
+     left to look at. His "dead" complaint and his "not smooth" complaint are therefore the same defect.
+  2. **The rig was deliberately halved.** `LightingRig.tsx` says it: "every intensity here is roughly
+     half of V5's", on the reasoning that the cream set bounces more diffuse light than the metallic
+     ornate one. The reasoning is sound; the result is dark. `hemisphereLight` sits at 0.3.
+  3. **His spotlight instruction became two states, not three.** He asked for consoles *normal* when idle
+     and lit while working; "normal" was built as "dark", so two of the three stations are unlit at any
+     moment. That is the shadowed band behind Virgil. His ring console reads as alive for one reason:
+     it is the only thing with a dedicated light on it.
+
+  **The floor's mirror was removed** (`RoomShell.tsx`: "the mirror floor is gone… the planar reflection
+  was both the strongest…", and a note asking what seats the cast "now that nothing reflects them"). The
+  owner-approved reference in `docs/art-direction/approved/visual-canon/03-approved-hybrid.png` has a
+  polished floor with the star inlaid in it. A floor that reflects nothing reads as a plate.
+
+  **Proposed before any model is replaced**, none of it touching his assets or adding a byte of download:
+  raise the idle baseline so "normal" means lit and the spotlight is a lift over it; roughness from 0.8
+  to about 0.4 with a soft sheen; a cheap blurred floor reflection rather than the planar mirror that was
+  pulled; a rim light behind each console to separate it from the starfield. **Decidable by looking:** the
+  same models under the new lighting, in one frame beside what he saw. If they still look cheap when well
+  lit, replace them — and it will have been established rather than guessed.
+
+  Sequencing put to the owner: this pass ahead of the ledger and the visors. Awaiting his answer.
+
 ## Waiting on the owner
 
 - **Delete the scratch branch `claude/ci-failure-demo`** — needs owner. One commit on top of `dd2c48f` carrying a deliberate external `fetch()`, pushed on 2026-09-08 to prove CI fails on a network escape (it did). The session cannot remove it: `git push origin --delete` returns 403 and the REST ref deletion is refused by the proxy. One `git push origin --delete claude/ci-failure-demo` from a machine that can. Nothing from it is merged.
