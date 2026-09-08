@@ -84,6 +84,7 @@ Recorded as direction the owner gave, not as decisions. None of it is a decision
 
 ## Waiting on the owner
 
+- **Delete the scratch branch `claude/ci-failure-demo`** — needs owner. One commit on top of `dd2c48f` carrying a deliberate external `fetch()`, pushed on 2026-09-08 to prove CI fails on a network escape (it did). The session cannot remove it: `git push origin --delete` returns 403 and the REST ref deletion is refused by the proxy. One `git push origin --delete claude/ci-failure-demo` from a machine that can. Nothing from it is merged.
 - **Root-config permission** — **granted 2026-09-08**, by the owner in the owner console: "You may edit the root config files." `turbo.json`, the root `package.json` and `biome.json` are in scope, and `.github/` may be created. Nothing else moved: `constitution/**`, `docs/product/VIRGIL_MASTER_COMMISSION.md`, `knowledge/raw/**` and `schemas/gate-*` remain out of bounds. This unblocked the CI item above.
 - **Whether `CLAUDE.md`'s "No paid services, subscriptions or commercial assets" binds sessions rather than the owner** — needs owner. The owner generates models with a paid Meshy subscription (`docs/decisions/OD-0008-meshy-licence-attestation.md`); the line has been read as binding sessions, and only the owner can say so.
 - **The Meshy prompts and generation times** still outstanding in the provenance rows of `assets/licenses/ASSET_PROVENANCE.md` — needs owner. OD-0008 requires them for every Meshy row.

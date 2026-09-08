@@ -208,7 +208,7 @@ Run #2 exercises a path local simulation could not. This container's egress prox
 
 What identifies the failing sub-step is elimination, not a log read: the egress proxy here refuses `results-receiver.actions.githubusercontent.com`, so no run log could be downloaded into this session, and only the API's per-step conclusions are quoted above. With that same defect present, `pnpm lint` (173 files), `pnpm typecheck` (8 tasks) and `pnpm test` (317 tests, 6 tasks) all pass locally, and `verify:owner` exits 1. `pnpm check` is those four in sequence. So `verify:owner` is what failed run #2. That inference is stated as an inference.
 
-The scratch branch was deleted after the run (`git push origin --delete claude/ci-failure-demo`); GitHub keeps the run itself, at the link above. Nothing from it is merged and no defect is committed on the build branch.
+**The scratch branch could not be deleted and is still on the remote**, at `claude/ci-failure-demo`, commit `767d905`. `git push origin --delete` returns `HTTP 403`, and the REST ref deletion returns `Write access to this GitHub API path is not permitted through this proxy`; the session that made it has no way to remove it. It is left for the owner: one `git push origin --delete claude/ci-failure-demo` from a machine that can. Until then, note what it is — one commit on top of `dd2c48f` whose only change is a deliberate external `fetch()` in `VirgilRoom.tsx`, made to be red and proved red. Nothing from it is merged, no defect is committed on the build branch, and the run itself is kept by GitHub at the link above regardless of the branch.
 
 ### The reproducibility rebuild, on the artifact as committed
 
