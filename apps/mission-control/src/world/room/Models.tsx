@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber';
 import { use, useMemo, useRef } from 'react';
 import type * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
+import { breathe } from '../characters/breathing.js';
 import { type FaceState, Visor } from '../characters/Visor.js';
 import { fitHeadSurface, PROVER_VISOR, placedPositions } from '../characters/visorFit.js';
 import { loadConsole2 } from '../props/console2Asset.js';
@@ -42,18 +43,29 @@ export function SideStation() {
   );
 }
 
+/** What the Prover is doing; a rigged Prover reads the same prop later. */
+export type ProverActivity = 'rest' | 'receiving' | 'working' | 'reported';
+
 /**
- * The Prover, at the side station, with his face. The file has no rig, so
- * he carries idle motion instead: a 1.5 cm rise and fall and a 1.5° sway,
- * out of phase with each other and with Virgil's clip, so he is never a
- * statue and never in step with anyone. Still with reduced motion.
+ * The Prover, standing in the centre of his station, with his face. The
+ * file has no rig, so he idles on breathing alone (`breathing.ts`), out of
+ * phase with Virgil and a little quicker while he works. His visor is
+ * fitted to his dome from the dome's own triangles (`visorFit.ts`,
+ * `PROVER_VISOR`) and lives inside the same group, so it breathes with him.
  *
- * His visor is fitted to his dome from the dome's own triangles
- * (`visorFit.ts`, `PROVER_VISOR`) — a spherical cap, not a plate — and lives
- * inside the same group as his body, so it breathes with him. V3 had it
- * fixed in the room while his head rose and fell under it.
+ * The seam for the rigged Prover the owner may supply: `activity` is the
+ * whole of what this component knows, and today it only changes the
+ * breathing rate. A rigged model replaces the `<primitive>` and maps
+ * `activity` to clips, the way `VirgilRigged.tsx` maps poses; nothing
+ * upstream changes.
  */
-export function ProverFigure({ face = 'idle' }: { face?: FaceState }) {
+export function ProverFigure({
+  face = 'idle',
+  activity = 'rest',
+}: {
+  face?: FaceState;
+  activity?: ProverActivity;
+}) {
   const prover = use(loadProver());
   const { reducedMotion } = useSettings();
   const group = useRef<THREE.Group>(null);
@@ -64,10 +76,10 @@ export function ProverFigure({ face = 'idle' }: { face?: FaceState }) {
   }, [prover]);
   useFrame(({ clock }) => {
     if (!group.current || reducedMotion) return;
-    const t = clock.getElapsedTime();
-    group.current.position.y = layout.proverAt[1] + 0.015 * Math.sin(t * 0.9 + 1.3);
-    group.current.rotation.z = 0.026 * Math.sin(t * 0.55 + 0.4);
-    group.current.rotation.y = layout.proverRotationY + 0.02 * Math.sin(t * 0.37);
+    const b = breathe(clock.getElapsedTime(), 2.1, activity === 'working' ? 1.6 : 1);
+    group.current.position.y = layout.proverAt[1] + b.rise;
+    group.current.rotation.z = b.sway;
+    group.current.rotation.y = layout.proverRotationY + b.yaw;
   });
   return (
     <group ref={group} position={layout.proverAt} rotation={[0, layout.proverRotationY, 0]}>

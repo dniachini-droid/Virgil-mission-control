@@ -2,12 +2,15 @@ import { useFrame } from '@react-three/fiber';
 import { useRef, useState } from 'react';
 import type { VirgilPose } from '../characters/VirgilRigged.js';
 import type { FaceState } from '../characters/Visor.js';
+import type { ProverActivity } from './Models.js';
 import type { ScreenContent } from '../screens/ScreenBank.js';
 
 /**
- * A scripted demonstration, twenty seconds, looping: Virgil surveys, turns
- * toward the Prover, hands off with `Agree_Gesture`, the station lights and
- * the Prover's face goes to working, a verdict returns, Virgil reacts, reset.
+ * A scripted demonstration, twenty seconds, looping: Virgil rests, turns
+ * toward the Prover, hands off with `Agree_Gesture`; the station receives
+ * (V5: a beat of its own, with the arrival shown on its panel), the Prover
+ * works, a verdict returns, Virgil reacts (a nod on PASS, the dumbfounded
+ * turn on BLOCKED), reset.
  *
  * **Nothing behind this is real.** No event, no check, no review drives it;
  * it is a timeline of fixed numbers, and every surface it touches says so —
@@ -16,6 +19,8 @@ import type { ScreenContent } from '../screens/ScreenBank.js';
  * exists today. Alternate loops end in PASS and BLOCKED so the blocked state
  * is seen, expressed through face, light and colour (no refusal clip exists).
  */
+export type StationState = 'READY' | 'RECEIVING' | 'WORKING' | 'REPORTED';
+
 export interface DemoState {
   running: boolean;
   seconds: number;
@@ -23,7 +28,8 @@ export interface DemoState {
   pose: VirgilPose;
   virgilFace: FaceState;
   proverFace: FaceState;
-  stationState: string;
+  proverActivity: ProverActivity;
+  stationState: StationState;
   content: ScreenContent;
 }
 
@@ -35,23 +41,25 @@ export function demoAt(seconds: number, loop: number, running: boolean): DemoSta
     running,
     seconds,
     loop,
-    pose: 'idle',
+    pose: 'rest',
     virgilFace: 'idle',
     proverFace: 'idle',
+    proverActivity: 'rest',
     stationState: 'READY',
     content: { verdict: '—', active: null, phase: 'build · illustrative' },
   };
   if (!running) return base;
   if (seconds < 4) return base;
-  if (seconds < 7) {
-    return { ...base, pose: 'look', virgilFace: 'attentive', stationState: 'READY' };
+  if (seconds < 6.5) {
+    return { ...base, pose: 'look', virgilFace: 'attentive' };
   }
-  if (seconds < 10) {
+  if (seconds < 9.5) {
     return {
       ...base,
       pose: 'handoff',
       virgilFace: 'attentive',
       proverFace: 'attentive',
+      proverActivity: 'receiving',
       stationState: 'RECEIVING',
       content: { verdict: '—', active: 'Prover', phase: 'hand-off · illustrative' },
     };
@@ -59,9 +67,10 @@ export function demoAt(seconds: number, loop: number, running: boolean): DemoSta
   if (seconds < 16) {
     return {
       ...base,
-      pose: 'handoff',
+      pose: 'rest',
       virgilFace: 'attentive',
       proverFace: 'working',
+      proverActivity: 'working',
       stationState: 'WORKING',
       content: { verdict: '—', active: 'Prover', phase: 'verification · illustrative' },
     };
@@ -70,9 +79,10 @@ export function demoAt(seconds: number, loop: number, running: boolean): DemoSta
     const face: FaceState = outcome === 'PASS' ? 'passed' : 'blocked';
     return {
       ...base,
-      pose: 'idle',
+      pose: outcome === 'PASS' ? 'nod' : 'look',
       virgilFace: face,
       proverFace: face,
+      proverActivity: 'reported',
       stationState: 'REPORTED',
       content: { verdict: outcome, active: null, phase: 'verdict · illustrative' },
     };
@@ -92,6 +102,7 @@ export function forcedState(face: FaceState): DemoState {
         ...base,
         virgilFace: 'attentive',
         proverFace: 'attentive',
+        proverActivity: 'receiving',
         stationState: 'RECEIVING',
         content: { verdict: '—', active: 'Prover', phase: 'hand-off · illustrative' },
       };
@@ -100,6 +111,7 @@ export function forcedState(face: FaceState): DemoState {
         ...base,
         virgilFace: 'working',
         proverFace: 'working',
+        proverActivity: 'working',
         stationState: 'WORKING',
         content: { verdict: '—', active: 'Prover', phase: 'verification · illustrative' },
       };
@@ -108,6 +120,7 @@ export function forcedState(face: FaceState): DemoState {
         ...base,
         virgilFace: 'passed',
         proverFace: 'passed',
+        proverActivity: 'reported',
         stationState: 'REPORTED',
         content: { verdict: 'PASS', active: null, phase: 'verdict · illustrative' },
       };
@@ -116,6 +129,7 @@ export function forcedState(face: FaceState): DemoState {
         ...base,
         virgilFace: 'blocked',
         proverFace: 'blocked',
+        proverActivity: 'reported',
         stationState: 'REPORTED',
         content: { verdict: 'BLOCKED', active: null, phase: 'verdict · illustrative' },
       };
@@ -146,6 +160,7 @@ export function useDemo(running: boolean): DemoState {
       next.pose !== state.pose ||
       next.virgilFace !== state.virgilFace ||
       next.proverFace !== state.proverFace ||
+      next.proverActivity !== state.proverActivity ||
       next.stationState !== state.stationState ||
       next.content.verdict !== state.content.verdict ||
       next.content.active !== state.content.active ||

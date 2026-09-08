@@ -138,17 +138,20 @@ function Cast({ demo }: { demo: boolean }) {
       <VirgilRigged pose={state.pose} face={state.virgilFace} />
       <ScreenBank content={state.content} />
       <SideStation />
+      {/* The station's panel floats over its left desk, turned to the
+          camera, clear of the Prover who now stands at its centre. */}
       <StationPanel
         position={[
-          sx - Math.sin(layout.stationRotationY) * -0.32,
-          0.98,
-          sz - Math.cos(layout.stationRotationY) * 0.32,
+          sx + Math.cos(layout.stationRotationY) * -0.52 + Math.sin(layout.stationRotationY) * -0.2,
+          1.06,
+          sz - Math.sin(layout.stationRotationY) * -0.52 + Math.cos(layout.stationRotationY) * -0.2,
         ]}
-        rotation={[0, layout.stationRotationY, 0]}
+        rotation={[0, layout.stationRotationY + 0.3, 0]}
         occupant="Prover"
         state={state.stationState}
+        verdict={state.content.verdict}
       />
-      <ProverFigure face={state.proverFace} />
+      <ProverFigure face={state.proverFace} activity={state.proverActivity} />
     </>
   );
 }
@@ -190,8 +193,13 @@ function initialCamera(): { position: [number, number, number]; target: [number,
   const query = window.location.hash.split('?')[1] ?? '';
   const cam = new URLSearchParams(query).get('cam');
   if (cam === 'prover') {
-    const [px, , pz] = layout.proverAt;
-    return { position: [px + 1.3, 1.7, pz + 1.9], target: [px, 1.25, pz] };
+    // In front of him, wherever he faces.
+    const [px, py, pz] = layout.proverAt;
+    const f = layout.proverRotationY;
+    return {
+      position: [px + Math.sin(f) * 2.2 + Math.cos(f) * 0.4, py + 1.55, pz + Math.cos(f) * 2.2],
+      target: [px, py + 1.15, pz],
+    };
   }
   if (cam === 'face') {
     const [vx, vy, vz] = layout.virgilAt;

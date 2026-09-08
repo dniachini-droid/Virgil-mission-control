@@ -82,11 +82,22 @@ export const room = {
  *  - **Virgil is 1.8 m** (rigged model, feet at its origin).
  *  - **The ring console is 3.0 m across**, primary; the **side station 1.7 m**
  *    across, secondary, one model for every slot.
- *  - **The Prover is 1.6 m**, clearly shorter than Virgil.
+ *  - **The Prover is 1.6 m**, clearly shorter than Virgil, and stands in the
+ *    centre of his station on its measured floor (V5; he stood behind it).
  *  - **The orrery's tracks** run at Virgil's chest, radii 0.98–1.72 m, above
  *    the console rim at every tilt.
  *  - **The porthole is 11.0 m across**, hole radius 3.524 m as measured.
  */
+const STATION_AT = [2.85, 0, -2.75] as [number, number, number];
+const STATION_ROTATION_Y = -0.5;
+const STATION_FLOOR = 0.109;
+const PROVER_IN_STATION = [0, STATION_FLOOR, 0.1] as [number, number, number];
+const PROVER_AT = [
+  STATION_AT[0] + Math.sin(STATION_ROTATION_Y) * PROVER_IN_STATION[2],
+  STATION_FLOOR,
+  STATION_AT[2] + Math.cos(STATION_ROTATION_Y) * PROVER_IN_STATION[2],
+] as [number, number, number];
+
 export const layout = {
   virgilHeight: 1.8,
   virgilAt: [0, 0.39, -2.4] as [number, number, number],
@@ -99,10 +110,20 @@ export const layout = {
 
   orreryCentre: [0, 1.62, -2.4] as [number, number, number],
 
-  stationAt: [2.85, 0, -2.75] as [number, number, number],
-  stationRotationY: -0.5,
-  proverAt: [3.2, 0, -3.6] as [number, number, number],
-  proverRotationY: 0.45,
+  stationAt: STATION_AT,
+  stationRotationY: STATION_ROTATION_Y,
+  /**
+   * The station's measured standing floor: flat at 0.109 m over |x| ≤ 0.35
+   * and z −0.35 … +0.55 in its own frame, with desks rising to 0.44–0.60 m
+   * at the back and both sides. A U with a clear centre, like the console's
+   * well. `test/prover-station.test.ts` re-measures it.
+   */
+  stationFloor: STATION_FLOOR,
+  /** Where the Prover stands in the station's frame: its centre, a little forward. */
+  proverInStation: PROVER_IN_STATION,
+  proverAt: PROVER_AT,
+  /** Facing the room's camera, as Virgil does; his visor is a state display. */
+  proverRotationY: -0.45,
 
   wallZ: -7,
   ceilingY: 9.5,
