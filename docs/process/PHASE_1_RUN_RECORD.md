@@ -19,7 +19,7 @@ Everything below was built and checked on a machine that renders in software. No
 | V8 | `934554159f8021478887603c9230d459eed763da` | `v8-s2-virgil-934554159f.html` | `PHASE_1_HOW_TO_LOOK_V8.md` | Symmetrical consoles carrying their own screens; the receiving and the return; four verdicts; the turn |
 | **V8.1** | **`64e2e746782930c0efc6a494177511cc54f3956c`** | **`v8-1-s2-virgil-64e2e74678.html`** | **`PHASE_1_HOW_TO_LOOK_V8.md` (V8.1 note appended)** | **Four rendering defects repaired: the close-ups reach their pose and show the whole screen, the screens are flat, the chrome is opaque** |
 | **V8.2** | **`40106793c7aff850c9a46970a17fde9d4b96b76a`** | **`v8-2-s2-virgil-40106793c7.html`** | **`PHASE_1_HOW_TO_LOOK_V8.md` (V8.2 note appended)** | **Two authorised items: the screens go to the edge of the model's own opening with the corners it has, and the set is lit** |
-| **V8.3** | **(this pass; the artifact's own commit)** | **`v8-3-s2-virgil-*.html`** | **`PHASE_1_HOW_TO_LOOK_V8.md` (V8.3 note appended)** | **Two authorised items that share one file: the displays read black with a travelling reflection, and the four visors are smooth** |
+| **V8.3** | **`02f9b504c110291f43c9251bf2c2a033e7916ba0`** | **`v8-3-s2-virgil-02f9b504c1.html`** | **`PHASE_1_HOW_TO_LOOK_V8.md` (V8.3 note appended)** | **Two authorised items that share one file: the displays read black with a travelling reflection, and the four visors are smooth** |
 
 The V5 source commit `868971a` and its documents were merged to `main` by the owner as pull request #7 (`90b116c`); the V6 branch was restarted forward from that merge.
 
@@ -596,3 +596,17 @@ No performance measurement and no look on real graphics hardware; OD-0005's two 
 
 - **`pnpm check`** with `TURBO_FORCE=true` — biome **197 files** clean, no fixes applied; `turbo run typecheck` 8 tasks; **166 tests passed** across 14 test files in `mission-control` and **235 across the five packages** (agent-contracts 70, domain 104, gate-engine 19, knowledge-graph 24, visual-language 18), **401 in total, 0 failed, 0 skipped**; then `build:owner` and `verify:owner` — `browser chromium 141.0.7390.37 — /opt/pw-browsers/chromium (preinstalled, substituted for the pinned build)`; `routes (tabletop), (retired room), #/s1, #/spike/foundry, #/spike/mind`; `requests 1, off-document 0`; `renderer ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)…), SwiftShader driver)`; footer `viewing point V8.3`; `console errors 0`; **PASS — opens from `file://`, no console errors, no off-document requests**. The same warnings printed and not failed on as in V6–V8.2: the `THREE.Clock` and `PCFSoftShadowMap` deprecations and SwiftShader's ReadPixels stalls.
 - **Mind Scan** (`pnpm --filter @virgil/knowledge-lint run lint`) — `knowledge graph: 82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `graph hash sha256:a86250498e12d01d9be701610b1947b0bec39c34739816ddb2e0334ea6e0d6d1`; **`mind scan: no findings`**.
+
+### The artifact and its digest
+
+- **`build:owner` from a clean tree** at `02f9b50` (`git status --porcelain` empty before it ran) — `v8-3-s2-virgil-02f9b504c1.html`, **8,456,305 bytes**, `sha256 9fa7c18fd62dfd57055fe453d364ba0cd750a80b1291f007dcff93953782c394`. The footer carries no `+uncommitted changes` marker and its stage line reads `viewing point V8.3`.
+- **`sha256sum -c`** over every committed Owner Build digest — all **twelve OK**, including the new one.
+
+### Size, against both readings of the budget
+
+**8,456,305 bytes**: 8.065 MiB, or 8.456 MB. V8.2 was 8,442,332 bytes, so V8.3 is **13,973 bytes (0.166 %) larger** — the smoothing module, the glass patch and the new geometry code. **No payload changed**: every model, mask, font and window layer is byte-identical to V8.2, and the 43,470 extra triangles are built at run time from masks that already ship. Against `docs/architecture/PERFORMANCE_STRATEGY.md`'s ≤ 12 MB desktop and ≤ 6 MB mobile, which does not say which unit it means:
+
+- desktop: **67.2 % of 12 MiB, 70.5 % of 12 MB — inside on both readings**;
+- mobile: **134.4 % of 6 MiB, 140.9 % of 6 MB — over on both readings**, as every viewing point has been.
+
+Nothing was cut for the number.
