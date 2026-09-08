@@ -120,6 +120,46 @@ Recorded as direction the owner gave, not as decisions. None of it is a decision
   A change of this size is an art-direction change and wants an owner decision record, not a silent
   drift away from `docs/decisions/OD-0002-art-direction-checkpoint.md`.
 
+- **The visors are faceted, not smooth — the owner's direction of 8 September, measured.** His words:
+  *"the same issue but to a lesser extent is true for the agents' visors. they are not compleely
+  smooth and black...... I wonder if we can spend a lot of time on this.... since even small
+  inperfections make them look cheap"*, and then: *"if we replace the visors, they need to be curved
+  like they currently are, but completley smooth, convex"*. He has authorised depth here. Not built.
+
+  **Measured** by this session on the committed runtime payloads (2026-09-08), fitting a sphere by
+  least squares to the vertices of each visor's selected triangles and dequantising positions the way
+  `meshyAsset.ts` does (`i16/32767 × runtime.scale`):
+
+  | Visor | Triangles | Mean facet | Sphere radius | Residual RMS | Residual max | Distinct normals |
+  |---|---|---|---|---|---|---|
+  | Fabricator | 235 | 47.7 mm | 264 mm | 12.29 mm | 42.05 mm | 206 of 334 |
+  | Prover | 207 | 34.6 mm | 339 mm | 43.63 mm | 154.53 mm | 239 of 287 |
+  | Keeper | 549 | 39.3 mm | 247 mm | 25.39 mm | 121.67 mm | 423 of 705 |
+
+  **What this rules out.** The session's first hypothesis was its own asset pipeline: normals are
+  quantised to `INT8` (`reduce-model.mjs`, `reduce-rigged.mjs`), which on a glossy dome could terrace
+  the highlight. It is not the cause. The decoded normals are within 0.50–0.58 % of unit length — well
+  under a degree — and nearly every visor vertex carries its own distinct normal, so there is no
+  terracing to see. Recorded because the wrong answer was nearly acted on.
+
+  **What it is.** Facets 34.6–47.7 mm wide across a face of 247–339 mm radius. At that size the flats
+  are visible directly and no shading treatment hides them.
+
+  **What must not be done.** These visors are not spherical: up to 42, 155 and 122 mm from a best-fit
+  sphere. Fitting an analytic sphere and snapping the surface onto it would visibly deform the faces
+  the owner designed. The Prover's 154.53 mm says his selection probably wraps around the sides of the
+  head rather than being a single front-facing cap; that should be checked before anything touches it,
+  and it may need a tighter selection or its own treatment.
+
+  **The approach that satisfies "curved as now, completely smooth, convex":** subdivide the extracted
+  visor (two levels takes a 40 mm facet to 10 mm, three to 5 mm), smooth interior positions while
+  pinning the boundary so the silhouette stays exactly the owner's, recompute normals on the result,
+  keep the convex glass in front, then verify the curvature is convex everywhere and correct any
+  concave patch against a fitted quadric rather than against a sphere. Cost is runtime vertices — about
+  60k triangles for all four visors against `PERFORMANCE_STRATEGY.md`'s 300k mobile tier — and no
+  added download. It must keep V7's reason for existing: the boundary comes from the head's own
+  painted triangles, which is what stopped the visor reading as pasted on in V6.
+
 ## Waiting on the owner
 
 - **Delete the scratch branch `claude/ci-failure-demo`** — needs owner. One commit on top of `dd2c48f` carrying a deliberate external `fetch()`, pushed on 2026-09-08 to prove CI fails on a network escape (it did). The session cannot remove it: `git push origin --delete` returns 403 and the REST ref deletion is refused by the proxy. One `git push origin --delete claude/ci-failure-demo` from a machine that can. Nothing from it is merged.
