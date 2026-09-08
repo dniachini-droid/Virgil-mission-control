@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber';
 import { use, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
+import { createConvexGlassGeometry, createGlassMaterial } from '../glass.js';
 import type { Report, StationState } from '../room/demo.js';
 import { layout, room } from '../room/palette.js';
 import { DISPLAY, loadScreenFonts, MONO } from './fonts.js';
@@ -119,10 +120,25 @@ export function StationPanel({
 }
 
 /**
- * A slab with a display recessed in it: a rounded-rectangle frame with real
- * depth, a back plate, and the canvas set behind the frame's front face
- * inside the bezel. V6: thicker bezel, flat shading, a saturated matte
- * frame colour and no specular — a cartoon prop, not an instrument.
+ * The screen as an **object** (V7, `docs/process/PHASE_1_STYLISED_SPEC.md`
+ * §0.3). The owner, of V6: "it just looks cheap and everything else looks
+ * really nice … I don't want richer details. I just want it to look nicer
+ * … More like a screen. Shiny and a bit of light reflecting off it." And,
+ * precisely: a slight curve outwards, the text sitting below the glass, and
+ * a case in the characters' own cream that bulges out like the old Macs.
+ *
+ * So, front to back: a **convex sheet of glass** with a CRT's profile
+ * (`glass.ts`), rising `bulge` at its centre; behind it, recessed `recess`
+ * under the case's front plane, the **display** — the canvas, unlit and
+ * untone-mapped, no bigger than V6's, with the honesty band baked into it;
+ * round the opening a pillowy **front plate** with a deep bevel; and
+ * behind that the **swollen shell**, a half-ellipsoid, in the cream
+ * sampled from the cast's own textures (`room.surface.castCream`).
+ *
+ * The trick that sells it is real separation: the display sits behind the
+ * glass, so as the camera moves the display shifts against the opening's
+ * lip and the highlight slides across the curve — that parallax is what
+ * the eye reads as depth. Nothing is added to what the screen says.
  */
 function Slab({
   width,
@@ -133,50 +149,57 @@ function Slab({
   height: number;
   texture: THREE.Texture;
 }) {
-  const bezel = 0.075;
-  const depth = 0.09;
-  const recess = 0.014;
-  const radius = 0.1;
-  const { frame, back } = useMemo(() => {
+  const bezel = 0.09 * (width / 1.3) + 0.03;
+  const plate = 0.05;
+  // Shallow, and the lip thin: a 14 mm recess under a 22 mm lip hid the
+  // display's edge — and part of the honesty band — from oblique angles
+  // in the first V7 capture. 8 mm under 10 mm keeps the parallax and
+  // keeps the band whole.
+  const recess = 0.008;
+  const bulge = 0.03 * (width / 1.3);
+  const radius = 0.16 * (width / 1.3) + 0.02;
+  const { front, shell, glass } = useMemo(() => {
     const outer = roundedRect(width + 2 * bezel, height + 2 * bezel, radius);
-    outer.holes.push(roundedRectPath(width, height, Math.max(0.02, radius - bezel)));
-    const frame = new THREE.ExtrudeGeometry(outer, {
-      depth,
+    outer.holes.push(roundedRectPath(width, height, Math.max(0.03, radius - bezel)));
+    const front = new THREE.ExtrudeGeometry(outer, {
+      depth: plate,
       bevelEnabled: true,
-      bevelThickness: 0.008,
-      bevelSize: 0.008,
-      bevelSegments: 2,
-      curveSegments: 10,
+      bevelThickness: 0.03,
+      bevelSize: 0.01,
+      bevelSegments: 4,
+      curveSegments: 14,
     });
-    const back = new THREE.ExtrudeGeometry(
-      roundedRect(width + 2 * bezel, height + 2 * bezel, radius),
-      {
-        depth: 0.012,
-        bevelEnabled: false,
-        curveSegments: 10,
-      },
-    );
-    return { frame, back };
-  }, [width, height]);
+    // The back half of a sphere, scaled to the case: rim toward the plate.
+    const shell = new THREE.SphereGeometry(1, 36, 18, 0, Math.PI);
+    // The glass is a little wider than the opening and starts a few
+    // millimetres inside the plate, so its edge is under the lip.
+    const glass = createConvexGlassGeometry(width + 0.012, height + 0.012, bulge + 0.004, 28);
+    return { front, shell, glass };
+  }, [width, height, bezel, radius, bulge]);
+  const glassMaterial = useMemo(() => createGlassMaterial(), []);
   return (
     <group>
-      {/* The frame is extruded from z = -depth to z = 0, so its front face is the panel's plane. */}
-      <mesh geometry={frame} position={[0, 0, -depth]} castShadow receiveShadow>
-        <meshStandardMaterial
-          color={room.surface.frame}
-          roughness={0.9}
-          metalness={0}
-          flatShading
-        />
+      {/* The front plate: extruded from z = −plate to 0, bevelled both ways. */}
+      <mesh geometry={front} position={[0, 0, -plate]} castShadow receiveShadow>
+        <meshStandardMaterial color={room.surface.castCream} roughness={0.55} metalness={0} />
       </mesh>
-      <mesh geometry={back} position={[0, 0, -depth - 0.005]}>
-        <meshStandardMaterial color={room.surface.frameDark} roughness={0.95} metalness={0} />
+      {/* The shell, swelling backwards from just inside the plate. */}
+      <mesh
+        geometry={shell}
+        position={[0, -height * 0.04, -plate + 0.01]}
+        rotation={[0, Math.PI, 0]}
+        scale={[width / 2 + bezel * 0.92, height / 2 + bezel * 0.92, 0.42 * height + 0.06]}
+        castShadow
+      >
+        <meshStandardMaterial color={room.surface.castCream} roughness={0.55} metalness={0} />
       </mesh>
-      {/* The display, a little wider than the bezel's hole so its corners hide behind it. */}
+      {/* The display, under the glass: a little wider than the opening so its edges hide behind the lip. */}
       <mesh position={[0, 0, -recess]}>
         <planeGeometry args={[width + bezel * 0.5, height + bezel * 0.5]} />
         <meshBasicMaterial map={texture} toneMapped={false} />
       </mesh>
+      {/* The glass, curved outwards. */}
+      <mesh geometry={glass} material={glassMaterial} position={[0, 0, -0.004]} renderOrder={1} />
     </group>
   );
 }

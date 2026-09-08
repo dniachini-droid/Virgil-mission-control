@@ -34,6 +34,15 @@ export const room = {
     /** The screen slabs' frame: saturated, matte, unmistakably a cartoon prop. */
     frame: '#2d44a8',
     frameDark: '#1d2c74',
+    /**
+     * The cast's own cream, for the screens' cases (V7 §0.3, "the same white
+     * as the characters main colour"): the dominant bright low-saturation
+     * colour of all four characters' shipped base-colour maps, measured
+     * 2026-09-08 — `#fcecd4` on Virgil and the Keeper, `#fceccc` on the
+     * Fabricator and the Prover, within one quantisation step of each other.
+     */
+    castCream: '#fcecd4',
+    castCreamShadow: '#e6d3b8',
   },
 
   /** Warm side of the contrast: the room's own light. */

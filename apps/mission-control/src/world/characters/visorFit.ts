@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createGlassMaterial as createGlass, PAINT_TEST, type PaintRule } from '../glass.js';
 
 /**
  * Fits a face to a head's own geometry.
@@ -51,10 +52,7 @@ import * as THREE from 'three';
  */
 export const VISOR_PAINT = { luminance: 0.045, chroma: 0.03 } as const;
 
-export interface PaintRule {
-  luminance: number;
-  chroma: number;
-}
+export type { PaintRule };
 
 /** How far the glass stands off the face, in metres. */
 export const GLASS_GAP_M = 0.006;
@@ -185,13 +183,6 @@ export function buildVisorGeometry(
   return { face: make(positions), glass: make(glassPositions) };
 }
 
-const PAINT_TEST = /* glsl */ `
-  vec3 paint = texture2D(tPaint, PAINT_UV).rgb;
-  float paintLuminance = dot(paint, vec3(0.2126, 0.7152, 0.0722));
-  float paintChroma = max(max(paint.r, paint.g), paint.b) - min(min(paint.r, paint.g), paint.b);
-  if (paintLuminance >= uPaintLuminance || paintChroma >= uPaintChroma) discard;
-`;
-
 const FACE_VERTEX = /* glsl */ `
   #include <common>
   #include <skinning_pars_vertex>
@@ -252,41 +243,14 @@ export function createFaceMaterial(
 }
 
 /**
- * The glass: glossy, clear-coated, nearly black, so what it adds is the
- * reflection of the lights and the environment and nothing else — a
- * highlight that slides across the curve as the camera moves, and a rim
- * where the glass turns away. Masked to the same paint as the face.
+ * The visor's glass: the set's one glass (`../glass.ts`), masked to the
+ * same paint as the face, so it stops where the paint stops.
  */
 export function createGlassMaterial(
   paint: THREE.Texture,
   rule: PaintRule = VISOR_PAINT,
 ): THREE.MeshPhysicalMaterial {
-  const material = new THREE.MeshPhysicalMaterial({
-    color: '#0a0f1e',
-    roughness: 0.07,
-    metalness: 0,
-    clearcoat: 1,
-    clearcoatRoughness: 0.08,
-    envMapIntensity: 1.4,
-    specularIntensity: 1,
-    transparent: true,
-    opacity: 0.55,
-    depthWrite: false,
-    side: THREE.FrontSide,
-    name: 'visor-glass',
-  });
-  material.defines = { USE_UV: '' };
-  material.onBeforeCompile = (shader) => {
-    shader.uniforms.tPaint = { value: paint };
-    shader.uniforms.uPaintLuminance = { value: rule.luminance };
-    shader.uniforms.uPaintChroma = { value: rule.chroma };
-    shader.fragmentShader = `uniform sampler2D tPaint;\nuniform float uPaintLuminance;\nuniform float uPaintChroma;\n${shader.fragmentShader.replace(
-      '#include <clipping_planes_fragment>',
-      `#include <clipping_planes_fragment>\n${PAINT_TEST.replace('PAINT_UV', 'vUv')}`,
-    )}`;
-  };
-  material.customProgramCacheKey = () => 'visor-glass-v7';
-  return material;
+  return createGlass({ paint, rule });
 }
 
 export interface VisorMeshes {
