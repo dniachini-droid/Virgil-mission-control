@@ -1,6 +1,8 @@
 /**
  * Builds the runtime payload for the rigged, animated Virgil from
- * `assets/models/candidates/virgil-model-candidate-03-rigged.glb`.
+ * `assets/models/candidates/virgil-model-candidate-05-rigged.glb` — V6, the
+ * stylised Virgil (`docs/process/PHASE_1_STYLISED_SPEC.md` §1.4). The
+ * ornate candidate 03 was reduced by the same script until V5.
  *
  * A skinned mesh with a 28-joint skeleton and keyframe clips is a different
  * shape of problem from the static props: rebuilding all of that by hand in
@@ -36,21 +38,30 @@ import { chromium } from '@playwright/test';
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = resolve(appRoot, '../..');
-const SOURCE = 'assets/models/candidates/virgil-model-candidate-03-rigged.glb';
-const EXPECTED_SHA = 'f57d3265eadd643c378a36ca8838b46306b2a5c5d3e0a6645a6270869ec664be';
+const SOURCE = 'assets/models/candidates/virgil-model-candidate-05-rigged.glb';
+const EXPECTED_SHA = '5541fecde26f58862334ea89ed0030d4dd1de521db595286982a63afc3f0d18f';
 const outDir = join(appRoot, 'src/world/virgil');
 
-/** The clips the room uses. Everything else is not shipped. */
-const KEEP_CLIPS = ['Happy_Sway_Standing', 'Idle_11', 'Agree_Gesture', 'Look_Around_Dumbfounded'];
+/**
+ * The clips the room uses. Everything else is not shipped: `Running` and
+ * `Walking` by the owner's direction, `restpose` because it is a bind pose.
+ * `Angry_Ground_Stomp` is the refusal, wired to BLOCKED.
+ */
+const KEEP_CLIPS = ['Idle_11', 'Angry_Ground_Stomp', 'Agree_Gesture'];
 
 const TARGET_HEIGHT_M = 1.8;
 const TARGET_REASON =
-  'The 2.340-unit source height is an export scale, not a size. 1.8 m matches the static Virgil the owner approved in V2, standing in the centre of his console.';
+  'The 3.000-unit source height is an export scale (exactly 1.5× the static candidate 04), not a size. 1.8 m is the height the owner approved for Virgil in V2 and every viewing point since; the new cast is sized against it.';
 
+/**
+ * The V6 source carries one base-colour texture (4096² JPEG) and declares
+ * `metallicFactor` 0 and `roughnessFactor` 0.8; there is no metallic-
+ * roughness map and no normal map, so only the one image is re-encoded and
+ * the factors are recorded for the loader. Virgil is the hero and nearest
+ * the camera: 1024² at a high quality.
+ */
 const TEXTURES = {
-  base_color: { size: 1024, quality: 0.82 },
-  normal: { size: 1024, quality: 0.9 },
-  metallic_roughness: { size: 512, quality: 0.8 },
+  base_color: { size: 1024, quality: 0.84 },
 };
 
 const COMPONENT_SIZE = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 };
@@ -255,6 +266,11 @@ for (const name of KEEP_CLIPS) {
 }
 
 const material = gltf.materials[0];
+const pbr = material.pbrMetallicRoughness ?? {};
+const metalness = pbr.metallicFactor ?? 1;
+const roughness = pbr.roughnessFactor ?? 1;
+if (pbr.baseColorFactor && pbr.baseColorFactor.some((v) => v !== 1))
+  fail('baseColorFactor is not 1.0; the loader does not apply it');
 const stripped = {
   asset: { version: '2.0', generator: 'reduce-rigged.mjs (from Khronos glTF Blender I/O export)' },
   extensionsUsed: ['KHR_mesh_quantization'],
@@ -271,7 +287,7 @@ const stripped = {
       name: material.name,
       // Textures are attached at runtime from the WebP sections; nothing here
       // references an image, so GLTFLoader issues no request.
-      pbrMetallicRoughness: { metallicFactor: 1, roughnessFactor: 1 },
+      pbrMetallicRoughness: { metallicFactor: metalness, roughnessFactor: roughness },
       doubleSided: false,
     },
   ],
@@ -307,10 +323,12 @@ function imageFor(info, label) {
   return { mimeType: image.mimeType, bytes: bin.subarray(start, start + view.byteLength) };
 }
 const maps = {
-  base_color: imageFor(material.pbrMetallicRoughness?.baseColorTexture, 'baseColorTexture'),
-  metallic_roughness: imageFor(material.pbrMetallicRoughness?.metallicRoughnessTexture, 'mr'),
-  normal: imageFor(material.normalTexture, 'normalTexture'),
+  base_color: imageFor(pbr.baseColorTexture, 'baseColorTexture'),
 };
+if (pbr.metallicRoughnessTexture) maps.metallic_roughness = imageFor(pbr.metallicRoughnessTexture, 'mr');
+if (material.normalTexture) maps.normal = imageFor(material.normalTexture, 'normalTexture');
+for (const key of Object.keys(TEXTURES)) if (!maps[key]) fail(`plan names "${key}" but the source has no such map`);
+for (const key of Object.keys(maps)) if (!TEXTURES[key]) fail(`source has "${key}" but the plan omits it`);
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const page = await browser.newPage();
 await page.goto('about:blank');
@@ -402,6 +420,13 @@ const metadata = {
     sourceClips: (gltf.animations ?? []).map((a) => a.name),
     sourceDoubleSided: material.doubleSided === true,
     sourceHasTangent: prim.attributes.TANGENT !== undefined,
+    sourceHasNormalMap: material.normalTexture !== undefined,
+    sourceHasMetallicRoughnessMap: pbr.metallicRoughnessTexture !== undefined,
+    sourceFactors: {
+      baseColorFactor: pbr.baseColorFactor ?? null,
+      metallicFactor: pbr.metallicFactor ?? null,
+      roughnessFactor: pbr.roughnessFactor ?? null,
+    },
     headJointPresent: headJoint !== undefined,
   },
   reductions: {
@@ -431,6 +456,8 @@ const metadata = {
     scale,
     baseOffsetY: -min[1] * scale,
     doubleSided: false,
+    metalness,
+    roughness,
     headJoint: 'Head',
     headFrontJoint: 'headfront',
   },

@@ -55,6 +55,13 @@ export interface MeshyAssetMetadata {
     scale: number;
     positionScale: number;
     baseOffsetY: number;
+    /**
+     * The material factors the source declares, applied here. The ornate set
+     * declared none (1.0, with a metallic-roughness map carrying the values);
+     * the V6 stylised set declares metallic 0 and a roughness, and has no map.
+     */
+    metalness?: number;
+    roughness?: number;
   };
   payload: { bytes: number; sections: Record<string, Section> };
 }
@@ -164,11 +171,16 @@ async function build(metadata: MeshyAssetMetadata, base64: string): Promise<Mesh
   const buffer = decodePayload(metadata, base64);
   const geometry = buildGeometry(metadata, buffer);
 
-  // The normal map is optional: the porthole frame ships without one.
+  // The normal and metallic-roughness maps are optional: the porthole frame
+  // ships without a normal map, and the V6 stylised set ships with neither —
+  // its material is the two declared factors and one base-colour image.
   const hasNormalMap = metadata.payload.sections.map_normal !== undefined;
+  const hasMetallicRoughness = metadata.payload.sections.map_metallic_roughness !== undefined;
   const [map, metallicRoughness, normalMap] = await Promise.all([
     decodeTexture(metadata, buffer, 'map_base_color', SRGBColorSpace),
-    decodeTexture(metadata, buffer, 'map_metallic_roughness', LinearSRGBColorSpace),
+    hasMetallicRoughness
+      ? decodeTexture(metadata, buffer, 'map_metallic_roughness', LinearSRGBColorSpace)
+      : null,
     hasNormalMap ? decodeTexture(metadata, buffer, 'map_normal', LinearSRGBColorSpace) : null,
   ]);
 
@@ -179,12 +191,12 @@ async function build(metadata: MeshyAssetMetadata, base64: string): Promise<Mesh
     // roughness from green and metalness from blue.
     roughnessMap: metallicRoughness,
     metalnessMap: metallicRoughness,
-    // The source declares no factors, so the glTF defaults apply and both are
-    // 1.0 — the texture supplies the actual values. A fully metallic object
-    // with nothing to reflect renders black, which is why the room's
-    // environment map is not optional.
-    metalness: 1,
-    roughness: 1,
+    // The declared factors, as the pipeline recorded them: 1.0 where the
+    // source declares none and a map carries the values (a fully metallic
+    // object with nothing to reflect renders black, which is why the room's
+    // environment map is not optional), or the matte 0 / 0.8 of the V6 set.
+    metalness: metadata.runtime.metalness ?? 1,
+    roughness: metadata.runtime.roughness ?? 1,
     side: FrontSide,
   });
 
