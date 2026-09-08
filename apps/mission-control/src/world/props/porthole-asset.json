@@ -18,6 +18,12 @@
     "sourceDoubleSided": true,
     "sourceHasTangent": false,
     "sourceHasNormalMap": false,
+    "sourceHasMetallicRoughnessMap": true,
+    "sourceFactors": {
+      "baseColorFactor": null,
+      "metallicFactor": null,
+      "roughnessFactor": null
+    },
     "sourceIndexComponentType": "UNSIGNED_SHORT",
     "sourceAnimations": 0,
     "sourceSkins": 0
@@ -31,14 +37,14 @@
     "textures": {
       "base_color": {
         "from": "2048x2048 image/png 5819141 B",
-        "to": "1024x1024 image/webp q0.8 199120 B",
-        "bytes": 199120,
+        "to": "512x512 image/webp q0.8 77580 B",
+        "bytes": 77580,
         "sourceBytes": 5819141
       },
       "metallic_roughness": {
         "from": "4096x4096 image/png 11495263 B",
-        "to": "512x512 image/webp q0.75 49066 B",
-        "bytes": 49066,
+        "to": "256x256 image/webp q0.75 17972 B",
+        "bytes": 17972,
         "sourceBytes": 11495263
       }
     }
@@ -50,12 +56,14 @@
     "scale": 5.781470635668815,
     "positionScale": 0.9516770243644714,
     "baseOffsetY": 5.50100589470777,
-    "doubleSided": false
+    "doubleSided": false,
+    "metalness": 1,
+    "roughness": 1
   },
   "payload": {
-    "bytes": 830898,
-    "base64Bytes": 1107864,
-    "sha256": "4493acc33544d8bc0ce4d3629bcba28b19d27ff7ea41867852eff8bf8037d1bc",
+    "bytes": 678264,
+    "base64Bytes": 904352,
+    "sha256": "d5caac57e8c79f32ede6062b0c9f6039cc903b3615eac106878c4f73d3afd4bb",
     "sections": {
       "position": {
         "offset": 0,
@@ -87,19 +95,19 @@
       },
       "map_base_color": {
         "offset": 582712,
-        "length": 199120,
-        "kind": "image",
-        "mimeType": "image/webp",
-        "width": 1024,
-        "height": 1024
-      },
-      "map_metallic_roughness": {
-        "offset": 781832,
-        "length": 49066,
+        "length": 77580,
         "kind": "image",
         "mimeType": "image/webp",
         "width": 512,
         "height": 512
+      },
+      "map_metallic_roughness": {
+        "offset": 660292,
+        "length": 17972,
+        "kind": "image",
+        "mimeType": "image/webp",
+        "width": 256,
+        "height": 256
       }
     }
   }

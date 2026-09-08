@@ -37,8 +37,8 @@
     "textures": {
       "base_color": {
         "from": "2048x2048 image/jpeg 3211859 B",
-        "to": "1024x1024 image/webp q0.78 150962 B",
-        "bytes": 150962,
+        "to": "256x256 image/webp q0.8 23002 B",
+        "bytes": 23002,
         "sourceBytes": 3211859
       }
     }
@@ -55,9 +55,9 @@
     "roughness": 0.800000011920929
   },
   "payload": {
-    "bytes": 337266,
-    "base64Bytes": 449688,
-    "sha256": "15ac89c56a173bdf049bd2f5e2eedde89314d74a37d8166dd683a6fda4e05c7d",
+    "bytes": 209306,
+    "base64Bytes": 279076,
+    "sha256": "2486501fc583a0106e01d7357a7260fc23b2b6973c9733d6daf7cc2bcadac65e",
     "sections": {
       "position": {
         "offset": 0,
@@ -89,11 +89,11 @@
       },
       "map_base_color": {
         "offset": 186304,
-        "length": 150962,
+        "length": 23002,
         "kind": "image",
         "mimeType": "image/webp",
-        "width": 1024,
-        "height": 1024
+        "width": 256,
+        "height": 256
       }
     }
   }

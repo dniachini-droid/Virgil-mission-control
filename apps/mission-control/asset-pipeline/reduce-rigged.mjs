@@ -58,10 +58,12 @@ const TARGET_REASON =
  * `metallicFactor` 0 and `roughnessFactor` 0.8; there is no metallic-
  * roughness map and no normal map, so only the one image is re-encoded and
  * the factors are recorded for the loader. Virgil is the hero and nearest
- * the camera: 1024² at a high quality.
+ * the camera: V7 takes him from 1024² to 768² at a high quality — not to
+ * 512² like the three figures, because his close-up fills the frame and
+ * the owner has praised him; the trade is judged in the close-up.
  */
 const TEXTURES = {
-  base_color: { size: 1024, quality: 0.84 },
+  base_color: { size: 768, quality: 0.84 },
 };
 
 const COMPONENT_SIZE = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 };

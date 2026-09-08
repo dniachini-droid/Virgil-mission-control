@@ -179,12 +179,13 @@ const MODELS = {
       reason:
         'The 1.9 m source width is a normalised export, not a size. The measured hole is about 60 % of the width, so 11.0 m across gives an aperture of roughly 3.3 m radius — the window the owner approved in V1 — with the frame band filling the remaining 2.2 m to the wall.',
     },
-    // Two maps only, no normal map in the source. Base colour at 1024 because
-    // the band is large on screen; metallic-roughness is smooth and 512 is
-    // plenty (the source PNG is 11.5 MB for what is mostly flat values).
+    // Two maps only, no normal map in the source. V7: the frame is the
+    // tabletop's arch, 5.6 m across at the back of the disc, so 512 for the
+    // base colour and 256 for the two smooth masks (the source PNG is
+    // 11.5 MB for what is mostly flat values).
     textures: {
-      base_color: { size: 1024, quality: 0.8 },
-      metallic_roughness: { size: 512, quality: 0.75 },
+      base_color: { size: 512, quality: 0.8 },
+      metallic_roughness: { size: 256, quality: 0.75 },
     },
   },
   orrery: {
@@ -210,6 +211,15 @@ const MODELS = {
   // The stylised set. Sizes are read against Virgil at 1.8 m, as before; the
   // reasons are recorded per model. Every source here carries one base-colour
   // texture and declared factors (see the header).
+  //
+  // V7 texture plans (`docs/process/PHASE_1_STYLISED_SPEC.md` §0.6): the
+  // owner could not open the 9.8 MB V6 file from Files on iOS, and the
+  // console's untested hypothesis is size. Characters go to 512², stations
+  // to 256², Virgil's console — nearest the camera in his close-up — to
+  // 512². These are flat-colour cartoon textures whose detail is in their
+  // edges; the visors' faces are drawn live and are unaffected. Whether the
+  // reduction degrades anything the owner praised is judged in the V7
+  // close-ups and reported, not assumed.
   console3: {
     source: 'assets/models/candidates/console-model-candidate-03.glb',
     expectedSha: '846b55de5b6b85aeea6bb171a52e051293e7ced1d5e41b15fa9e734ce131f72e',
@@ -220,7 +230,7 @@ const MODELS = {
       reason:
         'The 2.000-unit source width is unit-box normalisation. Measured, the model is a low oval ring desk 0.623 units tall with a raised deck at its centre (0.10 units above its base, flat across |x| ≤ 0.4) and an open front; at 3.4 m across the deck is at 0.17 m, the back rim tops at 0.87 m and the sides at about 0.6 m, so a 1.8 m Virgil stands inside it with the rim at his waist as he stood in the ring console, and its well (±0.68 m) clears his 1.24 m silhouette.',
     },
-    textures: { base_color: { size: 1024, quality: 0.8 } },
+    textures: { base_color: { size: 512, quality: 0.8 } },
   },
   fabricatorStation: {
     source: 'assets/models/candidates/fabricator-station-model-candidate-01.glb',
@@ -232,7 +242,7 @@ const MODELS = {
       reason:
         'The 2.000-unit source width is unit-box normalisation. A station is secondary to Virgil’s 3.2 m console; 2.2 m across (1.53 m tall, measured) reads as a workbench a 1.7 m Fabricator stands at, with its upper structure at his shoulder rather than over his head.',
     },
-    textures: { base_color: { size: 1024, quality: 0.78 } },
+    textures: { base_color: { size: 256, quality: 0.8 } },
   },
   proverStation: {
     source: 'assets/models/candidates/prover-station-model-candidate-01.glb',
@@ -244,7 +254,7 @@ const MODELS = {
       reason:
         'The 2.000-unit source depth is unit-box normalisation (this model is deeper than it is wide). 2.2 m deep, 2.1 m wide, 1.7 m tall keeps it the same footprint as the Fabricator’s station so the three read as a set, and its screen top sits at the Prover’s eye line.',
     },
-    textures: { base_color: { size: 1024, quality: 0.78 } },
+    textures: { base_color: { size: 256, quality: 0.8 } },
   },
   keeperStation: {
     source: 'assets/models/candidates/keeper-station-model-candidate-01.glb',
@@ -256,7 +266,7 @@ const MODELS = {
       reason:
         'The 2.000-unit source height is unit-box normalisation (this model is tall: a sloped desk with a column and screen behind it, the desk top measured at 1.0 unit above the base). 2.0 m tall puts that desk at 1.0 m, waist-to-chest on a 1.7 m Keeper standing in front of it, and its screen at and above his head so it reads over him from the tabletop camera; 1.64 m across, the same footprint as the other two.',
     },
-    textures: { base_color: { size: 1024, quality: 0.78 } },
+    textures: { base_color: { size: 256, quality: 0.8 } },
   },
   fabricator2: {
     source: 'assets/models/candidates/fabricator-model-candidate-02.glb',
@@ -268,7 +278,7 @@ const MODELS = {
       reason:
         'The 2.000-unit source height is unit-box normalisation. The three characters are secondary to a 1.8 m Virgil; 1.7 m keeps them clearly shorter without reading as a different species, and the Fabricator — the widest — reads as the heavy one at that height.',
     },
-    textures: { base_color: { size: 1024, quality: 0.8 } },
+    textures: { base_color: { size: 512, quality: 0.82 } },
   },
   prover2: {
     source: 'assets/models/candidates/prover-model-candidate-02.glb',
@@ -283,7 +293,7 @@ const MODELS = {
     // The source is a 4096² PNG (15.4 MB); it is resampled to the same 1024²
     // WebP as the others, because at 1.7 m tall on a 12 m set it is never
     // closer to the camera than the others are.
-    textures: { base_color: { size: 1024, quality: 0.8 } },
+    textures: { base_color: { size: 512, quality: 0.82 } },
   },
   keeper2: {
     source: 'assets/models/candidates/keeper-model-candidate-02.glb',
@@ -295,7 +305,7 @@ const MODELS = {
       reason:
         'The 2.000-unit source height is unit-box normalisation. 1.7 m, as the other two characters; the Keeper — the slimmest — reads as the tall thin one at the same height.',
     },
-    textures: { base_color: { size: 1024, quality: 0.8 } },
+    textures: { base_color: { size: 512, quality: 0.82 } },
   },
 };
 

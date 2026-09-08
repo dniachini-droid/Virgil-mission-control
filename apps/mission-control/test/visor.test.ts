@@ -116,9 +116,12 @@ function expectMask(
     expect(paint.min[a] as number).toBeGreaterThanOrEqual((recorded.min[a] as number) - 1e-6);
     expect(paint.max[a] as number).toBeLessThanOrEqual((recorded.max[a] as number) + 1e-6);
   }
-  // A visor is wider than it is tall, and is not a sliver.
+  // A visor is wider than it is tall, and is not a sliver. The widest is
+  // the Prover's band across his dome, measured at 3.16 : 1 off the 512²
+  // payload (the 1024² one had a stray dark speck near the helmet's top
+  // that stretched the bounds to 2.0 : 1 and put his eyes low).
   expect(faceAspect(mask)).toBeGreaterThan(1);
-  expect(faceAspect(mask)).toBeLessThan(3);
+  expect(faceAspect(mask)).toBeLessThan(3.5);
   expect((paint.max[1] as number) - (paint.min[1] as number)).toBeGreaterThan(0.1);
 }
 
