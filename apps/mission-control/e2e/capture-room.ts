@@ -21,7 +21,7 @@ const orbit = process.argv.includes('orbit');
 const states = process.argv.includes('states');
 mkdirSync(outDir, { recursive: true });
 const distDir = resolve(import.meta.dirname, '../dist/owner-build');
-const built = readdirSync(distDir).filter((n) => n.startsWith('virgil-') && n.endsWith('.html'));
+const built = readdirSync(distDir).filter((n) => /virgil-[0-9a-f]{10}\.html$/.test(n));
 const fileUrl = pathToFileURL(resolve(distDir, built[0] as string)).href;
 
 const preinstalled = process.env.CHROMIUM_EXECUTABLE ?? '/opt/pw-browsers/chromium';

@@ -21,7 +21,11 @@ import { fileURLToPath } from 'node:url';
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(appRoot, 'dist', 'owner-build');
 
-const stageSlug = process.env.VIRGIL_OWNER_STAGE_SLUG ?? 's2-v6';
+// V7: the viewing point at the FRONT of the name, so that seven files in
+// one Downloads folder sort and read unambiguously — the owner served
+// themselves an older build from a folder of `virgil-s2-v1…v6` files and
+// lost an evening to it. The stage and the short SHA follow.
+const stageSlug = process.env.VIRGIL_OWNER_STAGE_SLUG ?? 'v7-s2';
 const shortSha = (
   process.env.VIRGIL_OWNER_SHA ??
   execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
@@ -93,7 +97,7 @@ let inlined = shell
 
 inlined = `${inlined.trimEnd()}\n`;
 
-const fileName = `virgil-${stageSlug}-${shortSha}.html`;
+const fileName = `${stageSlug}-virgil-${shortSha}.html`;
 const filePath = join(outDir, fileName);
 writeFileSync(filePath, inlined);
 

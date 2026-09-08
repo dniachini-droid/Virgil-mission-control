@@ -161,8 +161,7 @@ describe.each(ROLES)('the %s at their station', (role) => {
     // turns a little more toward the camera than the station does. Every
     // breathing extreme at the working position; the rest pose at the idle
     // position and at the middle of the glide between them.
-    const poses: { label: string; local: [number, number, number]; yaw: number; b: Breath }[] =
-      [];
+    const poses: { label: string; local: [number, number, number]; yaw: number; b: Breath }[] = [];
     for (const b of [{ rise: 0, sway: 0, yaw: 0 }, ...BREATH_EXTREMES]) {
       poses.push({ label: 'working', local: placement.local, yaw: placement.rotationY, b });
     }

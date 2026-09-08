@@ -18,7 +18,7 @@ import { pathToFileURL } from 'node:url';
 import { chromium } from '@playwright/test';
 
 const outDir = resolve(import.meta.dirname, '../dist/owner-build');
-const built = readdirSync(outDir).filter((n) => n.startsWith('virgil-') && n.endsWith('.html'));
+const built = readdirSync(outDir).filter((n) => /virgil-[0-9a-f]{10}\.html$/.test(n));
 if (built.length !== 1) {
   throw new Error(`expected exactly one built Owner Build in ${outDir}, found ${built.length}`);
 }
