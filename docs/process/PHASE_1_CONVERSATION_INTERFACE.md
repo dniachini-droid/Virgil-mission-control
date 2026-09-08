@@ -118,6 +118,41 @@ Decided by this session, not asked, and open to correction:
 - **The three suggested actions act on the view**, not on a session: go to the agent
   concerned, open the evidence, pause. Labelled as what they are.
 
+## 5b. Clickable screens — the owner's direction of 8 September
+
+His words: *"why dont we have each screen clickable? that way, it shows the information it has,
+but when you click the window, it opens up an expanded text box with the full information."*
+He also accepted the lighting and material diagnosis in the same message.
+
+**This is the same component as the conversation panel, reached from the world instead of from a
+menu**, and it is recorded here rather than in the backlog for that reason. It also dissolves a
+constraint this session had stated as a limit: the ledger and the screens were going to have to
+read as shape and colour at distance because screen text collapses below about 64 px. With the
+screens clickable, the screen carries the glance and the panel carries the full truth, and
+neither has to compromise.
+
+- **One panel, many sources, and the screen is a summary of the panel — never a separately
+  written text.** The Keeper's console opens the Keeper's record; the verdict slab opens the
+  verdict with its evidence; a ledger row opens that hop. Two levels of detail over one source,
+  because two texts written separately can disagree, which is the class of defect the owner
+  caught in V7 when Virgil's slab said "awaiting review" during a build.
+- **Three distances, three levels:** glance from the wide view (shape and colour), approach at the
+  station close-up (headline text), read in the panel (everything).
+- **Affordance without hover.** A phone has no hover, so a persistent cue on each screen — a
+  corner bracket or expand glyph — rather than a highlight that only a mouse can find.
+- **`ILLUSTRATIVE · NOT REAL STATE` belongs in the panel prominently, not as a footnote.** Full
+  detail set in clean HTML is far more believable than a small glowing screen in a 3D scene, so
+  the marking matters more there, not less. This is the one new risk the feature carries.
+
+**Open decision for the owner:** tapping a character already moves the camera to them, so does
+tapping a screen open the panel at once, or move there first? This session's recommendation is
+that a tap at a station takes the camera there and a second tap on the screen opens the panel —
+one meaning per tap, and the panel reads as leaning in.
+
+Consequence for sequencing: the panel is the first piece of this interface, so the flat mock
+offered to the owner should cover both — the expanded screen panel and the full-conversation
+split are the same layout at two sizes.
+
 ## 6. What this costs, stated plainly
 
 Recording this is not planning it. Four things in it are not small, and none of them
