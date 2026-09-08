@@ -5,7 +5,7 @@ import {
   decodeMeshyPayload,
   type MeshyAssetMetadata,
 } from '../src/world/assets/meshyAsset.js';
-import { BREATH, BREATH_EXTREMES } from '../src/world/characters/breathing.js';
+import { BREATH, BREATH_EXTREMES, type Breath } from '../src/world/characters/breathing.js';
 import { placedPositions } from '../src/world/characters/visorFit.js';
 import {
   console3Base64Payload,
@@ -21,6 +21,7 @@ import {
   CAST,
   FACE_TURN,
   figurePlacement,
+  idlePlacement,
   ROLES,
   type Role,
   STAND_GAP,
@@ -36,8 +37,10 @@ import {
  * Nobody stands in anything. V5 held the Prover clear of his station by
  * re-measuring the station from its payload and voxelising both surfaces;
  * V6 does the same for all three characters at their own stations, and
- * for Virgil on his console's deck. The numbers in `palette.ts` and
- * `cast.ts` are held to the models rather than remembered from them.
+ * for Virgil on his console's deck. V7 adds each character's idle
+ * position (they stand aside until a job arrives, §0.7) and the path
+ * between the two. The numbers in `palette.ts` and `cast.ts` are held to
+ * the models rather than remembered from them.
  */
 
 function placed(metadata: MeshyAssetMetadata, base64: string) {
@@ -138,7 +141,9 @@ describe.each(ROLES)('the %s at their station', (role) => {
   // machine: pnpm check once failed this on Vitest's 5 s default while two
   // software-rendering captures ran beside it. The bound is the geometry's,
   // not the clock's.
-  it('touches no station geometry at any extreme of their breathing', { timeout: 120_000 }, () => {
+  it('touches no station geometry at any extreme of their breathing, at work, idle, and on the way', {
+    timeout: 180_000,
+  }, () => {
     const stationIndex = station.geometry.index as THREE.BufferAttribute;
     const figureIndex = figure.geometry.index as THREE.BufferAttribute;
     const ABOVE_FLOOR = 0.02;
@@ -150,12 +155,32 @@ describe.each(ROLES)('the %s at their station', (role) => {
     );
     expect(stationVoxels.size).toBeGreaterThan(5_000);
     expect(BREATH.rise).toBeLessThanOrEqual(0.02);
+    const idle = idlePlacement(role);
     // The figure in the station's frame: turned by (FACE_TURN − 1) of the
     // station's rotation, since both are placed in the room and the figure
-    // turns a little more toward the camera than the station does.
-    const relativeYaw = placement.rotationY - CAST[role].rotationY;
-    const [x, y, z] = placement.local;
+    // turns a little more toward the camera than the station does. Every
+    // breathing extreme at the working position; the rest pose at the idle
+    // position and at the middle of the glide between them.
+    const poses: { label: string; local: [number, number, number]; yaw: number; b: Breath }[] =
+      [];
     for (const b of [{ rise: 0, sway: 0, yaw: 0 }, ...BREATH_EXTREMES]) {
+      poses.push({ label: 'working', local: placement.local, yaw: placement.rotationY, b });
+    }
+    const still = { rise: 0, sway: 0, yaw: 0 };
+    poses.push({ label: 'idle', local: idle.local, yaw: idle.rotationY, b: still });
+    poses.push({
+      label: 'midway',
+      local: [
+        (placement.local[0] + idle.local[0]) / 2,
+        0,
+        (placement.local[2] + idle.local[2]) / 2,
+      ],
+      yaw: (placement.rotationY + idle.rotationY) / 2,
+      b: still,
+    });
+    for (const { label, local, yaw, b } of poses) {
+      const relativeYaw = yaw - CAST[role].rotationY;
+      const [x, y, z] = local;
       const m = new THREE.Matrix4().makeRotationFromEuler(
         new THREE.Euler(0, relativeYaw + b.yaw, b.sway, 'XYZ'),
       );
@@ -163,7 +188,10 @@ describe.each(ROLES)('the %s at their station', (role) => {
       const voxels = surfaceVoxels(figure.positions, figureIndex.array, m, ABOVE_FLOOR);
       let shared = 0;
       for (const key of voxels) if (stationVoxels.has(key)) shared += 1;
-      expect(shared, `breathing ${JSON.stringify(b)}: ${shared} shared surface voxels`).toBe(0);
+      expect(
+        shared,
+        `${label}, breathing ${JSON.stringify(b)}: ${shared} shared surface voxels`,
+      ).toBe(0);
     }
   });
 });

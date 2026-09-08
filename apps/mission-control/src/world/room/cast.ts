@@ -117,6 +117,14 @@ export const STAND_GAP = 0.2;
 export const STAND_SIDE = -0.55;
 /** The character turns a little more toward the camera than the station does. */
 export const FACE_TURN = 0.7;
+/**
+ * Where a character idles, relative to where they work (V7 §0.7): a step
+ * further to the station's left and a step forward, standing aside until
+ * a job arrives, when they move up to the panel. Both positions are in
+ * front of the station, so the straight path between them never comes
+ * nearer to it than the working position does.
+ */
+export const IDLE_ASIDE: readonly [number, number] = [-0.7, 0.45];
 
 /** A point in a station's frame, in the room. */
 export function stationToWorld(
@@ -158,6 +166,27 @@ export function figurePlacement(role: Role): Placement {
     local: [STAND_SIDE, 0, dz],
     at: stationToWorld(role, STAND_SIDE, 0, dz),
     rotationY: member.rotationY * FACE_TURN,
+  };
+}
+
+/**
+ * Where a character idles: aside from the working position by
+ * `IDLE_ASIDE`, turned a little further toward the camera. The move
+ * between the two is `characters/locomotion.ts`. Held clear of the
+ * station by the same test as the working position.
+ */
+export function idlePlacement(role: Role): Placement {
+  const working = figurePlacement(role);
+  const [dx, dz] = IDLE_ASIDE;
+  const local: [number, number, number] = [
+    working.local[0] + dx,
+    working.local[1],
+    working.local[2] + dz,
+  ];
+  return {
+    local,
+    at: stationToWorld(role, local[0], local[1], local[2]),
+    rotationY: CAST[role].rotationY * FACE_TURN * 0.8,
   };
 }
 

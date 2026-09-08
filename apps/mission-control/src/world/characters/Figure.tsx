@@ -2,8 +2,9 @@ import { useFrame } from '@react-three/fiber';
 import { use, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
-import { CAST, figurePlacement, ROLES, type Role } from '../room/cast.js';
+import { CAST, figurePlacement, idlePlacement, ROLES, type Role } from '../room/cast.js';
 import { breathe } from './breathing.js';
+import { createLocomotion, type Pose } from './locomotion.js';
 import { type FaceState, Visor, type VisorAnchor } from './Visor.js';
 import { placedPositions } from './visorFit.js';
 
@@ -23,11 +24,15 @@ export type Activity = 'rest' | 'receiving' | 'working' | 'reported';
  * it breathes with the figure; its light sits in the breathing group.
  *
  * The seam for rigs is here and only here: `activity` is the whole of what
- * this component knows, and today it only changes the breathing rate. A
- * rigged model replaces the `<primitive>` and maps `activity` to clips the
- * way `VirgilRigged.tsx` maps poses; nothing upstream changes. One
- * consequence accepted: the hand-off is one-sided — Virgil gestures, and
- * the receiver answers with face, light and stillness.
+ * this component knows. At rest a character stands **aside**
+ * (`idlePlacement`); when a job arrives they move up to their panel
+ * (`figurePlacement`), and the move is one swappable behaviour
+ * (`locomotion.ts`) — a glide today, a walk clip when the owner's rigged
+ * files arrive (V7 §0.7). A rigged model replaces the `<primitive>`, maps
+ * `activity` to clips the way `VirgilRigged.tsx` maps poses, and plays
+ * its walk while the mover reports `moving`; nothing upstream changes.
+ * One consequence accepted: the hand-off is one-sided — Virgil gestures,
+ * and the receiver answers with face, light and stillness.
  */
 export function Figure({
   role,
@@ -44,7 +49,15 @@ export function Figure({
   const asset = use(member.model.load());
   const { reducedMotion } = useSettings();
   const group = useRef<THREE.Group>(null);
-  const placement = useMemo(() => figurePlacement(role), [role]);
+  const working = useMemo<Pose>(() => {
+    const p = figurePlacement(role);
+    return { position: p.at, rotationY: p.rotationY };
+  }, [role]);
+  const idle = useMemo<Pose>(() => {
+    const p = idlePlacement(role);
+    return { position: p.at, rotationY: p.rotationY };
+  }, [role]);
+  const mover = useMemo(() => createLocomotion(idle), [idle]);
   const phase = ROLES.indexOf(role) * 2.1 + 1.3;
   const anchor = useMemo<VisorAnchor>(() => {
     const parent = asset.mesh.parent;
@@ -62,18 +75,24 @@ export function Figure({
       lightParent: parent,
     };
   }, [asset, member, role]);
-  useFrame(({ clock }) => {
-    if (!group.current || reducedMotion) return;
-    const b = breathe(clock.getElapsedTime(), phase, activity === 'working' ? 1.6 : 1);
-    group.current.position.y = placement.at[1] + b.rise;
+  useFrame(({ clock }, delta) => {
+    if (!group.current) return;
+    // Aside at rest, at the panel otherwise. With reduced motion the move
+    // is instant: the character is simply where they should be.
+    const target = activity === 'rest' ? idle : working;
+    const { pose } = mover.update(reducedMotion ? Number.POSITIVE_INFINITY : delta, target);
+    const b = reducedMotion
+      ? { rise: 0, sway: 0, yaw: 0 }
+      : breathe(clock.getElapsedTime(), phase, activity === 'working' ? 1.6 : 1);
+    group.current.position.set(pose.position[0], pose.position[1] + b.rise, pose.position[2]);
     group.current.rotation.z = b.sway;
-    group.current.rotation.y = placement.rotationY + b.yaw;
+    group.current.rotation.y = pose.rotationY + b.yaw;
   });
   return (
     <group
       ref={group}
-      position={placement.at}
-      rotation={[0, placement.rotationY, 0]}
+      position={idle.position}
+      rotation={[0, idle.rotationY, 0]}
       onClick={(event) => {
         event.stopPropagation();
         onSelect?.(role);
