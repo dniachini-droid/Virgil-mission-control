@@ -195,6 +195,21 @@ Two further demonstrations, that the wiring itself cannot be quietly removed: de
 
 One demonstration was vacuous on the first attempt and is recorded because it is the reason the brief demanded proof. The remote `url()` was first inserted *above* the `background: rgba(5, 3, 15, 0.92)` shorthand in the same rule, which resets `background-image` to `none`; nothing was ever requested and `verify:owner` passed. Moved below the shorthand, it failed as above. A guard nobody has tried to defeat is decoration, and so is a defect that was never live.
 
+### Two real runs on GitHub Actions, one green and one red
+
+The workflow has now actually run. These are the first two runs this repository has ever had.
+
+| Run | Commit | Result |
+|---|---|---|
+| [#1](https://github.com/dniachini-droid/Virgil-mission-control/actions/runs/34204016605) — `push` to `claude/virgil-phase-1-slice` | `dd2c48f` | **success**. Job *lint, typecheck, tests, owner build, owner verify*: all eleven steps green, 08:21:02Z → 08:26:09Z (5m 07s). Job *newest Owner Build rebuilds byte for byte*: green, 38s |
+| [#2](https://github.com/dniachini-droid/Virgil-mission-control/actions/runs/34204596445) — `push` to the scratch branch `claude/ci-failure-demo`, commit `767d905`, carrying one deliberate `fetch('https://example.com/…')` in `VirgilRoom.tsx` | `767d905` | **failure** at step 7, `pnpm check`; the Mind Scan, `build:owner`, `verify:owner` and the digest check were skipped as a consequence. The reproducibility job passed, correctly: the defect is at `HEAD`, and that job rebuilds the committed artifact at *its own* commit |
+
+Run #2 exercises a path local simulation could not. This container's egress proxy makes an external `fetch` fail, so locally the escape produced a console error *and* an off-document request, and either would have failed the check. A GitHub runner has real egress, so the request succeeds and there is no console error: only the off-document-request check can catch it, and it did.
+
+What identifies the failing sub-step is elimination, not a log read: the egress proxy here refuses `results-receiver.actions.githubusercontent.com`, so no run log could be downloaded into this session, and only the API's per-step conclusions are quoted above. With that same defect present, `pnpm lint` (173 files), `pnpm typecheck` (8 tasks) and `pnpm test` (317 tests, 6 tasks) all pass locally, and `verify:owner` exits 1. `pnpm check` is those four in sequence. So `verify:owner` is what failed run #2. That inference is stated as an inference.
+
+The scratch branch was deleted after the run (`git push origin --delete claude/ci-failure-demo`); GitHub keeps the run itself, at the link above. Nothing from it is merged and no defect is committed on the build branch.
+
 ### The reproducibility rebuild, on the artifact as committed
 
 `pnpm reproduce:owner`, run clean: newest artifact `v7-s2-virgil-ffa3e18cff.html` (added 2026-09-08T07:46:37Z); recovered source commit `ffa3e18cffb17ec55588ac8facc544d9ee1f4043` from the artifact's own bytes; recovered build date `2026-09-08 08:10 UTC` likewise; rebuilt in a detached worktree at that commit; `cmp` identical; sha256 `11f043dfa3e73392c09a8204251778ce35a6b7af7280869a533407143d5201bc` (8,395,984 bytes), which is the committed digest. 36s including a second `pnpm install`.
@@ -207,4 +222,4 @@ It rebuilds at the artifact's **own** commit, not at `HEAD`, so a later commit t
 
 ### What this pass did not do
 
-No workflow has actually run on GitHub Actions, so nothing here is evidence that GitHub honours the file — only that the commands it declares fail when they should. CI runs the Chromium the lockfile resolves (`153.0.8010.12`); this container substitutes a preinstalled `141.0.7390.37`, so a local pass and a CI pass are not passes on the same browser; the divergence is not repaired, and every run now prints which browser it used. `inline.mjs` is unrepaired (KR-58): the class of defect it misses is caught by a required check, and its own blind spot is untouched. The reproducibility rebuild covers the newest artifact only; the older seven are covered by their digests. No design-level-only row in `docs/architecture/ENFORCEMENT_BOUNDARIES.md` moved, and that document says why.
+Nothing here is a *test* that GitHub honours the workflow file — no test in this repository executes GitHub Actions, and none can. Two runs demonstrate it once each way (above); a demonstration is not a control, and if the workflow is disabled in the repository's settings nothing here will say so. CI runs the Chromium the lockfile resolves (`153.0.8010.12`); this container substitutes a preinstalled `141.0.7390.37`, so a local pass and a CI pass are not passes on the same browser; the divergence is not repaired, and every run now prints which browser it used. `inline.mjs` is unrepaired (KR-58): the class of defect it misses is caught by a required check, and its own blind spot is untouched. The reproducibility rebuild covers the newest artifact only; the older seven are covered by their digests. No design-level-only row in `docs/architecture/ENFORCEMENT_BOUNDARIES.md` moved, and that document says why.
