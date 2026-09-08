@@ -65,6 +65,66 @@ V5 was 15,330,856 bytes; V6 is 5,526,114 bytes (36 %) smaller. The owner console
 
 `test/visor.test.ts` keeps `MAX_GAP = 0.015`. Measured worst gaps on the fitted panels: Fabricator 9.6 mm, Prover 8.0 mm, Keeper 12.0 mm; Virgil 8.6 mm in his joint's units, which is 5.1 mm at scale (his panel is fitted in the joint frame at 0.6 m per unit, so the bound is effectively 9 mm for him). The console's prediction that Virgil's head might trip the bound did not come true. The Prover's did, once: a panel top at 1.32 m was lifted 16.5 mm over the helmet's brim ridge; the panel's top was lowered to 1.295 m, under the ridge, and the bound was not touched.
 
+### Three observations from the owner console's own render, recorded and not acted on
+
+Recorded here and in `PHASE_1_HOW_TO_LOOK_V7.md` as known and not yet addressed; they are the next pass, not this one. One correction of fact is attached to the first, because a future reader acting on it would otherwise look for code that does not exist.
+
+1. **The screens overlap and there are too many.** In the upper third of the portrait frame Virgil's three slabs, the three floating station panels and the three stations' own screens crowd together, and at least one panel is partly occluded by another. **Correction:** this pass did **not** map the consoles' own screens — that is queued in the spec (§0.9) for the pass after V7 — so the stations' screens in the frame are the models' own *baked, painted* screens, static as delivered. The crowding is the six code-built screens (three slabs, three panels) over those baked ones. The owner's intent, and §0.9's plan, is that the mapped console screens serve *instead of* the floating panels for the agents, Virgil's three slabs being the only exception the owner named; when that lands, the three floating panels go and the count falls, and the portrait frame's top third clears with them.
+2. **Virgil does not read as the conductor.** He is small, low in the frame, and the least prominent of the four, which contradicts the metaphor the set is built on (he replaces the sun; the world turns around him). The depth arrangement that fixed the phone's framing put him nearest the camera but lowest in a frame seen from 30–38° above.
+3. **The composition is bottom-heavy:** his console fills the lower half, the cast sits in a band across the middle, the screens crowd the top.
+
+### What was not done
+
+No performance measurement. No look on real graphics hardware. The three characters are unrigged by the owner's note, so the hand-off is one-sided. Generation prompts and times for all nine models are outstanding. The Prover and Keeper model assignments are provisional (`cast.ts`). The Owner Build's `#/s1` spikes are unchanged.
+
+## V7 — the pass of 2026-09-08, from the owner's reaction to V6 on their phone
+
+Branch `claude/virgil-phase-1-slice`, forward from V6's `e144e9f`. Direction: the owner's words as relayed by the owner console, written into `docs/process/PHASE_1_STYLISED_SPEC.md` §0 before and during the work. Every increment was committed and pushed as it landed, because a restart once cost this project an hour of unpushed work.
+
+| Commit | What |
+|---|---|
+| `4bf2dfd` | Tabletop by default, the room retired (reachable behind `V` and `#/?view=room`); the cast arranged in depth and compacted; a camera that answers to the viewport's aspect; the control bar fitting 390 px and the footer publishing its height; the floor's inlay drawn as one texture on one face (`floorGraphic.ts`, `test/floor.test.ts`) |
+| `40bb155` | The face on the head's own triangles: `asset-pipeline/fit-visor.mjs` records which triangles carry each head's painted visor; the runtime draws the face on them through a paint-masked shader, with the glass 6 mm out along the normals; Virgil first, then the three figures; `test/visor.test.ts` rewritten for the mechanism. Under the owner's permission ("You may edit the root config files"), one line in `biome.json` excludes the committed artifacts (KR-54); the spec records the V7 direction and the queued console-screens direction |
+| `cc192e8` | The screens as objects: a cased, glassed slab in the cast's sampled cream; `glass.ts` shared by the visors and the screens |
+| `9579dc1` | The walking seam: idle and working placements, `locomotion.ts` with the glide as the placeholder, `test/locomotion.test.ts`, the clearance test extended to the idle position and the path |
+| `8ce66ce` | Smaller textures (characters 512², stations 256², Virgil 768², the porthole 512²/256²); masks regenerated against the new payload digests |
+| `ffa3e18` | The artifact named with the viewing point in front; the footer's stage line; a formatting fix. **The source of the V7 artifact** |
+| (this commit) | The artifact from `ffa3e18`, its digest, this record, the owner document and the spec's size section |
+
+### Checks run on `ffa3e18`, all with `TURBO_FORCE=true`
+
+All five were run **synchronously, in the foreground**, on the closing pass at `5e83e38` (whose only difference from `ffa3e18` is documents and the committed artifact, none of it in the bundle), from a clean tree (`git status --short` empty before the rebuild). Earlier background runs of the same checks agreed; these are the ones recorded.
+
+| Check | Result, as printed |
+|---|---|
+| `pnpm check` | lint: `Checked 171 files in 195ms. No fixes applied.` (the six committed artifacts excluded under the owner's root-config permission, so no KR-54 warning); typecheck: `Tasks: 8 successful, 8 total`; tests: `Tasks: 6 successful, 6 total` — the application 68 tests in 8 files, `@virgil/agent-contracts` 70, `@virgil/domain` 104, `@virgil/knowledge-graph` 24, `@virgil/gate-engine` 19, `@virgil/visual-language` 18, all passed (303 in all) |
+| `pnpm --filter @virgil/knowledge-lint run lint` | `knowledge graph: 82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `graph hash sha256:a86250498e12d01d9be701610b1947b0bec39c34739816ddb2e0334ea6e0d6d1`; `mind scan: no findings` |
+| `pnpm --filter mission-control build:owner` (clean tree, `VIRGIL_OWNER_BUILD_DATE="2026-09-08 08:10 UTC"`) | `v7-s2-virgil-ffa3e18cff.html`, 8,395,984 bytes, SHA-256 `11f043dfa3e73392c09a8204251778ce35a6b7af7280869a533407143d5201bc` |
+| Reproducibility rebuild (clean tree, `VIRGIL_OWNER_SHA=ffa3e18cffb17ec55588ac8facc544d9ee1f4043`, same date), compared with `cmp` against the committed file | `owner build: 8.01 MB (8395984 bytes)`, `sha256 11f043df…5201bc`; `cmp` silent — **identical byte for byte to `docs/process/PHASE_1_owner-builds/v7-s2-virgil-ffa3e18cff.html`**. Run twice this pass (once at build time against the first artifact, once on the closing pass against the committed one); both matched |
+| `sha256sum -c v7-s2-virgil-ffa3e18cff.html.sha256` (in `docs/process/PHASE_1_owner-builds/`) | `v7-s2-virgil-ffa3e18cff.html: OK`; 8,395,984 bytes |
+| `pnpm --filter mission-control verify:owner` (on the rebuilt file, `cmp`-identical to the committed one) | routes `(tabletop), (retired room), #/s1, #/spike/foundry, #/spike/mind`; requests 1, off-document 0; renderer `ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)…), SwiftShader driver)`; footer `Virgil Owner Build — Phase 1 S2 / viewing point V7 — the tabletop: faces on the head, screens as objects built from commit ffa3e18cffb17ec55588ac8facc544d9ee1f4043 built 2026-09-08 08:10 UTC …`; console errors 0; **PASS — opens from file://, no console errors, no off-document requests**. Warnings printed and not failed on, as in V6: the `THREE.Clock` deprecation, `PCFSoftShadowMap` deprecation, SwiftShader's ReadPixels stalls |
+
+The owner console also rendered the committed artifact independently at 1280 × 800 and at 390 × 664 portrait: one canvas, one request, no console errors, all four characters in frame at both. That is the console's report, recorded as such.
+
+### Size, against both readings of the budget
+
+The artifact is **9,804,742 bytes**: 9.35 MiB, or 9.80 MB at a million bytes each. Of that, 8,002,492 bytes are the base64 payloads (the seven V6 models 3.95 MB, the rigged Virgil 1.62 MB, the porthole 1.11 MB, the three window layers 1.28 MB, the two font subsets 35 KB) and about 1.8 MB is code and CSS. `docs/architecture/PERFORMANCE_STRATEGY.md` sets ≤ 12 MB desktop and ≤ 6 MB mobile without saying which unit:
+
+- desktop: **77.9 % of 12 MiB, 81.7 % of 12 MB — inside on both readings**, the first viewing point since V2 to be;
+- mobile: **155.8 % of 6 MiB, 163.4 % of 6 MB — over on both readings**, as every viewing point has been.
+
+V5 was 15,330,856 bytes; V6 is 5,526,114 bytes (36 %) smaller. The owner console's estimate for this pass was 6–8 MB; the artifact is over that estimate by 1.8–3.8 MB. Where the estimate went wrong: every payload is carried as base64, which is 4/3 of its bytes, and the porthole and window layers (2.4 MB encoded) were kept unchanged because the owner praised the window. Nothing was cut for the number.
+
+### Findings from the review of `a4f8b70`, addressed
+
+- **KR-55** — `Visor.tsx` no longer returns nothing under reduced motion: `faceAppearance` is a pure function that, with reduced motion, freezes time, opens the eyes, flattens the pulse and keeps each state's form and colour; a static face is drawn and redrawn only on a change of state. Tested in `test/demo.test.ts` (blocked and passed stay distinct). `PHASE_1_HOW_TO_LOOK_V5.md` carries a dated correction to "both are still with reduced motion".
+- **KR-56** — the S2 scope contradiction is recorded in `PHASE_1_STYLISED_SPEC.md` §7.1, and this run record exists.
+- **KR-57** — the visor mesh is built by `buildVisorMesh` in `visorFit.ts`, which sets the double-sided material, `frustumCulled = false` and `visible = true`; `test/visor.test.ts` asserts all three on the object it returns, and holds `Visor.tsx` by source to using that builder through `<primitive>` with no JSX mesh, no material of its own, no `.side =`, no `frustumCulled =`, no `visible =` and no `return null`. Honestly stated: the object-level checks are the real test; the source guards close the routes a component has to undo them, and a new route would need a new guard.
+
+### The visor bound
+
+`test/visor.test.ts` keeps `MAX_GAP = 0.015`. Measured worst gaps on the fitted panels: Fabricator 9.6 mm, Prover 8.0 mm, Keeper 12.0 mm; Virgil 8.6 mm in his joint's units, which is 5.1 mm at scale (his panel is fitted in the joint frame at 0.6 m per unit, so the bound is effectively 9 mm for him). The console's prediction that Virgil's head might trip the bound did not come true. The Prover's did, once: a panel top at 1.32 m was lifted 16.5 mm over the helmet's brim ridge; the panel's top was lowered to 1.295 m, under the ridge, and the bound was not touched.
+
 ### What was not done
 
 No performance measurement. No look on real graphics hardware. The three characters are unrigged by the owner's note, so the hand-off is one-sided. Generation prompts and times for all nine models are outstanding. The Prover and Keeper model assignments are provisional (`cast.ts`). The Owner Build's `#/s1` spikes are unchanged.

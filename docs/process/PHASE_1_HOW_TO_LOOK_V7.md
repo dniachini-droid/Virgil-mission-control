@@ -103,6 +103,14 @@ Captured from the built file on this machine's software renderer — at 1440 × 
 - **The retired room still opens** behind `V`, with the same cast in it; it is not composed for and is not offered for judgement.
 - The machines that produce these screenshots draw in software and show glow and colour differently from a real screen; they are for catching gross errors and for judging the close-ups, not for judging the look.
 
+## Three things known to be wrong, and not yet addressed
+
+Seen by the owner console in its own render of this file at 1280 × 800 and 390 × 664, recorded here so you are not the one to discover them. They are the next pass, not this one.
+
+1. **Too many screens, and they overlap.** At the top of the phone frame Virgil's three slabs, the three floating panels and the three stations' own painted screens crowd together, and one panel partly hides another. To be exact about what is there: the stations' screens are the static ones your models were made with — nothing was drawn onto them in this pass; your idea of mapping them, like the visors, is written down in the spec for the pass after this one, and when it lands the floating panels go and the count falls. Your three slabs above Virgil stay, as you asked.
+2. **Virgil does not read as the conductor.** He is small, low in the frame and the least prominent of the four. The arrangement that put all four on the phone put him nearest the camera but lowest in a frame seen from above.
+3. **The frame is bottom-heavy:** his console fills the lower half, the cast sits in a band across the middle, the screens crowd the top.
+
 ## Not in this viewing point
 
 The walking rigs (not yet sent), the consoles' own screens carrying the information (your later idea, recorded in the spec as queued for the pass after this one), sound, real events, any performance measurement, any look on real graphics hardware.
