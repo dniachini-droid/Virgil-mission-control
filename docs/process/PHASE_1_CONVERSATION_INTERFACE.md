@@ -81,6 +81,43 @@ And beneath those, a normal unrestricted chat box where the owner can type anyth
 animated command centre. The 3D world makes it understandable and lovable; the
 Virgil chat makes it genuinely useful."
 
+## 5a. Decisions taken, 8 September 2026
+
+The owner answered three questions in the owner console. These are settled and the build
+does not reopen them.
+
+1. **What feeds the conversation: a sample conversation *and* a real transcript the owner
+   drops onto the page.** The page opens with a written sample so the layout reads
+   immediately, and accepts a Claude Code session transcript dragged onto it, rendering the
+   real conversation — history, Markdown, code blocks, terminal output, tool calls, diffs,
+   and the images embedded in it. Read-only. Nothing is uploaded and nothing leaves the
+   machine: a dropped file is read in the page, and the artifact makes no network request
+   (`verify:owner` fails the build if it ever does). This is what makes the first build show
+   real content rather than invented content, and it is the only part of the interface that
+   can be honest about it in Phase 1.
+   **A dropped transcript is the owner's own data and never enters this repository.** No
+   transcript is committed as a fixture; the parser's tests run against synthesised records.
+2. **At narrow widths the 3D panel shows the Virgil close-up**, not the whole set — his face
+   and console, animated, reacting. The wide symmetrical set does not survive a third of the
+   width; the characters become specks. This applies to the desktop's 35 % panel and to the
+   phone's header.
+3. **The composer is present and typeable, with an honest label** saying it is not connected
+   to a session yet. Text typed into it is kept. It never pretends to have sent anything.
+
+Decided by this session, not asked, and open to correction:
+
+- **The conversation's text uses the reader's own system fonts.** The artifact is already
+  over the mobile transfer budget (133.9 % of 6 MiB at V8); a conversation UI needs far more
+  glyph coverage than the 3D screens' subsets, and a full text and monospace pair would add
+  hundreds of kilobytes for no gain the owner would see. The custom subsets stay where they
+  earn their place: on the screens in the world.
+- **The greeting states what is actually true at the time.** With the demo running it
+  describes the demo's current beat, so the world and the conversation never disagree; with a
+  transcript loaded it describes that transcript's last state. It is never a fixed sentence
+  that outlives the thing it describes.
+- **The three suggested actions act on the view**, not on a session: go to the agent
+  concerned, open the evidence, pause. Labelled as what they are.
+
 ## 6. What this costs, stated plainly
 
 Recording this is not planning it. Four things in it are not small, and none of them
