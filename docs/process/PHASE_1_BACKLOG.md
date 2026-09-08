@@ -330,6 +330,50 @@ Recorded as direction the owner gave, not as decisions. None of it is a decision
   Also required: **a speed control** — fast by default, since that is what he asked for, but able to slow
   down so a beat can be looked at rather than only glimpsed.
 
+## The owner's decision of 9 September: polish stops at V10
+
+*"let's stop at V10 and start building the product."*
+
+**Binding on every pass after V10.** The visual work is done being the priority. The structural
+defects that made the slice look cheap are all fixed and measured — faceted console screens (V8.1),
+square inset pictures (V8.2), milky glass (V8.3), faceted visors, Meshy's eye indents and the light
+marks (V8.3, V9), the dark and lifeless set (V8.2), the wrong camera (V8.1), the slab gap (V9). What
+remains on the visual side is cosmetic, and "beautiful" is an unbounded goal that would absorb every
+night it is given.
+
+**What is deliberately left unfinished, and stays unfinished until the owner asks otherwise:**
+
+- The CRT collapse has never been seen by anyone, in five passes. It is built and held by a test; no
+  capture can reach it because it is driven by each station's own power clock. One entry point would
+  fix that and it is not worth a pass on its own.
+- The close-ups still crop the characters out of their own stations, against the owner's V8 §0.10.8
+  direction. The panel now carries the text, so the re-framing is cheap whenever it is wanted.
+- The ledger's role names are unreadable at the wide view — by design (shape and colour at distance),
+  and also a limit: names need a bigger slab or fewer rows.
+- The phone's slab honesty bands are unreadable at the wide view.
+- The consoles still read as decimated generated meshes at their edges when the light crosses them.
+  Lighting them well was never going to make them smooth; that is a modelling decision the owner has
+  been shown a picture of and has not taken.
+
+**What "the product" means next, in the order this session would build it.** Each step is buildable
+inside the owner-build constraint — one file, opened from `file://`, no network, no server:
+
+1. **The conversation at full size.** The panel V9 built is the first piece of it. The rest is the
+   desktop 35/65 split with a draggable boundary and a focus button, and the phone's full-screen
+   conversation with Virgil in an animated header and the composer pinned — all recorded with the
+   owner's decisions in `docs/process/PHASE_1_CONVERSATION_INTERFACE.md`.
+2. **The dropped transcript.** Decided on 8 September and deferred twice so the panel could be
+   designed properly. It is what makes the interface show the owner's own work rather than a
+   demonstration: he drags a session transcript onto the page and reads it in Virgil's interface.
+   Read-only, nothing uploaded, no network request — `verify:owner` fails the build if one appears.
+3. **A real state snapshot, baked at build time.** V10 proves the method: real content read out of the
+   repository and committed into the artifact. The same machinery can carry this repository's actual
+   current state — its branches, its commits, its check results, its open findings — so the world shows
+   what is true as of the build rather than a fixed schedule. That is what `docs/process/PHASE_1_BRIEF.md`
+   reserves for Phase 2, achieved without a server, and it is the step where this stops being a
+   depiction and starts being an instrument.
+4. **Live sessions** remain Phase 3 and remain owner-gated. Merge stays the owner's alone.
+
 ## Waiting on the owner
 
 - **Delete the scratch branch `claude/ci-failure-demo`** — needs owner. One commit on top of `dd2c48f` carrying a deliberate external `fetch()`, pushed on 2026-09-08 to prove CI fails on a network escape (it did). The session cannot remove it: `git push origin --delete` returns 403 and the REST ref deletion is refused by the proxy. One `git push origin --delete claude/ci-failure-demo` from a machine that can. Nothing from it is merged.
