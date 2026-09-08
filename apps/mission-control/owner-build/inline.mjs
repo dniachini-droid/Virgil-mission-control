@@ -25,7 +25,7 @@ const outDir = join(appRoot, 'dist', 'owner-build');
 // one Downloads folder sort and read unambiguously — the owner served
 // themselves an older build from a folder of `virgil-s2-v1…v6` files and
 // lost an evening to it. The stage and the short SHA follow.
-const stageSlug = process.env.VIRGIL_OWNER_STAGE_SLUG ?? 'v9-s2';
+const stageSlug = process.env.VIRGIL_OWNER_STAGE_SLUG ?? 'v10-s2';
 const shortSha = (
   process.env.VIRGIL_OWNER_SHA ??
   execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
