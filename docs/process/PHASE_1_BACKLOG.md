@@ -147,9 +147,20 @@ Recorded as direction the owner gave, not as decisions. None of it is a decision
 
   **What must not be done.** These visors are not spherical: up to 42, 155 and 122 mm from a best-fit
   sphere. Fitting an analytic sphere and snapping the surface onto it would visibly deform the faces
-  the owner designed. The Prover's 154.53 mm says his selection probably wraps around the sides of the
-  head rather than being a single front-facing cap; that should be checked before anything touches it,
-  and it may need a tighter selection or its own treatment.
+  the owner designed.
+
+  **Correction, from V8.3's measurements: this session's inference about the Prover was wrong.** It read
+  his 154.53 mm as evidence that his selection wraps around the sides of the head rather than being a
+  single front-facing cap. A best-fit-sphere residual measures how far a surface is from *spherical*,
+  not how far it is from *convex*, and the two are unrelated: his selection is a wide, strongly
+  elliptical band — nowhere near a sphere, and after smoothing **the most convex of the three at 95.1 %
+  of interior vertices**. The wide spread of his triangle normals, which this session also read as
+  wrapping, is what a convex dome gives too. No visor needed its own method; subdivision with a pinned
+  boundary preserves whatever shape it is given and assumes no cap.
+  **The one that is genuinely not convex is the Keeper** — 49.0 % of interior vertices, worst wrong-way
+  curvature 539 /m, largest quadric residual 1.38 mm — because his painted region includes a fold in
+  his hood. It was measured and reported rather than flattened, since flattening it would deform a face
+  the owner designed.
 
   **The approach that satisfies "curved as now, completely smooth, convex":** subdivide the extracted
   visor (two levels takes a 40 mm facet to 10 mm, three to 5 mm), smooth interior positions while
