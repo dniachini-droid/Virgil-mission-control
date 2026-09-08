@@ -268,7 +268,10 @@ function Cast({
       <ScreenBank
         content={state.content}
         outcome={state.outcome}
-        onOpen={(slab: SlabName) => onOpen({ kind: 'slab', slab }, 'board')}
+        seconds={state.seconds}
+        onOpen={(slab: SlabName, row?: number) =>
+          onOpen(row === undefined ? { kind: 'slab', slab } : { kind: 'ledger', row }, 'board')
+        }
       />
       {ROLES.map((role) => {
         const member = state.cast[role];

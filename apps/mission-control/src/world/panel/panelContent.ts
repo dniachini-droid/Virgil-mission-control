@@ -3,6 +3,7 @@ import { CAST, ROLES } from '../room/cast.js';
 import { BEATS, type DemoState, type Report, type StationState } from '../room/demo.js';
 import { room } from '../room/palette.js';
 import { CANDIDATE_ID } from '../screens/candidate.js';
+import { ledgerAt } from '../screens/ledger.js';
 import { countsFor } from '../screens/stationScreen.js';
 import {
   evidenceLines,
@@ -419,9 +420,19 @@ function slabDoc(state: DemoState, slab: SlabName): PanelDoc {
   };
 }
 
-/** The document for a target at the demonstration's current beat. */
+/**
+ * The document for a target at the demonstration's current beat.
+ *
+ * A ledger row opens **that hop**, which is the owner's decision of
+ * 8 September: the row carries shape and colour at distance and the panel
+ * carries the whole of it. The row's role comes from the ledger's own
+ * derivation, so the row the reader clicked and the document they get are
+ * the same hop.
+ */
 export function panelDoc(state: DemoState, target: PanelTarget): PanelDoc {
   if (target.kind === 'role') return roleDoc(state, target.role);
   if (target.kind === 'slab') return slabDoc(state, target.slab);
-  return slabDoc(state, 'roles');
+  const rows = ledgerAt(state.seconds, state.outcome);
+  const row = rows[target.row];
+  return row ? roleDoc(state, row.role) : slabDoc(state, 'roles');
 }

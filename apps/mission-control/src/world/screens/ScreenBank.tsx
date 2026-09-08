@@ -7,15 +7,17 @@ import { createGlassMaterial, createRoundedConvexGlassGeometry } from '../glass.
 import type { SlabName } from '../panel/panelContent.js';
 import type { Outcome, ScreenContent } from '../room/demo.js';
 import { layout, room } from '../room/palette.js';
-import { SLAB_ARRIVAL } from './arrival.js';
+import { RETURNING, SLAB_ARRIVAL } from './arrival.js';
 import { CANDIDATE_ID } from './candidate.js';
 import {
+  BAND_HEIGHT,
   bigWord,
   brackets,
   type Ctx,
   DIM,
   dataLine,
   display,
+  FAINT,
   finish,
   fitFont,
   frame,
@@ -23,15 +25,26 @@ import {
   OWNER_GOLD,
   quieten,
   RULE,
-  ring,
+  roundRect,
   spaced,
   TEXT,
 } from './draw.js';
 import { loadScreenFonts } from './fonts.js';
+import {
+  elapsedOf,
+  inFlight,
+  isSettled,
+  LEDGER_HEAD_PX,
+  LEDGER_ROWS,
+  LONGEST_HOP,
+  ledgerAt,
+  ledgerRowHeight,
+  rowAtUv,
+} from './ledger.js';
 import { clamp01, drift, easeOut, landing } from './motion.js';
 import { drawReturn, withdrawal } from './returning.js';
 import { evidenceLines } from './tally.js';
-import { verdictLook } from './verdicts.js';
+import { drawVerdictMark, verdictLook } from './verdicts.js';
 
 /**
  * Virgil's three slabs, above him: the owner's one exception to the
@@ -56,27 +69,45 @@ import { verdictLook } from './verdicts.js';
  * panel, on the thick amber stripe along its foot.
  */
 
-const ROLES = ['Virgil', 'Fabricator', 'Prover', 'Keeper'];
-
 export function ScreenBank({
   content,
   outcome,
+  seconds,
   onOpen,
 }: {
   content: ScreenContent;
   outcome: Outcome;
+  /** The demonstration's own clock: the ledger's elapsed column is time. */
+  seconds: number;
   /** Clicking a slab opens that slab's own record in the panel (V9). */
-  onOpen: (slab: SlabName) => void;
+  onOpen: (slab: SlabName, row?: number) => void;
 }) {
   const { y, z, spread, splay } = layout.screenBank;
   const since = useRef({ verdict: '' as string, at: 0, candidate: '' as string, candidateAt: 0 });
+  /*
+   * The demonstration's clock, carried between phase boundaries. `useDemo`
+   * re-renders React only when a beat changes, so `seconds` is the time of
+   * the last boundary; the slab's own clock advances every frame, and the
+   * elapsed column has to be time and not a step. This is the whole of the
+   * arithmetic that makes the bar grow.
+   */
+  const demoClock = useRef({ seconds: -1, atT: 0 });
   return (
     <group>
       <Panel
         position={[-spread, y - 0.08, z + 0.35]}
         rotation={[-0.1, splay, 0]}
+        fps={24}
         onOpen={() => onOpen('roles')}
-        draw={(c, t, corner) => drawRoles(c, t, content, corner)}
+        onOpenRow={(row) => onOpen('roles', row)}
+        draw={(c, t, corner) => {
+          const dc = demoClock.current;
+          if (dc.seconds !== seconds) {
+            dc.seconds = seconds;
+            dc.atT = t;
+          }
+          drawLedger(c, t, seconds + (t - dc.atT), content, outcome, corner);
+        }}
       />
       <Panel
         position={[0, y, z]}
@@ -222,11 +253,16 @@ function Slab({
   height,
   texture,
   onOpen,
+  onOpenRow,
+  canvasHeight,
 }: {
   width: number;
   height: number;
   texture: THREE.Texture;
   onOpen: () => void;
+  /** A click inside the ledger's rows, if this slab has any. */
+  onOpenRow?: ((row: number) => void) | undefined;
+  canvasHeight: number;
 }) {
   const { bezel, plate, recess, bulge, radius, openingRadius, displayWidth, displayHeight } =
     slabPlan(width, height);
@@ -283,7 +319,16 @@ function Slab({
         position={[0, 0, -recess]}
         onClick={(event) => {
           event.stopPropagation();
-          onOpen();
+          // A ledger row, if the point is in one: the owner's *"clicking a
+          // row opens that hop"*. The row is derived from the texture
+          // coordinate the raycast returned, through the same layout the
+          // drawing uses (`ledger.ts`), so the two cannot disagree.
+          const row =
+            onOpenRow && event.uv
+              ? rowAtUv(event.uv.y, canvasHeight, canvasHeight - BAND_HEIGHT)
+              : null;
+          if (onOpenRow && row !== null) onOpenRow(row);
+          else onOpen();
         }}
       >
         <planeGeometry args={[displayWidth, displayHeight]} />
@@ -330,6 +375,7 @@ function Panel({
   fps = 12,
   draw,
   onOpen,
+  onOpenRow,
 }: {
   position: [number, number, number];
   rotation: [number, number, number];
@@ -339,6 +385,7 @@ function Panel({
   fps?: number;
   draw: (canvas: HTMLCanvasElement, t: number, corner: number) => void;
   onOpen: () => void;
+  onOpenRow?: ((row: number) => void) | undefined;
 }) {
   // Suspends until both faces are registered, so the first frame is set in
   // them and never in the fallback.
@@ -370,37 +417,171 @@ function Panel({
 
   return (
     <group position={position} rotation={rotation}>
-      <Slab width={width} height={height} texture={texture} onOpen={onOpen} />
+      <Slab
+        width={width}
+        height={height}
+        texture={texture}
+        onOpen={onOpen}
+        onOpenRow={onOpenRow}
+        canvasHeight={plan.canvasHeightPixels}
+      />
     </group>
   );
 }
 
 // ------------------------------------------------------------- drawing
 
-function drawRoles(canvas: HTMLCanvasElement, t: number, content: ScreenContent, corner: number) {
+/**
+ * **The ledger** (V9, item 2). The owner: *"the screen on the far left
+ * (virgils far left screen) should really have a list of the agents used,
+ * and next to it the outcome, and that updates (with fancy animations) as
+ * it happens, but also remains on the screen so at a glance you can see
+ * where its up to."*
+ *
+ * `ledger.ts` derives the board; this draws it. Every row is drawn so
+ * that it reads at three distances, which is what "at a glance" has to
+ * mean on a 0.9 m slab at eleven metres:
+ *
+ *  - **at distance**, the role's glyph in a heavy box, the verdict's own
+ *    shape from `verdicts.ts`, its colour, and the elapsed bar's length;
+ *  - **up close**, the role's name and the elapsed seconds as text;
+ *  - **in the panel**, the whole hop — one click on the row.
+ *
+ * The returning convergence lands into its row: a row's mark seals over
+ * the same `RETURNING` window the console and the verdict slab use, so
+ * the beat and the record are one event and there is no second source of
+ * truth about when a verdict arrived.
+ */
+function drawLedger(
+  canvas: HTMLCanvasElement,
+  t: number,
+  seconds: number,
+  content: ScreenContent,
+  outcome: Outcome,
+  corner: number,
+) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const { width: w, height: h } = canvas;
-  const floor = frame(ctx, w, h, 'ROLES', room.emit.cyan, 0, corner);
-  const active = content.active ?? 'VIRGIL';
-  bigWord(ctx, active.toUpperCase(), 64, 150, w - 128, content.active ? room.warm.amber : TEXT);
-  // Four rings, one per role; the active one filled, the others glowing in
-  // turn, softly, so the row reads as switched on.
-  const y = floor - 92;
-  const pitch = (w - 128) / ROLES.length;
-  ROLES.forEach((role, i) => {
-    const on = role === active;
-    const wave = content.active ? 0 : 0.5 + 0.5 * drift(t, 0.35, -i * 1.2);
-    ring(ctx, 64 + pitch * i + 40, y, 30, on ? room.warm.amber : room.emit.cyan, on);
-    if (!on && wave > 0) {
-      ctx.globalAlpha = 0.5 * wave;
-      ctx.fillStyle = room.emit.cyan;
-      ctx.beginPath();
-      ctx.arc(64 + pitch * i + 40, y, 22 * wave, 0, Math.PI * 2);
+  const rows = ledgerAt(seconds, outcome);
+  const settled = isSettled(rows, outcome);
+  const open = inFlight(rows);
+  const tint = open ? room.warm.amber : settled ? room.emit.teal : room.emit.cyan;
+  const floor = frame(ctx, w, h, 'LEDGER', tint, 0, corner);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, w, floor);
+  ctx.clip();
+
+  // The candidate this board belongs to. It clears per candidate (the
+  // owner's decision), so its identity has to be on it or a new run
+  // cannot be told from a continuation of the old one. On its own line,
+  // clear of the title above and the first row below.
+  const head = LEDGER_HEAD_PX;
+  dataLine(
+    ctx,
+    content.candidate ? `CANDIDATE ${CANDIDATE_ID}` : 'NO CANDIDATE',
+    64,
+    head - 58,
+    w - 128,
+    content.candidate ? room.emit.magenta : DIM,
+    44,
+  );
+
+  const rowHeight = ledgerRowHeight(floor);
+  for (let i = 0; i < LEDGER_ROWS; i += 1) {
+    const y = head + i * rowHeight;
+    const row = rows[i];
+    // The rule under every slot, whether or not a hop has reached it: the
+    // board's shape does not change as it fills, so nothing jumps.
+    ctx.strokeStyle = FAINT;
+    ctx.lineWidth = RULE - 4;
+    ctx.beginPath();
+    ctx.moveTo(64, y + rowHeight - 12);
+    ctx.lineTo(w - 64, y + rowHeight - 12);
+    ctx.stroke();
+    if (!row) continue;
+
+    const look = verdictLook(row.report ?? '—');
+    const colour = row.report ? look.tint : room.warm.amber;
+    const centre = y + rowHeight / 2 - 8;
+    // 1. The glyph, in a heavy box: the role, at any distance.
+    ctx.strokeStyle = colour;
+    ctx.lineWidth = RULE;
+    ctx.strokeRect(64, centre - 46, 92, 92);
+    ctx.fillStyle = colour;
+    ctx.font = display(72);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(row.glyph, 64 + 46, centre + 4);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+
+    // 2. The name, up close.
+    ctx.fillStyle = row.report ? TEXT : DIM;
+    ctx.font = display(52);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(row.label, 188, centre - 18);
+    ctx.textBaseline = 'top';
+
+    // 3. The elapsed bar: its length is the time, against the longest hop
+    //    any of them takes, so two rows can be compared.
+    const elapsed = elapsedOf(row, seconds);
+    const barX = 188;
+    // The elapsed number sits between the bar and the mark, so the three
+    // never overlap however long the number gets.
+    const numberW = 140;
+    const markW = 150;
+    const barW = w - 64 - markW - numberW - barX;
+    ctx.fillStyle = FAINT;
+    roundRect(ctx, barX, centre + 16, barW, 22, 6);
+    ctx.fill();
+    ctx.fillStyle = colour;
+    const fraction = clamp01(elapsed / LONGEST_HOP);
+    roundRect(ctx, barX, centre + 16, Math.max(6, barW * fraction), 22, 6);
+    ctx.fill();
+    // A live row's bar carries a bright head, so "still running" reads
+    // without waiting to see whether the bar grows.
+    if (!row.report) {
+      ctx.fillStyle = room.emit.ice;
+      const headX = barX + Math.max(6, barW * fraction);
+      ctx.globalAlpha = 0.5 + 0.5 * (0.5 + 0.5 * drift(t, 1.4));
+      roundRect(ctx, headX - 14, centre + 14, 14, 26, 5);
       ctx.fill();
       ctx.globalAlpha = 1;
     }
-  });
+    ctx.font = mono(40);
+    ctx.fillStyle = row.report ? DIM : room.emit.ice;
+    ctx.textAlign = 'right';
+    ctx.fillText(`${elapsed.toFixed(1)}S`, barX + barW + numberW - 16, centre + 14);
+    ctx.textAlign = 'left';
+
+    // 4. The verdict's own shape, in its own colour — and while the hop
+    //    is unresolved, an open mark, never a blank. The seal is driven
+    //    from the report's own arrival, so the convergence on the
+    //    console and the mark on this row are the same event.
+    // Small enough that a mark and its findings sit inside their own row:
+    // the notches ride 26 px outside the ring, so 34 + 26 is under half a
+    // row's height and two rows' marks cannot touch.
+    const markX = w - 64 - 46;
+    const since = row.endedAt === null ? 0 : seconds - row.endedAt;
+    const seal =
+      row.report === null
+        ? 0.42 + 0.14 * drift(t, 0.5)
+        : clamp01((since - RETURNING.converge) / (RETURNING.land - RETURNING.converge));
+    const mark = row.report === null ? 0 : clamp01((since - RETURNING.land) / 0.5);
+    drawVerdictMark(
+      ctx,
+      markX,
+      centre,
+      34,
+      row.report ?? 'INSUFFICIENT_EVIDENCE',
+      seal,
+      mark,
+      row.report === 'PASS_WITH_NON_BLOCKING_FINDINGS' ? 3 : 0,
+    );
+  }
+  ctx.restore();
   finish(ctx, w, h, t);
   if (content.ownerGate) quieten(ctx, w, h, 0.72);
 }

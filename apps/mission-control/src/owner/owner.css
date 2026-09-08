@@ -148,8 +148,19 @@
   flex-basis: 100%;
   margin-left: 0;
 }
+/*
+ * **V9, item 2: the badge moves off the ledger.** It sat under the
+ * controls at the top left, which is exactly where Virgil's far-left slab
+ * is at the wide view — so the board the owner asked to be readable "at a
+ * glance" was behind the one label that may never be hidden. It goes to
+ * the foot of the stage instead: still fixed, still always visible while
+ * the demonstration runs, still opaque, and over nothing that carries
+ * state.
+ */
 .room-demo-badge {
-  top: 124px;
+  top: auto;
+  bottom: 12px;
+  left: 12px;
 }
 .room-stage canvas {
   cursor: default;
@@ -180,7 +191,8 @@
     display: none;
   }
   .room-demo-badge {
-    top: 74px;
+    top: auto;
+    bottom: 8px;
     left: 8px;
     right: 8px;
     max-width: none;

@@ -304,9 +304,9 @@ describe('one tap does both, and back is one step per level', () => {
 
   it('opens a panel from every screen in the world', () => {
     const roomSrc = src('world/room/VirgilRoom.tsx');
-    expect(roomSrc).toContain(
-      "onOpen={(slab: SlabName) => onOpen({ kind: 'slab', slab }, 'board')}",
-    );
+    // A slab opens its own record; a ledger row opens that hop (V9, item 2).
+    expect(roomSrc).toContain("{ kind: 'slab', slab }");
+    expect(roomSrc).toContain("{ kind: 'ledger', row }");
     expect(roomSrc).toContain("onOpen={() => onOpen({ kind: 'role', role }, role)}");
     expect(src('world/screens/ConsoleScreen.tsx')).toContain('onClick=');
     expect(src('world/screens/ScreenBank.tsx')).toContain('onClick=');
