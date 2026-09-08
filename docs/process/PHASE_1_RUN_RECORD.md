@@ -356,13 +356,15 @@ The screen builder's original behaviour is unchanged and still its default — a
 
 The V8 artifact, pressing `2` after `__virgilDemo` existed, at 1280 × 800: Virgil's head filling the right half, the Fabricator's screen a sliver at the upper left. The same route on the V8.1 build: the Fabricator's screen filling the frame, legible, unoccluded, the panel opaque. The Prover at loop 2 t = 33.8 s (`INSUFFICIENT_EVIDENCE`): V8's dial across the right end of the screen, V8.1's screen whole and flat. The Keeper at loop 0 t = 40 s. The Fabricator in portrait at 390 × 664, before and after. Before defect 4, the honesty band and the corner brackets are visibly warped on all three consoles; after, they are straight.
 
+Four frames were then taken from the **committed** artifact, which is the file the owner opens, and looked at: `2` after `__virgilDemo` existed at 1280 × 800 (the Fabricator's screen filling the frame, `FABRICATOR / WORKING`, the band a straight rectangle, the footer reading `viewing point V8.1`); `3` at loop 2 t = 33.8 s (the Prover's screen whole, no dial across it); and both close-ups at 390 × 664, where the whole screen sits inside the frame with air around it and the band is legible — the fault a fixed 40° lens caused.
+
 ### Checks run on `64e2e74`, every one in the foreground
 
 - **`pnpm check`** — biome 190 files clean, no fixes applied; `turbo run typecheck` 8 tasks; **129 tests passed** across 12 test files in `mission-control` and **235 across the five packages** (agent-contracts 70, domain 104, gate-engine 19, knowledge-graph 24, visual-language 18), 364 in total, 0 failed, 0 skipped; then `build:owner` and `verify:owner` — `browser chromium 141.0.7390.37 — /opt/pw-browsers/chromium (preinstalled, substituted for the pinned build)`; `routes (tabletop), (retired room), #/s1, #/spike/foundry, #/spike/mind`; `requests 1, off-document 0`; `console errors 0`; **PASS — opens from `file://`, no console errors, no off-document requests**. Warnings printed and not failed on, as in V6–V8: the `THREE.Clock` and `PCFSoftShadowMap` deprecations and SwiftShader's ReadPixels stalls.
 - **Mind Scan** (`pnpm --filter @virgil/knowledge-lint run lint`) — `knowledge graph: 82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `graph hash sha256:a86250498e12d01d9be701610b1947b0bec39c34739816ddb2e0334ea6e0d6d1`; **`mind scan: no findings`**.
 - **`build:owner` from a clean tree** at `64e2e74` (`git status --short` empty before it ran) — `v8-1-s2-virgil-64e2e74678.html`, `8.04 MB (8432557 bytes)`, `sha256 c6ade0cc0871b714cbdde45689cd02facd3f4cd6fa4d977311afd2968eb1390b`. The footer carries no `+uncommitted changes` marker.
 - **`sha256sum -c`** over every committed Owner Build digest — all **ten OK**, including the new one.
-- **`pnpm reproduce:owner`** — see below.
+- **`pnpm reproduce:owner`** — newest artifact `v8-1-s2-virgil-64e2e74678.html`; recovered source commit `64e2e746782930c0efc6a494177511cc54f3956c` and build date `2026-09-08 12:36 UTC` from the artifact's own bytes; rebuilt in a detached worktree at that commit; `cmp` **identical**; `sha256 c6ade0cc0871b714cbdde45689cd02facd3f4cd6fa4d977311afd2968eb1390b (8432557 bytes)`, which is the committed digest. **PASS — the committed artifact is byte-for-byte derivable from its commit.**
 
 ### Size, against both readings of the budget
 
