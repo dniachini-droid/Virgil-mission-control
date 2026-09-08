@@ -665,7 +665,7 @@ describe('the panel’s tables can be read to their end', () => {
     }
   });
 
-  it('scopes the ellipsis to the pair, and lets the other shape wrap', () => {
+  it('scopes the narrow first column to the pair, and abbreviates in neither', () => {
     const css = src('world/panel/panel.css');
     // The collapse that caused it exists only behind the pair's class.
     for (const match of css.matchAll(/max-width: 0;/g)) {
@@ -674,6 +674,14 @@ describe('the panel’s tables can be read to their end', () => {
         '.panel-table-pairs',
       );
     }
+    // And no table cell anywhere in the panel is abbreviated to fit: a
+    // label that does not fit wraps, as every other word in this world
+    // does. `first candidate` was drawn as `first ca...` until V10.
+    const tableRules = css
+      .split('}')
+      .filter((rule) => /\.panel-table/.test(rule))
+      .join('}');
+    expect(tableRules).not.toContain('text-overflow');
     expect(css).toMatch(
       /\.panel-table-columns td,\s*\n\.panel-table-columns th \{[^}]*white-space: normal/,
     );

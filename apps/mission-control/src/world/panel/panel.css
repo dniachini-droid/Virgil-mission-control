@@ -323,17 +323,21 @@
 /*
  * **A table of exactly two columns: a label and a value.**
  *
- * The label absorbs the slack and ellipsises if it must; the value sits
- * against the right edge. That is right for `FIELD / VALUE` and it is the
- * only shape it is right for, which is why it is now behind a class
- * rather than applying to every table.
+ * The label absorbs the slack; the value sits against the right edge.
+ * That is right for `FIELD / VALUE` and it is the only shape it is right
+ * for, which is why it is now behind a class rather than applying to
+ * every table.
+ *
+ * The label **wraps** where it does not fit, and does not ellipsise. It
+ * did until V10, and the replay's forty-character SHAs left so little
+ * room beside them that `first candidate` was drawn as `first ca…` — an
+ * abbreviation, which this world does not do anywhere else.
  */
 .panel-table-pairs td:first-child,
 .panel-table-pairs th:first-child {
   width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
   max-width: 0;
+  white-space: normal;
 }
 .panel-table-pairs td:last-child,
 .panel-table-pairs th:last-child {
