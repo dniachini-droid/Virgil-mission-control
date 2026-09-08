@@ -19,6 +19,9 @@ import {
 import { Figure } from '../characters/Figure.js';
 import { VirgilRigged } from '../characters/VirgilRigged.js';
 import type { FaceState } from '../characters/Visor.js';
+import { Panel } from '../panel/Panel.js';
+import type { PanelTarget, SlabName } from '../panel/panelContent.js';
+import { publishDemoState } from '../panel/panelStore.js';
 import { ConsoleScreen } from '../screens/ConsoleScreen.js';
 import { ScreenBank } from '../screens/ScreenBank.js';
 import { CAST, ROLES, type Role } from './cast.js';
@@ -63,6 +66,21 @@ export function VirgilRoom() {
   const [demo, setDemo] = useState(true);
   const [view, setView] = useState<View>(() => initialView());
   const [focus, setFocus] = useState<Focus>(() => initialFocus());
+  /**
+   * Which screen's full record is open, if any (V9). **The tap does two
+   * things at once** — the owner's decision, against this session's earlier
+   * recommendation: *"tapping a screen opens the panel straight away and
+   * takes you there — but the panel opens up so you can see it instantly,
+   * while you are being taken there."* So `open` sets both, in one event,
+   * and the panel renders from data while the camera flies underneath it.
+   * Closing the panel clears only the panel: the reader is left at the
+   * station, never snapped back.
+   */
+  const [panel, setPanel] = useState<PanelTarget | null>(null);
+  const open = (target: PanelTarget, to: Focus) => {
+    setPanel(target);
+    setFocus(to);
+  };
   const [settings] = useState(() => ({
     reducedMotion: prefersReducedMotion(),
     tier: detectTier(),
@@ -83,10 +101,12 @@ export function VirgilRoom() {
       else if (event.key === '4') setFocus('keeper');
       else if (event.key === '5') setFocus('board');
       else if (event.key === '0' || event.key === 'Escape') setFocus('all');
+      else if (event.key === 'p' || event.key === 'P')
+        setPanel((current) => (current ? null : panelFor(focus)));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [focus]);
 
   const start = cameraPose(view, focus, viewportAspect());
   return (
@@ -125,7 +145,7 @@ export function VirgilRoom() {
               </>
             )}
             <Orrery />
-            <Cast demo={demo} onSelect={setFocus} />
+            <Cast demo={demo} onSelect={setFocus} onOpen={open} />
             <Ready />
           </Suspense>
           <Rig view={view} focus={focus} />
@@ -187,6 +207,7 @@ export function VirgilRoom() {
             Virgil's three screens; Esc comes back. V shows the retired room.
           </span>
         </div>
+        <Panel target={panel} onClose={() => setPanel(null)} />
         {demo ? (
           <div className="room-demo-badge" role="status">
             SCRIPTED DEMONSTRATION — a fixed thirty-second loop driven by no real events. Every
@@ -214,16 +235,31 @@ function Backdrop({ view }: { view: View }) {
  * console's own screen and its light, the console spotlit while they
  * work. Driven by the demo timeline when it runs, otherwise resting.
  */
-function Cast({ demo, onSelect }: { demo: boolean; onSelect: (focus: Focus) => void }) {
+function Cast({
+  demo,
+  onSelect,
+  onOpen,
+}: {
+  demo: boolean;
+  onSelect: (focus: Focus) => void;
+  onOpen: (target: PanelTarget, to: Focus) => void;
+}) {
   const forced = forcedFace();
   const running = useDemo(demo && forced === null);
   const state = forced ? forcedState(forced) : running;
+  // The panel is DOM outside the canvas and reads the demonstration from
+  // here, so a beat change re-renders the panel and nothing in the scene.
+  publishDemoState(state);
   const virgilBusy = state.pose !== 'rest' || state.virgilFace !== 'idle';
   return (
     <>
       <VirgilConsole active={virgilBusy && !state.content.ownerGate} />
       <VirgilRigged pose={state.pose} face={state.virgilFace} onSelect={() => onSelect('virgil')} />
-      <ScreenBank content={state.content} outcome={state.outcome} />
+      <ScreenBank
+        content={state.content}
+        outcome={state.outcome}
+        onOpen={(slab: SlabName) => onOpen({ kind: 'slab', slab }, 'board')}
+      />
       {ROLES.map((role) => {
         const member = state.cast[role];
         return (
@@ -236,6 +272,7 @@ function Cast({ demo, onSelect }: { demo: boolean; onSelect: (focus: Focus) => v
               report={member.report}
               outcome={state.outcome}
               quiet={state.content.ownerGate ? 0.75 : 0}
+              onOpen={() => onOpen({ kind: 'role', role }, role)}
             />
             <StationLight role={role} activity={member.activity} report={member.report} />
           </group>
@@ -531,6 +568,17 @@ function forcedFace(): FaceState | null {
 /** `#/?view=room` opens on the retired room; the tabletop otherwise. */
 function initialView(): View {
   return query().get('view') === 'room' ? 'room' : 'tabletop';
+}
+
+/**
+ * Which record the `P` key opens: the one belonging to whatever the camera
+ * is already looking at, so the keyboard can reach the panel at a named
+ * entry point for the captures without a click landing on a moving mesh.
+ */
+function panelFor(focus: Focus): PanelTarget | null {
+  if (focus === 'board' || focus === 'virgil') return { kind: 'slab', slab: 'verdict' };
+  if (focus === 'all') return { kind: 'slab', slab: 'roles' };
+  return { kind: 'role', role: focus };
 }
 
 /** `#/?cam=prover` opens looking at the Prover, for the captures. */

@@ -733,8 +733,13 @@ function drawReported(
   );
 }
 
-/** The agent's own counts at the verdict: the shape of what they produced. */
-function countsFor(role: Role, outcome: Outcome): string[] {
+/**
+ * The agent's own counts at the verdict: the shape of what they produced.
+ * **Exported because the panel reads it** — the screen is a summary of the
+ * panel and the two must not be separately written texts
+ * (`docs/process/PHASE_1_CONVERSATION_INTERFACE.md` §5b).
+ */
+export function countsFor(role: Role, outcome: Outcome): string[] {
   if (role === 'prover') {
     const t = proverTally(100, outcome);
     const parts = [`PASSED ${t.passed}`, `FAILED ${t.failed}`];

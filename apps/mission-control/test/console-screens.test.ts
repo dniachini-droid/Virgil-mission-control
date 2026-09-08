@@ -615,8 +615,17 @@ describe('the floating panels are gone', () => {
     expect(room).toContain('<ConsoleScreen');
     const screen = src('world/screens/ConsoleScreen.tsx');
     expect(screen).toContain('buildVisorMeshes(');
-    expect(screen).toContain('<primitive object={screen.face} />');
-    expect(screen).toContain('<primitive object={screen.glass} />');
+    // V9: the face primitive now carries the click that opens the panel,
+    // so the assertion is the stronger form of what it was protecting —
+    // there are exactly two primitives, they are the builder's own two
+    // meshes, and the only thing added to either is the click handler.
+    const primitives = [...screen.matchAll(/<primitive\b([\s\S]*?)\/>/g)].map((m) => m[1] ?? '');
+    expect(primitives).toHaveLength(2);
+    expect(primitives[0]).toContain('object={screen.face}');
+    expect(primitives[1]).toContain('object={screen.glass}');
+    expect(primitives[1]?.replace('object={screen.glass}', '').trim()).toBe('');
+    expect(primitives[0]?.replace('object={screen.face}', '')).toMatch(/^[\s\S]*onClick=[\s\S]*$/);
+    expect(primitives[0]).not.toMatch(/geometry=|material=|position=|scale=/);
     expect(screen).not.toMatch(/<mesh[\s>]/);
     expect(screen).not.toMatch(/new THREE\.(Mesh|Shader)\w*Material/);
     // No second glass: the set's one glass, through the builder.

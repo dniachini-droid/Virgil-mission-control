@@ -4,9 +4,11 @@ import { use, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
 import { createGlassMaterial, createRoundedConvexGlassGeometry } from '../glass.js';
+import type { SlabName } from '../panel/panelContent.js';
 import type { Outcome, ScreenContent } from '../room/demo.js';
 import { layout, room } from '../room/palette.js';
 import { SLAB_ARRIVAL } from './arrival.js';
+import { CANDIDATE_ID } from './candidate.js';
 import {
   bigWord,
   brackets,
@@ -56,7 +58,16 @@ import { verdictLook } from './verdicts.js';
 
 const ROLES = ['Virgil', 'Fabricator', 'Prover', 'Keeper'];
 
-export function ScreenBank({ content, outcome }: { content: ScreenContent; outcome: Outcome }) {
+export function ScreenBank({
+  content,
+  outcome,
+  onOpen,
+}: {
+  content: ScreenContent;
+  outcome: Outcome;
+  /** Clicking a slab opens that slab's own record in the panel (V9). */
+  onOpen: (slab: SlabName) => void;
+}) {
   const { y, z, spread, splay } = layout.screenBank;
   const since = useRef({ verdict: '' as string, at: 0, candidate: '' as string, candidateAt: 0 });
   return (
@@ -64,12 +75,14 @@ export function ScreenBank({ content, outcome }: { content: ScreenContent; outco
       <Panel
         position={[-spread, y - 0.08, z + 0.35]}
         rotation={[-0.1, splay, 0]}
+        onOpen={() => onOpen('roles')}
         draw={(c, t, corner) => drawRoles(c, t, content, corner)}
       />
       <Panel
         position={[0, y, z]}
         rotation={[-0.1, 0, 0]}
         fps={24}
+        onOpen={() => onOpen('verdict')}
         draw={(c, t, corner) => {
           const s = since.current;
           if (s.verdict !== content.verdict) {
@@ -82,6 +95,7 @@ export function ScreenBank({ content, outcome }: { content: ScreenContent; outco
       <Panel
         position={[spread, y - 0.08, z + 0.35]}
         rotation={[-0.1, -splay, 0]}
+        onOpen={() => onOpen('candidate')}
         draw={(c, t, corner) => {
           const s = since.current;
           const key = `${content.candidate}:${content.ownerGate}`;
@@ -177,10 +191,12 @@ function Slab({
   width,
   height,
   texture,
+  onOpen,
 }: {
   width: number;
   height: number;
   texture: THREE.Texture;
+  onOpen: () => void;
 }) {
   const { bezel, plate, recess, bulge, radius, openingRadius, displayWidth, displayHeight } =
     slabPlan(width, height);
@@ -233,7 +249,13 @@ function Slab({
       {/* The display, under the glass: a little wider than the opening so its
           edges hide behind the lip. Its plane's own size, which the canvas
           is now drawn at (V8.3). */}
-      <mesh position={[0, 0, -recess]}>
+      <mesh
+        position={[0, 0, -recess]}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen();
+        }}
+      >
         <planeGeometry args={[displayWidth, displayHeight]} />
         <meshBasicMaterial map={texture} toneMapped={false} />
       </mesh>
@@ -277,6 +299,7 @@ function Panel({
   height = 0.8,
   fps = 12,
   draw,
+  onOpen,
 }: {
   position: [number, number, number];
   rotation: [number, number, number];
@@ -285,6 +308,7 @@ function Panel({
   /** How often the canvas is redrawn. */
   fps?: number;
   draw: (canvas: HTMLCanvasElement, t: number, corner: number) => void;
+  onOpen: () => void;
 }) {
   // Suspends until both faces are registered, so the first frame is set in
   // them and never in the fallback.
@@ -316,7 +340,7 @@ function Panel({
 
   return (
     <group position={position} rotation={rotation}>
-      <Slab width={width} height={height} texture={texture} />
+      <Slab width={width} height={height} texture={texture} onOpen={onOpen} />
     </group>
   );
 }
@@ -438,13 +462,6 @@ function drawVerdict(
   if (content.ownerGate) quieten(ctx, w, h, 0.72);
 }
 
-/** Deterministic "hex" from an integer: a texture, not a value. */
-function hex(seed: number, length: number): string {
-  let out = '';
-  for (let i = 0; i < length; i += 1) out += ((seed * 31 + i * 17 + (seed >> 3)) % 16).toString(16);
-  return out;
-}
-
 /**
  * The candidate slab: its state, in the constitution's words, landing
  * with weight on each change; beneath it an identity-shaped string that
@@ -486,7 +503,7 @@ function drawCandidate(
     ctx.font = mono(84);
     ctx.fillStyle = room.emit.magenta;
     ctx.textBaseline = 'top';
-    ctx.fillText(hex(7, 10), 64, floor - 124);
+    ctx.fillText(CANDIDATE_ID, 64, floor - 124);
     ctx.strokeStyle = room.emit.magenta;
     ctx.lineWidth = RULE;
     ctx.globalAlpha = 0.5;

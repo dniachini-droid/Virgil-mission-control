@@ -45,6 +45,7 @@ export function ConsoleScreen({
   report,
   outcome,
   quiet = 0,
+  onOpen,
 }: {
   role: Role;
   state: StationState;
@@ -52,6 +53,12 @@ export function ConsoleScreen({
   outcome: Outcome;
   /** 0..1: how quiet the screen is held (the owner gate). */
   quiet?: number;
+  /**
+   * Clicking the screen opens that agent's full record in the panel (V9).
+   * The screen carries the glance; the panel carries everything, from the
+   * same source (`panel/panelContent.ts`).
+   */
+  onOpen: () => void;
 }) {
   use(loadScreenFonts());
   const member = CAST[role];
@@ -157,7 +164,13 @@ export function ConsoleScreen({
 
   return createPortal(
     <>
-      <primitive object={screen.face} />
+      <primitive
+        object={screen.face}
+        onClick={(event: { stopPropagation: () => void }) => {
+          event.stopPropagation();
+          onOpen();
+        }}
+      />
       <primitive object={screen.glass} />
     </>,
     parent,

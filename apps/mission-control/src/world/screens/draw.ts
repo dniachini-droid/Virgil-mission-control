@@ -161,8 +161,40 @@ export function frame(
   ctx.textAlign = 'left';
   ctx.fillText(title, Math.max(64, margin + 42), 54 + cornerInset(corner, 54 + 72));
   spaced(ctx, '0em');
+  expandCue(ctx, w, margin, tint, corner);
   band(ctx, w, h, corner);
   return h - BAND_HEIGHT;
+}
+
+/**
+ * The affordance, drawn on every screen: **a phone has no hover.**
+ *
+ * The owner's rule (`docs/process/PHASE_1_CONVERSATION_INTERFACE.md`
+ * §5b): *"a persistent cue on each screen — a corner bracket or expand
+ * glyph — rather than a highlight that only a mouse can find."* So it is
+ * baked into the picture, in the tint, at the top right inside the
+ * screen's own bracket: two chevrons pointing out of the corner. It says
+ * the surface opens; it says nothing about state, and it never moves, so
+ * it cannot be read as a beat.
+ */
+export function expandCue(ctx: Ctx, w: number, margin: number, tint: string, corner: number) {
+  const x = w - margin - 40 - Math.ceil(cornerInset(corner, 44));
+  const y = margin + 40;
+  ctx.save();
+  ctx.strokeStyle = tint;
+  ctx.globalAlpha = 0.7;
+  ctx.lineWidth = RULE - 2;
+  ctx.lineCap = 'butt';
+  for (const k of [0, 1]) {
+    const o = k * 22;
+    ctx.beginPath();
+    ctx.moveTo(x - 18 + o, y + 18 - o);
+    ctx.lineTo(x + o, y + 18 - o);
+    ctx.lineTo(x + o, y - o);
+    ctx.stroke();
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
 }
 
 /**
