@@ -9,6 +9,7 @@ import { crtFrame, POWER_OFF_SECONDS } from './crt.js';
 import { loadScreenFonts } from './fonts.js';
 import { SCREEN_CANVAS_PIXELS, screenPlan } from './screenPlane.js';
 import { drawStation } from './stationScreen.js';
+import type { HopWork } from './work.js';
 
 /**
  * A role console's own screen, carrying the information.
@@ -45,12 +46,19 @@ export function ConsoleScreen({
   report,
   outcome,
   quiet = 0,
+  work,
   onOpen,
 }: {
   role: Role;
   state: StationState;
   report: Report;
   outcome: Outcome;
+  /**
+   * What this station is doing, as data. The replay supplies the run's own
+   * counts, check names and finding severities; the scripted
+   * demonstration leaves it undefined and `tally.ts`'s fixtures are used.
+   */
+  work?: HopWork | undefined;
   /** 0..1: how quiet the screen is held (the owner gate). */
   quiet?: number;
   /**
@@ -158,6 +166,7 @@ export function ConsoleScreen({
       outcome,
       quiet,
       corner,
+      work,
     );
     texture.needsUpdate = true;
   });

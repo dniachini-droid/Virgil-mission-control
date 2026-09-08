@@ -1,3 +1,4 @@
+import { replayPanelDoc } from '../replay/replayContent.js';
 import type { Role } from '../room/cast.js';
 import { CAST, ROLES } from '../room/cast.js';
 import { BEATS, type DemoState, type Report, type StationState } from '../room/demo.js';
@@ -98,6 +99,23 @@ export interface PanelDoc {
   lead: string;
   sections: PanelSection[];
   evidence: string[];
+  /**
+   * The honesty marking, when it is not the demonstration's.
+   *
+   * Absent for the scripted demonstration, which carries
+   * `Illustrative · not real state` — the words are in `Panel.tsx` and
+   * stay there. The replay sets its own, because a replay of a recorded
+   * run is real evidence played back and the illustrative band would
+   * understate the truth as badly as dropping it would overstate it.
+   */
+  band?: { title: string; note: string };
+  /**
+   * Where every figure in this document came from: the repository file,
+   * the section or field inside it, and the commit. Present in the replay,
+   * where the rule is that every line must be answerable with "where in
+   * the repository does this come from".
+   */
+  provenance?: { document: string; section: string; commit: string }[];
 }
 
 const line = (text: string): PanelRow => ({ cells: [text] });
@@ -449,6 +467,9 @@ function slabDoc(state: DemoState, slab: SlabName): PanelDoc {
  * the same hop.
  */
 export function panelDoc(state: DemoState, target: PanelTarget): PanelDoc {
+  // The replay renders the same shape from the recorded run, with its own
+  // band and its provenance. One panel, two sources, no second renderer.
+  if (state.mode === 'replay') return replayPanelDoc(state, target);
   if (target.kind === 'role') return roleDoc(state, target.role);
   if (target.kind === 'slab') return slabDoc(state, target.slab);
   const rows = ledgerAt(state.seconds, state.outcome);

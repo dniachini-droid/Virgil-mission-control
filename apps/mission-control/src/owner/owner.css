@@ -162,6 +162,23 @@
   bottom: 12px;
   left: 12px;
 }
+/*
+ * **V10: the replay's badge, and why it is a different colour.**
+ *
+ * The two modes make opposite claims about their own truthfulness. The
+ * scripted demonstration says nothing on screen is real; the replay says
+ * everything on screen is a past fact read out of the repository. If the
+ * one label that may never be hidden looked the same in both, a glance
+ * could not tell them apart — so the replay's badge takes the world's ice
+ * on a deep ground instead of the demonstration's amber on a burnt one.
+ * Same place, same size, same opacity, and it still may never be hidden.
+ * No colour is introduced: `--ice` is the world's own.
+ */
+.room-demo-badge.is-recorded {
+  background: #041022;
+  border-color: var(--ice);
+  color: var(--ice);
+}
 .room-stage canvas {
   cursor: default;
 }

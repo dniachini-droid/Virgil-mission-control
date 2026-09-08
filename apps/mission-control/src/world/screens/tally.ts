@@ -70,9 +70,20 @@ export interface ProverTally {
   checks: { state: CheckResult; progress: number }[];
 }
 
-/** The Prover's counts `since` seconds into the working beat. */
-export function proverTally(since: number, outcome: Outcome): ProverTally {
-  const checks = proverChecks(outcome);
+/**
+ * The Prover's counts `since` seconds into the working beat.
+ *
+ * `schedule` overrides the demonstration's fixture: the replay passes the
+ * checks the record actually names, with the results it records
+ * (`screens/work.ts`). Nothing else changes — the same arithmetic, the
+ * same drawing.
+ */
+export function proverTally(
+  since: number,
+  outcome: Outcome,
+  schedule?: readonly Check[],
+): ProverTally {
+  const checks = schedule ? [...schedule] : proverChecks(outcome);
   const tally: ProverTally = {
     running: 0,
     passed: 0,
@@ -129,14 +140,24 @@ export interface KeeperTally {
   raised: Finding[];
 }
 
-/** The Keeper's counts `since` seconds into the review. */
-export function keeperTally(since: number): KeeperTally {
-  const raised = KEEPER_FINDINGS.filter((f) => since >= f.at);
+/**
+ * The Keeper's counts `since` seconds into the review. `schedule` and
+ * `readSeconds` override the demonstration's fixture; the replay passes
+ * the findings the independent Keeper actually raised, with the severities
+ * the record gives them.
+ */
+export function keeperTally(
+  since: number,
+  schedule?: readonly Finding[],
+  readSeconds = 5.6,
+): KeeperTally {
+  const all = schedule ?? KEEPER_FINDINGS;
+  const raised = all.filter((f) => since >= f.at);
   return {
     findings: raised.length,
     blocking: raised.filter((f) => f.severity === 'blocking').length,
-    read: Math.min(1, Math.max(0, since / 5.6)),
-    raised,
+    read: Math.min(1, Math.max(0, since / readSeconds)),
+    raised: [...raised],
   };
 }
 
@@ -151,15 +172,24 @@ export interface FabricatorTally {
 export const FABRICATOR_FILES = [0.4, 0.9, 1.5, 1.9, 2.6, 3.4, 4.1, 4.9];
 export const FABRICATOR_COMMITS = [2.2, 4.4, 5.6];
 
-/** The Fabricator's counts `since` seconds into the build. */
-export function fabricatorTally(since: number): FabricatorTally {
-  const files = FABRICATOR_FILES.filter((t) => since >= t).length;
-  const next = FABRICATOR_FILES[files];
-  const previous = files > 0 ? (FABRICATOR_FILES[files - 1] as number) : 0;
+/**
+ * The Fabricator's counts `since` seconds into the build. `fileTimes` and
+ * `commitTimes` override the demonstration's fixture; the replay passes
+ * one entry per path and per commit the run really made, so the counter
+ * reads the run's own numbers.
+ */
+export function fabricatorTally(
+  since: number,
+  fileTimes: readonly number[] = FABRICATOR_FILES,
+  commitTimes: readonly number[] = FABRICATOR_COMMITS,
+): FabricatorTally {
+  const files = fileTimes.filter((t) => since >= t).length;
+  const next = fileTimes[files];
+  const previous = files > 0 ? (fileTimes[files - 1] as number) : 0;
   const writing = next === undefined ? 1 : Math.min(1, (since - previous) / (next - previous));
   return {
     files,
-    commits: FABRICATOR_COMMITS.filter((t) => since >= t).length,
+    commits: commitTimes.filter((t) => since >= t).length,
     writing: Math.max(0, writing),
   };
 }

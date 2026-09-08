@@ -223,7 +223,7 @@ export function Panel({ target, onClose }: { target: PanelTarget | null; onClose
       <section
         className="panel"
         ref={sheet}
-        aria-label={`${doc.title} — illustrative, not real state`}
+        aria-label={`${doc.title} — ${doc.band ? 'a recorded run, replayed; not live state' : 'illustrative, not real state'}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -247,12 +247,28 @@ export function Panel({ target, onClose }: { target: PanelTarget | null; onClose
           </button>
         </header>
         {/* The honesty marking: prominent, at full width, on every
-            document, directly under the header — never a footnote. */}
+            document, directly under the header — never a footnote.
+
+            **Two modes, two markings, and never the wrong one.** The
+            scripted demonstration's words are here; the replay carries its
+            own on the document, because a recorded run played back is real
+            evidence and calling it illustrative would understate the truth
+            as badly as dropping the band would overstate it. Same place,
+            same prominence, same amber. */}
         <div className="panel-band">
-          <b>Illustrative · not real state</b>
-          <span>
-            A scripted demonstration. No event, no check and no review drives anything below.
-          </span>
+          {doc.band ? (
+            <>
+              <b>{doc.band.title}</b>
+              <span>{doc.band.note}</span>
+            </>
+          ) : (
+            <>
+              <b>Illustrative · not real state</b>
+              <span>
+                A scripted demonstration. No event, no check and no review drives anything below.
+              </span>
+            </>
+          )}
         </div>
         <div className="panel-body" ref={body}>
           <div className="panel-scrollrail" ref={scrollRail}>
@@ -309,6 +325,31 @@ export function Panel({ target, onClose }: { target: PanelTarget | null; onClose
               ))}
             </div>
           </section>
+          {/* Where every figure above came from. The replay's rule: each
+              document names the file, the part of it, and the commit. */}
+          {doc.provenance ? (
+            <section className="panel-block wide">
+              <h3 className="panel-section-title">Where this comes from</h3>
+              <table className="panel-table">
+                <thead>
+                  <tr>
+                    <th>DOCUMENT</th>
+                    <th>SECTION</th>
+                    <th>COMMIT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {doc.provenance.map((source) => (
+                    <tr key={`${source.document}:${source.section}`}>
+                      <td>{source.document}</td>
+                      <td>{source.section}</td>
+                      <td>{source.commit}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          ) : null}
         </div>
         <div className="panel-foot">
           {/* Present, typeable, and honest: it is not connected to a

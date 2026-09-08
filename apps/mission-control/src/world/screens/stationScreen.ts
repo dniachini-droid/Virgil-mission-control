@@ -36,8 +36,17 @@ import {
   staggered,
 } from './motion.js';
 import { drawReturn, withdrawal } from './returning.js';
-import { fabricatorTally, keeperTally, proverTally } from './tally.js';
+import {
+  type Check,
+  FABRICATOR_COMMITS,
+  FABRICATOR_FILES,
+  fabricatorTally,
+  keeperTally,
+  proverChecks,
+  proverTally,
+} from './tally.js';
 import { verdictLook } from './verdicts.js';
+import type { HopWork } from './work.js';
 
 /**
  * What an agent's console screen shows: the occupant's name as the
@@ -107,6 +116,12 @@ export function drawStation(
   outcome: Outcome,
   quiet = 0,
   corner = 0,
+  /**
+   * What this station is doing, when the caller has it as data (the
+   * replay). Absent in the scripted demonstration, which falls back to
+   * `tally.ts`'s illustrative fixtures. `screens/work.ts` says why.
+   */
+  work?: HopWork,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -121,7 +136,21 @@ export function drawStation(
     roundRect(ctx, 0, 0, w, h, corner);
     ctx.clip();
   }
-  drawStationPicture(ctx, w, h, t, since, occupant, role, state, report, outcome, quiet, corner);
+  drawStationPicture(
+    ctx,
+    w,
+    h,
+    t,
+    since,
+    occupant,
+    role,
+    state,
+    report,
+    outcome,
+    quiet,
+    corner,
+    work,
+  );
   ctx.restore();
 }
 
@@ -138,6 +167,7 @@ function drawStationPicture(
   outcome: Outcome,
   quiet: number,
   corner: number,
+  work: HopWork | undefined,
 ) {
   const reported = state === 'REPORTED';
   const tint =
@@ -157,8 +187,8 @@ function drawStationPicture(
   ctx.clip();
   if (state === 'READY') drawReady(ctx, w, floor, t, tint);
   else if (state === 'RECEIVING') drawReceiving(ctx, w, floor, since, t, arrival, tint);
-  else if (state === 'WORKING') drawWorking(ctx, w, floor, since, role, outcome, tint);
-  else drawReported(ctx, w, floor, since, role, report, outcome, arrival);
+  else if (state === 'WORKING') drawWorking(ctx, w, floor, since, role, outcome, tint, work);
+  else drawReported(ctx, w, floor, since, role, report, outcome, arrival, work);
   ctx.restore();
   finish(ctx, w, h, t);
   if (quiet > 0) quieten(ctx, w, h, quiet);
@@ -400,12 +430,13 @@ function drawWorking(
   role: Role,
   outcome: Outcome,
   tint: string,
+  work?: HopWork,
 ) {
   const arrive = clamp01(since / 0.5);
   bigWord(ctx, 'WORKING', 64, 130, w - 128 - 300, tint, arrive, 150);
-  if (role === 'prover') drawProverWork(ctx, w, floor, since, outcome, tint);
-  else if (role === 'keeper') drawKeeperWork(ctx, w, floor, since, tint);
-  else drawFabricatorWork(ctx, w, floor, since, tint);
+  if (role === 'prover') drawProverWork(ctx, w, floor, since, outcome, tint, work);
+  else if (role === 'keeper') drawKeeperWork(ctx, w, floor, since, tint, work);
+  else drawFabricatorWork(ctx, w, floor, since, tint, work);
 }
 
 /** The Prover: checks running in sequence and overlapping, counted. */
@@ -416,8 +447,10 @@ function drawProverWork(
   since: number,
   outcome: Outcome,
   tint: string,
+  work?: HopWork,
 ) {
-  const tally = proverTally(since, outcome);
+  const schedule = work?.kind === 'checks' ? work.checks : undefined;
+  const tally = proverTally(since, outcome, schedule);
   const top = 300;
   const bottom = floor - 40;
   const visible = 6;
@@ -431,7 +464,7 @@ function drawProverWork(
     const c = tally.checks[i] as { state: string; progress: number };
     if (c.state === 'running' && c.progress > 0) first = Math.max(0, i - (visible - 2));
   }
-  const scroll = easeOut(clamp01((since - proverStartOf(first)) / 0.35));
+  const scroll = easeOut(clamp01((since - proverStartOf(first, schedule)) / 0.35));
   const offset = first > 0 ? (1 - scroll) * pitch : 0;
   for (
     let i = Math.max(0, first - 1);
@@ -468,14 +501,14 @@ function drawProverWork(
     const mx = barX + 70 + barW + 26;
     const ms = pitch * 0.62;
     if (c.state === 'passed') {
-      const pop = landing(clamp01((since - proverEndOf(i, outcome)) / 0.3), 0.3);
+      const pop = landing(clamp01((since - proverEndOf(i, outcome, schedule)) / 0.3), 0.3);
       ctx.save();
       ctx.translate(mx + ms / 2, y + pitch / 2);
       ctx.scale(pop, pop);
       tick(ctx, -ms / 2, -ms / 2, PASS_GREEN, ms, 1);
       ctx.restore();
     } else if (c.state === 'failed') {
-      const pop = landing(clamp01((since - proverEndOf(i, outcome)) / 0.3), 0.3);
+      const pop = landing(clamp01((since - proverEndOf(i, outcome, schedule)) / 0.3), 0.3);
       ctx.save();
       ctx.translate(mx + ms / 2, y + pitch / 2);
       ctx.scale(pop, pop);
@@ -514,18 +547,32 @@ function drawProverWork(
   ctx.textAlign = 'left';
 }
 
-function proverStartOf(i: number): number {
-  return 0.2 + i * 0.36;
+/**
+ * When check `i` starts and ends, in seconds into the working beat. Both
+ * read the schedule in force — the replay's recorded checks when it has
+ * one, the demonstration's fixture otherwise — so the tick can never pop
+ * at a moment the bar did not finish.
+ */
+function proverStartOf(i: number, schedule?: readonly Check[]): number {
+  const check = (schedule ?? proverChecks('PASS'))[i];
+  return check ? check.start : 0.2 + i * 0.36;
 }
-function proverEndOf(i: number, outcome: Outcome): number {
-  const checks = proverTally(100, outcome);
-  void checks;
-  return 0.2 + i * 0.36 + 0.85 + ((i * 7) % 4) * 0.08;
+function proverEndOf(i: number, outcome: Outcome, schedule?: readonly Check[]): number {
+  const check = (schedule ?? proverChecks(outcome))[i];
+  return check ? check.start + check.seconds : 0.2 + i * 0.36 + 0.85 + ((i * 7) % 4) * 0.08;
 }
 
 /** The Keeper: a page being read, a cursor moving down it, findings flagged. */
-function drawKeeperWork(ctx: Ctx, w: number, floor: number, since: number, tint: string) {
-  const tally = keeperTally(since);
+function drawKeeperWork(
+  ctx: Ctx,
+  w: number,
+  floor: number,
+  since: number,
+  tint: string,
+  work?: HopWork,
+) {
+  const review = work?.kind === 'review' ? work : undefined;
+  const tally = keeperTally(since, review?.findings, review?.readSeconds);
   const top = 300;
   const bottom = floor - 40;
   const pageX = 64;
@@ -614,8 +661,18 @@ function drawKeeperWork(ctx: Ctx, w: number, floor: number, since: number, tint:
 }
 
 /** The Fabricator: files written, commits made. */
-function drawFabricatorWork(ctx: Ctx, w: number, floor: number, since: number, tint: string) {
-  const tally = fabricatorTally(since);
+function drawFabricatorWork(
+  ctx: Ctx,
+  w: number,
+  floor: number,
+  since: number,
+  tint: string,
+  work?: HopWork,
+) {
+  const build = work?.kind === 'build' ? work : undefined;
+  const fileTimes = build ? build.files : FABRICATOR_FILES;
+  const commitTimes = build ? build.commits : FABRICATOR_COMMITS;
+  const tally = fabricatorTally(since, fileTimes, commitTimes);
   const top = 300;
   const bottom = floor - 40;
   const x = 64;
@@ -626,7 +683,7 @@ function drawFabricatorWork(ctx: Ctx, w: number, floor: number, since: number, t
     const y = top + i * pitch + pitch * 0.25;
     const len = colW * (0.4 + 0.55 * scatter(i, 31));
     if (i < tally.files) {
-      const pop = landing(clamp01((since - (fabricatorFileAt(i) ?? 0)) / 0.35), 0.2);
+      const pop = landing(clamp01((since - (fileTimes[i] ?? 0)) / 0.35), 0.2);
       ctx.fillStyle = tint;
       ctx.globalAlpha = 0.85;
       roundRect(ctx, x, y, len * pop, pitch * 0.5, 6);
@@ -651,8 +708,9 @@ function drawFabricatorWork(ctx: Ctx, w: number, floor: number, since: number, t
     }
   }
   // Commits: a marker per commit down the right of the column, popping.
-  for (let c = 0; c < tally.commits; c += 1) {
-    const at = fabricatorCommitAt(c) ?? 0;
+  const markers = Math.min(tally.commits, 3);
+  for (let c = 0; c < markers; c += 1) {
+    const at = commitTimes[c] ?? 0;
     const pop = landing(clamp01((since - at) / 0.4), 0.3);
     const y = top + (bottom - top) * (0.2 + c * 0.3);
     ctx.save();
@@ -676,13 +734,6 @@ function drawFabricatorWork(ctx: Ctx, w: number, floor: number, since: number, t
   counter(ctx, 'COMMITS', tally.commits, 0, cx, 378, cw, tint, 60);
 }
 
-function fabricatorFileAt(i: number): number | undefined {
-  return [0.4, 0.9, 1.5, 1.9, 2.6, 3.4, 4.1, 4.9][i];
-}
-function fabricatorCommitAt(i: number): number | undefined {
-  return [2.2, 4.4, 5.6][i];
-}
-
 // ------------------------------------------------------------ reported
 
 /** The return: the verdict converging, with the agent's own counts beneath. */
@@ -695,6 +746,7 @@ function drawReported(
   report: Report,
   outcome: Outcome,
   arrival: Arrival,
+  work?: HopWork,
 ) {
   // The working content withdraws quickly toward the centre and fades.
   const gone = withdrawal(since);
@@ -704,11 +756,16 @@ function drawReported(
     ctx.translate(w / 2, floor / 2);
     ctx.scale(1 - gone * 0.4, 1 - gone * 0.4);
     ctx.translate(-w / 2, -floor / 2);
-    drawWorking(ctx, w, floor, 100, role, outcome, room.warm.amber);
+    drawWorking(ctx, w, floor, 100, role, outcome, room.warm.amber, work);
     ctx.restore();
   }
-  const lines = countsFor(role, outcome);
-  const findings = report === 'PASS_WITH_NON_BLOCKING_FINDINGS' ? keeperTally(100).findings : 0;
+  const lines = countsFor(role, outcome, work);
+  const findings =
+    report === 'PASS_WITH_NON_BLOCKING_FINDINGS'
+      ? work?.kind === 'review'
+        ? work.findings.length
+        : keeperTally(100).findings
+      : 0;
   drawReturn(
     ctx,
     w,
@@ -739,7 +796,10 @@ function drawReported(
  * panel and the two must not be separately written texts
  * (`docs/process/PHASE_1_CONVERSATION_INTERFACE.md` §5b).
  */
-export function countsFor(role: Role, outcome: Outcome): string[] {
+export function countsFor(role: Role, outcome: Outcome, work?: HopWork): string[] {
+  // The replay carries its own two lines, read off the record rather than
+  // computed from a fixture; they are the same shape and the same place.
+  if (work) return [...work.counts];
   if (role === 'prover') {
     const t = proverTally(100, outcome);
     const parts = [`PASSED ${t.passed}`, `FAILED ${t.failed}`];

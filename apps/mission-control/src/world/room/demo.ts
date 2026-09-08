@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import type { Activity } from '../characters/Figure.js';
 import type { VirgilPose } from '../characters/VirgilRigged.js';
 import type { FaceState } from '../characters/Visor.js';
+import type { HopWork } from '../screens/work.js';
 import type { Role } from './cast.js';
 
 /**
@@ -73,6 +74,12 @@ export interface MemberState {
   activity: Activity;
   station: StationState;
   report: Report;
+  /**
+   * What this station is doing, when the caller has it as data (the
+   * replay). Absent in the scripted demonstration, which uses `tally.ts`'s
+   * illustrative fixtures. See `screens/work.ts`.
+   */
+  work?: HopWork;
 }
 
 export interface ScreenContent {
@@ -84,7 +91,31 @@ export interface ScreenContent {
   candidate: CandidateState | null;
   /** The system has stopped and is waiting on the owner: everything quiet, one thing lit. */
   ownerGate: boolean;
+  /**
+   * The candidate's identity as the slabs and the ledger show it. The
+   * demonstration leaves it unset and `screens/candidate.ts` supplies its
+   * data-shaped string; the replay sets the run's real short SHA.
+   */
+  candidateId?: string;
+  /**
+   * The deterministic evidence under the verdict on the centre slab. The
+   * demonstration leaves it unset and `tally.ts`'s illustrative lines are
+   * used; the replay sets the run's own counts.
+   */
+  evidence?: readonly string[];
 }
+
+/**
+ * Which of the two modes is running.
+ *
+ * `demo` is the scripted thirty-second demonstration of invented content;
+ * `replay` is a recorded run played back faster than it happened
+ * (`world/replay/`). **They make opposite claims about their own
+ * truthfulness**, so nothing may be ambiguous about which is on: the
+ * honesty band's words change, the badge changes, and the panel's band
+ * changes with them.
+ */
+export type RunMode = 'demo' | 'replay';
 
 export interface DemoState {
   running: boolean;
@@ -92,6 +123,13 @@ export interface DemoState {
   loop: number;
   /** How this loop ends: what the Prover's checks are heading for. */
   outcome: Outcome;
+  /** Which mode produced this state. */
+  mode: RunMode;
+  /**
+   * Which beat of the recorded run is on screen, and at what speed. Set
+   * only in `replay`; the panel reads it to fetch that hop's record.
+   */
+  replay?: { beatId: string; speed: string };
   pose: VirgilPose;
   virgilFace: FaceState;
   cast: Record<Role, MemberState>;
@@ -138,6 +176,7 @@ export function demoAt(seconds: number, loop: number, running: boolean): DemoSta
     seconds,
     loop,
     outcome,
+    mode: 'demo',
     pose: 'rest',
     virgilFace: 'idle',
     cast: { fabricator: IDLE, prover: IDLE, keeper: IDLE },

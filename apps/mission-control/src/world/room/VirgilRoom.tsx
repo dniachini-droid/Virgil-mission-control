@@ -22,12 +22,22 @@ import type { FaceState } from '../characters/Visor.js';
 import { Panel } from '../panel/Panel.js';
 import type { PanelTarget, SlabName } from '../panel/panelContent.js';
 import { publishDemoState } from '../panel/panelStore.js';
+import { RUN, RUN_SECONDS, recordedClock, recordedDuration } from '../replay/recordedRun.js';
+import {
+  compressionOf,
+  DEFAULT_SPEED,
+  PLAYBACK_SECONDS,
+  REPLAY_SPEEDS,
+  type ReplaySpeed,
+  speedLabel,
+} from '../replay/replayTimeline.js';
+import { useReplay } from '../replay/useReplay.js';
 import { ConsoleScreen } from '../screens/ConsoleScreen.js';
-import { setBandOnTwoLines } from '../screens/draw.js';
+import { setBandOnTwoLines, setBandReplay } from '../screens/draw.js';
 import { ScreenBank } from '../screens/ScreenBank.js';
 import { CAST, ROLES, type Role } from './cast.js';
 import { closeUpPose } from './closeUp.js';
-import { forcedState, useDemo } from './demo.js';
+import { forcedState, type RunMode, useDemo } from './demo.js';
 import { FloorSheen } from './FloorSheen.js';
 import { LightingRig } from './LightingRig.js';
 import { PortholeFrame, Station, StationLight, VirgilConsole } from './Models.js';
@@ -65,6 +75,23 @@ export type Focus = 'all' | 'virgil' | 'board' | Role;
 
 export function VirgilRoom() {
   const [demo, setDemo] = useState(true);
+  /**
+   * **Which of the two things is running** (V10).
+   *
+   * `demo` is the scripted thirty-second loop of invented content, which
+   * teaches how the system works. `replay` is the Phase 0 consolidation —
+   * a run that actually happened — played back faster than it happened,
+   * with every figure read out of the repository's committed record. The
+   * scripted demonstration stays: this is a second mode, not a
+   * replacement.
+   *
+   * The two make **opposite claims about their own truthfulness**, so
+   * nothing may be ambiguous about which is on. The honesty band's words
+   * change on every screen and slab, the badge changes and changes
+   * colour, and the panel's band changes with them.
+   */
+  const [mode, setMode] = useState<RunMode>(() => initialMode());
+  const [speed, setSpeed] = useState<ReplaySpeed>(() => initialSpeed());
   const [view, setView] = useState<View>(() => initialView());
   const [focus, setFocus] = useState<Focus>(() => initialFocus());
   /**
@@ -98,6 +125,9 @@ export function VirgilRoom() {
    * canvas is drawn.
    */
   setBandOnTwoLines(coarse);
+  // And which band it is. Read here, before the first canvas is drawn, for
+  // the same reason: every screen in the set shares one answer to it.
+  setBandReplay(mode === 'replay');
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -113,6 +143,8 @@ export function VirgilRoom() {
       else if (event.key === '0' || event.key === 'Escape') setFocus('all');
       else if (event.key === 'p' || event.key === 'P')
         setPanel((current) => (current ? null : panelFor(focus)));
+      else if (event.key === 'r' || event.key === 'R')
+        setMode((m) => (m === 'replay' ? 'demo' : 'replay'));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -155,7 +187,7 @@ export function VirgilRoom() {
               </>
             )}
             <Orrery />
-            <Cast demo={demo} onSelect={setFocus} onOpen={open} />
+            <Cast demo={demo} mode={mode} speed={speed} onSelect={setFocus} onOpen={open} />
             <Ready />
           </Suspense>
           <Rig view={view} focus={focus} />
@@ -175,6 +207,45 @@ export function VirgilRoom() {
               Off
             </button>
           </span>
+          {/* The two modes, in the same idiom as Demo On/Off. */}
+          <span className="room-controls-group">
+            <span className="room-controls-label">Run</span>
+            <button
+              type="button"
+              className={mode === 'demo' ? 'is-active' : ''}
+              onClick={() => setMode('demo')}
+              title="A scripted thirty-second loop of invented content"
+            >
+              Scripted
+            </button>
+            <button
+              type="button"
+              className={mode === 'replay' ? 'is-active' : ''}
+              onClick={() => setMode('replay')}
+              title="The Phase 0 consolidation, a run that actually happened, replayed"
+            >
+              Replay
+            </button>
+          </span>
+          {/* Fast by default, and slowable so a beat can be looked at. The
+              label is the compression itself, derived from the run's
+              recorded span over the playback length — never asserted. */}
+          {mode === 'replay' ? (
+            <span className="room-controls-group">
+              <span className="room-controls-label">Speed</span>
+              {REPLAY_SPEEDS.map((option) => (
+                <button
+                  type="button"
+                  key={option}
+                  className={speed === option ? 'is-active' : ''}
+                  onClick={() => setSpeed(option)}
+                  title={`${recordedDuration(RUN_SECONDS)} of recorded work in ${PLAYBACK_SECONDS[option]} seconds of screen time`}
+                >
+                  {speedLabel(option)}
+                </button>
+              ))}
+            </span>
+          ) : null}
           <span className="room-controls-group">
             <span className="room-controls-label">View</span>
             <button
@@ -218,7 +289,18 @@ export function VirgilRoom() {
           </span>
         </div>
         <Panel target={panel} onClose={() => setPanel(null)} />
-        {demo ? (
+        {/* The badge, which may never be hidden, and which now has to say
+            which of two opposite claims is on screen. */}
+        {demo && mode === 'replay' ? (
+          <div className="room-demo-badge is-recorded" role="status">
+            RECORDED RUN, REPLAYED AT {compressionOf(speed)}× — the Phase 0 consolidation, which
+            began {recordedClock(RUN.startedAt)} and ran {recordedDuration(RUN_SECONDS)}. Candidate
+            3b9a964e was reviewed, passed with non-blocking findings and merged as{' '}
+            {RUN.mergeSha.slice(0, 7)}. Every figure is read out of this repository's committed
+            record. It is past fact, not live state.
+          </div>
+        ) : null}
+        {demo && mode === 'demo' ? (
           <div className="room-demo-badge" role="status">
             SCRIPTED DEMONSTRATION — a fixed thirty-second loop driven by no real events. Every
             screen is illustrative; nothing shown is this repository's state.
@@ -247,15 +329,24 @@ function Backdrop({ view }: { view: View }) {
  */
 function Cast({
   demo,
+  mode,
+  speed,
   onSelect,
   onOpen,
 }: {
   demo: boolean;
+  mode: RunMode;
+  speed: ReplaySpeed;
   onSelect: (focus: Focus) => void;
   onOpen: (target: PanelTarget, to: Focus) => void;
 }) {
   const forced = forcedFace();
-  const running = useDemo(demo && forced === null);
+  // Both clocks are mounted; the one that is not the current mode is idle.
+  // Hooks may not be called conditionally, and this keeps the render loop's
+  // two advances independent of React's ordering.
+  const scripted = useDemo(demo && forced === null && mode === 'demo');
+  const replayed = useReplay(demo && forced === null && mode === 'replay', speed);
+  const running = mode === 'replay' ? replayed : scripted;
   const state = forced ? forcedState(forced) : running;
   // The panel is DOM outside the canvas and reads the demonstration from
   // here, so a beat change re-renders the panel and nothing in the scene.
@@ -269,6 +360,8 @@ function Cast({
         content={state.content}
         outcome={state.outcome}
         seconds={state.seconds}
+        mode={state.mode}
+        speed={speed}
         onOpen={(slab: SlabName, row?: number) =>
           onOpen(row === undefined ? { kind: 'slab', slab } : { kind: 'ledger', row }, 'board')
         }
@@ -284,6 +377,7 @@ function Cast({
               state={member.station}
               report={member.report}
               outcome={state.outcome}
+              work={member.work}
               quiet={state.content.ownerGate ? 0.75 : 0}
               onOpen={() => onOpen({ kind: 'role', role }, role)}
             />
@@ -576,6 +670,24 @@ function query(): URLSearchParams {
 function forcedFace(): FaceState | null {
   const value = query().get('state');
   return (FACE_STATES as readonly string[]).includes(value ?? '') ? (value as FaceState) : null;
+}
+
+/**
+ * `#/?run=replay` opens on the replay, and `#/?speed=slow|fast|fastest`
+ * chooses its speed. Not features; the way the captures reach a named
+ * entry point deterministically, exactly as `#/?demo=` and `#/?cam=` are.
+ */
+function initialMode(): RunMode {
+  if (typeof window === 'undefined') return 'demo';
+  return query().get('run') === 'replay' ? 'replay' : 'demo';
+}
+
+function initialSpeed(): ReplaySpeed {
+  if (typeof window === 'undefined') return DEFAULT_SPEED;
+  const value = query().get('speed');
+  return (REPLAY_SPEEDS as readonly string[]).includes(value ?? '')
+    ? (value as ReplaySpeed)
+    : DEFAULT_SPEED;
 }
 
 /** `#/?view=room` opens on the retired room; the tabletop otherwise. */

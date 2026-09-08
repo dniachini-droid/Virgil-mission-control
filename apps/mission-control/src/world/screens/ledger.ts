@@ -62,6 +62,20 @@ export interface LedgerRow {
   endedAt: number | null;
   /** What it returned, or null while unresolved. */
   report: Report | null;
+  /**
+   * **Recorded time, when the row has any** (the replay).
+   *
+   * Present only in the replay, where `startedAt` and `endedAt` are beat
+   * indices on the playback clock and would be a lie if drawn as a
+   * duration. `seconds` is what the repository records for this hop, or
+   * `null` when it records nothing; `text` is what the column prints, and
+   * for a hop with no recorded duration that is the words `NOT RECORDED`
+   * and **no bar**, because a bar is a length and a length is a claim.
+   *
+   * Absent in the scripted demonstration, whose elapsed column is the
+   * demonstration's own clock and says so.
+   */
+  recorded?: { seconds: number | null; text: string };
 }
 
 /** The hops of one candidate, and when each begins and reports. */

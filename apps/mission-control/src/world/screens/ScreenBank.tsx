@@ -5,7 +5,9 @@ import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
 import { createGlassMaterial, createRoundedConvexGlassGeometry } from '../glass.js';
 import type { SlabName } from '../panel/panelContent.js';
-import type { Outcome, ScreenContent } from '../room/demo.js';
+import type { ReplaySpeed } from '../replay/replayTimeline.js';
+import { LONGEST_RECORDED_HOP, replayLedgerAt } from '../replay/replayTimeline.js';
+import type { Outcome, RunMode, ScreenContent } from '../room/demo.js';
 import { layout, room } from '../room/palette.js';
 import { RETURNING, SLAB_ARRIVAL } from './arrival.js';
 import { CANDIDATE_ID } from './candidate.js';
@@ -73,12 +75,18 @@ export function ScreenBank({
   content,
   outcome,
   seconds,
+  mode,
+  speed,
   onOpen,
 }: {
   content: ScreenContent;
   outcome: Outcome;
   /** The demonstration's own clock: the ledger's elapsed column is time. */
   seconds: number;
+  /** Which mode is running: the two bands and the two ledgers differ. */
+  mode: RunMode;
+  /** The replay's speed, which decides where its playback clock is. */
+  speed: ReplaySpeed;
   /** Clicking a slab opens that slab's own record in the panel (V9). */
   onOpen: (slab: SlabName, row?: number) => void;
 }) {
@@ -106,7 +114,7 @@ export function ScreenBank({
             dc.seconds = seconds;
             dc.atT = t;
           }
-          drawLedger(c, t, seconds + (t - dc.atT), content, outcome, corner);
+          drawLedger(c, t, seconds + (t - dc.atT), content, outcome, corner, mode, speed);
         }}
       />
       <Panel
@@ -459,11 +467,16 @@ function drawLedger(
   content: ScreenContent,
   outcome: Outcome,
   corner: number,
+  mode: RunMode,
+  speed: ReplaySpeed,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const { width: w, height: h } = canvas;
-  const rows = ledgerAt(seconds, outcome);
+  // One board, two sources. The replay's rows carry **recorded** time and
+  // the demonstration's carry the demonstration's own clock; the drawing
+  // below is the same for both and reads which it has from the row.
+  const rows = mode === 'replay' ? replayLedgerAt(seconds, speed) : ledgerAt(seconds, outcome);
   const settled = isSettled(rows, outcome);
   const open = inFlight(rows);
   const tint = open ? room.warm.amber : settled ? room.emit.teal : room.emit.cyan;
@@ -480,7 +493,7 @@ function drawLedger(
   const head = LEDGER_HEAD_PX;
   dataLine(
     ctx,
-    content.candidate ? `CANDIDATE ${CANDIDATE_ID}` : 'NO CANDIDATE',
+    content.candidate ? `CANDIDATE ${content.candidateId ?? CANDIDATE_ID}` : 'NO CANDIDATE',
     64,
     head - 58,
     w - 128,
@@ -524,36 +537,60 @@ function drawLedger(
     ctx.fillText(row.label, 188, centre - 18);
     ctx.textBaseline = 'top';
 
-    // 3. The elapsed bar: its length is the time, against the longest hop
-    //    any of them takes, so two rows can be compared.
-    const elapsed = elapsedOf(row, seconds);
+    // 3. The time column.
+    //
+    //    In the demonstration it is the elapsed bar: its length is the
+    //    time, against the longest hop any of them takes, so two rows can
+    //    be compared.
+    //
+    //    **In the replay it is recorded time and never playback time.**
+    //    Exactly one of this run's hops has a duration in the repository;
+    //    for the other eight the column prints `NOT RECORDED` and **no
+    //    bar is drawn at all**, because a bar is a length and a length
+    //    would be a claim the record cannot support. A compressed clock
+    //    reporting compressed durations would be a lie about how long the
+    //    work took, and this is where that lie is refused.
     const barX = 188;
-    // The elapsed number sits between the bar and the mark, so the three
-    // never overlap however long the number gets.
-    const numberW = 140;
+    // The number sits between the bar and the mark, so the three never
+    // overlap however long the number gets; the replay's words need more.
+    const numberW = row.recorded ? 300 : 140;
     const markW = 150;
     const barW = w - 64 - markW - numberW - barX;
-    ctx.fillStyle = FAINT;
-    roundRect(ctx, barX, centre + 16, barW, 22, 6);
-    ctx.fill();
-    ctx.fillStyle = colour;
-    const fraction = clamp01(elapsed / LONGEST_HOP);
-    roundRect(ctx, barX, centre + 16, Math.max(6, barW * fraction), 22, 6);
-    ctx.fill();
-    // A live row's bar carries a bright head, so "still running" reads
-    // without waiting to see whether the bar grows.
-    if (!row.report) {
-      ctx.fillStyle = room.emit.ice;
-      const headX = barX + Math.max(6, barW * fraction);
-      ctx.globalAlpha = 0.5 + 0.5 * (0.5 + 0.5 * drift(t, 1.4));
-      roundRect(ctx, headX - 14, centre + 14, 14, 26, 5);
+    const bar = row.recorded ? row.recorded.seconds : elapsedOf(row, seconds);
+    const longest = row.recorded ? LONGEST_RECORDED_HOP : LONGEST_HOP;
+    if (bar !== null) {
+      ctx.fillStyle = FAINT;
+      roundRect(ctx, barX, centre + 16, barW, 22, 6);
       ctx.fill();
-      ctx.globalAlpha = 1;
+      ctx.fillStyle = colour;
+      const fraction = clamp01(bar / longest);
+      roundRect(ctx, barX, centre + 16, Math.max(6, barW * fraction), 22, 6);
+      ctx.fill();
+      // A live row's bar carries a bright head, so "still running" reads
+      // without waiting to see whether the bar grows.
+      if (!row.report && !row.recorded) {
+        ctx.fillStyle = room.emit.ice;
+        const headX = barX + Math.max(6, barW * fraction);
+        ctx.globalAlpha = 0.5 + 0.5 * (0.5 + 0.5 * drift(t, 1.4));
+        roundRect(ctx, headX - 14, centre + 14, 14, 26, 5);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
     }
-    ctx.font = mono(40);
-    ctx.fillStyle = row.report ? DIM : room.emit.ice;
+    ctx.font = mono(row.recorded ? 34 : 40);
+    ctx.fillStyle = row.recorded
+      ? row.recorded.seconds === null
+        ? DIM
+        : TEXT
+      : row.report
+        ? DIM
+        : room.emit.ice;
     ctx.textAlign = 'right';
-    ctx.fillText(`${elapsed.toFixed(1)}S`, barX + barW + numberW - 16, centre + 14);
+    ctx.fillText(
+      row.recorded ? row.recorded.text : `${elapsedOf(row, seconds).toFixed(1)}S`,
+      barX + barW + numberW - 16,
+      centre + 16,
+    );
     ctx.textAlign = 'left';
 
     // 4. The verdict's own shape, in its own colour — and while the hop
@@ -664,7 +701,9 @@ function drawVerdict(
         linesWidth: w - 128 - 330,
         pitch: 48,
       },
-      evidenceLines(outcome),
+      // The replay carries the run's own counts under the verdict; the
+      // demonstration falls back to `tally.ts`'s illustrative lines.
+      content.evidence ? [...content.evidence] : evidenceLines(outcome),
       findings,
     );
   }
@@ -709,12 +748,14 @@ function drawCandidate(
     spaced(ctx, '0em');
     ctx.restore();
   }
-  // The identity: fixed for the candidate, data-shaped, never a real commit.
+  // The identity: fixed for the candidate. In the demonstration it is
+  // data-shaped and is never a real commit; in the replay it is the run's
+  // own candidate SHA, and the band says which of the two you are reading.
   if (content.candidate) {
     ctx.font = mono(84);
     ctx.fillStyle = room.emit.magenta;
     ctx.textBaseline = 'top';
-    ctx.fillText(CANDIDATE_ID, 64, floor - 124);
+    ctx.fillText(content.candidateId ?? CANDIDATE_ID, 64, floor - 124);
     ctx.strokeStyle = room.emit.magenta;
     ctx.lineWidth = RULE;
     ctx.globalAlpha = 0.5;

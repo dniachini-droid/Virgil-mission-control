@@ -118,6 +118,55 @@ export function bandIsOnTwoLines(): boolean {
 export const BAND_LINES = BAND_WORDS.split(' · ');
 
 /**
+ * **The band for the replay, and why it had to change.**
+ *
+ * Every viewing point from V0 to V9 showed invented content and marked it
+ * `ILLUSTRATIVE · NOT REAL STATE`. The replay shows a run that actually
+ * happened, read out of the repository's own committed record. That band
+ * would now understate the truth as badly as dropping it would overstate
+ * it: a reader told the Keeper's `BLOCKED` on `956be26` is illustrative
+ * would disbelieve a true thing.
+ *
+ * So the band says what the thing actually is, and names the run and its
+ * candidate: a recorded run, replayed, and **not live state**. It is past
+ * fact about a merged lineage, not this repository's condition now, and
+ * "NOT LIVE STATE" is the load-bearing half of it.
+ *
+ * Three lines rather than one because it has three things to say and the
+ * band's height is fixed. **Nothing is abbreviated, dropped or dimmed**,
+ * which is the same rule the two-line phone layout keeps; the cost is
+ * recorded honestly in the run record — a coarse-tier slab gives each
+ * character about 4.4 pixels here against the demonstration band's 7.9,
+ * and the badge above the canvas carries the whole sentence in words.
+ */
+export const REPLAY_BAND_LINES = [
+  'PHASE 0 CONSOLIDATION',
+  'RECORDED RUN · REPLAYED',
+  'NOT LIVE STATE · 3B9A964E',
+];
+export const REPLAY_BAND_WORDS = REPLAY_BAND_LINES.join(' · ');
+
+/**
+ * Which band is drawn. Set once per render from the mode, before any
+ * canvas is drawn, exactly as `setBandOnTwoLines` is set from the tier.
+ * The two modes make opposite claims about their own truthfulness, so the
+ * one thing that may never be ambiguous is which of them is on.
+ */
+let bandReplay = false;
+export function setBandReplay(value: boolean): void {
+  bandReplay = value;
+}
+export function bandIsReplay(): boolean {
+  return bandReplay;
+}
+
+/** The lines the band is drawing right now, in the order it draws them. */
+export function bandLines(): string[] {
+  if (bandReplay) return [...REPLAY_BAND_LINES];
+  return bandOnTwoLines ? [...BAND_LINES] : [BAND_WORDS];
+}
+
+/**
  * How far in from a straight edge the rounded corner has eaten, at
  * `depth` pixels along that edge from the corner. Zero past the corner's
  * own radius. V8.2: a console's picture is drawn to the model's own
@@ -262,19 +311,21 @@ export function band(ctx: Ctx, w: number, h: number, corner = 0) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const middle = h - BAND_HEIGHT / 2 + RULE / 2 + 2;
-  if (bandOnTwoLines) {
-    // Two lines in the same band: each is fitted on its own, so the
-    // shorter one is not held down to the longer one's size.
+  const lines = bandLines();
+  if (lines.length > 1) {
+    // Several lines in the same band: each is fitted on its own, so the
+    // shorter one is not held down to the longest one's size.
     const width = bandTextWidth(w, corner);
-    const pitch = (BAND_HEIGHT - RULE) * 0.42;
+    const pitch = (BAND_HEIGHT - RULE) / (lines.length + 0.38);
     const cap = Math.floor(pitch * 0.95);
-    BAND_LINES.forEach((line, i) => {
+    lines.forEach((line, i) => {
       fitFont(ctx, display, cap, line, width);
-      ctx.fillText(line, w / 2 + 4, middle + (i - (BAND_LINES.length - 1) / 2) * pitch);
+      ctx.fillText(line, w / 2 + 4, middle + (i - (lines.length - 1) / 2) * pitch);
     });
   } else {
-    fitFont(ctx, display, 64, BAND_WORDS, bandTextWidth(w, corner));
-    ctx.fillText(BAND_WORDS, w / 2 + 4, middle);
+    const only = lines[0] as string;
+    fitFont(ctx, display, 64, only, bandTextWidth(w, corner));
+    ctx.fillText(only, w / 2 + 4, middle);
   }
   spaced(ctx, '0em');
   ctx.textAlign = 'left';
