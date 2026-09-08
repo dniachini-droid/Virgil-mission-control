@@ -20,6 +20,8 @@ Every agent handoff to date was English that a human read carefully. `packages/a
 
 The event-sourced domain in `packages/domain/` recorded **zero events** for the four build passes and two reviews of 2026-09-07. The irony is stated plainly: the repository's own model of what a governed build looks like was not used to record its own governed builds. Every run of that day exists only as commits, prose documents and the owner console's transcript.
 
+Partly answered in prose on 2026-09-08, not in events: `docs/process/PHASE_1_RUN_RECORD.md` now lists every viewing point with its source commit, artifact and digest, and the V6 pass's checks with their printed results; and `docs/process/PHASE_1_STYLISED_SPEC.md` wrote the owner's V6 direction down before anything was built, which is the first time a pass's direction has existed outside the console transcript. Still no event is recorded for any run.
+
 ### Cost and token visibility — open
 
 One pass on 2026-09-07 consumed roughly 454,000 subagent tokens. No mechanism reports this, sums it, or puts it next to what the pass produced.
@@ -53,6 +55,7 @@ Where the finding records are: only **KR-01 to KR-10** appear in any file in thi
 - **KR-26, KR-27, KR-40 to KR-47** — open. Carried into stage S0.
 - **KR-48 to KR-54** — open. From the S1 review of `1e05d47`. KR-50 (no CI) is the "CI" item above and needs the owner.
 - **Review of `6503c8b`** — blocked. In flight; its findings will number from KR-55.
+- **KR-55, KR-56, KR-57** — from the review of `a4f8b70` (V5), all medium; **addressed by the V6 pass** (`docs/process/PHASE_1_RUN_RECORD.md`, "Findings from the review of `a4f8b70`, addressed"): a static face under reduced motion with a test and a correction to the V5 owner document; the S2 scope contradiction recorded in `PHASE_1_STYLISED_SPEC.md` §7.1 and a run record opened; the visor mesh built by one tested builder with source guards on the component. Not closed — that is the reviewer's to say.
 - **KR-41, the character form gate** — open. It is a name and not a check: nothing runs, nothing fails, nothing records a result.
 
 ## Product direction — the owner's directions of 2026-09-07
