@@ -14,7 +14,9 @@ Everything below was built and checked on a machine that renders in software. No
 | V3 | `532631a16d` | `virgil-s2-v3-532631a16d.html` | `PHASE_1_HOW_TO_LOOK_V3.md` | The ring console, the Prover at a station |
 | V4 | `ca34062bcc` | `virgil-s2-v4-ca34062bcc.html` | `PHASE_1_HOW_TO_LOOK_V4.md` | Fitted faces, readable screens |
 | V5 | `868971a375` | `virgil-s2-v5-868971a375.html` | `PHASE_1_HOW_TO_LOOK_V5.md` | The Prover in his station, slabs, receiving and working, stillness |
-| **V6** | **`5b4b52fb8bc1c93ab9ee6ef789c16dd61a614d00`** | **`virgil-s2-v6-5b4b52fb8b.html`** | **`PHASE_1_HOW_TO_LOOK_V6.md`** | **The stylised set, in the room and on a tabletop, with the refusal** |
+| V6 | `5b4b52fb8bc1c93ab9ee6ef789c16dd61a614d00` | `virgil-s2-v6-5b4b52fb8b.html` | `PHASE_1_HOW_TO_LOOK_V6.md` | The stylised set, in the room and on a tabletop, with the refusal |
+| V7 | `ffa3e18cffb17ec55588ac8facc544d9ee1f4043` | `v7-s2-virgil-ffa3e18cff.html` | `PHASE_1_HOW_TO_LOOK_V7.md` | The tabletop: faces on the head, screens as objects |
+| **V8** | **`934554159f8021478887603c9230d459eed763da`** | **`v8-s2-virgil-934554159f.html`** | **`PHASE_1_HOW_TO_LOOK_V8.md`** | **Symmetrical consoles carrying their own screens; the receiving and the return; four verdicts; the turn** |
 
 The V5 source commit `868971a` and its documents were merged to `main` by the owner as pull request #7 (`90b116c`); the V6 branch was restarted forward from that merge.
 
@@ -181,16 +183,31 @@ Branch `claude/virgil-phase-1-slice`, forward from `d937b3b` (V7 delivered, CI l
 |---|---|
 | `0f041ea` | The V8 direction written down first: §0.10.1–0.10.10 of the spec |
 | `375d42f` | The set: symmetrical consoles carrying their own screens (`asset-pipeline/fit-screen.mjs`, `screens/ConsoleScreen.tsx`), no window, the level camera, the raised backdrop, the turn (`locomotion.ts`), the receiving and returning beats (`screens/stationScreen.ts`, `returning.ts`, `arrival.ts`), counters (`tally.ts`), the four verdicts (`verdicts.ts`), the CRT (`crt.ts`), the spotlight (`Models.tsx`), the owner gate, Virgil's slabs driven from the candidate state; the tests rewritten and added |
-| RUN_RECORD_COMMIT_2 | The standing point moved left of the screen and the close-up camera to its side, after the first capture showed the Fabricator's back hiding his own screen; the console pictures inset so the honesty band clears the bezel's lip; the planet and the station swapped sides; the clocks capped at 0.1 s a frame; the capture entry point (`#/?demo=&loop=`); the spec's §0.10.11–13 |
-| RUN_RECORD_COMMIT_3 | The V8 artifact, its digest, this record and the owner document |
+| `1cb9bec` | The standing point moved left of the screen and the close-up camera to its side, after the first capture showed the Fabricator's back hiding his own screen; the console pictures inset so the honesty band clears the bezel's lip; the planet and the station swapped sides; the clocks capped at 0.1 s a frame; the capture entry point (`#/?demo=&loop=`); the spec's §0.10.11–13 |
+| `9345541` | The owner document and this record's V8 section, from the captures. **The source of the V8 artifact** |
+| (this commit) | The artifact from `9345541`, its digest, the check results below |
 
-### Checks run on RUN_RECORD_SOURCE_SHA, all with `TURBO_FORCE=true`
+### Checks run on `9345541`, all with `TURBO_FORCE=true`, every one in the foreground
 
-RUN_RECORD_CHECKS
+| Check | Result, as printed |
+|---|---|
+| `pnpm check` | Biome: `Checked 188 files … No fixes applied`; typecheck clean; tests, all passed: `mission-control` **119 tests in 11 files** (of which `console-screens.test.ts` and `screen-motion.test.ts` are new, and `locomotion.test.ts`, `cast-clearance.test.ts`, `demo.test.ts` and `screen-fonts.test.ts` rewritten or extended), `@virgil/agent-contracts` 70, `@virgil/domain` 104, `@virgil/knowledge-graph` 24, `@virgil/gate-engine` 19, `@virgil/visual-language` 18 — **354 tests**; then `build:owner` (8,426,397 bytes on the then-dirty tree) and `verify:owner`: `routes (tabletop), (retired room), #/s1, #/spike/foundry, #/spike/mind`; `requests 1, off-document 0`; `console errors 0`; **PASS — opens from file://, no console errors, no off-document requests** |
+| `pnpm --filter @virgil/knowledge-lint run lint` | `knowledge graph: 82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `graph hash sha256:a86250498e12d01d9be701610b1947b0bec39c34739816ddb2e0334ea6e0d6d1`; `mind scan: no findings` |
+| `pnpm --filter mission-control build:owner` (clean tree at `9345541`, `VIRGIL_OWNER_BUILD_DATE="2026-09-08 10:30 UTC"`) | `v8-s2-virgil-934554159f.html`, **8,426,374 bytes**, SHA-256 `fbe7dcbfe81abb12e2eac44f9b2a2cb39103bfa77acf1a2845cb5ba16dd4ace2` |
+| `pnpm --filter mission-control verify:owner` (on the `1cb9bec` build, before the documents were committed; the source is otherwise identical) | `browser chromium 141.0.7390.37 — /opt/pw-browsers/chromium (preinstalled, substituted for the pinned build)`; `routes (tabletop), (retired room), #/s1, #/spike/foundry, #/spike/mind`; `requests 1, off-document 0`; `renderer ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)…), SwiftShader driver)`; footer `… viewing point V8 — the tabletop: symmetrical consoles with their own screens, a level camera, the receiving and returning beats …`; `console errors 0`; **PASS**. Warnings printed and not failed on, as in V6 and V7: the `THREE.Clock` and `PCFSoftShadowMap` deprecations and SwiftShader's ReadPixels stalls |
+| `sha256sum -c *.sha256` (in `dist/owner-build/` and again in `docs/process/PHASE_1_owner-builds/`) | `v8-s2-virgil-934554159f.html: OK`; and every earlier artifact `OK` (V0–V7, eight files) |
+| `pnpm reproduce:owner` | RUN_RECORD_REPRODUCE |
+
+CI ran on every push of this pass (`0f041ea`, `375d42f`, `1cb9bec`, `9345541`); the API's per-run conclusions were not read back into this session, so they are not quoted here — the runs are on the repository's Actions page under their commit SHAs.
 
 ### Size, against both readings of the budget
 
-RUN_RECORD_SIZE
+**8,426,374 bytes**: 8.04 MiB, or 8.43 MB. Payloads 6,596,138 bytes of base64 and JSON (the six V7 models 2,806,140; the rigged Virgil 1,545,896; the porthole 904,352, kept for the retired room's window frame; the three window layers 1,284,752; the two font subsets 35,252; the four visor masks 14,236; the three new screen masks 5,510); code and styles about 1,830,000. `docs/architecture/PERFORMANCE_STRATEGY.md` sets ≤ 12 MB desktop and ≤ 6 MB mobile without saying which unit:
+
+- desktop: **67.0 % of 12 MiB, 70.2 % of 12 MB — inside on both readings**;
+- mobile: **133.9 % of 6 MiB, 140.4 % of 6 MB — over on both readings**, as every viewing point has been.
+
+V7 was 8,395,984 bytes; V8 is 30,390 bytes (0.36 %) larger: the screen masks and the new screen code, less the floating panels. Removing the arch from the tabletop saved nothing, because the retired room still uses the porthole payload; dropping it from the bundle would save 904,352 bytes of base64 and is one decision away. Nothing was cut for the number.
 
 ### Measurements this pass made, for the record
 

@@ -15,7 +15,7 @@ Same kind of thing as before: one file, download it, double-click it. It is **8.
 ### 1. Find the file
 
 ```
-https://github.com/dniachini-droid/Virgil-mission-control/blob/claude/virgil-phase-1-slice/docs/process/PHASE_1_owner-builds/v8-s2-virgil-<sha>.html
+https://github.com/dniachini-droid/Virgil-mission-control/blob/claude/virgil-phase-1-slice/docs/process/PHASE_1_owner-builds/v8-s2-virgil-934554159f.html
 ```
 
 The name starts with `v8-`, as V7's started with `v7-`, so it sorts apart from the rest.
@@ -138,4 +138,12 @@ Sound, real events, walking rigs (not needed for the turn), the tubes, any perfo
 
 ## The honest size
 
-SIZE_SECTION
+The file is **8,426,374 bytes** — 8.04 MiB, or 8.43 MB at a million bytes each — 30,390 bytes (0.36 %) larger than V7. Against the project's budget of "12 MB desktop, 6 MB mobile", which does not say which unit it means: **inside the desktop budget on both readings** (67.0 % of 12 MiB, 70.2 % of 12 MB); **over the mobile budget on both readings** (133.9 % of 6 MiB, 140.4 % of 6 MB), as every viewing point has been. Of the file, 6.60 MB is payloads — the six models 2.81 MB, the rigged Virgil 1.55 MB, the porthole 0.90 MB (still in the file for the retired room's window frame; dropping it is one decision away), the three window layers 1.28 MB, the fonts and the seven masks 55 KB — and 1.83 MB is code and styles. Removing the arch and the floating panels did not make the file smaller, and it was not made smaller by degrading anything.
+
+SHA-256 of the file:
+
+```
+fbe7dcbfe81abb12e2eac44f9b2a2cb39103bfa77acf1a2845cb5ba16dd4ace2
+```
+
+Built from source commit `9345541` with `VIRGIL_OWNER_BUILD_DATE="2026-09-08 10:30 UTC"` from a clean tree. Checks run on that source, all with `TURBO_FORCE=true`, with their printed results in `docs/process/PHASE_1_RUN_RECORD.md`, including the byte-for-byte reproducibility rebuild.
