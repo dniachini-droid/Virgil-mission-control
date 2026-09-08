@@ -142,8 +142,14 @@ export const CAST: Record<Role, CastMember> = {
  * can never sweep a shoulder into the console.
  */
 export const STAND_GAP = 0.2;
-/** How far to the station's left (its −x) the character stands, so its screen shows. */
-export const STAND_SIDE = -0.55;
+/**
+ * How far to the station's left (its −x) the character stands, so its screen
+ * shows: the screens span about x −0.66..0.36 on their consoles, and a
+ * character standing inside that span hid their own screen with their
+ * back once they turned to it (the first V8 capture). Here they stand
+ * just left of it.
+ */
+export const STAND_SIDE = -0.88;
 /** The character faces the camera a little more squarely than the station does. */
 export const FACE_TURN = 0.7;
 

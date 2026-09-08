@@ -382,8 +382,8 @@ export function counter(
   const numberWidth = ctx.measureText(digits.length < 2 ? '00' : digits).width;
   ctx.textAlign = 'left';
   ctx.fillStyle = DIM;
-  ctx.font = mono(px * 0.62);
-  ctx.fillText(label, x, y + px * 0.22);
+  ctx.font = mono(px * 0.5);
+  ctx.fillText(label, x, y + px * 0.3);
   ctx.font = mono(px);
   ctx.fillStyle = colour;
   const nx = x + w - numberWidth;

@@ -404,7 +404,7 @@ function drawProverWork(
   const visible = 6;
   const pitch = (bottom - top) / visible;
   const barX = 64;
-  const barW = w - 128 - 330;
+  const barW = w - 128 - 400;
   // The list scrolls: the newest running check is kept in view, and the
   // rows above slide up — the secondary motion of the process advancing.
   let first = 0;
@@ -471,8 +471,8 @@ function drawProverWork(
     }
   }
   // The counts, right: passed, failed, running, each rolling as it changes.
-  const cx = w - 64 - 250;
-  const cw = 250;
+  const cx = w - 64 - 330;
+  const cw = 330;
   const rows: [string, number, string][] = [
     ['PASSED', tally.passed, PASS_GREEN],
     ['FAILED', tally.failed, tally.failed > 0 ? BLOCK_RED : DIM],
@@ -510,7 +510,7 @@ function drawKeeperWork(ctx: Ctx, w: number, floor: number, since: number, tint:
   const top = 300;
   const bottom = floor - 40;
   const pageX = 64;
-  const pageW = w - 128 - 330;
+  const pageW = w - 128 - 400;
   const lines = 11;
   const pitch = (bottom - top) / lines;
   // The page: lines of varying length, data-shaped; the read ones lit.
@@ -575,8 +575,8 @@ function drawKeeperWork(ctx: Ctx, w: number, floor: number, since: number, tint:
     ctx.globalAlpha = 1;
   }
   // The counts, right: findings, and how many are blocking.
-  const cx = w - 64 - 250;
-  const cw = 250;
+  const cx = w - 64 - 330;
+  const cw = 330;
   const last = tally.raised[tally.raised.length - 1];
   const slide = last ? 1 - clamp01((since - last.at) / 0.5) : 0;
   const rolling = roll(Math.max(0, tally.findings - 1), tally.findings, 1 - slide);
@@ -600,7 +600,7 @@ function drawFabricatorWork(ctx: Ctx, w: number, floor: number, since: number, t
   const top = 300;
   const bottom = floor - 40;
   const x = 64;
-  const colW = w - 128 - 330;
+  const colW = w - 128 - 400;
   const rows = 8;
   const pitch = (bottom - top) / rows;
   for (let i = 0; i < rows; i += 1) {
@@ -651,8 +651,8 @@ function drawFabricatorWork(ctx: Ctx, w: number, floor: number, since: number, t
     ctx.stroke();
     ctx.restore();
   }
-  const cx = w - 64 - 250;
-  const cw = 250;
+  const cx = w - 64 - 330;
+  const cw = 330;
   counter(ctx, 'FILES', tally.files, 0, cx, 300, cw, tint, 60);
   counter(ctx, 'COMMITS', tally.commits, 0, cx, 378, cw, tint, 60);
 }

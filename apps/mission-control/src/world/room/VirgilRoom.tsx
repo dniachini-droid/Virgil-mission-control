@@ -309,11 +309,13 @@ export function cameraPose(view: View, focus: Focus, aspect = 16 / 9): Pose {
     const rz = -Math.sin(f);
     // Look between the face and the screen, from in front, a little to
     // the screen's side, so both are in the frame.
-    const tx = at[0] * 0.55 + screen[0] * 0.45;
-    const tz = at[2] * 0.55 + screen[2] * 0.45;
+    const tx = at[0] * 0.5 + screen[0] * 0.5;
+    const tz = at[2] * 0.5 + screen[2] * 0.5;
     const ty = eye * 0.6 + screen[1] * 0.4;
+    // Well to the screen's side, so the camera looks past the character's
+    // shoulder at the screen once they have turned to it.
     return {
-      position: [tx + fx * 3.0 + rx * 0.6 * side, ty + 0.3, tz + fz * 3.0 + rz * 0.6 * side],
+      position: [tx + fx * 3.1 + rx * 1.3 * side, ty + 0.3, tz + fz * 3.1 + rz * 1.3 * side],
       target: [tx, ty - 0.05, tz],
       fov: 40,
     };
