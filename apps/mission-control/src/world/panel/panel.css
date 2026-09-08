@@ -315,10 +315,33 @@
   padding: 0 14px 7px 0;
   border-bottom: 1px solid var(--panel-hair);
 }
+/*
+ * **No cell is ever wider than its column** (V10 repair).
+ *
+ * These were `nowrap` until V10, which is safe only while every value is
+ * short. The replay's are not: a forty-character SHA is 296 px of mono,
+ * and on a 390 px phone it pushed the two-column table to 430 px inside a
+ * 390 px panel — past the edge of the window — and squeezed the label
+ * column to 14 px, so all eight labels of THE RUN became invisible while
+ * the SHAs beside them ran off the screen.
+ *
+ * So a cell wraps, and a token with no space in it breaks. It costs a
+ * line; the alternative costs the content.
+ *
+ * `break-word` and not `anywhere`: `anywhere` also tells the table that
+ * every character is a place it may break, so auto layout hands each
+ * column its narrowest possible width and then chops words that had room
+ * — `KR-01` came out as `KR-` and `01`, and the `BLOCKING` chip as
+ * `BLOCKIN` and `G`. That was caught by looking at the frame, not by the
+ * measurement, which counted nothing clipped. `break-word` keeps each
+ * column at least as wide as its longest word and breaks only a word that
+ * cannot fit a line of its own.
+ */
 .panel-table td {
   padding: 5px 14px 5px 0;
   border-bottom: 1px solid var(--panel-faint);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 /*
  * **A table of exactly two columns: a label and a value.**
@@ -372,12 +395,33 @@
 .panel-table-columns td,
 .panel-table-columns th {
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   vertical-align: top;
 }
 .panel-table-columns td:last-child,
 .panel-table-columns th:last-child {
   padding-right: 0;
+}
+/*
+ * **The provenance table's first column is a path, and a path has no
+ * spaces in it.**
+ *
+ * `docs/decisions/OD-0004-non-blocking-findings-disposition.md` is one
+ * 59-character word, 437 px of mono, and `break-word` keeps a column at
+ * least as wide as its longest word — so on a 390 px phone this one table
+ * could not shrink and ran past the panel's edge. A path is read in
+ * pieces and breaking one across two lines costs nothing, so this column,
+ * and only this column, may break anywhere. The section beside it is
+ * prose and keeps whole words.
+ */
+.panel-table-sources td:first-child,
+.panel-table-sources th:first-child {
+  overflow-wrap: anywhere;
+}
+/* An identity — an ID, a short SHA, a count — reads as one thing.
+   `Panel.tsx`'s `cellShape` decides which cells these are. */
+.panel-table td.panel-cell-token {
+  white-space: nowrap;
 }
 /* The result chips: the verdict colours of `draw.ts`, and nothing new. */
 .panel-chip {
@@ -532,6 +576,20 @@
   }
   .panel-table {
     font-size: 11.5px;
+  }
+  /*
+   * The gutters between columns close up on a phone, because there are
+   * 390 px to divide and a forty-character SHA or a four-column table of
+   * findings wants every one of them. 14 px of gutter three times over is
+   * a column of its own here; 6 px still separates them.
+   */
+  .panel-table td,
+  .panel-table th {
+    padding-right: 6px;
+  }
+  .panel-table-pairs td:last-child,
+  .panel-table-pairs th:last-child {
+    padding-left: 8px;
   }
   .panel-scrollrail {
     right: 5px;

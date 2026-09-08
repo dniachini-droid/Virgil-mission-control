@@ -302,7 +302,7 @@ export function Panel({ target, onClose }: { target: PanelTarget | null; onClose
                     {section.rows.map((row) => (
                       <tr key={row.cells.join('|')}>
                         {row.cells.map((cell, i) => (
-                          <td key={`${row.cells[0]}:${i}`}>
+                          <td key={`${row.cells[0]}:${i}`} className={cellShape(cell)}>
                             {row.tag && row.tag.at === i ? (
                               <span className={`panel-chip ${row.tag.kind}`}>{cell}</span>
                             ) : (
@@ -330,7 +330,7 @@ export function Panel({ target, onClose }: { target: PanelTarget | null; onClose
           {doc.provenance ? (
             <section className="panel-block wide">
               <h3 className="panel-section-title">Where this comes from</h3>
-              <table className="panel-table panel-table-columns">
+              <table className="panel-table panel-table-columns panel-table-sources">
                 <thead>
                   <tr>
                     <th>DOCUMENT</th>
@@ -490,6 +490,20 @@ export function tableShape(section: {
     1,
   );
   return columns === 2 ? 'panel-table-pairs' : 'panel-table-columns';
+}
+
+/**
+ * **A short cell with no space in it is one thing and stays on one line.**
+ *
+ * A cell wraps, which is how nothing is cut off; but a line break inside
+ * an identity makes it read as two. `KR-01` broke after its hyphen —
+ * every line-breaking algorithm offers a break there — and came out as
+ * `KR-` above `01`. Twelve characters is the width of the longest of
+ * them and narrow enough that holding it on one line can never push a
+ * table past its panel.
+ */
+function cellShape(cell: string): string | undefined {
+  return cell.length <= 12 && !/\s/.test(cell) ? 'panel-cell-token' : undefined;
 }
 
 /** Whether the panel is at its phone size. Matches `panel.css`'s one query. */

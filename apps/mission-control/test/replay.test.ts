@@ -686,7 +686,35 @@ describe('the panel’s tables can be read to their end', () => {
       /\.panel-table-columns td,\s*\n\.panel-table-columns th \{[^}]*white-space: normal/,
     );
     expect(css).toMatch(
-      /\.panel-table-columns td,\s*\n\.panel-table-columns th \{[^}]*overflow-wrap: anywhere/,
+      /\.panel-table-columns td,\s*\n\.panel-table-columns th \{[^}]*overflow-wrap: break-word/,
+    );
+    // And no cell in any shape is held on one line: a value too wide for
+    // its column would push the table past the edge of the window, which
+    // is what a forty-character SHA did to the phone.
+    expect(css).toMatch(/\.panel-table td \{[^}]*white-space: normal/);
+    expect(css).toMatch(/\.panel-table td \{[^}]*overflow-wrap: break-word/);
+    // `anywhere` would let the table break a word that had room: the
+    // findings' IDs came out as `KR-` and `01`.
+    // `anywhere` would let the table break a word that had room, and is
+    // allowed on one column only: the provenance's file paths, which have
+    // no spaces to break at.
+    for (const match of css.matchAll(/overflow-wrap: anywhere;/g)) {
+      const rule = css.slice(css.lastIndexOf('}', match.index) + 1, match.index);
+      expect(rule, 'a cell may break mid-word outside the sources column').toContain(
+        '.panel-table-sources td:first-child',
+      );
+    }
+    // One exception, and it is narrow enough never to push a table wide:
+    // a cell of twelve characters with no space in it, so that `KR-01` is
+    // not broken after its hyphen into `KR-` and `01`.
+    for (const match of css.matchAll(/white-space: nowrap;/g)) {
+      const rule = css.slice(css.lastIndexOf('}', match.index) + 1, match.index);
+      expect(rule, 'a table cell is held on one line outside the token rule').toContain(
+        'td.panel-cell-token',
+      );
+    }
+    expect(src('world/panel/Panel.tsx')).toContain(
+      "return cell.length <= 12 && !/\\s/.test(cell) ? 'panel-cell-token' : undefined;",
     );
     // And nothing in that shape hides or abbreviates a cell.
     const columnsRules = css
@@ -700,7 +728,7 @@ describe('the panel’s tables can be read to their end', () => {
   it('gives every table in the markup a shape, including the provenance', () => {
     const panel = src('world/panel/Panel.tsx');
     expect(panel).toContain('className={`panel-table ${tableShape(section)}`}');
-    expect(panel).toContain('className="panel-table panel-table-columns"');
+    expect(panel).toContain('className="panel-table panel-table-columns panel-table-sources"');
     // No table is left with the bare class, which now has no layout at all.
     expect(panel).not.toContain('className="panel-table"');
   });
