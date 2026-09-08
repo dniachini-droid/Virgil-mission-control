@@ -67,6 +67,12 @@ export function VirgilRoom() {
   }));
   const coarse = settings.tier === 'constrained' || settings.tier === 'mobile';
 
+  // DELIBERATE DEFECT on a scratch branch, to prove CI fails on a network
+  // escape. This branch is not merged and is deleted after the run.
+  useEffect(() => {
+    void fetch('https://example.com/virgil-telemetry.json').catch(() => {});
+  }, []);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
