@@ -10,6 +10,8 @@ import {
 import {
   CONVEXITY_RADIUS_M,
   DIMPLE_SLOPE,
+  INDENT_MAX_AREA_M2,
+  INDENT_MAX_DEPTH_M,
   LIFT_SLOPE,
   loopBeta,
   type SmoothingReport,
@@ -79,6 +81,12 @@ const EXPECTED: Record<
     facetAfterMm: number;
     maxLiftMm: number;
     convexShare: number;
+    /** V9, item 6: the deepest indent filled, in millimetres. */
+    indentDeepestMm: number;
+    /** The surface corrected, in square millimetres. */
+    indentAreaMm2: number;
+    /** Concave regions left alone as the owner's own design, not a guessed eye socket. */
+    keptRegions: number;
   }
 > = {
   fabricator: {
@@ -86,28 +94,40 @@ const EXPECTED: Record<
     facetBeforeMm: 47.7,
     facetAfterMm: 11.3,
     maxLiftMm: 6.2,
-    convexShare: 0.78,
+    convexShare: 0.83,
+    indentDeepestMm: 9.4,
+    indentAreaMm2: 22415,
+    keptRegions: 0,
   },
   prover: {
     triangles: 3312,
     facetBeforeMm: 34.6,
     facetAfterMm: 8.3,
     maxLiftMm: 4.0,
-    convexShare: 0.95,
+    convexShare: 0.98,
+    indentDeepestMm: 2.2,
+    indentAreaMm2: 17426,
+    keptRegions: 0,
   },
   keeper: {
     triangles: 8784,
     facetBeforeMm: 39.3,
     facetAfterMm: 9.2,
     maxLiftMm: 4.7,
-    convexShare: 0.49,
+    convexShare: 0.52,
+    indentDeepestMm: 13.6,
+    indentAreaMm2: 33659,
+    keptRegions: 3,
   },
   virgil: {
     triangles: 7328,
     facetBeforeMm: 43.5,
     facetAfterMm: 10.4,
     maxLiftMm: 2.6,
-    convexShare: 0.97,
+    convexShare: 0.99,
+    indentDeepestMm: 2.3,
+    indentAreaMm2: 36859,
+    keptRegions: 0,
   },
 };
 
@@ -170,6 +190,62 @@ function expectSmoothing(label: string, report: SmoothingReport, triangleCount: 
   expect(c.sampled, `${label}: patches a quadric could be fitted at`).toBeGreaterThan(100);
   expect((c.sampled - c.concave) / c.sampled).toBeCloseTo(want.convexShare, 1);
   expect(c.fitResidualM, `${label}: a quadric describes this surface`).toBeLessThan(0.002);
+
+  /*
+   * 6. **The indents (V9, item 6).** The owner: *"The keeper's visor has
+   *    indents where I think meshy ai believed its eyes are meant to be.
+   *    So you'll actually have to remove the indent on the actual model,
+   *    and make it smooth."* This overrules V8.3's judgment that the
+   *    Keeper's concavity was a fold to be left alone; the reversal is
+   *    the owner's, and it is recorded in `visorSmooth.ts`.
+   *
+   *    Three things are held here: the fill improved the convexity rather
+   *    than leaving it or making it worse; the boundary did not move at
+   *    all, which is a stronger statement than the 23-108 nanometres the
+   *    subdivision is held to, because no vertex within
+   *    `CONVEXITY_RADIUS_M` of the rim is even a candidate; and the caps
+   *    did their job — the regions too deep or too wide to be a guessed
+   *    eye socket are counted and left where the owner's model put them.
+   */
+  const indents = report.indents;
+  expect(indents.boundaryMovedM, `${label}: the fill moved the silhouette`).toBe(0);
+  expect(indents.sampled, `${label}: vertices far enough from the rim to measure`).toBeGreaterThan(
+    100,
+  );
+  expect(indents.regions.length, `${label}: indents filled`).toBeGreaterThan(0);
+  expect(indents.deepestM * 1000, `${label}: the deepest indent filled`).toBeCloseTo(
+    want.indentDeepestMm,
+    0,
+  );
+  expect(indents.correctedAreaM2 * 1e6, `${label}: the surface corrected`).toBeCloseTo(
+    want.indentAreaMm2,
+    -3,
+  );
+  expect(indents.kept.length, `${label}: regions left as the owner's own design`).toBe(
+    want.keptRegions,
+  );
+  // No region was filled that broke either cap.
+  for (const region of indents.regions) {
+    expect(region.depthM, `${label}: a filled region deeper than the cap`).toBeLessThanOrEqual(
+      INDENT_MAX_DEPTH_M + 1e-9,
+    );
+  }
+  // Every region left alone broke one of them, and is reported rather than forced.
+  for (const region of indents.kept) {
+    expect(
+      region.depthM > INDENT_MAX_DEPTH_M || region.areaM2 > INDENT_MAX_AREA_M2,
+      `${label}: a region was kept that broke neither cap`,
+    ).toBe(true);
+  }
+  // And the fill is what improved it: the convexity before it is recorded.
+  if (report.convexityBeforeFill) {
+    const before = report.convexityBeforeFill;
+    const beforeShare = (before.sampled - before.concave) / before.sampled;
+    expect(
+      (c.sampled - c.concave) / c.sampled,
+      `${label}: the fill did not improve the convexity`,
+    ).toBeGreaterThan(beforeShare);
+  }
 }
 
 describe.each(ROLES)('the %s’s visor, smoothed', (role) => {

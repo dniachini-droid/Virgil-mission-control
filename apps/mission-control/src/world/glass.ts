@@ -56,14 +56,78 @@ export interface PaintMask {
   /** The texture whose near-black, neutral paint the glass is confined to. */
   paint: THREE.Texture;
   rule: PaintRule;
+  /**
+   * How wide a band along the mask's own boundary the paint still governs,
+   * in metres. See `PAINT_TEST`. Zero, or absent, means the test is never
+   * applied — which is what a console screen wants, since its rule keeps
+   * every pixel anyway.
+   */
+  rimMetres?: number;
 }
 
-/** The GLSL that keeps only the painted pixels; `PAINT_UV` is the UV to sample at. */
+/**
+ * The GLSL that keeps only the painted pixels; `PAINT_UV` is the UV to
+ * sample at, and `vRim` is the distance from this point to the mask's own
+ * boundary, in metres, interpolated from a per-vertex attribute.
+ *
+ * **V9, item 7. The owner:** *"Virgil's visor is completely smooth but
+ * there's still a light coloured mark in the middle on the black. And the
+ * fabricator same thing… Prover as well when you look closely. Fix them
+ * all."* He also answered the discriminating test from his own machine —
+ * *"The marks stay in the same place I think"* — which rules the specular
+ * out and leaves the texture or the mask.
+ *
+ * It is the mask, and it was measured on the committed payloads before a
+ * line of this changed (`docs/process/PHASE_1_RUN_RECORD.md`, "V9", item
+ * 7). The test above is **per pixel and selects dark paint**, so anything
+ * Meshy painted lighter than the rule inside the visor is discarded and
+ * the head's own base colour shows through it. Sampling every one of the
+ * mask's triangles at 78 points and recording each sample's distance to
+ * the mask's own boundary polyline found the discards overwhelmingly at
+ * the **rim**, where they are the paint's ragged edge and are the
+ * silhouette — 43–82 % of the first five millimetres — falling to nothing
+ * by 30 mm. What is left beyond that is the marks: **208 mm² on Virgil,
+ * clustered at 0.49–0.53 across and 0.24–0.33 down his face, which is
+ * between his eyes and is exactly where he said it was**; 3,912 mm² on
+ * the Fabricator; 216 mm² on the Prover; 34,689 mm² on the Keeper.
+ *
+ * So the rule is confined to the band it is right in: **within
+ * `uRimMetres` of the mask's own boundary the paint decides every pixel,
+ * exactly as before; beyond it, nothing is discarded and the display's
+ * own ink covers the surface.** The silhouette therefore cannot move
+ * where the drawn edge lies inside that band, which is where the
+ * measurement puts it, and no threshold is lowered — lowering the
+ * luminance rule would have enlarged the outer boundary as well as
+ * filling the marks.
+ */
 export const PAINT_TEST = /* glsl */ `
-  vec3 paint = texture2D(tPaint, PAINT_UV).rgb;
-  float paintLuminance = dot(paint, vec3(0.2126, 0.7152, 0.0722));
-  float paintChroma = max(max(paint.r, paint.g), paint.b) - min(min(paint.r, paint.g), paint.b);
-  if (paintLuminance >= uPaintLuminance || paintChroma >= uPaintChroma) discard;
+  if (vRim < uRimMetres) {
+    vec3 paint = texture2D(tPaint, PAINT_UV).rgb;
+    float paintLuminance = dot(paint, vec3(0.2126, 0.7152, 0.0722));
+    float paintChroma = max(max(paint.r, paint.g), paint.b) - min(min(paint.r, paint.g), paint.b);
+    if (paintLuminance >= uPaintLuminance || paintChroma >= uPaintChroma) discard;
+  }
+`;
+
+/**
+ * The band, in metres, in which the paint still decides. Chosen from the
+ * measurement above: by 15 mm inside the mask's boundary the discarded
+ * fraction has fallen to 0–2 % on Virgil, the Prover and the Fabricator,
+ * so everything past it is a mark rather than an edge.
+ */
+export const PAINT_RIM_METRES = 0.015;
+
+/** The attribute and varying the rim band needs, added to both shaders. */
+export const RIM_VERTEX_DECLARATION = /* glsl */ `
+  attribute float rim;
+  varying float vRim;
+`;
+export const RIM_VERTEX_ASSIGNMENT = /* glsl */ `
+  vRim = rim;
+`;
+export const RIM_FRAGMENT_DECLARATION = /* glsl */ `
+  uniform float uRimMetres;
+  varying float vRim;
 `;
 
 /**
@@ -142,14 +206,23 @@ export function createGlassMaterial(mask?: PaintMask): THREE.MeshPhysicalMateria
       shader.uniforms.tPaint = { value: mask.paint };
       shader.uniforms.uPaintLuminance = { value: mask.rule.luminance };
       shader.uniforms.uPaintChroma = { value: mask.rule.chroma };
-      shader.fragmentShader = `uniform sampler2D tPaint;\nuniform float uPaintLuminance;\nuniform float uPaintChroma;\n${shader.fragmentShader.replace(
+      shader.uniforms.uRimMetres = { value: mask.rimMetres ?? 0 };
+      // The glass is the face pushed out along its own normal, so it must
+      // stop exactly where the face stops: same test, same band, same
+      // per-vertex rim. A glass with holes the face does not have would be
+      // the fault this item exists to remove, in the layer in front of it.
+      shader.vertexShader = `${RIM_VERTEX_DECLARATION}${shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>\n${RIM_VERTEX_ASSIGNMENT}`,
+      )}`;
+      shader.fragmentShader = `uniform sampler2D tPaint;\nuniform float uPaintLuminance;\nuniform float uPaintChroma;\n${RIM_FRAGMENT_DECLARATION}${shader.fragmentShader.replace(
         '#include <clipping_planes_fragment>',
         `#include <clipping_planes_fragment>\n${PAINT_TEST.replace('PAINT_UV', 'vUv')}`,
       )}`;
     }
     reflectionUniforms(shader);
   };
-  material.customProgramCacheKey = () => (mask ? 'glass-masked-v8-3' : 'glass-v8-3');
+  material.customProgramCacheKey = () => (mask ? 'glass-masked-v9' : 'glass-v8-3');
   return material;
 }
 

@@ -1,12 +1,26 @@
 import * as THREE from 'three';
-import { createGlassMaterial as createGlass, PAINT_TEST, type PaintRule } from '../glass.js';
+import {
+  createGlassMaterial as createGlass,
+  PAINT_RIM_METRES,
+  PAINT_TEST,
+  type PaintRule,
+  RIM_FRAGMENT_DECLARATION,
+  RIM_VERTEX_ASSIGNMENT,
+  RIM_VERTEX_DECLARATION,
+} from '../glass.js';
 import {
   buildFlatScreen,
   type FlatScreen,
   screenPlan,
   screenUvBounds,
 } from '../screens/screenPlane.js';
-import { type SmoothingReport, smoothVisor, type WedgeMesh } from './visorSmooth.js';
+import {
+  distanceToSegments,
+  type SmoothingReport,
+  smoothVisor,
+  surfaceBoundary,
+  type WedgeMesh,
+} from './visorSmooth.js';
 
 /**
  * Fits a face to a head's own geometry.
@@ -136,7 +150,7 @@ export function buildVisorGeometry(
   metresPerUnit: number,
   gapMetres = GLASS_GAP_M,
   flat: { toSource: THREE.Matrix4 } | null = null,
-  smoothing: { levels?: number; verify?: boolean } = {},
+  smoothing: { levels?: number; verify?: boolean; fill?: boolean } = {},
 ): VisorGeometry {
   // **A console's screen is drawn flat** (`screens/screenPlane.ts`): the
   // selection is still the model's, but the surface is a plane fitted to
@@ -251,12 +265,34 @@ export function buildVisorGeometry(
   const glassPositions = new Float32Array(out.position.length);
   for (let i = 0; i < out.position.length; i += 1)
     glassPositions[i] = (out.position[i] as number) + (smoothNormals[i] as number) * gap;
+  /*
+   * **The rim: how far each vertex is from the mask's own boundary, in
+   * metres** (V9, item 7). The paint rule is applied only inside this
+   * band, so the band has to be measured against the boundary the paint
+   * itself gave — the *original* control mesh's polyline, not the
+   * subdivided one, though a pinned boundary makes them the same curve to
+   * within 23–108 nanometres (V8.3). Distance to the segments and not to
+   * their endpoints, for the same reason `visorSmooth.ts` measures it that
+   * way: a pinned boundary splits each edge at its own midpoint.
+   */
+  const boundary = surfaceBoundary(positions, faceIndex, metresPerUnit);
+  const rim = new Float32Array(out.position.length / 3);
+  for (let i = 0; i < rim.length; i += 1) {
+    rim[i] =
+      distanceToSegments(
+        out.position[i * 3] as number,
+        out.position[i * 3 + 1] as number,
+        out.position[i * 3 + 2] as number,
+        boundary,
+      ) * metresPerUnit;
+  }
   const make = (pos: Float32Array) => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     g.setAttribute('normal', new THREE.BufferAttribute(smoothNormals, 3));
     g.setAttribute('uv', new THREE.BufferAttribute(out.uv, 2));
     g.setAttribute('faceUv', new THREE.BufferAttribute(out.faceUv, 2));
+    g.setAttribute('rim', new THREE.BufferAttribute(rim, 1));
     if (out.skinIndex) g.setAttribute('skinIndex', new THREE.BufferAttribute(out.skinIndex, 4));
     if (out.skinWeight) g.setAttribute('skinWeight', new THREE.BufferAttribute(out.skinWeight, 4));
     g.setIndex(out.index);
@@ -430,11 +466,13 @@ const FACE_VERTEX = /* glsl */ `
   #include <common>
   #include <skinning_pars_vertex>
   attribute vec2 faceUv;
+  ${RIM_VERTEX_DECLARATION}
   varying vec2 vUv;
   varying vec2 vFaceUv;
   void main() {
     vUv = uv;
     vFaceUv = faceUv;
+    ${RIM_VERTEX_ASSIGNMENT}
     #include <skinbase_vertex>
     #include <begin_vertex>
     #include <skinning_vertex>
@@ -447,6 +485,7 @@ const FACE_FRAGMENT = /* glsl */ `
   uniform sampler2D tPaint;
   uniform float uPaintLuminance;
   uniform float uPaintChroma;
+  ${RIM_FRAGMENT_DECLARATION}
   // The CRT (screens/crt.ts): the image's scale about its centre, its
   // brightness, an added flash, and the afterglow dot. Identity for a visor.
   uniform vec2 uScale;
@@ -500,6 +539,7 @@ export function createFaceMaterial(
   rule: PaintRule = VISOR_PAINT,
   aspect = 1,
   outline?: { halfWidth: number; halfHeight: number; radius: number; feather: number },
+  rimMetres = 0,
 ): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
@@ -507,6 +547,7 @@ export function createFaceMaterial(
       tPaint: { value: paint },
       uPaintLuminance: { value: rule.luminance },
       uPaintChroma: { value: rule.chroma },
+      uRimMetres: { value: rimMetres },
       uScale: { value: new THREE.Vector2(1, 1) },
       uPower: { value: 1 },
       uFlash: { value: 0 },
@@ -544,8 +585,9 @@ export function createFaceMaterial(
 export function createGlassMaterial(
   paint: THREE.Texture,
   rule: PaintRule = VISOR_PAINT,
+  rimMetres = 0,
 ): THREE.MeshPhysicalMaterial {
-  return createGlass({ paint, rule });
+  return createGlass({ paint, rule, rimMetres });
 }
 
 export interface VisorMeshes {
@@ -599,8 +641,17 @@ export function buildVisorMeshes(
     // (`screenPlane.ts`), so the afterglow dot is round on it too.
     geometry.screen ? geometry.screen.width / geometry.screen.height : faceAspect(mask),
     outline,
+    // **The paint decides only the rim band** (V9, item 7; `glass.ts`,
+    // `PAINT_TEST`). A console screen's rule keeps every pixel anyway, so
+    // it is given a band of zero and the test never runs on it — the same
+    // output it had, one branch fewer.
+    geometry.screen ? 0 : PAINT_RIM_METRES,
   );
-  const glassMaterial = createGlassMaterial(paint, mask.paint);
+  const glassMaterial = createGlassMaterial(
+    paint,
+    mask.paint,
+    geometry.screen ? 0 : PAINT_RIM_METRES,
+  );
   const skinned = (head as THREE.SkinnedMesh).isSkinnedMesh ? (head as THREE.SkinnedMesh) : null;
   const make = (g: THREE.BufferGeometry, m: THREE.Material, name: string) => {
     const mesh = skinned ? new THREE.SkinnedMesh(g, m) : new THREE.Mesh(g, m);
@@ -621,7 +672,7 @@ export function buildVisorMeshes(
   return {
     face,
     glass,
-    lightAt: new THREE.Vector3(cx as number, cy as number, front + 0.12 / metresPerUnit),
+    lightAt: new THREE.Vector3(cx as number, cy as number, front - 0.1 / metresPerUnit),
   };
 }
 

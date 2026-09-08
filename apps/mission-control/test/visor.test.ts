@@ -26,6 +26,7 @@ import {
   createGlassMaterial as createPlainGlass,
   GLASS_DIRECT_GAIN,
   GLASS_ENV_FACING,
+  PAINT_RIM_METRES,
   REFLECTION_PATCH,
 } from '../src/world/glass.js';
 import {
@@ -269,8 +270,19 @@ function expectVisor(
   expect(glassMaterial.transparent).toBe(true);
   expect(glassMaterial.depthWrite).toBe(false);
   expect(glassMaterial.roughness).toBeLessThan(0.15);
-  // The light sits in front of the paint, at its centre.
-  expect(visor.lightAt.z).toBeGreaterThan(mask.measured.paintBounds.max[2] as number);
+  /*
+   * **The light sits at the paint's centre and BEHIND it** (V9, item 7).
+   * From V5 to V8.3 it sat 0.12 m *in front* of the glass, and the glass
+   * reflected it as a bright dot between the eyes — fixed to the head, so
+   * it travelled with the face and not with the camera, which is what the
+   * owner reported: *"there's still a light coloured mark in the middle on
+   * the black … Prover as well when you look closely. Fix them all."*
+   * V8.3's 2.6× lift of the direct specular made it brighter still. The
+   * assertion this replaces said the light was in front; the new one is
+   * the property that matters and is the stronger of the two, because a
+   * front-facing glass cannot see a light behind it at all.
+   */
+  expect(visor.lightAt.z).toBeLessThan(mask.measured.paintBounds.max[2] as number);
   expect(visor.lightAt.x).toBeCloseTo(mask.measured.centre[0] as number, 6);
   if ((head as THREE.SkinnedMesh).isSkinnedMesh) {
     const skinned = head as THREE.SkinnedMesh;
@@ -357,6 +369,7 @@ describe('the visor materials (KR-57)', () => {
     // visor's glass still stops exactly where the paint stops.
     const masked = {
       uniforms: {} as Record<string, { value: unknown }>,
+      vertexShader: ['#include <begin_vertex>', '#include <project_vertex>'].join('\n'),
       fragmentShader: [
         '#include <clipping_planes_fragment>',
         '#include <lights_fragment_begin>',
@@ -370,6 +383,33 @@ describe('the visor materials (KR-57)', () => {
     expect(masked.fragmentShader.indexOf('discard')).toBeLessThan(
       masked.fragmentShader.indexOf('radiance *= envKeep'),
     );
+    /*
+     * **V9, item 7: the discard is confined to the rim band**, so the
+     * paint decides the silhouette and nothing else. The glass must carry
+     * the same per-vertex rim as the face — a glass with holes the face
+     * does not have would be the same defect in the layer in front of it.
+     */
+    expect(masked.fragmentShader).toContain('uniform float uRimMetres');
+    expect(masked.fragmentShader).toContain('varying float vRim');
+    expect(masked.fragmentShader).toMatch(/if \(vRim < uRimMetres\) \{[\s\S]*discard;[\s\S]*\}/);
+    expect(masked.vertexShader).toContain('attribute float rim');
+    expect(masked.vertexShader).toContain('vRim = rim;');
+    // The band is the visor's, and it is a real length, not zero.
+    expect(masked.uniforms.uRimMetres?.value).toBe(0);
+    const banded = {
+      uniforms: {} as Record<string, { value: unknown }>,
+      vertexShader: '#include <begin_vertex>',
+      fragmentShader: [
+        '#include <clipping_planes_fragment>',
+        '#include <lights_fragment_begin>',
+        '#include <lights_fragment_maps>',
+      ].join('\n'),
+    };
+    const visorGlass = createGlassMaterial(new THREE.Texture(), VISOR_PAINT, PAINT_RIM_METRES);
+    (visorGlass.onBeforeCompile as (s: typeof banded) => void)(banded);
+    expect(banded.uniforms.uRimMetres?.value).toBe(PAINT_RIM_METRES);
+    expect(PAINT_RIM_METRES).toBeGreaterThan(0.005);
+    expect(PAINT_RIM_METRES).toBeLessThan(0.03);
     // The two programs must not share a cache entry: one discards, one does not.
     expect(createPlainGlass().customProgramCacheKey?.()).not.toBe(
       material.customProgramCacheKey?.(),
@@ -460,6 +500,85 @@ describe.each(ROLES)('the %s’s visor', (role) => {
 
   it('is built on the head’s own triangles with the glass a fixed gap off it', () => {
     expectVisor(role, mesh, visor, positions, scale * positionScale);
+  });
+
+  /*
+   * **V9, item 7: the rim.** The paint rule discards where the model's own
+   * paint is not the visor's, and it was doing that everywhere inside the
+   * visor as well as at its edge — which is the light-coloured mark the
+   * owner reported on all four. It is now confined to a band along the
+   * mask's own boundary, and the band is measured per vertex, in metres,
+   * against that boundary. Held here: the attribute exists on both meshes,
+   * it is zero on the outline and grows inward, and it reaches well past
+   * the band, so there is interior for the fill to cover.
+   */
+  it('carries a per-vertex rim distance so the paint decides only the edge', () => {
+    const built = buildVisorMeshes(
+      mesh,
+      visor,
+      positions,
+      scale * positionScale,
+      new THREE.Texture(),
+      new THREE.Texture(),
+    );
+    for (const [name, part] of [
+      ['face', built.face],
+      ['glass', built.glass],
+    ] as const) {
+      const rim = part.geometry.getAttribute('rim');
+      expect(rim, `${role}: the ${name} has no rim attribute`).toBeTruthy();
+      expect(rim.itemSize).toBe(1);
+      expect(rim.count).toBe(part.geometry.getAttribute('position').count);
+      let smallest = Number.POSITIVE_INFINITY;
+      let largest = 0;
+      for (let i = 0; i < rim.count; i += 1) {
+        const value = rim.getX(i);
+        expect(value, `${role}: a negative rim distance`).toBeGreaterThanOrEqual(0);
+        smallest = Math.min(smallest, value);
+        largest = Math.max(largest, value);
+      }
+      // Zero on the outline, and the interior reaches far past the band.
+      expect(smallest, `${role}: nothing sits on the outline`).toBeLessThan(1e-6);
+      expect(largest, `${role}: the visor has no interior past the rim band`).toBeGreaterThan(
+        PAINT_RIM_METRES * 2,
+      );
+    }
+    // The band the shader is given is the visor's, not a screen's zero.
+    const material = built.face.material as THREE.ShaderMaterial;
+    expect(material.uniforms.uRimMetres?.value).toBe(PAINT_RIM_METRES);
+    const glass = built.glass.material as THREE.MeshPhysicalMaterial;
+    const captured = {
+      uniforms: {} as Record<string, { value: unknown }>,
+      vertexShader: '#include <begin_vertex>',
+      fragmentShader: '#include <clipping_planes_fragment>',
+    };
+    (glass.onBeforeCompile as (shader: typeof captured) => void)(captured);
+    expect(captured.uniforms.uRimMetres?.value).toBe(PAINT_RIM_METRES);
+  });
+
+  /*
+   * **V9, item 7's second cause.** The face's own point light sat 0.12 m
+   * *in front of* the glass, at the visor's own centre, and the glass
+   * reflected it as a bright dot between the eyes — fixed to the head, so
+   * it moved with the face and not with the camera, which is exactly what
+   * the owner reported from his own machine: *"The marks stay in the same
+   * place I think."* V8.3 made it worse by lifting the direct specular
+   * 2.6× for every light, that one included. The light is now behind the
+   * display, so a front-facing glass cannot see it at all.
+   */
+  it('keeps the face’s own light behind the glass it would otherwise reflect', () => {
+    const built = buildVisorMeshes(
+      mesh,
+      visor,
+      positions,
+      scale * positionScale,
+      new THREE.Texture(),
+      new THREE.Texture(),
+    );
+    const front = visor.measured.paintBounds.max[2] as number;
+    expect(built.lightAt.z, `${role}: the face light is in front of its own glass`).toBeLessThan(
+      front,
+    );
   });
 });
 

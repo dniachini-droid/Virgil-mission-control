@@ -130,6 +130,79 @@ export const CONVEXITY_RADIUS_M = 0.025;
  */
 export const CONVEXITY_TOLERANCE_PER_M = 0.5;
 
+/**
+ * **The indent fill (V9, item 6).** The owner: *"The keeper's visor has
+ * indents where I think meshy ai believed its eyes are meant to be. So
+ * you'll actually have to remove the indent on the actual model, and make
+ * it smooth. Because you can still see the indents on the visors where his
+ * eyes are."*
+ *
+ * **This overrules a judgment V8.3 recorded, and the reversal is the
+ * owner's to make.** V8.3 measured the Keeper as the least convex of the
+ * four — 1,054 of 2,149 interior vertices bending the wrong way, 49.0 %
+ * convex, a worst wrong-way curvature of 539 /m and the largest quadric
+ * residual at 1.38 mm — attributed it to "a fold in his hood", and left it
+ * deliberately, on the ground that straightening it "would be redesigning
+ * his face". The owner has now said those are not his design: they are
+ * Meshy's guess at where eyes go. So they are removed.
+ *
+ * **His `.glb` is not touched.** Nothing in `assets/` changes and no
+ * provenance row is created: this runs when the visor is built, on the
+ * geometry extracted from his model, and his file on disk is byte for byte
+ * what it was. He wrote "remove the indent on the actual model" and is
+ * entitled to know that.
+ *
+ * The method, and the two things it must not do:
+ *
+ *  - a vertex's depth is measured against **a quadric fitted to the
+ *    surface around it** — the samples between `INDENT_INNER_M` and
+ *    `INDENT_RADIUS_M`, so the dent itself is not in its own reference —
+ *    and **never against a sphere**;
+ *  - the **boundary does not move**: no vertex within `CONVEXITY_RADIUS_M`
+ *    of the rim is measured or moved at all, which is a stronger guard
+ *    than the 23–108 nanometres V8.3 held the outline to, because those
+ *    vertices are not candidates in the first place.
+ *
+ * A vertex is moved out along its own normal by its own measured depth, so
+ * the correction goes smoothly to nothing at the edge of the dent (a
+ * vertex on the surrounding convex surface measures zero depth) and no
+ * step is introduced.
+ */
+export const INDENT_RADIUS_M = 0.05;
+export const INDENT_INNER_M = 0.022;
+/** Shallower than this is not a dent anyone can see, and is left alone. */
+export const INDENT_DEPTH_M = 0.0005;
+/** How many times the depths are measured, corrected and measured again. */
+export const INDENT_PASSES = 4;
+
+/**
+ * **The caps that separate a mis-guessed eye socket from a fold the owner
+ * designed**, and the reason they exist rather than filling everything
+ * concave. Measured on the committed payloads with the caps off:
+ *
+ * | visor | deepest region | its area | convexity |
+ * |---|---|---|---|
+ * | Virgil | 2.26 mm | 225 mm² | 97.5 % → 99.1 % |
+ * | Prover | 2.23 mm | 104 mm² | 95.1 % → 98.1 % |
+ * | Fabricator | **9.40 mm** | 2,993 mm² | 77.8 % → 82.5 % |
+ * | Keeper | **43.59 mm** | **69,347 mm²** | 49.0 % → **41.6 %** |
+ *
+ * The Fabricator's deepest two are 9.40 mm and 7.54 mm at (±0.12–0.16,
+ * 0.64, 0.17) — a mirrored pair, which is what a pair of guessed eye
+ * sockets looks like. The Keeper's deepest is 43.59 mm over 1,102
+ * vertices and 69,347 mm², and pushing it out onto the quadric fitted
+ * around it made his convexity **worse** and his worst wrong-way
+ * curvature nearly double, 539 → 1,016 /m. That is not a dent; it is the
+ * fold in his hood V8.3 identified, and forcing it flat is the
+ * deformation the owner's own instruction excludes.
+ *
+ * So a region is filled only if it is **at most `INDENT_MAX_DEPTH_M` deep
+ * and at most `INDENT_MAX_AREA_M2` across**. Everything larger is
+ * measured and reported and left exactly where the owner's model put it.
+ */
+export const INDENT_MAX_DEPTH_M = 0.015;
+export const INDENT_MAX_AREA_M2 = 0.008;
+
 export interface WedgeMesh {
   /** Wedge positions, xyz. */
   position: Float32Array;
@@ -168,6 +241,42 @@ export interface ConvexityResult {
   fitResidualM: number;
 }
 
+/** One connected region of surface that bends the wrong way. */
+export interface IndentRegion {
+  /** How many welded vertices it covers. */
+  vertices: number;
+  /** Its deepest point below the quadric fitted to the surface around it, in metres. */
+  depthM: number;
+  /** Its mean depth, in metres. */
+  meanDepthM: number;
+  /** Its approximate area, in square metres: the vertices' own share of the surface. */
+  areaM2: number;
+  /** Where it sits, in the mask's own frame, in metres. */
+  atM: [number, number, number];
+}
+
+export interface IndentReport {
+  /** Interior vertices far enough from the rim to be measured. */
+  sampled: number;
+  /** Of those, the ones that sat below the surface around them. */
+  indented: number;
+  /** The regions filled, deepest first. */
+  regions: IndentRegion[];
+  /**
+   * The concave regions **left alone** because they are too deep or too
+   * wide to be a mis-guessed eye socket: a fold the owner designed.
+   */
+  kept: IndentRegion[];
+  /** The deepest single point, in metres. */
+  deepestM: number;
+  /** The total area corrected, in square metres. */
+  correctedAreaM2: number;
+  /** The largest distance any vertex was moved, in metres. */
+  movedM: number;
+  /** The worst distance any *boundary* vertex moved. Must be zero. */
+  boundaryMovedM: number;
+}
+
 export interface SmoothingReport {
   trianglesBefore: number;
   trianglesAfter: number;
@@ -192,6 +301,10 @@ export interface SmoothingReport {
   penetrationAfterM: number;
   /** The convexity verification, on the geometry actually returned. */
   convexity: ConvexityResult;
+  /** The convexity before the indents were filled, when they were. */
+  convexityBeforeFill: ConvexityResult | null;
+  /** What the indent fill found and corrected (V9, item 6). */
+  indents: IndentReport;
 }
 
 export interface SmoothedVisor {
@@ -689,13 +802,21 @@ interface Quadric {
   samples: number;
 }
 
-/** Fits a quadric to a neighbourhood in the vertex's own tangent frame. */
+/**
+ * Fits a quadric to a neighbourhood in the vertex's own tangent frame.
+ * With `innerRadius` the samples closer than that are left out, so the fit
+ * describes **the surface around** the vertex rather than the vertex's own
+ * neighbourhood — which is what an indent has to be measured against, and
+ * why item 7 of V9 does not fit a sphere: these selections are 42–155 mm
+ * from one (`docs/process/PHASE_1_BACKLOG.md`).
+ */
 function fitQuadric(
   position: Float32Array,
   normal: Float32Array,
   s: Welded,
   v: number,
   members: number[],
+  innerRadius = 0,
 ): Quadric | null {
   const iv = s.wedgeOf[v] as number;
   const centre = new THREE.Vector3().fromArray(position, iv * 3);
@@ -710,6 +831,7 @@ function fitQuadric(
     const iu = s.wedgeOf[u] as number;
     if (iu < 0) continue;
     d.fromArray(position, iu * 3).sub(centre);
+    if (innerRadius > 0 && d.length() < innerRadius) continue;
     samples.push([d.dot(t1), d.dot(t2), d.dot(n)]);
   }
   if (samples.length < 10) return null;
@@ -834,6 +956,280 @@ export function verifyConvexity(
 }
 
 /**
+ * **Fills the indents (V9, item 6).** Every interior vertex more than
+ * `CONVEXITY_RADIUS_M` from the rim is measured against a quadric fitted
+ * to the surface *around* it — the annulus from `INDENT_INNER_M` to
+ * `INDENT_RADIUS_M` — and its depth below that surface recorded. The
+ * depressed vertices are grouped into connected regions over the 1-ring
+ * and each is moved out along its own normal by its own depth, which is
+ * zero at the region's edge, so nothing steps. Repeated `INDENT_PASSES`
+ * times, because filling one dent changes the surface its neighbour is
+ * measured against.
+ *
+ * **No boundary vertex is a candidate**, so the silhouette cannot move:
+ * that is asserted in the report as `boundaryMovedM` and must be zero.
+ */
+export function fillIndents(
+  position: Float32Array,
+  normal: Float32Array,
+  s: Welded,
+  scaleToMetres: number,
+): IndentReport {
+  const radius = INDENT_RADIUS_M / scaleToMetres;
+  const inner = INDENT_INNER_M / scaleToMetres;
+  const rimGuard = CONVEXITY_RADIUS_M / scaleToMetres;
+  const threshold = INDENT_DEPTH_M / scaleToMetres;
+  const rim = boundarySegments(s);
+  // Which vertices are far enough from the rim to be measured at all.
+  const candidate = new Uint8Array(s.count);
+  for (let v = 0; v < s.count; v += 1) {
+    if (s.onBoundary[v]) continue;
+    const i = s.wedgeOf[v] as number;
+    if (i < 0) continue;
+    const d = distanceToSegments(
+      position[i * 3] as number,
+      position[i * 3 + 1] as number,
+      position[i * 3 + 2] as number,
+      rim,
+    );
+    if (d > rimGuard) candidate[v] = 1;
+  }
+  let sampled = 0;
+  let indentedFirst = 0;
+  let deepest = 0;
+  let moved = 0;
+  const regions: IndentRegion[] = [];
+  const depth = new Float64Array(s.count);
+  const totalDepth = new Float64Array(s.count);
+  const cell = new Float64Array(s.count);
+  // Each vertex's share of the surface: a third of each incident triangle.
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  for (let t = 0; t < s.tri.length; t += 3) {
+    const i0 = s.wedgeOf[s.tri[t] as number] as number;
+    const i1 = s.wedgeOf[s.tri[t + 1] as number] as number;
+    const i2 = s.wedgeOf[s.tri[t + 2] as number] as number;
+    if (i0 < 0 || i1 < 0 || i2 < 0) continue;
+    a.fromArray(position, i0 * 3);
+    b.fromArray(position, i1 * 3);
+    c.fromArray(position, i2 * 3);
+    const area = (b.clone().sub(a).cross(c.clone().sub(a)).length() / 2) * scaleToMetres ** 2;
+    for (let k = 0; k < 3; k += 1) {
+      const v = s.tri[t + k] as number;
+      cell[v] = (cell[v] as number) + area / 3;
+    }
+  }
+  /** One connected region of the current depth field, over the 1-ring. */
+  const componentsOf = (field: Float64Array): number[][] => {
+    const seenNow = new Uint8Array(s.count);
+    const out: number[][] = [];
+    for (let v = 0; v < s.count; v += 1) {
+      if (seenNow[v] || (field[v] as number) <= 0) continue;
+      const group: number[] = [];
+      const stack = [v];
+      seenNow[v] = 1;
+      while (stack.length) {
+        const u = stack.pop() as number;
+        group.push(u);
+        for (const w of s.ring[u] as number[]) {
+          if (seenNow[w] || (field[w] as number) <= 0) continue;
+          seenNow[w] = 1;
+          stack.push(w);
+        }
+      }
+      out.push(group);
+    }
+    return out;
+  };
+  const describe = (group: number[], field: Float64Array): IndentRegion => {
+    let peak = 0;
+    let sum = 0;
+    let area = 0;
+    let cx = 0;
+    let cy = 0;
+    let cz = 0;
+    for (const u of group) {
+      const d = (field[u] as number) * scaleToMetres;
+      sum += d;
+      if (d > peak) peak = d;
+      area += cell[u] as number;
+      const i = s.wedgeOf[u] as number;
+      cx += position[i * 3] as number;
+      cy += position[i * 3 + 1] as number;
+      cz += position[i * 3 + 2] as number;
+    }
+    return {
+      vertices: group.length,
+      depthM: peak,
+      meanDepthM: sum / group.length,
+      areaM2: area,
+      atM: [
+        (cx / group.length) * scaleToMetres,
+        (cy / group.length) * scaleToMetres,
+        (cz / group.length) * scaleToMetres,
+      ],
+    };
+  };
+  const keptByKey = new Map<string, IndentRegion>();
+  for (let pass = 0; pass < INDENT_PASSES; pass += 1) {
+    depth.fill(0);
+    let any = false;
+    let count = 0;
+    for (let v = 0; v < s.count; v += 1) {
+      if (!candidate[v]) continue;
+      if (pass === 0) sampled += 1;
+      const q = fitQuadric(
+        position,
+        normal,
+        s,
+        v,
+        neighbourhood(s, position, v, radius, 10),
+        inner,
+      );
+      if (!q) continue;
+      // `q.f` is the fitted surface's own height at the vertex, in the
+      // vertex's tangent frame, and the vertex sits at zero: positive means
+      // the surface around it stands proud of it, which is a dent.
+      if (q.f <= threshold) continue;
+      depth[v] = q.f;
+      count += 1;
+      any = true;
+    }
+    if (pass === 0) indentedFirst = count;
+    if (!any) break;
+    /*
+     * **The caps, applied per region and before anything moves.** A region
+     * too deep or too wide to be a guessed eye socket is a fold the owner
+     * designed: it is measured, recorded in `kept`, and its vertices are
+     * taken out of the field so nothing in it is touched — this pass or
+     * any later one.
+     */
+    let moving = false;
+    // A region's depth is judged on what it would total, not on this pass
+    // alone, so a dent cannot be pushed past the cap in instalments.
+    const cumulativeField = new Float64Array(s.count);
+    for (let v = 0; v < s.count; v += 1) {
+      cumulativeField[v] =
+        (depth[v] as number) > 0 ? (totalDepth[v] as number) + (depth[v] as number) : 0;
+    }
+    for (const group of componentsOf(depth)) {
+      const region = describe(group, cumulativeField);
+      if (region.depthM > INDENT_MAX_DEPTH_M || region.areaM2 > INDENT_MAX_AREA_M2) {
+        const key = group
+          .slice(0, 4)
+          .sort((x, y) => x - y)
+          .join(':');
+        const known = keptByKey.get(key);
+        if (!known || region.depthM > known.depthM) keptByKey.set(key, region);
+        for (const u of group) {
+          depth[u] = 0;
+          candidate[u] = 0;
+        }
+        continue;
+      }
+      moving = true;
+    }
+    if (!moving) break;
+    // Move each depressed vertex out along its own normal by its own depth.
+    for (let v = 0; v < s.count; v += 1) {
+      const d = depth[v] as number;
+      if (d <= 0) continue;
+      totalDepth[v] = (totalDepth[v] as number) + d;
+      if ((totalDepth[v] as number) * scaleToMetres > moved) {
+        moved = (totalDepth[v] as number) * scaleToMetres;
+      }
+      for (const i of s.wedgesOf[v] as number[]) {
+        position[i * 3] = (position[i * 3] as number) + (normal[i * 3] as number) * d;
+        position[i * 3 + 1] = (position[i * 3 + 1] as number) + (normal[i * 3 + 1] as number) * d;
+        position[i * 3 + 2] = (position[i * 3 + 2] as number) + (normal[i * 3 + 2] as number) * d;
+      }
+    }
+    // The normals are what the next pass measures against.
+    const fresh = weldedNormalsFromWelded(position, s, normal);
+    normal.set(fresh);
+  }
+  // The regions filled, from the total correction.
+  for (const group of componentsOf(totalDepth)) {
+    const region = describe(group, totalDepth);
+    if (region.depthM > deepest) deepest = region.depthM;
+    regions.push(region);
+  }
+  regions.sort((x, y) => y.depthM - x.depthM);
+  let boundaryMoved = 0;
+  for (let v = 0; v < s.count; v += 1) {
+    if (!s.onBoundary[v]) continue;
+    boundaryMoved = Math.max(boundaryMoved, (totalDepth[v] as number) * scaleToMetres);
+  }
+  const kept = [...keptByKey.values()].sort((x, y) => y.depthM - x.depthM);
+  return {
+    sampled,
+    indented: indentedFirst,
+    regions,
+    kept,
+    deepestM: deepest,
+    correctedAreaM2: regions.reduce((sum, region) => sum + region.areaM2, 0),
+    movedM: moved,
+    boundaryMovedM: boundaryMoved,
+  };
+}
+
+/**
+ * Vertex normals for a welded surface whose positions have moved, written
+ * back onto every wedge. The orientation is kept from what the wedge
+ * already carries, so a triangle wound against its neighbours cannot flip
+ * a normal into the head.
+ */
+function weldedNormalsFromWelded(
+  position: Float32Array,
+  s: Welded,
+  reference: Float32Array,
+): Float32Array {
+  const out = new Float32Array(position.length);
+  const acc = new Float64Array(s.count * 3);
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const n = new THREE.Vector3();
+  for (let t = 0; t < s.tri.length; t += 3) {
+    const v0 = s.tri[t] as number;
+    const v1 = s.tri[t + 1] as number;
+    const v2 = s.tri[t + 2] as number;
+    a.fromArray(position, (s.wedgeOf[v0] as number) * 3);
+    b.fromArray(position, (s.wedgeOf[v1] as number) * 3);
+    c.fromArray(position, (s.wedgeOf[v2] as number) * 3);
+    n.copy(b).sub(a).cross(c.clone().sub(a));
+    for (const v of [v0, v1, v2]) {
+      acc[v * 3] = (acc[v * 3] as number) + n.x;
+      acc[v * 3 + 1] = (acc[v * 3 + 1] as number) + n.y;
+      acc[v * 3 + 2] = (acc[v * 3 + 2] as number) + n.z;
+    }
+  }
+  for (let v = 0; v < s.count; v += 1) {
+    n.set(acc[v * 3] as number, acc[v * 3 + 1] as number, acc[v * 3 + 2] as number);
+    if (n.lengthSq() === 0) n.set(0, 0, 1);
+    n.normalize();
+    // **One orientation per welded point, taken from the normal that point
+    // already had.** A decimated Meshy head has triangles wound against
+    // their neighbours, so a normal from the winding alone can come back
+    // inside the head; and deciding the direction per wedge is exactly the
+    // fault that tore a 24 mm slit through the Fabricator's face in V8.3.
+    const ref = s.wedgeOf[v] as number;
+    const towards =
+      n.x * (reference[ref * 3] as number) +
+      n.y * (reference[ref * 3 + 1] as number) +
+      n.z * (reference[ref * 3 + 2] as number);
+    if (towards < 0) n.negate();
+    for (const i of s.wedgesOf[v] as number[]) {
+      out[i * 3] = n.x;
+      out[i * 3 + 1] = n.y;
+      out[i * 3 + 2] = n.z;
+    }
+  }
+  return out;
+}
+
+/**
  * The dimple measure: the steepest rise of a neighbour above the vertex's
  * own tangent plane, as a slope. Zero is locally convex.
  */
@@ -924,7 +1320,11 @@ function vertexHeight(
 export function smoothVisor(
   origin: WedgeMesh,
   scaleToMetres: number,
-  { levels = VISOR_SUBDIVISIONS, verify = false }: { levels?: number; verify?: boolean } = {},
+  {
+    levels = VISOR_SUBDIVISIONS,
+    verify = false,
+    fill = true,
+  }: { levels?: number; verify?: boolean; fill?: boolean } = {},
 ): SmoothedVisor {
   const planes = parentPlanes(origin);
   const originWeld = weld(origin.position, scaleToMetres);
@@ -1003,6 +1403,30 @@ export function smoothVisor(
     if ((applied[v] as number) > maxLift) maxLift = applied[v] as number;
   }
 
+  /*
+   * --- the indents (V9, item 6) ---
+   *
+   * The owner: the marks where Meshy guessed his eyes were. Filled after
+   * the lift, because the lift is what puts the surface where it belongs
+   * relative to the head's own facets, and before the measurements below,
+   * because those describe the geometry actually returned.
+   */
+  const convexityBeforeFill =
+    verify && fill ? verifyConvexity(mesh.position, normal, s, scaleToMetres) : null;
+  const indents = fill
+    ? fillIndents(mesh.position, normal, s, scaleToMetres)
+    : {
+        sampled: 0,
+        indented: 0,
+        regions: [],
+        kept: [],
+        deepestM: 0,
+        correctedAreaM2: 0,
+        movedM: 0,
+        boundaryMovedM: 0,
+      };
+  if (fill) normal = weldedNormals(mesh, of, count);
+
   // --- what is left, measured on the geometry actually returned ---
   let dimpled = 0;
   let worstDimple = 0;
@@ -1059,6 +1483,8 @@ export function smoothVisor(
             percentile95PerM: 0,
             fitResidualM: 0,
           },
+      convexityBeforeFill,
+      indents,
     },
   };
 }
