@@ -185,7 +185,8 @@ Branch `claude/virgil-phase-1-slice`, forward from `d937b3b` (V7 delivered, CI l
 | `375d42f` | The set: symmetrical consoles carrying their own screens (`asset-pipeline/fit-screen.mjs`, `screens/ConsoleScreen.tsx`), no window, the level camera, the raised backdrop, the turn (`locomotion.ts`), the receiving and returning beats (`screens/stationScreen.ts`, `returning.ts`, `arrival.ts`), counters (`tally.ts`), the four verdicts (`verdicts.ts`), the CRT (`crt.ts`), the spotlight (`Models.tsx`), the owner gate, Virgil's slabs driven from the candidate state; the tests rewritten and added |
 | `1cb9bec` | The standing point moved left of the screen and the close-up camera to its side, after the first capture showed the Fabricator's back hiding his own screen; the console pictures inset so the honesty band clears the bezel's lip; the planet and the station swapped sides; the clocks capped at 0.1 s a frame; the capture entry point (`#/?demo=&loop=`); the spec's §0.10.11–13 |
 | `9345541` | The owner document and this record's V8 section, from the captures. **The source of the V8 artifact** |
-| (this commit) | The artifact from `9345541`, its digest, the check results below |
+| `7c48911` | The artifact from `9345541`, its digest, the check results below |
+| (this commit) | The reproducibility rebuild's printed result |
 
 ### Checks run on `9345541`, all with `TURBO_FORCE=true`, every one in the foreground
 
@@ -196,7 +197,7 @@ Branch `claude/virgil-phase-1-slice`, forward from `d937b3b` (V7 delivered, CI l
 | `pnpm --filter mission-control build:owner` (clean tree at `9345541`, `VIRGIL_OWNER_BUILD_DATE="2026-09-08 10:30 UTC"`) | `v8-s2-virgil-934554159f.html`, **8,426,374 bytes**, SHA-256 `fbe7dcbfe81abb12e2eac44f9b2a2cb39103bfa77acf1a2845cb5ba16dd4ace2` |
 | `pnpm --filter mission-control verify:owner` (on the `1cb9bec` build, before the documents were committed; the source is otherwise identical) | `browser chromium 141.0.7390.37 — /opt/pw-browsers/chromium (preinstalled, substituted for the pinned build)`; `routes (tabletop), (retired room), #/s1, #/spike/foundry, #/spike/mind`; `requests 1, off-document 0`; `renderer ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)…), SwiftShader driver)`; footer `… viewing point V8 — the tabletop: symmetrical consoles with their own screens, a level camera, the receiving and returning beats …`; `console errors 0`; **PASS**. Warnings printed and not failed on, as in V6 and V7: the `THREE.Clock` and `PCFSoftShadowMap` deprecations and SwiftShader's ReadPixels stalls |
 | `sha256sum -c *.sha256` (in `dist/owner-build/` and again in `docs/process/PHASE_1_owner-builds/`) | `v8-s2-virgil-934554159f.html: OK`; and every earlier artifact `OK` (V0–V7, eight files) |
-| `pnpm reproduce:owner` | RUN_RECORD_REPRODUCE |
+| `pnpm reproduce:owner` (after the artifact was committed at `7c48911`) | newest artifact `v8-s2-virgil-934554159f.html`; recovered source commit `934554159f8021478887603c9230d459eed763da`; rebuilt in a detached worktree at that commit; `cmp … identical`; `sha256 fbe7dcbfe81abb12e2eac44f9b2a2cb39103bfa77acf1a2845cb5ba16dd4ace2 (8426374 bytes)`; **PASS — the committed artifact is byte-for-byte derivable from its commit** |
 
 CI ran on every push of this pass (`0f041ea`, `375d42f`, `1cb9bec`, `9345541`); the API's per-run conclusions were not read back into this session, so they are not quoted here — the runs are on the repository's Actions page under their commit SHAs.
 
