@@ -1,5 +1,13 @@
 import * as THREE from 'three';
 import type { VisorMask } from '../characters/visorFit.js';
+import {
+  fitScreenOutline,
+  type PlanePoint,
+  type RoundedRect,
+  roundedRectOutline,
+  roundedRectSurface,
+  type ScreenOutline,
+} from './screenOutline.js';
 
 /**
  * **A console's screen is drawn on a flat plane fitted to the model's own
@@ -26,14 +34,26 @@ import type { VisorMask } from '../characters/visorFit.js';
  *
  * `test/console-screens.test.ts` records the residuals of the fit in
  * millimetres — the measurement of how crooked the surface is, and the
- * whole justification for this change — and fails if the rectangle is not
- * planar, if any corner leaves the selection's own region, or if any of
- * the original triangles reaches through it.
+ * whole justification for this change — and fails if the surface is not
+ * planar, if the outline leaves the selection's own footprint, or if any
+ * of the original triangles reaches through it.
+ *
+ * **V8.2: the drawn area is the opening's own shape, at full bleed.** The
+ * owner, on the V8.1 frames: *"the screens are better, but they are still
+ * sharp edges, a rectangle, instead of going right to the end of the
+ * screen. the screens need to curve on the corners. and go right to the
+ * end."* V8.1 drew an axis-aligned rectangle inset 35 mm from the
+ * selection's extent, with square corners, floating inside a rounded
+ * opening — and V8 had inset the picture inside the canvas as well, in
+ * ink, so the honesty band would clear the bezel's lip. Both insets are
+ * gone. `screenOutline.ts` fits a rounded rectangle to the selection's own
+ * border and measures its corner radius; the picture and the glass are
+ * both built to that one outline, contracted only by the few millimetres
+ * that keep them inside the selection; and the band is laid out within the
+ * rounded area rather than the picture shrunk away from it.
  */
 
-/** How far inside the selection's own extent the rectangle's edge sits. */
-export const SCREEN_INSET_M = 0.035;
-/** How far clear of the highest lump of the original surface the rectangle stands. */
+/** How far clear of the highest lump of the original surface the picture stands. */
 export const SCREEN_LIFT_MARGIN_M = 0.004;
 /**
  * The glass's swell at the centre, as a fraction of the rectangle's width
@@ -41,6 +61,19 @@ export const SCREEN_LIFT_MARGIN_M = 0.004;
  * same ratio so the two read as the same kind of object.
  */
 export const SCREEN_BULGE_RATIO = 0.03 / 1.3;
+/**
+ * How wide the picture's soft edge is, in canvas pixels. The outline is a
+ * mask derived from 23–41 coarse triangles; without a feather its arcs
+ * alias against the dark recess behind them. One and a half pixels of the
+ * 1024-pixel canvas is 1.3–1.4 mm on these screens.
+ */
+export const SCREEN_FEATHER_PIXELS = 1.5;
+/** The canvas the live picture is drawn on, in pixels across. */
+export const SCREEN_CANVAS_PIXELS = 1024;
+/** How many points the drawn outline is tessellated at, and how many rings each surface has. */
+export const SCREEN_OUTLINE_SEGMENTS = 240;
+export const SCREEN_FACE_RINGS = 2;
+export const SCREEN_GLASS_RINGS = 8;
 
 interface Corner {
   u: number;
@@ -48,40 +81,81 @@ interface Corner {
   h: number;
 }
 
-/** The rectangle's four edges, as (axis, sign): inside is `sign · axis ≤ half`. */
-const EDGES = [
-  { axis: 'u' as const, sign: 1 },
-  { axis: 'u' as const, sign: -1 },
-  { axis: 'v' as const, sign: 1 },
-  { axis: 'v' as const, sign: -1 },
-];
-
-/** Sutherland–Hodgman against one edge of the rectangle, interpolating the height. */
-function clip(
-  polygon: Corner[],
-  edge: (typeof EDGES)[number],
-  halfWidth: number,
-  halfHeight: number,
-): Corner[] {
-  const half = edge.axis === 'u' ? halfWidth : halfHeight;
-  const value = (q: Corner) => edge.sign * (edge.axis === 'u' ? q.u : q.v);
+/**
+ * Sutherland–Hodgman against one directed edge of a convex polygon,
+ * interpolating the height: inside is to the left of a→b. Generalised in
+ * V8.2 from the four edges of a rectangle to the tessellated rounded
+ * outline, so the lift is measured under what is actually drawn.
+ */
+function clip(polygon: Corner[], a: PlanePoint, b: PlanePoint): Corner[] {
+  const side = (q: Corner) => (b.u - a.u) * (q.v - a.v) - (b.v - a.v) * (q.u - a.u);
   const out: Corner[] = [];
   for (let i = 0; i < polygon.length; i += 1) {
-    const a = polygon[i] as Corner;
-    const b = polygon[(i + 1) % polygon.length] as Corner;
-    const da = value(a) - half;
-    const db = value(b) - half;
-    if (da <= 0) out.push(a);
-    if ((da < 0 && db > 0) || (da > 0 && db < 0)) {
-      const k = da / (da - db);
+    const p = polygon[i] as Corner;
+    const q = polygon[(i + 1) % polygon.length] as Corner;
+    const dp = side(p);
+    const dq = side(q);
+    if (dp >= 0) out.push(p);
+    if ((dp < 0 && dq > 0) || (dp > 0 && dq < 0)) {
+      const k = dp / (dp - dq);
       out.push({
-        u: a.u + (b.u - a.u) * k,
-        v: a.v + (b.v - a.v) * k,
-        h: a.h + (b.h - a.h) * k,
+        u: p.u + (q.u - p.u) * k,
+        v: p.v + (q.v - p.v) * k,
+        h: p.h + (q.h - p.h) * k,
       });
     }
   }
   return out;
+}
+
+/**
+ * How far the model's own screen surface reaches out in front of the
+ * fitted plane **under the drawn outline**, exactly: each selected
+ * triangle clipped to the outline, and the height read at the corners of
+ * what survives. The height is linear over a triangle, so its maximum
+ * over the clipped polygon is at one of those corners.
+ *
+ * This is the bound the picture has to clear, and it is measured under the
+ * outline rather than over the whole selection because a lump out under
+ * the bezel is not behind the picture and cannot come through it — lifting
+ * for one would stand the picture needlessly proud of the console.
+ */
+export function surfaceHeightUnder(
+  mask: VisorMask,
+  positions: ArrayLike<number>,
+  index: ArrayLike<number>,
+  plane: ScreenPlane,
+  outline: RoundedRect,
+): number {
+  const polygon = roundedRectOutline(outline, 64);
+  const p = new THREE.Vector3();
+  const cache = new Map<number, Corner>();
+  const at = (v: number): Corner => {
+    const seen = cache.get(v);
+    if (seen) return seen;
+    p.set(
+      positions[v * 3] as number,
+      positions[v * 3 + 1] as number,
+      positions[v * 3 + 2] as number,
+    ).sub(plane.centre);
+    const corner = { u: p.dot(plane.right), v: p.dot(plane.up), h: p.dot(plane.normal) };
+    cache.set(v, corner);
+    return corner;
+  };
+  let highest = 0;
+  for (const t of mask.triangles) {
+    let cut: Corner[] = [
+      at(index[t * 3] as number),
+      at(index[t * 3 + 1] as number),
+      at(index[t * 3 + 2] as number),
+    ];
+    // The outline is sampled anticlockwise, so inside is to the left.
+    for (let i = 0; i < polygon.length && cut.length > 0; i += 1) {
+      cut = clip(cut, polygon[i] as PlanePoint, polygon[(i + 1) % polygon.length] as PlanePoint);
+    }
+    for (const q of cut) highest = Math.max(highest, q.h);
+  }
+  return highest;
 }
 
 export interface ScreenPlane {
@@ -100,19 +174,10 @@ export interface ScreenPlane {
   /** The furthest any vertex stands in front of the plane, along +normal. */
   maxFront: number;
   /**
-   * The furthest the original surface stands in front of the plane **over
-   * the rectangle's own footprint** — the bound the rectangle has to clear.
-   * The surface is clipped to the rectangle exactly — each triangle is
-   * cut against the rectangle's four edges and the height read at the
-   * corners of what is left — because a lump out under the bezel is not
-   * behind the rectangle and cannot come through it, and lifting the
-   * picture to clear one would stand it needlessly proud of the console.
-   * Measured on the committed payloads: it happens that all three
-   * consoles' worst lump **is** inside the rectangle, so this is presently
-   * equal to `maxFront` for all three. The distinction is kept because
-   * the two are different quantities and a re-fit could separate them.
+   * How far the surface reaches out **under what is drawn** is no longer a
+   * property of the plane: it depends on the outline, which is fitted after
+   * the plane. `surfaceHeightUnder` measures it.
    */
-  maxFrontUnderRect: number;
   /** The furthest any vertex stands behind it. */
   maxBehind: number;
   /** How many vertices the fit was over. */
@@ -229,7 +294,6 @@ export function fitScreenPlane(
   let maxBehind = 0;
   let halfWidth = 0;
   let halfHeight = 0;
-  const inPlane = new Map<number, { u: number; v: number; h: number }>();
   for (const v of weight.keys()) {
     p.fromArray(positions as ArrayLike<number> & number[], v * 3).sub(centre);
     const h = p.dot(normal);
@@ -237,31 +301,8 @@ export function fitScreenPlane(
     count += 1;
     maxFront = Math.max(maxFront, h);
     maxBehind = Math.max(maxBehind, -h);
-    const u = p.dot(right);
-    const t = p.dot(up);
-    halfWidth = Math.max(halfWidth, Math.abs(u));
-    halfHeight = Math.max(halfHeight, Math.abs(t));
-    inPlane.set(v, { u, v: t, h });
-  }
-
-  // How far the surface reaches out over the rectangle's own footprint,
-  // exactly: each triangle clipped to the rectangle, and the height read
-  // at the corners of what survives. `h` is linear over a triangle, so
-  // its maximum over the clipped polygon is at one of those corners.
-  const rectHalfWidth = Math.max(0.025, halfWidth - SCREEN_INSET_M);
-  const rectHalfHeight = Math.max(0.025, halfHeight - SCREEN_INSET_M);
-  let maxFrontUnderRect = 0;
-  for (const t of mask.triangles) {
-    const corners = [index[t * 3], index[t * 3 + 1], index[t * 3 + 2]].map((v) =>
-      inPlane.get(v as number),
-    );
-    if (corners.some((q) => q === undefined)) continue;
-    let polygon = corners as Corner[];
-    for (const edge of EDGES) {
-      polygon = clip(polygon, edge, rectHalfWidth, rectHalfHeight);
-      if (polygon.length === 0) break;
-    }
-    for (const q of polygon) maxFrontUnderRect = Math.max(maxFrontUnderRect, q.h);
+    halfWidth = Math.max(halfWidth, Math.abs(p.dot(right)));
+    halfHeight = Math.max(halfHeight, Math.abs(p.dot(up)));
   }
 
   return {
@@ -271,7 +312,6 @@ export function fitScreenPlane(
     up,
     halfWidth,
     halfHeight,
-    maxFrontUnderRect,
     rms: Math.sqrt(sumSquares / count),
     maxFront,
     maxBehind,
@@ -280,98 +320,123 @@ export function fitScreenPlane(
 }
 
 export interface FlatScreen {
-  /** The flat rectangle the picture is drawn on. */
+  /** The surface the picture is drawn on: flat, and the shape of the opening. */
   face: THREE.BufferGeometry;
-  /** The convex glass over it, the same profile as Virgil's slabs. */
+  /** The convex glass over it, on the same outline. */
   glass: THREE.BufferGeometry;
-  /** The rectangle's size and where it stands, for the record and for the tests. */
+  /** What was built, for the record and for the tests. */
   plan: {
     width: number;
     height: number;
-    /** How far the rectangle stands off the fitted plane, along its normal. */
+    /** The drawn corner radius: the measured one, unless the extents are smaller. */
+    radius: number;
+    /** How far the surface stands off the fitted plane, along its normal. */
     lift: number;
-    /** The glass's swell at its centre, above the rectangle. */
+    /** The glass's swell at its centre, above the picture. */
     bulge: number;
-    corners: THREE.Vector3[];
+    /** How wide the picture's soft edge is, in metres. */
+    feather: number;
+    /** The drawn outline, in the plane. */
+    outline: RoundedRect;
+    /** The extremes of the drawn outline in the placed frame, for the sight tests. */
+    edge: THREE.Vector3[];
   };
 }
 
 /**
- * The flat screen and its glass, in the fitted plane, in the mask's frame.
+ * The screen and its glass, in the fitted plane, in the mask's frame.
  *
- *  - the **rectangle**: the selection's own extent inset by
- *    `SCREEN_INSET_M` so its edge stays under the console's bezel lip,
- *    stood off the plane by the highest lump of the original surface plus
+ *  - the **picture**: one flat surface in the shape of the model's own
+ *    opening (`screenOutline.ts`) — full bleed, with the corners rounded
+ *    to the radius measured off the geometry — stood off the plane by the
+ *    highest lump of the original surface *under the outline* plus
  *    `SCREEN_LIFT_MARGIN_M`, so nothing pokes through it and nothing
- *    z-fights with it. Two triangles: planar by construction;
- *  - the **glass**: `createConvexGlassGeometry`'s profile — the same one
- *    Virgil's slabs use — `gapMetres` in front of the rectangle, so a
- *    console screen and a slab are the same kind of object.
+ *    z-fights with it. Planar by construction: every vertex has the same
+ *    height;
+ *  - the **glass**: the same outline, `gapMetres` in front of the picture
+ *    at its edge and swelling by `SCREEN_BULGE_RATIO` of the width at its
+ *    centre with a CRT's profile — the ratio and the profile Virgil's
+ *    slabs use, so a console screen and a slab are the same kind of
+ *    object. **The glass follows the picture's outline**, because a
+ *    rounded picture behind rectangular glass would be worse than a square
+ *    one.
  */
 export function buildFlatScreen(
   plane: ScreenPlane,
+  outline: ScreenOutline,
+  lift: number,
   gapMetres: number,
-  glassGeometry: (width: number, height: number, bulge: number) => THREE.BufferGeometry,
   uvBounds: { min: [number, number]; max: [number, number] },
 ): FlatScreen {
-  const width = Math.max(0.05, 2 * plane.halfWidth - 2 * SCREEN_INSET_M);
-  const height = Math.max(0.05, 2 * plane.halfHeight - 2 * SCREEN_INSET_M);
-  const lift = plane.maxFrontUnderRect + SCREEN_LIFT_MARGIN_M;
+  const rect = outline.drawn;
+  const width = 2 * rect.halfWidth;
+  const height = 2 * rect.halfHeight;
   const bulge = width * SCREEN_BULGE_RATIO;
-  const origin = plane.centre.clone().addScaledVector(plane.normal, lift);
+  const feather = (SCREEN_FEATHER_PIXELS * width) / SCREEN_CANVAS_PIXELS;
+  const u0 = rect.centreU - rect.halfWidth;
+  const v0 = rect.centreV - rect.halfHeight;
 
-  const at = (u: number, v: number, out: THREE.Vector3) =>
-    out
-      .copy(origin)
-      .addScaledVector(plane.right, (u - 0.5) * width)
-      .addScaledVector(plane.up, (v - 0.5) * height);
+  const build = (rings: number, height_: (rho: number) => number, offset: number) => {
+    const surface = roundedRectSurface(rect, rings, SCREEN_OUTLINE_SEGMENTS, height_);
+    const count = surface.u.length;
+    const position = new Float32Array(count * 3);
+    const normals = new Float32Array(count * 3);
+    const uvs = new Float32Array(count * 2);
+    const faceUv = new Float32Array(count * 2);
+    const p = new THREE.Vector3();
+    for (let i = 0; i < count; i += 1) {
+      p.copy(plane.centre)
+        .addScaledVector(plane.right, surface.u[i] as number)
+        .addScaledVector(plane.up, surface.v[i] as number)
+        .addScaledVector(plane.normal, offset + (surface.h[i] as number));
+      position[i * 3] = p.x;
+      position[i * 3 + 1] = p.y;
+      position[i * 3 + 2] = p.z;
+      normals[i * 3] = plane.normal.x;
+      normals[i * 3 + 1] = plane.normal.y;
+      normals[i * 3 + 2] = plane.normal.z;
+      // The canvas, undistorted, over the outline's own bounding box.
+      const fu = ((surface.u[i] as number) - u0) / width;
+      const fv = ((surface.v[i] as number) - v0) / height;
+      faceUv[i * 2] = fu;
+      faceUv[i * 2 + 1] = fv;
+      // The paint's own uv island, so the paint test samples the screen.
+      uvs[i * 2] = uvBounds.min[0] + (uvBounds.max[0] - uvBounds.min[0]) * fu;
+      uvs[i * 2 + 1] = uvBounds.min[1] + (uvBounds.max[1] - uvBounds.min[1]) * fv;
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(position, 3));
+    geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+    geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    geometry.setAttribute('faceUv', new THREE.BufferAttribute(faceUv, 2));
+    geometry.setIndex(surface.index);
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+    return geometry;
+  };
 
-  const corners: THREE.Vector3[] = [];
-  const position = new Float32Array(12);
-  const normals = new Float32Array(12);
-  const uvs = new Float32Array(8);
-  const faceUv = new Float32Array(8);
-  const p = new THREE.Vector3();
-  const grid: [number, number][] = [
-    [0, 0],
-    [1, 0],
-    [1, 1],
-    [0, 1],
-  ];
-  for (const [i, [u, v]] of grid.entries()) {
-    at(u, v, p);
-    corners.push(p.clone());
-    position[i * 3] = p.x;
-    position[i * 3 + 1] = p.y;
-    position[i * 3 + 2] = p.z;
-    normals[i * 3] = plane.normal.x;
-    normals[i * 3 + 1] = plane.normal.y;
-    normals[i * 3 + 2] = plane.normal.z;
-    // The paint's own uv island, so the paint test samples the screen.
-    uvs[i * 2] = uvBounds.min[0] + (uvBounds.max[0] - uvBounds.min[0]) * u;
-    uvs[i * 2 + 1] = uvBounds.min[1] + (uvBounds.max[1] - uvBounds.min[1]) * v;
-    // The canvas, undistorted, over the whole rectangle. This is the fix.
-    faceUv[i * 2] = u;
-    faceUv[i * 2 + 1] = v;
-  }
-  const face = new THREE.BufferGeometry();
-  face.setAttribute('position', new THREE.BufferAttribute(position, 3));
-  face.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
-  face.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-  face.setAttribute('faceUv', new THREE.BufferAttribute(faceUv, 2));
-  face.setIndex([0, 1, 2, 0, 2, 3]);
-  face.computeBoundingBox();
-  face.computeBoundingSphere();
+  const face = build(SCREEN_FACE_RINGS, () => 0, lift);
+  const glass = build(
+    SCREEN_GLASS_RINGS,
+    // The CRT's profile, radially: flat-ish in the middle, curving away at
+    // the sides, and exactly zero at the edge.
+    (rho) => bulge * (1 - rho ** 4),
+    lift + gapMetres,
+  );
 
-  // The glass is built in its own xy plane; put it in the fitted plane.
-  const glass = glassGeometry(width, height, bulge);
-  const basis = new THREE.Matrix4().makeBasis(plane.right, plane.up, plane.normal);
-  basis.setPosition(origin.clone().addScaledVector(plane.normal, gapMetres));
-  glass.applyMatrix4(basis);
-  glass.computeBoundingBox();
-  glass.computeBoundingSphere();
+  const edge = roundedRectOutline(rect, 16).map((q) =>
+    plane.centre
+      .clone()
+      .addScaledVector(plane.right, q.u)
+      .addScaledVector(plane.up, q.v)
+      .addScaledVector(plane.normal, lift),
+  );
 
-  return { face, glass, plan: { width, height, lift, bulge, corners } };
+  return {
+    face,
+    glass,
+    plan: { width, height, radius: rect.radius, lift, bulge, feather, outline: rect, edge },
+  };
 }
 
 /** The uv bounds of a mask's own triangles: the paint island the screen sits in. */
@@ -397,20 +462,58 @@ export function screenUvBounds(
 }
 
 /**
- * The flat rectangle's own aspect — width over height in the fitted plane
- * — which is what the live canvas has to be drawn at. It is not the
- * paint bounds' aspect: the selection's y extent spans a surface tilted
- * back by 12.6°–14.1°, so its height in the plane is longer than its
- * height in y, and the inset takes the same margin off both. Using the
- * paint bounds' aspect here stretched the picture by about 2%.
+ * **The whole plan for one console's screen**: the plane fitted to the
+ * selection, the outline fitted to its border, and how far the picture has
+ * to stand off the plane to clear the model's own lumps under that
+ * outline.
+ *
+ * Memoised on the mask and the position array, because the fit costs
+ * 40–90 ms per console — the plane's least squares, the outline's trimmed
+ * Nelder–Mead over about 800 border samples, and the containment bisection
+ * — and it is asked for twice per console: once for the canvas's aspect
+ * and once to build the geometry. The cache is keyed on both inputs and
+ * holds neither alive, so a payload change cannot be served a stale plan.
  */
-export function flatScreenAspect(
+const PLANS = new WeakMap<VisorMask, WeakMap<object, ScreenPlan>>();
+
+export interface ScreenPlan {
+  plane: ScreenPlane;
+  outline: ScreenOutline;
+  /** How far the picture stands off the fitted plane. */
+  lift: number;
+  /**
+   * The drawn outline's own aspect — width over height in the fitted plane
+   * — which is what the live canvas has to be drawn at. It is not the
+   * paint bounds' aspect: the selection's y extent spans a surface tilted
+   * back by 12.6°–14.1°, so its height in the plane is longer than its
+   * height in y. Using the paint bounds' aspect stretched the picture by
+   * about 2% (V8.1).
+   */
+  aspect: number;
+}
+
+export function screenPlan(
   mask: VisorMask,
   positions: ArrayLike<number>,
   index: ArrayLike<number>,
-): number {
+): ScreenPlan {
+  let byPositions = PLANS.get(mask);
+  if (!byPositions) {
+    byPositions = new WeakMap();
+    PLANS.set(mask, byPositions);
+  }
+  const cached = byPositions.get(positions as unknown as object);
+  if (cached) return cached;
   const plane = fitScreenPlane(mask, positions, index);
-  const width = Math.max(0.05, 2 * plane.halfWidth - 2 * SCREEN_INSET_M);
-  const height = Math.max(0.05, 2 * plane.halfHeight - 2 * SCREEN_INSET_M);
-  return width / height;
+  const outline = fitScreenOutline(mask, positions, index, plane);
+  const lift =
+    surfaceHeightUnder(mask, positions, index, plane, outline.drawn) + SCREEN_LIFT_MARGIN_M;
+  const plan: ScreenPlan = {
+    plane,
+    outline,
+    lift,
+    aspect: outline.drawn.halfWidth / outline.drawn.halfHeight,
+  };
+  byPositions.set(positions as unknown as object, plan);
+  return plan;
 }

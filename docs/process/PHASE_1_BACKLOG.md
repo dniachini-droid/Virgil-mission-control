@@ -233,6 +233,16 @@ Recorded as direction the owner gave, not as decisions. None of it is a decision
   a lift over it, roughness near 0.4 with a sheen, the cheap blurred floor reflection, and the rim light
   behind each console — ahead of the ledger and the visors.
 
+  **All four implemented in the V8.2 pass of 8 September**, with the registered A/B frames captured
+  before and after at the same five entry points (`docs/process/PHASE_1_RUN_RECORD.md`, "V8.2"). The
+  values landed on: hemisphere 0.3 → 0.8 with a new shadowless back-row fill, `SPOT.base` 0.05 under the
+  unchanged `SPOT.lift` 0.34, console roughness 0.8 → 0.42 with `sheen` 0.55 applied at runtime to the
+  four consoles only (the generated `-asset.json` records still state the source's 0.8), the disc's face
+  polished to roughness 0.52 / metalness 0.07 plus seven additive smear quads, and three cool rim lights
+  that collapse to one on a phone. **The decision the item exists for is now decidable by looking, and
+  the frames say: the consoles no longer look dead, and they still show their faceting where the new
+  highlight crosses a decimated edge.** Nothing here is measured for speed; OD-0005 still applies.
+
   **The A/B must isolate the lighting, so its "before" frames come from the V8.1 build, not from V8.**
   V8.1 replaces the console screens with fitted flat planes; a comparison taken against V8 would show
   flat screens *and* new lighting together and prove nothing about either. So the order is forced: V8.1

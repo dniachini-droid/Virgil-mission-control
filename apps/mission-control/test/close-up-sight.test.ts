@@ -30,11 +30,8 @@ import {
 import { MAX_FOV, MIN_FOV, screenAxis, screenCorners } from '../src/world/room/closeUp.js';
 import { layout } from '../src/world/room/palette.js';
 import { cameraPose, limitsFor } from '../src/world/room/VirgilRoom.js';
-import {
-  fitScreenPlane,
-  SCREEN_INSET_M,
-  SCREEN_LIFT_MARGIN_M,
-} from '../src/world/screens/screenPlane.js';
+import { roundedRectOutline } from '../src/world/screens/screenOutline.js';
+import { screenPlan } from '../src/world/screens/screenPlane.js';
 import {
   decodeVirgilPayload,
   parseVirgilGlb,
@@ -164,11 +161,17 @@ function screenSamples(role: Role, station: THREE.Mesh): THREE.Vector3[] {
 }
 
 /**
- * The four corners of the flat rectangle the picture is actually drawn on
- * (V8.1, `screens/screenPlane.ts`), in the room. They stand 6–30 mm in
- * front of the model's own surface, so they are easier to see than the
- * samples below — but they are what a reader reads, so they are asserted
- * rather than argued.
+ * Points on the outline the picture is actually drawn to (V8.2,
+ * `screens/screenOutline.ts`), in the room: sixteen at even arc length, so
+ * the four rounded corners are covered as well as the four edges. They
+ * stand 5–10 mm in front of the model's own surface, so they are easier to
+ * see than the samples below — but they are what a reader reads, so they
+ * are asserted rather than argued.
+ *
+ * V8.1 took the four corners of an axis-aligned rectangle inset 35 mm from
+ * the selection's extent. There is no such rectangle now: the drawn shape
+ * is the model's own opening, rounded to its measured radius, at full
+ * bleed.
  */
 function flatCorners(role: Role, station: THREE.Mesh): THREE.Vector3[] {
   const mask = CAST[role].station.screen as VisorMask;
@@ -177,32 +180,20 @@ function flatCorners(role: Role, station: THREE.Mesh): THREE.Vector3[] {
   local.scale.setScalar(scale * positionScale);
   local.position.y = baseOffsetY;
   const index = (station.geometry.index as THREE.BufferAttribute).array;
-  const plane = fitScreenPlane(mask, placedPositions(local), index);
-  const halfWidth = plane.halfWidth - SCREEN_INSET_M;
-  const halfHeight = plane.halfHeight - SCREEN_INSET_M;
-  const origin = plane.centre
-    .clone()
-    .addScaledVector(plane.normal, plane.maxFrontUnderRect + SCREEN_LIFT_MARGIN_M);
+  const plan = screenPlan(mask, placedPositions(local), index);
+  const { plane } = plan;
+  const origin = plane.centre.clone().addScaledVector(plane.normal, plan.lift);
   // The placed frame into the room: the station's own yaw and position.
   const toRoom = new THREE.Matrix4()
     .makeRotationY(CAST[role].rotationY)
     .premultiply(new THREE.Matrix4().makeTranslation(...CAST[role].at));
-  const out: THREE.Vector3[] = [];
-  for (const [u, v] of [
-    [-1, -1],
-    [1, -1],
-    [1, 1],
-    [-1, 1],
-  ] as [number, number][]) {
-    out.push(
-      origin
-        .clone()
-        .addScaledVector(plane.right, u * halfWidth)
-        .addScaledVector(plane.up, v * halfHeight)
-        .applyMatrix4(toRoom),
-    );
-  }
-  return out;
+  return roundedRectOutline(plan.outline.drawn, 16).map((q) =>
+    origin
+      .clone()
+      .addScaledVector(plane.right, q.u)
+      .addScaledVector(plane.up, q.v)
+      .applyMatrix4(toRoom),
+  );
 }
 
 function maskSamples(role: Role, station: THREE.Mesh): THREE.Vector3[] {

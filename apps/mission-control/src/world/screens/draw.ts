@@ -82,21 +82,59 @@ export function flicker(t: number): number {
   return h < 4 ? 0.9 : h < 7 ? 0.95 : 1;
 }
 
+/** The band's four words. Never abbreviated, never dropped, never dimmed. */
+export const BAND_WORDS = 'ILLUSTRATIVE · NOT REAL STATE';
+
+/**
+ * How far in from a straight edge the rounded corner has eaten, at
+ * `depth` pixels along that edge from the corner. Zero past the corner's
+ * own radius. V8.2: a console's picture is drawn to the model's own
+ * rounded opening (`screens/screenOutline.ts`), so anything that used to
+ * sit a fixed 22 or 64 pixels from a square corner has to know where the
+ * curve is instead.
+ */
+export function cornerInset(corner: number, depth: number): number {
+  if (!(corner > 0) || depth >= corner) return 0;
+  return corner - Math.sqrt(Math.max(0, corner * corner - (corner - depth) ** 2));
+}
+
+/**
+ * The smallest margin at which an axis-aligned rectangle inset by it on
+ * every side lies inside a rounded rectangle of radius `corner`: the
+ * corner's own sagitta, `r · (1 − 1/√2)`.
+ */
+export function cornerMargin(corner: number, base: number): number {
+  return Math.max(base, Math.ceil(corner * (1 - Math.SQRT1_2)));
+}
+
 /**
  * The frame every panel shares: flat near-black, a thick inset rule and
  * corner brackets in the tint, the title — one word, big — and the stripe
  * along the foot that keeps it honest: solid amber, four heavy dark words,
  * every panel, every frame. Returns the height left above the stripe.
- * `lift` brightens the rule for a verdict's moment.
+ * `lift` brightens the rule for a verdict's moment. `corner` is the
+ * picture's own corner radius in canvas pixels, which the rule, the
+ * brackets and the band are all laid out inside.
  */
-export function frame(ctx: Ctx, w: number, h: number, title: string, tint: string, lift = 0) {
+export function frame(
+  ctx: Ctx,
+  w: number,
+  h: number,
+  title: string,
+  tint: string,
+  lift = 0,
+  corner = 0,
+) {
   ctx.fillStyle = INK;
   ctx.fillRect(0, 0, w, h);
-  // A thick inset rule and heavy corner brackets. Never a hairline.
+  // A thick inset rule and heavy corner brackets. Never a hairline. The
+  // margin is 22 px on a square screen and the corner's sagitta on a
+  // rounded one, so the rule never crosses the curve.
+  const margin = cornerMargin(corner, 22);
   ctx.strokeStyle = tint;
   ctx.globalAlpha = 0.35 + 0.55 * clamp01(lift);
   ctx.lineWidth = RULE;
-  ctx.strokeRect(22, 22, w - 44, h - BAND_HEIGHT - 44);
+  ctx.strokeRect(margin, margin, w - 2 * margin, h - BAND_HEIGHT - 2 * margin);
   ctx.globalAlpha = 1;
   ctx.lineWidth = RULE + 6;
   ctx.lineCap = 'butt';
@@ -107,44 +145,75 @@ export function frame(ctx: Ctx, w: number, h: number, title: string, tint: strin
     [1, -1],
     [-1, -1],
   ] as const) {
-    const x = sx > 0 ? 22 : w - 22;
-    const y = sy > 0 ? 22 : h - BAND_HEIGHT - 22;
+    const x = sx > 0 ? margin : w - margin;
+    const y = sy > 0 ? margin : h - BAND_HEIGHT - margin;
     ctx.beginPath();
     ctx.moveTo(x, y + sy * m);
     ctx.lineTo(x, y);
     ctx.lineTo(x + sx * m, y);
     ctx.stroke();
   }
-  // Title: one word.
+  // Title: one word, clear of the top-left curve.
   ctx.fillStyle = tint;
   ctx.font = display(72);
   spaced(ctx, '0.08em');
   ctx.textBaseline = 'top';
   ctx.textAlign = 'left';
-  ctx.fillText(title, 64, 54);
+  ctx.fillText(title, Math.max(64, margin + 42), 54 + cornerInset(corner, 54 + 72));
   spaced(ctx, '0em');
-  band(ctx, w, h);
+  band(ctx, w, h, corner);
   return h - BAND_HEIGHT;
 }
 
-/** The honesty stripe. Drawn last on every screen, over everything, every frame. */
-export function band(ctx: Ctx, w: number, h: number) {
+/**
+ * The honesty stripe. Drawn last on every screen, over everything, every
+ * frame.
+ *
+ * V8.2: the picture now goes to the physical edge of the model's own
+ * opening, whose corners are round, and the band sits along its foot —
+ * which is exactly where the two bottom curves are. It was the reason the
+ * picture was inset in the first place (V8, `1cb9bec`), so the answer here
+ * is to **lay it out inside the rounded area**: the stripe is clipped to
+ * the outline so its ends follow the curve, and the four words are fitted
+ * to the width the curve leaves at the lowest point the glyphs reach. The
+ * one thing never done is shrinking the picture, dropping the words or
+ * dimming them.
+ */
+export function band(ctx: Ctx, w: number, h: number, corner = 0) {
   ctx.globalAlpha = 1;
+  ctx.save();
+  if (corner > 0) {
+    roundRect(ctx, 0, 0, w, h, corner);
+    ctx.clip();
+  }
   ctx.fillStyle = room.warm.amber;
   ctx.fillRect(0, h - BAND_HEIGHT, w, BAND_HEIGHT);
   ctx.fillStyle = room.warm.amberDeep;
   ctx.fillRect(0, h - BAND_HEIGHT, w, RULE);
+  ctx.restore();
   ctx.fillStyle = '#1a1206';
   // Spacing is set before fitting, so the measure includes it and the
-  // four words never run under the bezel.
+  // four words never run under the bezel or into the corner's curve.
   spaced(ctx, '0.06em');
-  fitFont(ctx, display, 64, 'ILLUSTRATIVE · NOT REAL STATE', w - 96);
+  fitFont(ctx, display, 64, BAND_WORDS, bandTextWidth(w, corner));
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('ILLUSTRATIVE · NOT REAL STATE', w / 2 + 4, h - BAND_HEIGHT / 2 + RULE / 2 + 2);
+  ctx.fillText(BAND_WORDS, w / 2 + 4, h - BAND_HEIGHT / 2 + RULE / 2 + 2);
   spaced(ctx, '0em');
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
+}
+
+/** Where the band's glyph box sits, measured up from the foot of the picture. */
+export const BAND_TEXT_BOTTOM = BAND_HEIGHT / 2 - RULE / 2 - 2 - 0.38 * 64;
+
+/**
+ * The width the band's words are fitted to: the full width less 48 px a
+ * side on a square screen, and less whatever the bottom corners take at
+ * the lowest point the glyphs reach on a rounded one.
+ */
+export function bandTextWidth(w: number, corner: number): number {
+  return w - 2 * (48 + Math.ceil(cornerInset(corner, BAND_TEXT_BOTTOM)));
 }
 
 /** The imperfection: a scanline sweeping down every few seconds, and the flicker. */

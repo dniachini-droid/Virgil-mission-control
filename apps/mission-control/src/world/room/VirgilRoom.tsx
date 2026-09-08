@@ -24,6 +24,7 @@ import { ScreenBank } from '../screens/ScreenBank.js';
 import { CAST, ROLES, type Role } from './cast.js';
 import { closeUpPose } from './closeUp.js';
 import { forcedState, useDemo } from './demo.js';
+import { FloorSheen } from './FloorSheen.js';
 import { LightingRig } from './LightingRig.js';
 import { PortholeFrame, Station, StationLight, VirgilConsole } from './Models.js';
 import { Orrery } from './Orrery.js';
@@ -116,7 +117,12 @@ export function VirgilRoom() {
                 <PortholeFrame />
               </>
             ) : (
-              <Tabletop />
+              <>
+                <Tabletop />
+                {/* The cheap floor reflection (V8.2): smears under the
+                    consoles and the cast, no second render of the scene. */}
+                <FloorSheen />
+              </>
             )}
             <Orrery />
             <Cast demo={demo} onSelect={setFocus} />

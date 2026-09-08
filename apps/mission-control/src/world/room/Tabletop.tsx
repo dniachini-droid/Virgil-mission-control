@@ -2,6 +2,7 @@ import { use, useMemo } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
 import { StarField } from '../StarField.js';
+import { FLOOR_FINISH } from './finish.js';
 import { createFloorTexture } from './floorGraphic.js';
 import { layout, room } from './palette.js';
 import { Contact } from './RoomShell.js';
@@ -94,10 +95,24 @@ function Disc({ coarse }: { coarse: boolean }) {
           side={THREE.DoubleSide}
         />
       </mesh>
-      {/* The one top face, carrying the inlay. */}
+      {/* The one top face, carrying the inlay. **V8.2: it is polished.**
+          The owner: the floor "looks a bit dark.... like they are in
+          shadows, it looks bland, and dead and lifeless". A floor that
+          reflects nothing reads as a plate, and the approved reference
+          `docs/art-direction/approved/visual-canon/03-approved-hybrid.png`
+          has a polished floor with the star inlaid in it. This half of the
+          answer is free — the baked environment map already exists and this
+          is one plane sampling it (`finish.ts`, `FLOOR_FINISH`); the other
+          half is `FloorSheen`'s smears. The planar mirror V6 removed is not
+          coming back. */}
       <mesh position={[0, thickness / 2, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[radius, segments]} />
-        <meshStandardMaterial map={texture} roughness={0.9} metalness={0} />
+        <meshStandardMaterial
+          map={texture}
+          roughness={FLOOR_FINISH.roughness}
+          metalness={FLOOR_FINISH.metalness}
+          envMapIntensity={FLOOR_FINISH.envMapIntensity}
+        />
       </mesh>
     </group>
   );

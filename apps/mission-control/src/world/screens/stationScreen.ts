@@ -75,14 +75,27 @@ import { verdictLook } from './verdicts.js';
  * own clock for the imperfections.
  */
 /**
- * The console's bezel is a lip: from a camera above the tilted-back
- * screen it hides a strip along the screen's foot, and in the first V8
- * capture that strip was the honesty band. So the picture is drawn into
- * an inset of the screen's surface — the margins in ink — and the band
- * stays whole from the angles the set is seen from.
+ * **The picture is drawn full bleed.**
+ *
+ * V8 drew it into an inset of the canvas — 3 % of the width on three sides
+ * and 9 % of the height at the foot, in ink — so that the honesty band
+ * cleared the console's bezel lip, which from a camera above a tilted-back
+ * screen hides a strip along the screen's foot. Together with the 35 mm
+ * the drawn rectangle was itself inset by, that is the gap the owner saw:
+ * *"they are still sharp edges, a rectangle, instead of going right to the
+ * end of the screen."*
+ *
+ * Both insets are gone. The picture now covers the model's own opening
+ * (`screenOutline.ts`), and the band is laid out **inside the rounded
+ * area** instead — `draw.ts`'s `band` clips the stripe to the outline and
+ * fits the four words to the width the bottom curves leave. The bezel-lip
+ * problem the V8 inset was solving is answered by the close-up camera
+ * standing on the screen's own axis (V8.1, `room/closeUp.ts`), which is
+ * the one direction from which nothing standing proud of a surface can
+ * cover it, and by `test/close-up-sight.test.ts`, which fails if any point
+ * of the drawn outline is hidden by anything the model does not already
+ * hide.
  */
-export const SCREEN_INSET = { top: 0.03, bottom: 0.09, left: 0.03, right: 0.03 } as const;
-
 export function drawStation(
   canvas: HTMLCanvasElement,
   t: number,
@@ -93,6 +106,7 @@ export function drawStation(
   report: Report,
   outcome: Outcome,
   quiet = 0,
+  corner = 0,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -101,9 +115,13 @@ export function drawStation(
   ctx.fillStyle = INK;
   ctx.fillRect(0, 0, w, h);
   ctx.save();
-  ctx.translate(w * SCREEN_INSET.left, h * SCREEN_INSET.top);
-  ctx.scale(1 - SCREEN_INSET.left - SCREEN_INSET.right, 1 - SCREEN_INSET.top - SCREEN_INSET.bottom);
-  drawStationPicture(ctx, w, h, t, since, occupant, role, state, report, outcome, quiet);
+  // Everything is drawn inside the outline, in the canvas as well as in
+  // the geometry: two independent guards on the same rule.
+  if (corner > 0) {
+    roundRect(ctx, 0, 0, w, h, corner);
+    ctx.clip();
+  }
+  drawStationPicture(ctx, w, h, t, since, occupant, role, state, report, outcome, quiet, corner);
   ctx.restore();
 }
 
@@ -119,6 +137,7 @@ function drawStationPicture(
   report: Report,
   outcome: Outcome,
   quiet: number,
+  corner: number,
 ) {
   const reported = state === 'REPORTED';
   const tint =
@@ -130,7 +149,7 @@ function drawStationPicture(
           ? verdictLook(report).tint
           : room.emit.cyan;
   const lift = reported ? clamp01(1 - (since - 1.5) / 2.5) : 0;
-  const floor = frame(ctx, w, h, occupant.toUpperCase(), tint, lift);
+  const floor = frame(ctx, w, h, occupant.toUpperCase(), tint, lift, corner);
   const arrival = SCREEN_ARRIVAL[role];
   ctx.save();
   ctx.beginPath();

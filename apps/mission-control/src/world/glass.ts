@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { roundedRectSurface } from './screens/screenOutline.js';
 
 /**
  * The one glass in the set, shared by the visors (`characters/visorFit.ts`)
@@ -79,7 +80,53 @@ export function createGlassMaterial(mask?: PaintMask): THREE.MeshPhysicalMateria
  * z = bulge · (1 − u⁴)(1 − v⁴). The owner: "a slight curve outwards. That
  * makes it look cartoony." Normals are computed, so the highlight bends
  * with the curve.
+ *
+ * **V8.2: the rounded variant is the one the screens use.** Virgil's slabs
+ * have a rounded opening in their front plate and had rectangular glass
+ * over it, whose square corners stood about 17 mm out over the curve; a
+ * console's screen is now drawn to the model's own rounded opening
+ * (`screens/screenOutline.ts`) and its glass has to follow the same
+ * outline, because a rounded picture behind rectangular glass would be
+ * worse than a square one. `createRoundedConvexGlassGeometry` takes the
+ * corner radius and carries the same profile radially, so both kinds of
+ * screen keep one glass.
  */
+export function createRoundedConvexGlassGeometry(
+  width: number,
+  height: number,
+  radius: number,
+  bulge: number,
+  segments = 160,
+  rings = 8,
+): THREE.BufferGeometry {
+  const surface = roundedRectSurface(
+    { centreU: 0, centreV: 0, halfWidth: width / 2, halfHeight: height / 2, radius },
+    rings,
+    segments,
+    // The same law as the rectangular profile, radially: flat-ish in the
+    // middle, curving away at the edge, and exactly zero at the edge.
+    (rho) => bulge * (1 - rho ** 4),
+  );
+  const count = surface.u.length;
+  const position = new Float32Array(count * 3);
+  const uv = new Float32Array(count * 2);
+  for (let i = 0; i < count; i += 1) {
+    position[i * 3] = surface.u[i] as number;
+    position[i * 3 + 1] = surface.v[i] as number;
+    position[i * 3 + 2] = surface.h[i] as number;
+    uv[i * 2] = (surface.u[i] as number) / width + 0.5;
+    uv[i * 2 + 1] = (surface.v[i] as number) / height + 0.5;
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(position, 3));
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  geometry.setIndex(surface.index);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
 export function createConvexGlassGeometry(
   width: number,
   height: number,

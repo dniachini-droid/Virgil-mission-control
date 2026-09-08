@@ -7,7 +7,7 @@ import { CAST, type Role } from '../room/cast.js';
 import type { Outcome, Report, StationState } from '../room/demo.js';
 import { crtFrame, POWER_OFF_SECONDS } from './crt.js';
 import { loadScreenFonts } from './fonts.js';
-import { flatScreenAspect } from './screenPlane.js';
+import { SCREEN_CANVAS_PIXELS, screenPlan } from './screenPlane.js';
 import { drawStation } from './stationScreen.js';
 
 /**
@@ -58,25 +58,36 @@ export function ConsoleScreen({
   const asset = use(member.station.load());
   const { reducedMotion } = useSettings();
   const mask = member.station.screen;
-  // The live canvas is drawn at the **flat rectangle's** aspect, not the
+  // The live canvas is drawn at the **drawn outline's** aspect, not the
   // selection's paint bounds': the selection spans a surface tilted back
   // by 12.6°–14.1°, so its height in the fitted plane is longer than its
-  // height in y (`screenPlane.ts`).
-  const aspect = useMemo(() => {
-    const index = (asset.mesh.geometry.index as THREE.BufferAttribute).array;
-    return flatScreenAspect(mask, placedPositions(asset.mesh), index);
-  }, [asset, mask]);
-  const { canvas, texture } = useMemo(() => {
+  // height in y (`screenPlane.ts`). The same plan carries the outline's
+  // measured corner radius, which the picture is laid out inside.
+  const plan = useMemo(
+    () =>
+      screenPlan(
+        mask,
+        placedPositions(asset.mesh),
+        (asset.mesh.geometry.index as THREE.BufferAttribute).array,
+      ),
+    [asset, mask],
+  );
+  const aspect = plan.aspect;
+  const { canvas, texture, corner } = useMemo(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = Math.max(64, Math.round(1024 / aspect));
+    canvas.width = SCREEN_CANVAS_PIXELS;
+    canvas.height = Math.max(64, Math.round(SCREEN_CANVAS_PIXELS / aspect));
+    // The outline's corner radius, in the canvas's own pixels: the picture
+    // is drawn inside it, so nothing — least of all the honesty band —
+    // lands where the rounded corner cuts the picture away.
+    const corner = (plan.outline.drawn.radius / (2 * plan.outline.drawn.halfWidth)) * canvas.width;
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = false;
-    return { canvas, texture };
-  }, [aspect]);
+    return { canvas, texture, corner };
+  }, [aspect, plan]);
   // The one way a screen is made: the visor's builder, on the console's
   // own triangles, with its paint (the mask's rule keeps every pixel).
   const screen = useMemo(() => {
@@ -129,7 +140,18 @@ export function ConsoleScreen({
     if (dark) return;
     if (c.last >= 0 && c.t - c.last < 1 / 24) return;
     c.last = c.t;
-    drawStation(canvas, c.t, c.t - c.stateAt, member.label, role, state, report, outcome, quiet);
+    drawStation(
+      canvas,
+      c.t,
+      c.t - c.stateAt,
+      member.label,
+      role,
+      state,
+      report,
+      outcome,
+      quiet,
+      corner,
+    );
     texture.needsUpdate = true;
   });
 

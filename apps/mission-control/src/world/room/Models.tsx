@@ -7,6 +7,7 @@ import { loadPorthole } from '../props/portholeAsset.js';
 import { loadConsole3 } from '../props/v6Assets.js';
 import { CAST, figurePlacement, type Role, stationToWorld } from './cast.js';
 import type { Report } from './demo.js';
+import { applyConsoleFinish } from './finish.js';
 import { layout, room } from './palette.js';
 
 /**
@@ -18,6 +19,16 @@ import { layout, room } from './palette.js';
  * `../characters/VirgilRigged.tsx`; the three characters in
  * `../characters/Figure.tsx`; a console's own screen in
  * `../screens/ConsoleScreen.tsx`.
+ *
+ * V8.2 (from the owner's approval of 8 September): **the spotlight is a
+ * lift over a lit baseline, not the only light on a console.** He asked
+ * for consoles *normal* when idle and lit while working; "normal" had been
+ * built as "dark", so two of three stations were unlit at any moment. The
+ * rig now carries an idle console (`LightingRig.tsx`) and `SPOT.base` puts
+ * a small, always-on lift on the console's own material under `SPOT.lift`,
+ * so a cream case reads as cream in a lit room. **The pool of light stays
+ * at zero when idle**: the spotlight is what says *this one is working*,
+ * and it has to keep saying only that. The rise and decay are untouched.
  *
  * V8 (`docs/process/PHASE_1_STYLISED_SPEC.md` §0.10.11): **a console is
  * spotlit while it works, and the light fades slowly when it is done.**
@@ -34,8 +45,14 @@ import { layout, room } from './palette.js';
  * running, which is the honest state and needs no label.
  */
 
-/** The spot's rise and decay, as time constants in seconds. */
-export const SPOT = { rise: 0.35, decay: 3.2, lift: 0.34, pool: 0.5 } as const;
+/**
+ * The spot's rise and decay, as time constants in seconds; the lift while
+ * it is on; the pool's strength; and `base`, the always-on part that makes
+ * "normal" mean lit. `base` is a seventh of `lift`, so a working console
+ * is still unmistakably the lit one — and the pool, which only ever
+ * appears under a working console, is untouched by it.
+ */
+export const SPOT = { rise: 0.35, decay: 3.2, lift: 0.34, pool: 0.5, base: 0.05 } as const;
 
 /**
  * The spot's level this frame: toward 1 fast while `active`, toward 0
@@ -105,7 +122,7 @@ function Spot({
       material.needsUpdate = true;
     }
     material.emissive.copy(colour);
-    material.emissiveIntensity = SPOT.lift * l;
+    material.emissiveIntensity = SPOT.base + SPOT.lift * l;
     if (poolMesh.current) {
       const m = poolMesh.current.material as THREE.MeshBasicMaterial;
       m.opacity = SPOT.pool * l;
@@ -136,6 +153,8 @@ function Spot({
 /** Virgil's console: the low oval ring with the raised deck he stands on, spotlit while he conducts. */
 export function VirgilConsole({ active = false }: { active?: boolean }) {
   const console_ = use(loadConsole3());
+  // The set's finish, over the factors the source declares (`finish.ts`).
+  applyConsoleFinish(console_.mesh);
   return (
     <group>
       <primitive
@@ -157,6 +176,7 @@ export function VirgilConsole({ active = false }: { active?: boolean }) {
 export function Station({ role, active = false }: { role: Role; active?: boolean }) {
   const member = CAST[role];
   const station = use(member.station.load());
+  applyConsoleFinish(station.mesh);
   const { local } = figurePlacement(role);
   // The pool centres between the console and its occupant.
   const centre = stationToWorld(role, local[0] * 0.4, 0, local[2] * 0.45);

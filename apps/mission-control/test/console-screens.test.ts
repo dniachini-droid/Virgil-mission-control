@@ -20,11 +20,33 @@ import { CAST, ROLES, type Role, screenCentre, workingPlacement } from '../src/w
 import { SCREEN_ARRIVAL, screenArrivalWorld } from '../src/world/screens/arrival.js';
 import { SCREEN_GLASS_GAP_M } from '../src/world/screens/ConsoleScreen.js';
 import {
+  BAND_HEIGHT,
+  BAND_WORDS,
+  bandTextWidth,
+  cornerMargin,
+  RULE,
+} from '../src/world/screens/draw.js';
+import { slabPlan } from '../src/world/screens/ScreenBank.js';
+import {
+  fitScreenOutline,
+  insideFootprint,
+  OUTLINE_SAMPLES,
+  type PlanePoint,
+  projectSelection,
+  roundedRectDistance,
+  roundedRectOutline,
+} from '../src/world/screens/screenOutline.js';
+import {
   fitScreenPlane,
-  flatScreenAspect,
   SCREEN_BULGE_RATIO,
-  SCREEN_INSET_M,
+  SCREEN_CANVAS_PIXELS,
+  SCREEN_FACE_RINGS,
+  SCREEN_FEATHER_PIXELS,
+  SCREEN_GLASS_RINGS,
   SCREEN_LIFT_MARGIN_M,
+  SCREEN_OUTLINE_SEGMENTS,
+  screenPlan,
+  surfaceHeightUnder,
 } from '../src/world/screens/screenPlane.js';
 
 /**
@@ -193,15 +215,14 @@ describe.each(ROLES)('the %s’s console screen', (role) => {
     // 2026-09-08 on the committed payloads; a model change that moves these
     // shows up here rather than silently.
     const recorded = {
-      fabricator: { rms: 1.85, front: 6.3, underRect: 5.84, behind: 3.23 },
-      prover: { rms: 9.39, front: 29.21, underRect: 25.98, behind: 4.08 },
-      keeper: { rms: 2.4, front: 1.76, underRect: 1.76, behind: 7.21 },
+      fabricator: { rms: 1.85, front: 6.3, behind: 3.23 },
+      prover: { rms: 9.39, front: 29.21, behind: 4.08 },
+      keeper: { rms: 2.4, front: 1.76, behind: 7.21 },
     }[role];
     expect(
       {
         rms: mm(plane.rms),
         front: mm(plane.maxFront),
-        underRect: mm(plane.maxFrontUnderRect),
         behind: mm(plane.maxBehind),
       },
       `${role}: the fit's residuals in mm have moved; record the new ones`,
@@ -220,7 +241,161 @@ describe.each(ROLES)('the %s’s console screen', (role) => {
     expect(plane.right.y).toBeCloseTo(0, 9);
   });
 
-  it('draws on one flat rectangle: planar, inside the bezel, in front of every lump', () => {
+  /**
+   * **V8.2: the picture is drawn to the model's own opening.** The owner,
+   * on the V8.1 frames: *"the screens are better, but they are still sharp
+   * edges, a rectangle, instead of going right to the end of the screen.
+   * the screens need to curve on the corners. and go right to the end."*
+   *
+   * So the values below are the measurement of each opening —
+   * `screenOutline.ts` fits a rounded rectangle to the selection's own
+   * border and the corner radius comes out of that fit rather than out of
+   * anybody's judgement — and they are recorded here, in millimetres, the
+   * way the plane's residuals are, so a payload change or a re-fit that
+   * moves them fails a check instead of passing silently.
+   *
+   * Three of these numbers are the honest cost of the method and are
+   * recorded because they are not flattering:
+   *
+   *  - `trimmedPct` is how much of the border the robust refit set aside.
+   *    The Fabricator's decimated mesh carries a flap — two border edges
+   *    running from the bottom-right corner to a point 143 mm inside the
+   *    screen, over surface that other triangles already cover — and the
+   *    Prover's selection reaches below the opening onto the console's
+   *    chin. A fifth and a quarter of their borders respectively are not
+   *    the opening's outline;
+   *  - `worst` is how far the kept border still departs from a rounded
+   *    rectangle: 31.7 mm on the Fabricator, whose opening has a second,
+   *    smaller nick in its bottom edge. His opening is a rounded rectangle
+   *    to about 5.6 mm RMS and no better than that;
+   *  - `inset` is how far the fit had to be contracted to sit inside the
+   *    selection. It is 7.5–15.3 mm, against V8.1's chosen 35 mm a side,
+   *    and the Prover's is the largest because his opening is **chamfered
+   *    rather than radiused** — its corners are cut at 45° — so an arc
+   *    through them bulges past the cut and has to come back inside it.
+   */
+  it('is drawn to the opening the model has: a rounded rectangle, measured', () => {
+    const plane = fitScreenPlane(screen, positions, index.array);
+    const outline = fitScreenOutline(screen, positions, index.array, plane);
+    const mm = (v: number) => +(v * 1000).toFixed(2);
+    const recorded = {
+      fabricator: {
+        fitted: { width: 955.44, height: 568.96, radius: 77.87 },
+        rms: 5.55,
+        worst: 31.71,
+        trimmedPct: 19,
+        worstTrimmed: 256.78,
+        inset: 8.05,
+        drawn: { width: 939.34, height: 552.87, radius: 77.87 },
+      },
+      prover: {
+        fitted: { width: 885.69, height: 488.74, radius: 42.9 },
+        rms: 0.77,
+        worst: 3.12,
+        trimmedPct: 23.8,
+        worstTrimmed: 52.81,
+        inset: 15.33,
+        drawn: { width: 855.03, height: 458.09, radius: 42.9 },
+      },
+      keeper: {
+        fitted: { width: 886.57, height: 590.43, radius: 81.11 },
+        rms: 2.06,
+        worst: 7.79,
+        trimmedPct: 5.9,
+        worstTrimmed: 12.1,
+        inset: 7.5,
+        drawn: { width: 871.56, height: 575.43, radius: 81.11 },
+      },
+    }[role];
+    expect(
+      {
+        fitted: {
+          width: mm(2 * outline.fitted.halfWidth),
+          height: mm(2 * outline.fitted.halfHeight),
+          radius: mm(outline.fitted.radius),
+        },
+        rms: mm(outline.rms),
+        worst: mm(outline.worst),
+        trimmedPct: +(outline.trimmedFraction * 100).toFixed(1),
+        worstTrimmed: mm(outline.worstTrimmed),
+        inset: mm(outline.inset),
+        drawn: {
+          width: mm(2 * outline.drawn.halfWidth),
+          height: mm(2 * outline.drawn.halfHeight),
+          radius: mm(outline.drawn.radius),
+        },
+      },
+      `${role}: the opening's measured outline has moved; record the new numbers`,
+    ).toEqual(recorded);
+    // **The corners are rounded, and to the radius that was measured.** A
+    // radius that came back at zero would mean the fit had found a square
+    // corner and the owner's instruction had not been carried out.
+    expect(outline.fitted.radius).toBeGreaterThan(0.02);
+    expect(outline.drawn.radius).toBeCloseTo(outline.fitted.radius, 9);
+    // **Full bleed**: the contraction is a fraction of V8.1's chosen inset,
+    // and it is derived from the geometry rather than picked.
+    expect(outline.inset).toBeLessThan(0.02);
+    expect(outline.inset).toBeLessThan(0.035);
+    // The fit is over the border of the selection, densely sampled.
+    expect(outline.footprint.border.length).toBeGreaterThan(20);
+    expect(outline.borderSamples).toBeGreaterThan(400);
+    // A rounded rectangle describes these openings better than the square
+    // one V8.1 drew: recorded as the two RMS values side by side.
+    let square = 0;
+    for (const [a] of outline.footprint.border)
+      square += roundedRectDistance(a, { ...outline.fitted, radius: 0 }) ** 2;
+    expect(Math.sqrt(square / outline.footprint.border.length)).toBeGreaterThan(outline.rms);
+  });
+
+  it('goes right to the end: the drawn outline stays inside the selection, and nothing spills', () => {
+    const plane = fitScreenPlane(screen, positions, index.array);
+    const outline = fitScreenOutline(screen, positions, index.array, plane);
+    const footprint = projectSelection(screen, positions, index.array, plane);
+    // **The picture must not spill onto the bezel.** Every sampled point of
+    // the drawn outline is covered by one of the console's own screen
+    // triangles — the selection itself, not a polygon derived from it.
+    const edge = roundedRectOutline(outline.drawn, OUTLINE_SAMPLES);
+    for (const [i, p] of edge.entries())
+      expect(
+        insideFootprint(footprint, p),
+        `${role}: outline point ${i} at (${(p.u * 1000).toFixed(0)}, ${(p.v * 1000).toFixed(
+          0,
+        )}) mm is off the model's own screen`,
+      ).toBe(true);
+    // And it reaches: at least 89% of the fitted opening's area. The
+    // Prover is the one at that bound — 90.5%, because his opening is
+    // chamfered and the arc has to come inside the cut — where the
+    // Fabricator is 95.4% and the Keeper 96.0%.
+    const drawnArea = 4 * outline.drawn.halfWidth * outline.drawn.halfHeight;
+    const fittedArea = 4 * outline.fitted.halfWidth * outline.fitted.halfHeight;
+    expect(drawnArea / fittedArea).toBeGreaterThan(0.89);
+    // The drawn outline never crosses outside the fit, and holding the
+    // measured radius while contracting the extents takes the corner arc
+    // in by √2 of the contraction at its 45° point, which is the deepest
+    // any of it goes.
+    for (const p of edge) {
+      const d = roundedRectDistance(p, outline.fitted);
+      expect(d).toBeLessThanOrEqual(1e-9);
+      expect(d).toBeGreaterThanOrEqual(-Math.SQRT2 * outline.inset - 1e-4);
+    }
+    // **And the contraction is minimal**, which is the whole claim of
+    // "full bleed": half a millimetre less of it and the picture would be
+    // off the model's own screen somewhere.
+    expect(outline.inset).toBeGreaterThan(0.0005);
+    const wider = {
+      centreU: outline.fitted.centreU,
+      centreV: outline.fitted.centreV,
+      halfWidth: outline.fitted.halfWidth - (outline.inset - 0.0005),
+      halfHeight: outline.fitted.halfHeight - (outline.inset - 0.0005),
+      radius: outline.drawn.radius,
+    };
+    expect(
+      roundedRectOutline(wider, OUTLINE_SAMPLES).some((p) => !insideFootprint(footprint, p)),
+      `${role}: the picture could have been half a millimetre wider on every side`,
+    ).toBe(true);
+  });
+
+  it('draws on one flat surface: planar, feathered, in front of every lump under it', () => {
     const flat = buildVisorMeshes(
       mesh,
       screen,
@@ -230,7 +405,8 @@ describe.each(ROLES)('the %s’s console screen', (role) => {
       new THREE.Texture(),
       { gapMetres: SCREEN_GLASS_GAP_M, flat: true },
     );
-    const plane = fitScreenPlane(screen, positions, index.array);
+    const plan = screenPlan(screen, positions, index.array);
+    const { plane, outline } = plan;
     const toPlaced = new THREE.Matrix4().makeScale(
       scale * positionScale,
       scale * positionScale,
@@ -238,90 +414,94 @@ describe.each(ROLES)('the %s’s console screen', (role) => {
     );
     toPlaced.setPosition(0, baseOffsetY, 0);
     const facePos = flat.face.geometry.getAttribute('position');
-    // Two triangles: a rectangle, not a strip of the model's surface.
-    expect(facePos.count).toBe(4);
-    expect((flat.face.geometry.index as THREE.BufferAttribute).count).toBe(6);
-    const corners: THREE.Vector3[] = [];
+    const faceUv = flat.face.geometry.getAttribute('faceUv');
+    // A tessellated rounded rectangle, not two triangles and not a strip
+    // of the model's surface: a centre, and rings out to the outline.
+    expect(facePos.count).toBe(1 + SCREEN_FACE_RINGS * SCREEN_OUTLINE_SEGMENTS);
+    expect(faceUv.count).toBe(facePos.count);
+
+    // **The lift is measured under what is drawn.** The Prover's own
+    // surface reaches 29.2 mm out of his fitted plane, but that ridge lies
+    // on the chin *outside* his opening, so the picture no longer has to
+    // stand 30 mm proud of the console to clear it, as V8.1's rectangle
+    // did: 1.5 mm under the outline, 5.5 mm of lift.
+    const under = surfaceHeightUnder(screen, positions, index.array, plane, outline.drawn);
+    const recorded = {
+      fabricator: { under: 6.12, lift: 10.12 },
+      prover: { under: 1.5, lift: 5.5 },
+      keeper: { under: 1.76, lift: 5.76 },
+    }[role];
+    expect(
+      { under: +(under * 1000).toFixed(2), lift: +(plan.lift * 1000).toFixed(2) },
+      `${role}: the height under the outline has moved; record the new one`,
+    ).toEqual(recorded);
+    expect(plan.lift).toBeCloseTo(under + SCREEN_LIFT_MARGIN_M, 12);
+
+    // **Planar**: every vertex of the picture the same distance off the
+    // fitted plane, to a hundredth of a millimetre — this is the V8.1
+    // requirement, unchanged, on a surface that is no longer a rectangle.
+    const p = new THREE.Vector3();
     for (let i = 0; i < facePos.count; i += 1) {
-      corners.push(new THREE.Vector3().fromBufferAttribute(facePos, i).applyMatrix4(toPlaced));
-    }
-    // **Planar by construction, asserted anyway**: every corner the same
-    // distance off the fitted plane, to a hundredth of a millimetre.
-    const lift = plane.maxFrontUnderRect + SCREEN_LIFT_MARGIN_M;
-    for (const [i, c] of corners.entries()) {
-      const h = c.clone().sub(plane.centre).dot(plane.normal);
-      expect(
-        h,
-        `${role}: corner ${i} stands ${(h * 1000).toFixed(3)} mm off the plane`,
-      ).toBeCloseTo(lift, 5);
-    }
-    // A rectangle: opposite edges equal, corners square.
-    const edge = (a: number, b: number) =>
-      (corners[b] as THREE.Vector3).clone().sub(corners[a] as THREE.Vector3);
-    expect(edge(0, 1).length()).toBeCloseTo(edge(3, 2).length(), 6);
-    expect(edge(0, 3).length()).toBeCloseTo(edge(1, 2).length(), 6);
-    expect(edge(0, 1).normalize().dot(edge(0, 3).normalize())).toBeCloseTo(0, 6);
-    // Its size is the selection's own extent, inset on every side.
-    const width = edge(0, 1).length();
-    const height = edge(0, 3).length();
-    // To a micrometre: the geometry attribute is float32, so the corners
-    // carry about 60 nm of quantisation at this size.
-    expect(width).toBeCloseTo(2 * plane.halfWidth - 2 * SCREEN_INSET_M, 6);
-    expect(height).toBeCloseTo(2 * plane.halfHeight - 2 * SCREEN_INSET_M, 6);
-    expect(SCREEN_INSET_M).toBeGreaterThan(0.02);
-    // Inside the region `fit-screen.mjs` was allowed to look in — so the
-    // rectangle's edge cannot have escaped the console's own screen recess.
-    const { x0, x1, y0, y1 } = screen.region as ScreenRegion;
-    for (const c of corners) {
-      expect(c.x).toBeGreaterThanOrEqual(x0 - 1e-6);
-      expect(c.x).toBeLessThanOrEqual(x1 + 1e-6);
-      expect(c.y).toBeGreaterThanOrEqual(y0 - 1e-6);
-      expect(c.y).toBeLessThanOrEqual(y1 + 1e-6);
-    }
-    // And inside the selection's measured extent, by the inset, in the plane.
-    for (const c of corners) {
-      const d = c.clone().sub(plane.centre);
-      // 1 µm of slack: the corners are stored as float32.
-      expect(Math.abs(d.dot(plane.right))).toBeLessThanOrEqual(
-        plane.halfWidth - SCREEN_INSET_M + 1e-6,
+      p.fromBufferAttribute(facePos, i).applyMatrix4(toPlaced);
+      const h = p.clone().sub(plane.centre).dot(plane.normal);
+      expect(h, `${role}: face vertex ${i} stands ${(h * 1000).toFixed(3)} mm off`).toBeCloseTo(
+        plan.lift,
+        5,
       );
-      expect(Math.abs(d.dot(plane.up))).toBeLessThanOrEqual(
-        plane.halfHeight - SCREEN_INSET_M + 1e-6,
-      );
+      // And inside the drawn outline, to a micrometre (float32 positions).
+      const d = p.clone().sub(plane.centre);
+      const q: PlanePoint = { u: d.dot(plane.right), v: d.dot(plane.up) };
+      expect(roundedRectDistance(q, outline.drawn)).toBeLessThanOrEqual(1e-6);
+      // The canvas is mapped over the outline's own bounding box.
+      const fu =
+        (q.u - (outline.drawn.centreU - outline.drawn.halfWidth)) / (2 * outline.drawn.halfWidth);
+      expect(faceUv.getX(i)).toBeCloseTo(fu, 5);
     }
-    // **Nothing pokes through**: every vertex of every original screen
-    // triangle is behind the rectangle's plane, along its normal.
+
+    // **Nothing under the picture pokes through it.** Stated over the whole
+    // area the picture covers, not just at the selection's vertices: each
+    // triangle is clipped to the outline and the highest point of what
+    // survives is compared with the lift. (V8.1 asserted this at every
+    // vertex of the selection; the outline no longer covers the whole
+    // selection, so a vertex outside it — the Prover's chin ridge — is
+    // neither behind the picture nor able to come through it. The clipped
+    // form is the same rule over the right region, and it is stronger
+    // there, because it also covers the interior of a triangle.)
+    expect(under).toBeLessThan(plan.lift);
     const source = mesh.geometry.getAttribute('position');
-    const v = new THREE.Vector3();
-    for (const t of screen.triangles) {
-      for (let k = 0; k < 3; k += 1) {
-        v.fromArray(positions, index.getX(t * 3 + k) * 3);
-        const h = v.clone().sub(plane.centre).dot(plane.normal);
-        expect(
-          h,
-          `${role}: an original screen vertex reaches ${(h * 1000).toFixed(2)} mm out`,
-        ).toBeLessThan(lift - 1e-9);
-      }
-    }
     expect(source.count).toBeGreaterThan(0);
+
     // The glass: the same convex profile Virgil's slabs use, the screen's
-    // gap in front of the rectangle at its edges and bulging out at its
-    // centre. (The visors keep the exact-gap rule; `visor.test.ts` holds it.)
+    // gap in front of the picture at its edge and bulging out at its
+    // centre — and **on the same outline**, because a rounded picture
+    // behind rectangular glass would be worse than a square one.
     const glassPos = flat.glass.geometry.getAttribute('position');
-    expect(glassPos.count).toBeGreaterThan(100);
+    expect(glassPos.count).toBe(1 + SCREEN_GLASS_RINGS * SCREEN_OUTLINE_SEGMENTS);
+    const width = 2 * outline.drawn.halfWidth;
     const bulge = width * SCREEN_BULGE_RATIO;
     let nearest = Number.POSITIVE_INFINITY;
     let furthest = Number.NEGATIVE_INFINITY;
+    let edgeVertices = 0;
     for (let i = 0; i < glassPos.count; i += 1) {
       const g = new THREE.Vector3().fromBufferAttribute(glassPos, i).applyMatrix4(toPlaced);
       const d = g.clone().sub(plane.centre);
-      const h = d.dot(plane.normal) - lift;
+      const h = d.dot(plane.normal) - plan.lift;
       nearest = Math.min(nearest, h);
       furthest = Math.max(furthest, h);
-      // Every point of the glass is over the rectangle, never beyond it.
-      expect(Math.abs(d.dot(plane.right))).toBeLessThanOrEqual(width / 2 + 1e-6);
-      expect(Math.abs(d.dot(plane.up))).toBeLessThanOrEqual(height / 2 + 1e-6);
+      const q: PlanePoint = { u: d.dot(plane.right), v: d.dot(plane.up) };
+      const sd = roundedRectDistance(q, outline.drawn);
+      // Every point of the glass is over the picture, never beyond it.
+      expect(sd).toBeLessThanOrEqual(1e-6);
+      // Its outer ring is the picture's own outline, to a micrometre.
+      // The outer ring, at the gap: float32 positions through the placed
+      // matrix carry about a tenth of a micrometre, and the next ring in
+      // stands 9 mm further out, so ten micrometres isolates the edge.
+      if (Math.abs(h - SCREEN_GLASS_GAP_M) < 1e-5) {
+        edgeVertices += 1;
+        expect(Math.abs(sd)).toBeLessThanOrEqual(1e-6);
+      }
     }
+    expect(edgeVertices).toBe(SCREEN_OUTLINE_SEGMENTS);
     expect(nearest, `${role}: the glass's edge sits at the screen's own gap`).toBeCloseTo(
       SCREEN_GLASS_GAP_M,
       6,
@@ -330,8 +510,84 @@ describe.each(ROLES)('the %s’s console screen', (role) => {
       SCREEN_GLASS_GAP_M + bulge,
       6,
     );
-    // The live canvas is drawn at the rectangle's aspect, not the paint bounds'.
-    expect(flatScreenAspect(screen, positions, index.array)).toBeCloseTo(width / height, 6);
+
+    // The picture's edge is feathered by a canvas pixel and a half, so the
+    // mask taken from 23–41 coarse triangles does not alias along the arcs
+    // — and the material carries it, with the outline it is measured from.
+    const material = flat.face.material as THREE.ShaderMaterial;
+    const uOutline = material.uniforms.uOutline?.value as THREE.Vector4;
+    expect(uOutline.x).toBeCloseTo(outline.drawn.halfWidth, 9);
+    expect(uOutline.y).toBeCloseTo(outline.drawn.halfHeight, 9);
+    expect(uOutline.z).toBeCloseTo(outline.drawn.radius, 9);
+    expect(uOutline.w).toBeCloseTo((SCREEN_FEATHER_PIXELS * width) / SCREEN_CANVAS_PIXELS, 9);
+    expect(uOutline.w).toBeGreaterThan(0.001);
+    expect(uOutline.w).toBeLessThan(0.002);
+    expect(material.transparent).toBe(true);
+    expect(material.fragmentShader).toContain('uOutline');
+    // The live canvas is drawn at the outline's aspect, not the paint bounds'.
+    expect(plan.aspect).toBeCloseTo(width / (2 * outline.drawn.halfHeight), 9);
+  });
+
+  /**
+   * **The honesty band stays whole, inside the rounded area.** It was the
+   * reason V8 inset the picture in the first place, so the rule for this
+   * pass was: solve it by laying the band out within the rounded outline —
+   * not by shrinking the picture again, and never by dropping or dimming
+   * it. This is the one label in the product that must never be ambiguous.
+   */
+  it('keeps the honesty band whole and inside the rounded corners', () => {
+    const plan = screenPlan(screen, positions, index.array);
+    const width = 2 * plan.outline.drawn.halfWidth;
+    const height = 2 * plan.outline.drawn.halfHeight;
+    const w = SCREEN_CANVAS_PIXELS;
+    const h = Math.max(64, Math.round(SCREEN_CANVAS_PIXELS / plan.aspect));
+    const corner = (plan.outline.drawn.radius / width) * w;
+    // The canvas covers the outline's bounding box, at the same number of
+    // pixels per metre on both axes, so a radius in metres is a radius in
+    // pixels.
+    expect(Math.abs(w / width - h / height) / (w / width)).toBeLessThan(0.002);
+    expect(corner).toBeGreaterThan(40);
+    // The band's box in canvas pixels, and the outline as a rounded
+    // rectangle in the same pixels: every corner of the box is inside it.
+    const textWidth = bandTextWidth(w, corner);
+    expect(textWidth).toBeGreaterThan(0.8 * w);
+    const box = {
+      x0: (w - textWidth) / 2,
+      x1: (w + textWidth) / 2,
+      // The glyph box about the band's own baseline, at the size `band`
+      // starts from; `fitFont` only ever makes it smaller.
+      yTop: h - BAND_HEIGHT / 2 + RULE / 2 + 2 - 0.38 * 64,
+      yBottom: h - BAND_HEIGHT / 2 + RULE / 2 + 2 + 0.38 * 64,
+    };
+    const outlineInPixels = {
+      centreU: w / 2,
+      centreV: h / 2,
+      halfWidth: w / 2,
+      halfHeight: h / 2,
+      radius: corner,
+    };
+    for (const [x, y] of [
+      [box.x0, box.yTop],
+      [box.x1, box.yTop],
+      [box.x0, box.yBottom],
+      [box.x1, box.yBottom],
+    ] as [number, number][]) {
+      const d = roundedRectDistance({ u: x, v: y }, outlineInPixels);
+      expect(
+        d,
+        `${role}: the band's words reach ${d.toFixed(1)} px outside the picture at (${x.toFixed(
+          0,
+        )}, ${y.toFixed(0)})`,
+      ).toBeLessThan(0);
+    }
+    // The band's stripe is full width and full strength, and the words are
+    // the four words: nothing here shortens, drops or dims them.
+    expect(BAND_WORDS).toBe('ILLUSTRATIVE · NOT REAL STATE');
+    expect(BAND_HEIGHT).toBe(118);
+    // The frame's rule and brackets are inside the curve too.
+    const margin = cornerMargin(corner, 22);
+    expect(margin).toBeGreaterThanOrEqual(Math.ceil(corner * (1 - Math.SQRT1_2)));
+    expect(roundedRectDistance({ u: margin, v: margin }, outlineInPixels)).toBeLessThanOrEqual(0);
   });
 
   it('is what the character turns to, and where a tube would arrive', () => {

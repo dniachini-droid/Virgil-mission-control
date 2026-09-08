@@ -3,7 +3,7 @@ import type { CandidateState } from '@virgil/domain';
 import { use, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
-import { createConvexGlassGeometry, createGlassMaterial } from '../glass.js';
+import { createGlassMaterial, createRoundedConvexGlassGeometry } from '../glass.js';
 import type { Outcome, ScreenContent } from '../room/demo.js';
 import { layout, room } from '../room/palette.js';
 import { SLAB_ARRIVAL } from './arrival.js';
@@ -64,32 +64,32 @@ export function ScreenBank({ content, outcome }: { content: ScreenContent; outco
       <Panel
         position={[-spread, y - 0.08, z + 0.35]}
         rotation={[-0.1, splay, 0]}
-        draw={(c, t) => drawRoles(c, t, content)}
+        draw={(c, t, corner) => drawRoles(c, t, content, corner)}
       />
       <Panel
         position={[0, y, z]}
         rotation={[-0.1, 0, 0]}
         fps={24}
-        draw={(c, t) => {
+        draw={(c, t, corner) => {
           const s = since.current;
           if (s.verdict !== content.verdict) {
             s.verdict = content.verdict;
             s.at = t;
           }
-          drawVerdict(c, t, t - s.at, content, outcome);
+          drawVerdict(c, t, t - s.at, content, outcome, corner);
         }}
       />
       <Panel
         position={[spread, y - 0.08, z + 0.35]}
         rotation={[-0.1, -splay, 0]}
-        draw={(c, t) => {
+        draw={(c, t, corner) => {
           const s = since.current;
           const key = `${content.candidate}:${content.ownerGate}`;
           if (s.candidate !== key) {
             s.candidate = key;
             s.candidateAt = t;
           }
-          drawCandidate(c, t, t - s.candidateAt, content);
+          drawCandidate(c, t, t - s.candidateAt, content, corner);
         }}
       />
     </group>
@@ -112,6 +112,46 @@ export function ScreenBank({ content, outcome }: { content: ScreenContent; outco
  * **swollen shell**, a half-ellipsoid, in the cream sampled from the
  * cast's own textures (`room.surface.castCream`).
  */
+/**
+ * A slab's authored proportions, in one place because the front plate,
+ * the glass over it and the canvas drawn behind it all have to agree —
+ * and, since V8.2, because the layout of the picture has to know where the
+ * rounded corner of the opening is. See `frame` and `band` in `draw.ts`.
+ */
+export function slabPlan(width: number, height: number) {
+  const bezel = 0.09 * (width / 1.3) + 0.03;
+  const radius = 0.16 * (width / 1.3) + 0.02;
+  const openingRadius = Math.max(0.03, radius - bezel);
+  // The display plane is wider than the opening, so its own edge hides
+  // behind the plate's lip; that overhang is how much of the canvas is
+  // never seen.
+  const overhang = (bezel * 0.5) / 2;
+  const displayWidth = width + bezel * 0.5;
+  return {
+    bezel,
+    plate: 0.05,
+    // Shallow, and the lip thin: a 14 mm recess under a 22 mm lip hid the
+    // display's edge — and part of the honesty band — from oblique angles
+    // in the first V7 capture. 8 mm under 10 mm keeps the parallax and
+    // keeps the band whole.
+    recess: 0.008,
+    bulge: 0.03 * (width / 1.3),
+    radius,
+    openingRadius,
+    displayWidth,
+    displayHeight: height + bezel * 0.5,
+    /**
+     * The corner radius the picture is laid out inside, in the canvas's own
+     * pixels, measured from the **canvas's** edge rather than the opening's:
+     * the opening's radius plus the overhang the plate hides. That is a
+     * little more than the opening's own curve asks for, deliberately — it
+     * is the conservative direction, and `test/console-screens.test.ts`
+     * checks the band's words against the real opening.
+     */
+    cornerPixels: ((openingRadius + overhang) / displayWidth) * 1024,
+  };
+}
+
 function Slab({
   width,
   height,
@@ -121,18 +161,10 @@ function Slab({
   height: number;
   texture: THREE.Texture;
 }) {
-  const bezel = 0.09 * (width / 1.3) + 0.03;
-  const plate = 0.05;
-  // Shallow, and the lip thin: a 14 mm recess under a 22 mm lip hid the
-  // display's edge — and part of the honesty band — from oblique angles
-  // in the first V7 capture. 8 mm under 10 mm keeps the parallax and
-  // keeps the band whole.
-  const recess = 0.008;
-  const bulge = 0.03 * (width / 1.3);
-  const radius = 0.16 * (width / 1.3) + 0.02;
+  const { bezel, plate, recess, bulge, radius, openingRadius } = slabPlan(width, height);
   const { front, shell, glass } = useMemo(() => {
     const outer = roundedRect(width + 2 * bezel, height + 2 * bezel, radius);
-    outer.holes.push(roundedRectPath(width, height, Math.max(0.03, radius - bezel)));
+    outer.holes.push(roundedRectPath(width, height, openingRadius));
     const front = new THREE.ExtrudeGeometry(outer, {
       depth: plate,
       bevelEnabled: true,
@@ -144,10 +176,21 @@ function Slab({
     // The back half of a sphere, scaled to the case: rim toward the plate.
     const shell = new THREE.SphereGeometry(1, 36, 18, 0, Math.PI);
     // The glass is a little wider than the opening and starts a few
-    // millimetres inside the plate, so its edge is under the lip.
-    const glass = createConvexGlassGeometry(width + 0.012, height + 0.012, bulge + 0.004, 28);
+    // millimetres inside the plate, so its edge is under the lip. **V8.2:
+    // it follows the opening's curve.** It was a rectangle, and its square
+    // corners stood 17 mm out over the plate's rounded corners — the same
+    // fault as the console screens', on the authored geometry that is
+    // supposed to be their reference. Its radius is the opening's plus the
+    // 6 mm it overhangs by, so the two curves are concentric.
+    const glass = createRoundedConvexGlassGeometry(
+      width + 0.012,
+      height + 0.012,
+      openingRadius + 0.006,
+      bulge + 0.004,
+      160,
+    );
     return { front, shell, glass };
-  }, [width, height, bezel, radius, bulge]);
+  }, [width, height, bezel, radius, bulge, openingRadius, plate]);
   const glassMaterial = useMemo(() => createGlassMaterial(), []);
   return (
     <group>
@@ -217,7 +260,7 @@ function Panel({
   height?: number;
   /** How often the canvas is redrawn. */
   fps?: number;
-  draw: (canvas: HTMLCanvasElement, t: number) => void;
+  draw: (canvas: HTMLCanvasElement, t: number, corner: number) => void;
 }) {
   // Suspends until both faces are registered, so the first frame is set in
   // them and never in the fallback.
@@ -241,7 +284,7 @@ function Panel({
     if (!reducedMotion) c.t += Math.min(delta, 0.1);
     if (c.last >= 0 && c.t - c.last < 1 / fps) return;
     c.last = c.t;
-    draw(canvas, c.t);
+    draw(canvas, c.t, slabPlan(width, height).cornerPixels);
     texture.needsUpdate = true;
   });
 
@@ -254,11 +297,11 @@ function Panel({
 
 // ------------------------------------------------------------- drawing
 
-function drawRoles(canvas: HTMLCanvasElement, t: number, content: ScreenContent) {
+function drawRoles(canvas: HTMLCanvasElement, t: number, content: ScreenContent, corner: number) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const { width: w, height: h } = canvas;
-  const floor = frame(ctx, w, h, 'ROLES', room.emit.cyan);
+  const floor = frame(ctx, w, h, 'ROLES', room.emit.cyan, 0, corner);
   const active = content.active ?? 'VIRGIL';
   bigWord(ctx, active.toUpperCase(), 64, 150, w - 128, content.active ? room.warm.amber : TEXT);
   // Four rings, one per role; the active one filled, the others glowing in
@@ -306,6 +349,7 @@ function drawVerdict(
   since: number,
   content: ScreenContent,
   outcome: Outcome,
+  corner: number,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -314,7 +358,7 @@ function drawVerdict(
   const look = verdictLook(verdict);
   const tint = look.tint;
   const lift = verdict !== '—' ? clamp01(1 - (since - 1.5) / 2.5) : 0;
-  const floor = frame(ctx, w, h, 'VERDICT', tint, lift);
+  const floor = frame(ctx, w, h, 'VERDICT', tint, lift, corner);
   ctx.save();
   ctx.beginPath();
   ctx.rect(0, 0, w, floor);
@@ -387,15 +431,16 @@ function drawCandidate(
   t: number,
   since: number,
   content: ScreenContent,
+  corner: number,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const { width: w, height: h } = canvas;
   if (content.ownerGate) {
-    drawOwnerGate(ctx, w, h, t, since);
+    drawOwnerGate(ctx, w, h, t, since, corner);
     return;
   }
-  const floor = frame(ctx, w, h, 'CANDIDATE', room.emit.magenta);
+  const floor = frame(ctx, w, h, 'CANDIDATE', room.emit.magenta, 0, corner);
   const lines = stateLines(content.candidate);
   const arrive = clamp01(since / 0.5);
   bigWord(ctx, lines[0], 64, 130, w - 128, content.candidate ? room.emit.ice : DIM, arrive, 150);
@@ -431,8 +476,16 @@ function drawCandidate(
  * system has stopped and turned to the owner. Gold, used nowhere else; a
  * frame breathing slowly; the state's words; and what it is not.
  */
-function drawOwnerGate(ctx: Ctx, w: number, h: number, t: number, since: number) {
-  const floor = frame(ctx, w, h, 'OWNER', OWNER_GOLD, 0.6 + 0.4 * (0.5 + 0.5 * drift(t, 0.25)));
+function drawOwnerGate(ctx: Ctx, w: number, h: number, t: number, since: number, corner: number) {
+  const floor = frame(
+    ctx,
+    w,
+    h,
+    'OWNER',
+    OWNER_GOLD,
+    0.6 + 0.4 * (0.5 + 0.5 * drift(t, 0.25)),
+    corner,
+  );
   const arrive = clamp01(since / 0.7);
   const breath = 0.5 + 0.5 * drift(t, 0.25);
   ctx.save();

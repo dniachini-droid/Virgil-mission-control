@@ -1,11 +1,11 @@
 import * as THREE from 'three';
+import { createGlassMaterial as createGlass, PAINT_TEST, type PaintRule } from '../glass.js';
 import {
-  createConvexGlassGeometry,
-  createGlassMaterial as createGlass,
-  PAINT_TEST,
-  type PaintRule,
-} from '../glass.js';
-import { buildFlatScreen, fitScreenPlane, screenUvBounds } from '../screens/screenPlane.js';
+  buildFlatScreen,
+  type FlatScreen,
+  screenPlan,
+  screenUvBounds,
+} from '../screens/screenPlane.js';
 
 /**
  * Fits a face to a head's own geometry.
@@ -115,6 +115,8 @@ export interface VisorMask {
 export interface VisorGeometry {
   face: THREE.BufferGeometry;
   glass: THREE.BufferGeometry;
+  /** What was built, for a console's screen: its outline, lift and feather. */
+  screen?: FlatScreen['plan'];
 }
 
 /**
@@ -245,11 +247,12 @@ function buildFlatVisorGeometry(
   const index = source.index;
   const uv = source.getAttribute('uv');
   if (!index || !uv) throw new Error('screen: the console geometry lacks an index or uv');
-  const plane = fitScreenPlane(mask, fitPositions, index.array);
+  const plan = screenPlan(mask, fitPositions, index.array);
   const flat = buildFlatScreen(
-    plane,
+    plan.plane,
+    plan.outline,
+    plan.lift,
     gapMetres,
-    (width, height, bulge) => createConvexGlassGeometry(width, height, bulge, 24),
     screenUvBounds(mask, uv, index.array),
   );
   // The fit is in the mask's frame — metres, base at the origin. The mesh
@@ -263,7 +266,7 @@ function buildFlatVisorGeometry(
   flat.face.computeBoundingSphere();
   flat.glass.computeBoundingBox();
   flat.glass.computeBoundingSphere();
-  return { face: flat.face, glass: flat.glass };
+  return { face: flat.face, glass: flat.glass, screen: flat.plan };
 }
 
 const FACE_VERTEX = /* glsl */ `
@@ -294,6 +297,10 @@ const FACE_FRAGMENT = /* glsl */ `
   uniform float uFlash;
   uniform float uGlow;
   uniform float uAspect;
+  // The drawn outline (screens/screenOutline.ts): half extents, corner
+  // radius and feather, in metres. All zero for a visor, whose edge is the
+  // head's own paint and needs no mask.
+  uniform vec4 uOutline;
   varying vec2 vUv;
   varying vec2 vFaceUv;
   void main() {
@@ -307,7 +314,18 @@ const FACE_FRAGMENT = /* glsl */ `
     vec3 colour = image * uPower * squeeze + uFlash * inside * vec3(0.92, 0.96, 1.0);
     float d = length(vec2(c.x * uAspect, c.y));
     colour += uGlow * vec3(0.85, 0.95, 1.0) * smoothstep(0.05, 0.0, d);
-    gl_FragColor = vec4(colour, 1.0);
+    // The picture's own edge, feathered: the outline is a mask taken from
+    // 23-41 coarse triangles, and its arcs would alias against the dark
+    // recess behind them. Measured on the outline itself, not on the CRT's
+    // scaled image, so the physical edge does not move as a screen wakes.
+    float alpha = 1.0;
+    if (uOutline.w > 0.0) {
+      vec2 q2 = (vFaceUv - 0.5) * vec2(2.0 * uOutline.x, 2.0 * uOutline.y);
+      vec2 e = abs(q2) - (vec2(uOutline.x, uOutline.y) - uOutline.z);
+      float sd = length(max(e, 0.0)) + min(max(e.x, e.y), 0.0) - uOutline.z;
+      alpha = 1.0 - smoothstep(-uOutline.w, 0.0, sd);
+    }
+    gl_FragColor = vec4(colour, alpha);
     #include <colorspace_fragment>
   }
 `;
@@ -324,6 +342,7 @@ export function createFaceMaterial(
   paint: THREE.Texture,
   rule: PaintRule = VISOR_PAINT,
   aspect = 1,
+  outline?: { halfWidth: number; halfHeight: number; radius: number; feather: number },
 ): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
@@ -336,14 +355,28 @@ export function createFaceMaterial(
       uFlash: { value: 0 },
       uGlow: { value: 0 },
       uAspect: { value: aspect },
+      uOutline: {
+        value: outline
+          ? new THREE.Vector4(
+              outline.halfWidth,
+              outline.halfHeight,
+              outline.radius,
+              outline.feather,
+            )
+          : new THREE.Vector4(0, 0, 0, 0),
+      },
     },
     vertexShader: FACE_VERTEX,
     fragmentShader: FACE_FRAGMENT,
     side: THREE.DoubleSide,
+    // A feathered edge needs the alpha it writes to be blended. A visor's
+    // does not, and stays opaque, so nothing about the four heads changes.
+    transparent: outline !== undefined,
+    depthWrite: true,
     polygonOffset: true,
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2,
-    name: 'visor-face',
+    name: outline ? 'screen-face' : 'visor-face',
   });
 }
 
@@ -392,7 +425,23 @@ export function buildVisorMeshes(
     gapMetres,
     options.flat ? { toSource: head.matrix.clone().invert() } : null,
   );
-  const faceMaterial = createFaceMaterial(faceTexture, paint, mask.paint, faceAspect(mask));
+  const outline = geometry.screen
+    ? {
+        halfWidth: geometry.screen.width / 2,
+        halfHeight: geometry.screen.height / 2,
+        radius: geometry.screen.radius,
+        feather: geometry.screen.feather,
+      }
+    : undefined;
+  const faceMaterial = createFaceMaterial(
+    faceTexture,
+    paint,
+    mask.paint,
+    // A console screen's canvas is drawn at the outline's own aspect
+    // (`screenPlane.ts`), so the afterglow dot is round on it too.
+    geometry.screen ? geometry.screen.width / geometry.screen.height : faceAspect(mask),
+    outline,
+  );
   const glassMaterial = createGlassMaterial(paint, mask.paint);
   const skinned = (head as THREE.SkinnedMesh).isSkinnedMesh ? (head as THREE.SkinnedMesh) : null;
   const make = (g: THREE.BufferGeometry, m: THREE.Material, name: string) => {
