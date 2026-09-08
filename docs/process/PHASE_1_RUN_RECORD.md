@@ -1,4 +1,4 @@
-# Phase 1 run record — stage S2, viewing points V0 to V8
+# Phase 1 run record — stage S2, viewing points V0 to V8.1
 
 Opened 2026-09-08 by the V6 pass, on finding KR-56 of the review of `a4f8b70`: no Phase 1 run record with commit SHAs existed. Every earlier viewing point is recorded here from the repository's own history (`git log`, the committed artifacts and their `.sha256` files, the `PHASE_1_HOW_TO_LOOK_V*.md` documents); V6 is recorded from the session that built it. This is a record of what was run and what it produced. It decides nothing. It is not an event log in `packages/domain/` — the backlog item "record real runs as events" stays open, and this file is the prose that item says should be events.
 
@@ -16,7 +16,8 @@ Everything below was built and checked on a machine that renders in software. No
 | V5 | `868971a375` | `virgil-s2-v5-868971a375.html` | `PHASE_1_HOW_TO_LOOK_V5.md` | The Prover in his station, slabs, receiving and working, stillness |
 | V6 | `5b4b52fb8bc1c93ab9ee6ef789c16dd61a614d00` | `virgil-s2-v6-5b4b52fb8b.html` | `PHASE_1_HOW_TO_LOOK_V6.md` | The stylised set, in the room and on a tabletop, with the refusal |
 | V7 | `ffa3e18cffb17ec55588ac8facc544d9ee1f4043` | `v7-s2-virgil-ffa3e18cff.html` | `PHASE_1_HOW_TO_LOOK_V7.md` | The tabletop: faces on the head, screens as objects |
-| **V8** | **`934554159f8021478887603c9230d459eed763da`** | **`v8-s2-virgil-934554159f.html`** | **`PHASE_1_HOW_TO_LOOK_V8.md`** | **Symmetrical consoles carrying their own screens; the receiving and the return; four verdicts; the turn** |
+| V8 | `934554159f8021478887603c9230d459eed763da` | `v8-s2-virgil-934554159f.html` | `PHASE_1_HOW_TO_LOOK_V8.md` | Symmetrical consoles carrying their own screens; the receiving and the return; four verdicts; the turn |
+| **V8.1** | **`SOURCE_SHA`** | **`ARTIFACT_NAME`** | **`PHASE_1_HOW_TO_LOOK_V8.md` (V8.1 note appended)** | **Four rendering defects repaired: the close-ups reach their pose and show the whole screen, the screens are flat, the chrome is opaque** |
 
 The V5 source commit `868971a` and its documents were merged to `main` by the owner as pull request #7 (`90b116c`); the V6 branch was restarted forward from that merge.
 
@@ -272,3 +273,89 @@ It rebuilds at the artifact's **own** commit, not at `HEAD`, so a later commit t
 ### What this pass did not do
 
 Nothing here is a *test* that GitHub honours the workflow file — no test in this repository executes GitHub Actions, and none can. Two runs demonstrate it once each way (above); a demonstration is not a control, and if the workflow is disabled in the repository's settings nothing here will say so. CI runs the Chromium the lockfile resolves (`153.0.8010.12`); this container substitutes a preinstalled `141.0.7390.37`, so a local pass and a CI pass are not passes on the same browser; the divergence is not repaired, and every run now prints which browser it used. `inline.mjs` is unrepaired (KR-58): the class of defect it misses is caught by a required check, and its own blind spot is untouched. The reproducibility rebuild covers the newest artifact only; the older seven are covered by their digests. No design-level-only row in `docs/architecture/ENFORCEMENT_BOUNDARIES.md` moved, and that document says why.
+
+## V8.1 — the repair pass of 2026-09-08, from four defects found by looking at the frames
+
+Branch `claude/virgil-phase-1-slice`, from `77a01a6`. A bounded repair pass, not a viewing point of its own: no new direction was implemented and the V8 owner document still stands, with a note appended. Four defects, all found by rendering the committed V8 artifact `v8-s2-virgil-934554159f.html` and looking at the frames — **none of them was caught by any check**, and two of the four were not what they looked like.
+
+### Defect 1 — the Fabricator close-up was dominated by the back of Virgil's head
+
+**What was wrong.** Press `2` and the frame was filled by Virgil's head, with the Fabricator's console screen — the whole point of the view — a sliver behind his crown. Reproduced at three demonstration times.
+
+**The cause, which was neither the pose nor the animation.** `cameraPose('tabletop', 'fabricator', 1.6)` returns a camera 1.00 m from Virgil's head and **141° off its own view axis**, where a 40° lens cannot see him at all. That was the puzzle, and it had a measured answer: the camera was never at that pose. `Rig` lifted the orbit limits through React state (`setLimits(UNBOUNDED)` inside the focus effect), which lands a frame or two after the effect runs; on this software renderer one frame is about a second, so the whole 0.9 s flight completed inside the *first* frame and `OrbitControls.update()` clamped the new pose against the **previous** view's bounds — the wide tabletop's `minDistance: 6`. Measured live in the V8 artifact, by publishing the camera and the controls' six limits per frame:
+
+| | authored pose | where it came to rest | distance to target | `minDistance` in force |
+|---|---|---|---|---|
+| Fabricator | (−0.915, 1.555, −0.006) | (0.689, 1.827, 2.048) | 3.379 m → **6.000 m** | 6 (the wide view's) |
+| Prover | (1.604, 1.495, −1.051) | (2.853, 1.706, 0.809) | 3.379 m → **6.000 m** | 6 |
+| Keeper | (2.664, 1.567, −0.021) | (2.998, 1.843, 2.562) | 3.379 m → **6.000 m** | 6 |
+
+The view direction was correct in every case; each camera was pushed 2.62 m straight backwards along its own axis, and for the Fabricator that axis runs through Virgil. The frame log shows it exactly: the flight completes on frame 1 with `minD 6`; the focused bounds (`minD 1.4`) arrive on frame 3, two frames too late, and OrbitControls only clamps — it never restores. This is why `#/?cam=fabricator`, which poses the camera at mount while the limits are still unbounded, looked correct while pressing `2` did not, and why every earlier capture of the close-ups was of a camera nobody had authored. `Rig`'s own comment claimed "no clamp can snatch the camera mid-flight"; asynchronous state is exactly how one did.
+
+**The animated-bounds hypothesis is disproved, and that matters for another test.** `v2-virgil-anim.glb`'s 2.071 × 3.000 × 1.373 against `v2-virgil.glb`'s 1.381 × 2.000 × 0.915 is the whole of the difference: all three ratios are exactly 1.5, an export scale, which `src/world/virgil/virgil-rigged-asset.json` already records ("The 3.000-unit source height is an export scale (exactly 1.5× the static candidate 04), not a size"). Sampled through all three shipped clips at five times each, Virgil's world bounds stay within x −0.79..0.69, y 0.19..2.01, z −0.38..1.41, against a bind pose of x ±0.62, z 0.3 ± 0.41: the clips do not carry him metres from `layout.virgilAt`. **But they do carry him up to 0.70 m further forward in +z and 0.21 m higher than bind pose** (`Angry_Ground_Stomp` at t = 0.37 s reaches z = 1.41 and y = 1.39 with his weight thrown forward). `test/cast-clearance.test.ts` measures him at **bind pose only** — its own title says so — so its clearance claim is exactly as narrow as it is written and does not cover the clips. It is not a fiction; it is a narrower statement than a reader might take it for. The new test covers the clips.
+
+### Defect 3 — a dial on the Prover's console covered the end of his screen
+
+True, and worse than it looked from the clamped camera. Measured from V8's **authored** pose against the whole set, over sample points spread across each console's own screen triangles:
+
+| | samples on the screen | visible looking straight down its own normal | behind something from V8's close-up |
+|---|---|---|---|
+| Fabricator | 223 | 132 (91 under its own bezel) | 0 |
+| Prover | 144 | 139 (5) | **75** — his console's dial, and the Keeper, who stands almost exactly on that sight line |
+| Keeper | 226 | 215 (11) | **23** — his console's own casing |
+
+And the lens was fixed at 40° where the Fabricator's screen needed 44° at 390 × 599 and the Keeper's 54°, so a phone cropped all three.
+
+**What counts as the screen, stated because it changes the bar.** A console's screen mask runs right up to and a little under the console's own bezel: looking straight down the Fabricator's screen's own normal from six metres off, **91 of its 223 sample points are behind its own casing** (border vertices with the bezel standing 11–29 mm proud of them), 5 of the Prover's and 11 of the Keeper's. No camera anywhere can see those. So the requirement asserted is the honest one — **the camera must hide nothing that the model does not already hide** — and the head-on reference is recomputed from the same geometry inside the test, so the bar cannot drift.
+
+**The fix.** A close-up is no longer posed. `src/world/room/closeUp.ts` derives it from the screen: the camera stands **on the screen's own measured axis** (the mean normal `asset-pipeline/fit-screen.mjs` recorded, turned into the room by the station's yaw — the one direction from which nothing standing proud of a surface, on that surface's own object, can cover it), at 3.0 m, at 1.25 of the screen's own rise (the screens tilt back 12.6°–14.1°, so the camera is 16°–18° above the screen's centre, which is what clears the character standing in front of the console), aiming three tenths of the way toward the character's eyes, with the lens the screen's measured box needs at the viewport's aspect. The pose was chosen by search, not by eye: 162 and then 80 candidates over distance, swing and elevation, each ray-cast against the whole set, and the reported clear region was intersected across the three roles.
+
+**The cost, named rather than hidden.** The characters stand about two metres in front of their consoles and up to a metre to the side — up to 47° off the screen's axis — so a camera that sees the whole screen cannot always hold the character too without a fisheye. **No single pose in the searched family holds both for all three roles**: the Fabricator's own body blocks his screen unless the camera is raised, and raising it brings the Prover's dial over his; at 4.6 m the Prover and Keeper are clear at zero swing while the Fabricator needs 8° of it, and vice versa. The three consoles are three different models with different furniture on them. The screen wins, so the character is now largely cropped in their own close-up — a loss against the owner's V8 direction (§0.10.8: the face registers the work and they turn). That is a choice between two things the owner asked for and it is his to overturn; the alternatives are recorded here rather than decided.
+
+### Defect 2 — 3D text bled through the control panel
+
+The panel was `rgba(5, 3, 15, 0.72)` over a lit world, and Virgil's three slabs sit directly behind it from the Keeper's and the Prover's close-ups, so their amber `ILLUSTRATIVE · NOT REAL STATE` bands and the magenta candidate id read through the 28% left transparent. Not cosmetic: it made the active `Demo On/Off` button ambiguous in a full-size capture, and the honesty band is the one label that must never be ambiguous about where it belongs. The panel, its buttons, the demonstration badge and the provenance footer are opaque now, with a shadow so the panel still reads as lying over the set. The band is untouched where it belongs — in the world, on the screens. The phone's slab bands at the wide view are still too small to read; that is an owner decision about type size and was deliberately not touched.
+
+### Defect 4 — the console screens were not flat
+
+The owner: *"the text on the screens are much better, but the screens dont look flat and smooth. I think it is the original meshy files. the screens on the consoles look all crooked and lots of different slants. Can you make it completely smooth like Virgils screens??"*
+
+He is right about the cause. V8 drew the live screen onto the console's selected triangles, the way a visor is drawn onto a head. On a head that is right; a face should follow the skull. On a screen the text followed the lumps.
+
+**Measured first, on the committed payloads, by fitting a plane to each selection by area-weighted least squares** (a height field over the recorded mean normal, which is the right parameterisation because the surface is nearly planar already — the residual of that fit *is* the number the owner is looking at):
+
+| console | vertices | RMS residual | furthest out of the plane | furthest out **under the picture** | furthest behind |
+|---|---|---|---|---|---|
+| Fabricator | 58 | **1.85 mm** | 6.30 mm | 5.84 mm | 3.23 mm |
+| Prover | 39 | **9.39 mm** | 29.21 mm | 25.98 mm | 4.08 mm |
+| Keeper | 69 | **2.40 mm** | 1.76 mm | 1.76 mm | 7.21 mm |
+
+The Prover's is the one the eye catches: the per-vertex distribution runs p50 −0.07 mm, p90 **+16.89 mm**, p99 +23.17 mm, p100 +29.21 mm — about a tenth of his screen stands one and a half to three centimetres out of its own plane, so a straight line of type ran over a ridge. The fitted normals sit within 1.2° of the recorded means. These numbers are recorded in `test/console-screens.test.ts` as values, so a re-fit or a new payload that moves them fails a check instead of passing silently.
+
+**What changed.** `src/world/screens/screenPlane.ts` fits the plane and builds **one flat rectangle** in it — the selection's own extent (0.896 × 0.518, 0.883 × 0.512 and 0.824 × 0.527 m) inset 35 mm on every side so its edge stays under the console's bezel lip, stood off the plane by the highest lump **under the rectangle itself** plus 4 mm: **9.8, 30.0 and 5.8 mm**. Nothing pokes through it and nothing z-fights with it. The lump bound is the surface clipped exactly to the rectangle — each triangle cut against its four edges by Sutherland–Hodgman and the height read at the corners of what survives — not the whole selection's, because a ridge out under the bezel is not behind the picture and lifting for it would stand the picture needlessly proud; on these payloads the two differ by 0.46, 3.23 and 0.00 mm. The glass over it is `createConvexGlassGeometry`, the same profile and highlight as Virgil's slabs, 12 mm in front of the rectangle at its edges and swelling by the slabs' own 0.03 / 1.30 of the width at its centre. Same font, same treatment, the honesty band on the flat surface with the rest of the display.
+
+**The selection is still the model's**, so this does not abandon "the consoles carry their own screens": `fit-screen.mjs` read which of the console's own triangles are its screen, and the plane, its extent, its aspect and its lift are all derived from that selection. The console's lumpy triangles stay exactly where they are, behind the rectangle. **No geometry is deleted from the owner's model.**
+
+Also repaired while measuring it: the live canvas was sized from the paint bounds' aspect, but the selection's y extent spans a surface tilted back 12.6°–14.1°, so its height in the fitted plane is longer than its height in y. The canvas is drawn at the rectangle's own aspect now (1.731, 1.725, 1.562), which was stretching the picture about 2%.
+
+### Nothing was weakened to make any of this pass
+
+The screen builder's original behaviour is unchanged and still its default — a visor is never flattened — so `console-screens.test.ts`'s existing assertion that the glass is the selection pushed out along its normals by exactly the gap still runs and still passes, and `visor.test.ts` holds the same rule for all four heads. Two float tolerances in the **new** assertions were set to a micrometre rather than a nanometre, because the geometry attribute is float32; no pre-existing tolerance was touched. The payload-digest assertions are untouched.
+
+### The tests that hold the four fixes
+
+- **`apps/mission-control/test/close-up-sight.test.ts`** (new, 4 tests). For each role, a ray from the close-up camera to every sample point of that console's own screen triangles **and to the four corners of the flat rectangle**, against the whole set: all three console bodies with their screen triangles removed, all three characters at every yaw of the turn including the overshoot and both breathing extremes, Virgil's console, and the rigged Virgil frozen at seven times of each of his three clips. It fails if any point the model does not already hide is behind anything. It also holds every corner of every screen inside the frame at 1280 × 735 and 390 × 599, holds the camera on the screen's own axis to within 0.02 rad, and — the shape of defect 1, as a test — checks that the pose satisfies every one of the orbit bounds `limitsFor` hands the controls. Verified to fail: with the elevation set to 0.15 of the screen's rise it reports `fabricator: 14 of 132 visible screen samples are behind something`.
+- **`apps/mission-control/test/console-screens.test.ts`** (6 new tests, nothing removed). The fit's residuals as recorded values; the rectangle two triangles with every corner the same distance off the fitted plane to a hundredth of a millimetre, opposite edges equal, corners square; corners inside both the selection's measured extent and the region `fit-screen.mjs` was allowed to look in; every original screen vertex behind the rectangle; the glass's edge at the screen's own gap and its centre at the gap plus the slabs' bulge, every point of it over the rectangle.
+- **`limitsFor`** now derives every bound from the pose it is handed, and `Rig` writes the six numbers onto the controls imperatively in the frame that needs them, with no limit props on `<OrbitControls>` at all — so React can no longer race the rig for them.
+
+### Two scratch diagnostics deleted
+
+`apps/mission-control/test/zz-explore.test.ts` and `zz-diag.test.ts` were the pose search and the bezel measurement. Both are deleted. What they found is in this record and in the two named tests: the 91/5/11 self-hidden samples, the 11–29 mm bezel proudness, and the clear region of the pose family.
+
+### Frames looked at
+
+The V8 artifact, pressing `2` after `__virgilDemo` existed, at 1280 × 800: Virgil's head filling the right half, the Fabricator's screen a sliver at the upper left. The same route on the V8.1 build: the Fabricator's screen filling the frame, legible, unoccluded, the panel opaque. The Prover at loop 2 t = 33.8 s (`INSUFFICIENT_EVIDENCE`): V8's dial across the right end of the screen, V8.1's screen whole and flat. The Keeper at loop 0 t = 40 s. The Fabricator in portrait at 390 × 664, before and after. Before defect 4, the honesty band and the corner brackets are visibly warped on all three consoles; after, they are straight.
+
+### What this pass did not do
+
+No performance measurement and no look on real graphics hardware; OD-0005's two checks remain **not performed**. The CRT collapse has still never been seen by anybody in a frame — it is built and held by `test/screen-motion.test.ts`, and the cheap deterministic entry point that would put a frame inside its 0.8 s does not exist: `#/?demo=` starts the clock at a beat, but the collapse is driven by a station's own power clock from the moment its state leaves `RECEIVING`/`WORKING`/`REPORTED`, not by the demonstration clock, so a `#/?off=<role>` or a `powerAt` seed would be needed. That is named as a gap, not built. The phone's slab bands are still unreadable at the wide view (an owner decision about type size). The characters are largely cropped in their own close-ups, as above. The `INSUFFICIENT EVIDENCE` verdict word still overlaps the tally line beneath it on the Prover's screen at his console's aspect; that is the screen drawing's own layout, it was there in V8, and it was left alone as outside this pass.
