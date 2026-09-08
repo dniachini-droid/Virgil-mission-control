@@ -134,7 +134,11 @@ describe.each(ROLES)('the %s at their station', (role) => {
     expect(lowest).toBeLessThan(0.005);
   });
 
-  it('touches no station geometry at any extreme of their breathing', () => {
+  // Voxelising two surfaces at 15 mm takes seconds, and ten under a loaded
+  // machine: pnpm check once failed this on Vitest's 5 s default while two
+  // software-rendering captures ran beside it. The bound is the geometry's,
+  // not the clock's.
+  it('touches no station geometry at any extreme of their breathing', { timeout: 120_000 }, () => {
     const stationIndex = station.geometry.index as THREE.BufferAttribute;
     const figureIndex = figure.geometry.index as THREE.BufferAttribute;
     const ABOVE_FLOOR = 0.02;
@@ -196,7 +200,9 @@ describe('Virgil on his console', () => {
     );
   });
 
-  it('stands on the deck at bind pose touching no console geometry above it', async () => {
+  it('stands on the deck at bind pose touching no console geometry above it', {
+    timeout: 120_000,
+  }, async () => {
     const gltf = await parseVirgilGlb(decodeVirgilPayload());
     let skinned: THREE.SkinnedMesh | null = null;
     gltf.scene.traverse((o) => {
