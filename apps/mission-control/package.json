@@ -12,7 +12,9 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "capture": "tsx e2e/capture-spikes.ts",
-    "verify:owner": "tsx e2e/verify-owner-build.ts"
+    "verify:owner": "tsx e2e/verify-owner-build.ts",
+    "reproduce:owner": "node owner-build/reproduce.mjs",
+    "install:browser": "playwright install --with-deps chromium"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

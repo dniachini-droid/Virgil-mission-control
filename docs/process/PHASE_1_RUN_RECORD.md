@@ -171,4 +171,40 @@ V6 was 9,804,742 bytes; V7 is 1,408,758 bytes (14.4 %) smaller. **That size is w
 
 ### What was not done
 
-No performance measurement. No look on real graphics hardware. No test of the file on iOS — no session here can. The three walking rigs have not arrived; the seam is built and the glide is the placeholder. The consoles' own screens (spec §0.9) are queued for the next pass and not started. CI (KR-50/KR-59) is unblocked by the owner's root-config permission and deliberately deferred to its own pass. Generation prompts and times for the models remain outstanding. The Prover and Keeper model assignments remain provisional.
+No performance measurement. No look on real graphics hardware. No test of the file on iOS — no session here can. The three walking rigs have not arrived; the seam is built and the glide is the placeholder. The consoles' own screens (spec §0.9) are queued for the next pass and not started. CI (KR-50/KR-59) was unblocked by the owner's root-config permission and deferred to its own pass; that pass is recorded below. Generation prompts and times for the models remain outstanding. The Prover and Keeper model assignments remain provisional.
+
+## Continuous integration — the pass of 2026-09-08
+
+The repository had no automated checks of any kind. It now has `.github/workflows/checks.yml`, running on push to any branch and on pull requests. Authority: the owner in the owner console on 2026-09-08 — "You may edit the root config files." Nothing else about the permitted paths changed.
+
+What runs, in order: `pnpm install --frozen-lockfile`; the Chromium `pnpm-lock.yaml` pins; `pnpm check` (biome, `turbo run typecheck`, every workspace test, then `verify:owner`); the Mind Scan; `build:owner`; `verify:owner`; `sha256sum -c` over every committed Owner Build digest; and, as a second job with full git history, the byte-for-byte reproducibility rebuild of the newest committed artifact.
+
+`verify:owner` is no longer reachable only from a workflow file. `turbo.json` gives it `dependsOn: ["build:owner"]` with `cache: false` on both, and the root `check` script runs it, so `pnpm check` cannot pass without the Owner Build being built and opened from `file://`. `apps/mission-control/test/required-checks.test.ts` (14 assertions) fails if that wiring is removed or a workflow step is dropped.
+
+### The three defects it was made to fail on, with what they printed
+
+No workflow run exists yet — GitHub Actions has never run on this repository — so these were run locally, as the exact commands the workflow declares. Every defect was reverted immediately and none is committed.
+
+| Defect | `pnpm test` | `build:owner` (`inline.mjs`) | The check that caught it |
+|---|---|---|---|
+| `void fetch('https://example.com/virgil-telemetry.json')` in a `useEffect` in `src/world/room/VirgilRoom.tsx` | **317 passed**, 0 failed | **exit 0** — accepted it | `verify:owner` **exit 1**: `requests 2, off-document 1`; `off-document requests: https://example.com/virgil-telemetry.json`; `console: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED` |
+| `background-image: url(https://example.com/virgil-footer.png)` in `.owner-footer` in `src/owner/owner.css` | 6 tasks passed | **exit 0** — accepted it | `verify:owner` **exit 1**: `requests 2, off-document 1`; `off-document requests: https://example.com/virgil-footer.png` |
+| One byte flipped in `docs/process/PHASE_1_owner-builds/v7-s2-virgil-ffa3e18cff.html` (offset 4,197,992, `y` → `A`) | — | — | `sha256sum -c` **exit 1**: `v7-s2-virgil-ffa3e18cff.html: FAILED`, other seven `OK`; and `pnpm reproduce:owner` **exit 1**: `cmp … differ: char 4197993, line 4707`, rebuilt `11f043df…` against committed `4d64249f…` |
+
+Two further demonstrations, that the wiring itself cannot be quietly removed: deleting `&& pnpm verify:owner` from the root `check` script fails `required-checks.test.ts` with `expected 'pnpm lint && pnpm typecheck && pnpm t…' to contain 'pnpm verify:owner'`; deleting `.github/workflows/checks.yml` fails the same file with `ENOENT: no such file or directory, open '…/.github/workflows/checks.yml'`.
+
+One demonstration was vacuous on the first attempt and is recorded because it is the reason the brief demanded proof. The remote `url()` was first inserted *above* the `background: rgba(5, 3, 15, 0.92)` shorthand in the same rule, which resets `background-image` to `none`; nothing was ever requested and `verify:owner` passed. Moved below the shorthand, it failed as above. A guard nobody has tried to defeat is decoration, and so is a defect that was never live.
+
+### The reproducibility rebuild, on the artifact as committed
+
+`pnpm reproduce:owner`, run clean: newest artifact `v7-s2-virgil-ffa3e18cff.html` (added 2026-09-08T07:46:37Z); recovered source commit `ffa3e18cffb17ec55588ac8facc544d9ee1f4043` from the artifact's own bytes; recovered build date `2026-09-08 08:10 UTC` likewise; rebuilt in a detached worktree at that commit; `cmp` identical; sha256 `11f043dfa3e73392c09a8204251778ce35a6b7af7280869a533407143d5201bc` (8,395,984 bytes), which is the committed digest. 36s including a second `pnpm install`.
+
+It rebuilds at the artifact's **own** commit, not at `HEAD`, so a later commit touching the app does not turn the check red for no reason. The only value fed in is the build minute, because it is the one thing in the output the commit does not determine; `VIRGIL_OWNER_SHA` is deliberately not passed, so the worktree's own `HEAD` supplies it and a footer that disagrees with the bytes is a failure.
+
+### `pnpm check` after the change
+
+`TURBO_FORCE=true pnpm check`: biome 173 files clean; 8 typecheck tasks; **317 tests passed** across 25 test files in 6 packages (mission-control 82, of which 14 are new); then `build:owner` (8,395,984 bytes) and `verify:owner` — `browser chromium 141.0.7390.37 — /opt/pw-browsers/chromium (preinstalled, substituted for the pinned build)`; `routes (tabletop), (retired room), #/s1, #/spike/foundry, #/spike/mind`; `requests 1, off-document 0`; `console errors 0`; **PASS**. 1m15s, against 21s before. Warnings printed and not failed on, as in V6 and V7: the `THREE.Clock` and `PCFSoftShadowMap` deprecations and SwiftShader's ReadPixels stalls.
+
+### What this pass did not do
+
+No workflow has actually run on GitHub Actions, so nothing here is evidence that GitHub honours the file — only that the commands it declares fail when they should. CI runs the Chromium the lockfile resolves (`153.0.8010.12`); this container substitutes a preinstalled `141.0.7390.37`, so a local pass and a CI pass are not passes on the same browser; the divergence is not repaired, and every run now prints which browser it used. `inline.mjs` is unrepaired (KR-58): the class of defect it misses is caught by a required check, and its own blind spot is untouched. The reproducibility rebuild covers the newest artifact only; the older seven are covered by their digests. No design-level-only row in `docs/architecture/ENFORCEMENT_BOUNDARIES.md` moved, and that document says why.

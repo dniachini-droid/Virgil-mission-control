@@ -1,0 +1,125 @@
+# The repository's required checks, run by something with no interest in the answer.
+#
+# Why this file exists. Until now every check this repository has ever reported
+# was run by hand, inside the session that also wrote the code, and the report
+# of it was prose. `CLAUDE.md` says plainly that a builder's success report is
+# not evidence; this workflow is the part that can be evidence. Two review
+# findings name the specific hole it closes:
+#
+#   KR-50/KR-59 — neither `build:owner` nor `verify:owner` was reachable from
+#   any required check, and there was no CI at all, so the only guard that
+#   catches a network escape in the Owner Build was the one guard nothing ran.
+#
+#   KR-58 — `owner-build/inline.mjs` scans for external references *before* it
+#   reinserts the CSS and *before* it pastes the bundle, so it only ever
+#   inspected the bare shell. A remote `url()` in the stylesheet, and a
+#   `fetch()` added to a component, both survive it and both survive the unit
+#   tests. `verify:owner` catches them, at runtime, from a `file://` URL.
+#   This workflow does not fix `inline.mjs`. It makes the check that catches
+#   its blind spot unavoidable. Those are different things and the backlog
+#   records them separately.
+#
+# A workflow file is itself editable, so the wiring does not live only here:
+# `pnpm check` at the repository root runs `verify:owner` through the turbo
+# graph, and `apps/mission-control/test/required-checks.test.ts` fails if that
+# wiring, or this file's steps, are removed. Deleting this workflow therefore
+# breaks `pnpm test`. Steps 4 and 5 below are run twice on purpose — once
+# inside `pnpm check` and once explicitly — so that removing either path does
+# not remove the guard.
+
+name: checks
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# Read-only. Nothing here merges, deploys, publishes or touches a credential.
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: lint, typecheck, tests, owner build, owner verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # 1. The committed lockfile, or nothing.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `verify:owner` needs a browser. The version is not chosen here: this
+      # installs whatever Chromium the `@playwright/test` pinned in
+      # `pnpm-lock.yaml` asks for, so the browser follows the lockfile and a
+      # reviewer can name it. The run prints the browser build it used.
+      - name: Install the Chromium the lockfile pins
+        run: pnpm --filter mission-control run install:browser
+
+      # 2 + 4 + 5. `pnpm check` is biome, turbo typecheck, every workspace test,
+      # and then `verify:owner` — which the turbo graph makes depend on
+      # `build:owner`, so the Owner Build is built and opened from `file://`
+      # before this step can pass.
+      - name: pnpm check
+        run: pnpm check
+
+      # 3. The Mind Scan over knowledge/.
+      - name: Mind Scan
+        run: pnpm --filter @virgil/knowledge-lint run lint
+
+      # 4. Explicitly, as well as through `pnpm check`.
+      - name: Owner Build
+        run: pnpm --filter mission-control run build:owner
+
+      # 5. The important one. Opens the built artifact from a `file://` URL with
+      # no server, visits every route, and fails on a console error, an uncaught
+      # exception, or any request that is not the document itself.
+      - name: Verify the Owner Build opens with no network
+        run: pnpm --filter mission-control run verify:owner
+
+      # 6. Every committed artifact still hashes to its recorded digest.
+      - name: Committed Owner Build digests
+        working-directory: docs/process/PHASE_1_owner-builds
+        run: sha256sum -c *.sha256
+
+  reproducibility:
+    name: newest Owner Build rebuilds byte for byte
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      # Full history: the rebuild happens at the artifact's own source commit,
+      # not at HEAD, so that commit has to be present. A shallow clone makes the
+      # step fail with that reason printed, never pass.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 7. Recovers the source commit and the embedded build minute from the
+      # newest committed artifact, rebuilds it in a detached worktree at that
+      # commit, and compares with `cmp`. See the header of
+      # apps/mission-control/owner-build/reproduce.mjs for what it refuses to
+      # guess.
+      - name: Rebuild and compare
+        run: pnpm reproduce:owner

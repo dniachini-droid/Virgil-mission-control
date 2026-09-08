@@ -3,6 +3,23 @@
   "tasks": {
     "typecheck": { "dependsOn": ["^typecheck"], "outputs": [] },
     "test": { "dependsOn": ["^build"], "outputs": ["coverage/**"] },
-    "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] }
+    "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
+    "build:owner": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/owner-build/**"],
+      "cache": false,
+      "env": [
+        "VIRGIL_OWNER_SHA",
+        "VIRGIL_OWNER_STAGE",
+        "VIRGIL_OWNER_STAGE_SLUG",
+        "VIRGIL_OWNER_BUILD_DATE"
+      ]
+    },
+    "verify:owner": {
+      "dependsOn": ["build:owner"],
+      "outputs": [],
+      "cache": false,
+      "env": ["CHROMIUM_EXECUTABLE", "PLAYWRIGHT_BROWSERS_PATH"]
+    }
   }
 }

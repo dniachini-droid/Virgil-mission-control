@@ -34,9 +34,8 @@ const requests: string[] = [];
 // @playwright/test. Point Playwright at the installed binary rather than
 // downloading one, per the environment's own instruction.
 const preinstalled = process.env.CHROMIUM_EXECUTABLE ?? '/opt/pw-browsers/chromium';
-const browser = await chromium.launch(
-  existsSync(preinstalled) ? { executablePath: preinstalled } : {},
-);
+const substituted = existsSync(preinstalled);
+const browser = await chromium.launch(substituted ? { executablePath: preinstalled } : {});
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 page.on('console', (m) => {
   if (m.type() === 'error') consoleErrors.push(m.text());
@@ -77,9 +76,20 @@ const renderer = await page.evaluate(
 );
 const offDocument = requests.filter((url) => url.split('#')[0] !== fileUrl);
 
+// Which browser said so. A pass here means nothing unless a reader can tell
+// whether CI and a local run used the same build: this container substitutes a
+// preinstalled Chromium that lags the pinned @playwright/test, and CI installs
+// the one the lockfile resolves. Both are legitimate; a silent difference
+// between them is not, so the run states which it was.
+const browserBuild = `${browser.browserType().name()} ${browser.version()}`;
+const browserPath = substituted ? preinstalled : (chromium.executablePath() ?? '(default)');
+
 await browser.close();
 
 console.log(`owner build verify: file ${file}`);
+console.log(
+  `owner build verify: browser ${browserBuild} — ${browserPath}${substituted ? ' (preinstalled, substituted for the pinned build)' : ' (as pinned by the lockfile)'}`,
+);
 console.log(`owner build verify: routes ${visited.join(', ')}`);
 console.log(`owner build verify: requests ${requests.length}, off-document ${offDocument.length}`);
 console.log(`owner build verify: renderer ${renderer ?? '(none)'}`);

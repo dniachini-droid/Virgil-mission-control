@@ -9,12 +9,15 @@
     "node": ">=22"
   },
   "scripts": {
-    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm verify:owner",
     "lint": "biome check .",
     "format": "biome format --write .",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "build": "turbo run build"
+    "build": "turbo run build",
+    "build:owner": "turbo run build:owner",
+    "verify:owner": "turbo run verify:owner",
+    "reproduce:owner": "node apps/mission-control/owner-build/reproduce.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",
