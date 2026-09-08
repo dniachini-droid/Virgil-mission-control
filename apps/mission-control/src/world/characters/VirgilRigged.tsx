@@ -13,16 +13,21 @@ import { bonePositions, fitHeadSurface, VIRGIL_VISOR } from './visorFit.js';
  * camera.
  *
  * V5, on the owner's "virgil is moving too much": he no longer idles on a
- * clip. `Happy_Sway_Standing` is a full human sway, orders of magnitude
- * more than breathing, and it is not played at all. At rest he holds the
- * first frame of `Idle_11` — a natural standing pose — and breathes
- * procedurally (`breathing.ts`), the same motion the Prover has. The clips
- * are reserved for events, blended in from the rest pose and back:
+ * clip. `Happy_Sway_Standing` measures as a full human sway — the hips
+ * travel up to 20 cm and the head turns up to 36° through it — which is
+ * orders of magnitude more than breathing, and it is not played at all. At
+ * rest he holds the first frame of `Idle_11`, a natural standing pose, and
+ * breathes procedurally (`breathing.ts`), the same motion the Prover has.
+ * The clips are reserved for events, blended in from the rest pose and
+ * back over half a second:
  *
- *  - `look`: the head turn of `Look_Around_Dumbfounded`, when he addresses
- *    something, and as his reaction to a BLOCKED verdict;
+ *  - `look`: `Look_Around_Dumbfounded`, when he addresses something, and
+ *    as his reaction to a BLOCKED verdict;
  *  - `handoff`: `Agree_Gesture`, the hand-off;
- *  - `nod`: the first 2.4 s of `Agree_Gesture`, his reaction to a PASS.
+ *  - `nod`: his reaction to a PASS. Not a clip: the first seconds of
+ *    `Agree_Gesture` were tried for it and measure as a 16 cm body shift
+ *    with the head turned 22–26°, not a nod. This is two small dips of the
+ *    head joint, applied after the mixer so the visor rides along.
  *
  * A clip that ends returns him to rest by itself; a pose that changes
  * before a clip ends crossfades. No refusal clip exists yet; a blocked
@@ -33,13 +38,23 @@ import { bonePositions, fitHeadSurface, VIRGIL_VISOR } from './visorFit.js';
 export type VirgilPose = 'rest' | 'look' | 'handoff' | 'nod';
 
 const REST_CLIP = 'Idle_11';
-const CLIP_FOR: Record<Exclude<VirgilPose, 'rest'>, string> = {
+type ClipPose = Exclude<VirgilPose, 'rest' | 'nod'>;
+const CLIP_FOR: Record<ClipPose, string> = {
   look: 'Look_Around_Dumbfounded',
   handoff: 'Agree_Gesture',
-  nod: 'Agree_Gesture',
 };
-const NOD_SECONDS = 2.4;
 const FADE = 0.55;
+/** The nod: two dips, 9° each, over 1.4 s. */
+const NOD_SECONDS = 1.4;
+const NOD_RADIANS = 0.16;
+
+function nodAngle(elapsed: number): number {
+  if (elapsed < 0 || elapsed >= NOD_SECONDS) return 0;
+  // Two half-sine dips, each 0.7 s, softened at the ends.
+  const dip = Math.max(0, Math.sin((elapsed / (NOD_SECONDS / 2)) * Math.PI));
+  const envelope = Math.sin((elapsed / NOD_SECONDS) * Math.PI) ** 0.5;
+  return NOD_RADIANS * dip * envelope;
+}
 
 export function VirgilRigged({
   pose = 'rest',
@@ -53,6 +68,8 @@ export function VirgilRigged({
   const mixer = useMemo(() => new THREE.AnimationMixer(virgil.placed), [virgil]);
   const breath = useRef<THREE.Group>(null);
   const current = useRef<THREE.AnimationAction | null>(null);
+  const nod = useRef({ at: -1 });
+  const nodAxis = useMemo(() => new THREE.Quaternion(), []);
 
   // The rest pose: Idle_11 held at its first frame, always playing at
   // weight one until an event clip fades it down.
@@ -67,14 +84,10 @@ export function VirgilRigged({
   }, [mixer, virgil]);
 
   const actions = useMemo(() => {
-    const byPose = {} as Record<Exclude<VirgilPose, 'rest'>, THREE.AnimationAction>;
-    for (const key of Object.keys(CLIP_FOR) as Exclude<VirgilPose, 'rest'>[]) {
-      const source = THREE.AnimationClip.findByName(virgil.clips, CLIP_FOR[key]);
-      if (!source) throw new Error(`virgil rigged: no clip "${CLIP_FOR[key]}"`);
-      const clip =
-        key === 'nod'
-          ? THREE.AnimationUtils.subclip(source, 'Nod', 0, Math.round(NOD_SECONDS * 30), 30)
-          : source;
+    const byPose = {} as Record<ClipPose, THREE.AnimationAction>;
+    for (const key of Object.keys(CLIP_FOR) as ClipPose[]) {
+      const clip = THREE.AnimationClip.findByName(virgil.clips, CLIP_FOR[key]);
+      if (!clip) throw new Error(`virgil rigged: no clip "${CLIP_FOR[key]}"`);
       const action = mixer.clipAction(clip);
       action.setLoop(THREE.LoopOnce, 1);
       action.clampWhenFinished = true;
@@ -119,6 +132,12 @@ export function VirgilRigged({
       mixer.update(0);
       return;
     }
+    if (pose === 'nod') {
+      // The nod is applied on top of whatever plays; the body goes to rest.
+      nod.current.at = mixer.time;
+      if (current.current) toRest();
+      return;
+    }
     if (pose === 'rest') {
       if (current.current) toRest();
       return;
@@ -142,6 +161,18 @@ export function VirgilRigged({
         action.stop();
       }
     }
+    // The nod, after the mixer has written the pose: local +x on the head
+    // joint pitches the face down (measured; `headfront` moves down and
+    // back), so it is not accumulated, it is added to this frame's pose.
+    if (nod.current.at >= 0) {
+      const angle = nodAngle(mixer.time - nod.current.at);
+      if (angle > 0) {
+        nodAxis.setFromAxisAngle(X_AXIS, angle);
+        virgil.head.quaternion.multiply(nodAxis);
+      } else if (mixer.time - nod.current.at >= NOD_SECONDS) {
+        nod.current.at = -1;
+      }
+    }
     if (breath.current) {
       const b = breathe(clock.getElapsedTime(), 0);
       breath.current.position.y = layout.virgilAt[1] + b.rise;
@@ -156,8 +187,10 @@ export function VirgilRigged({
         <primitive object={virgil.placed} />
       </group>
       {/* Rendered into the head bone without re-parenting it: the panel rides
-          the head through every clip. */}
+          the head through every clip and the nod. */}
       {createPortal(<Visor state={face} surface={surface} lightIntensity={1.5} />, virgil.head)}
     </>
   );
 }
+
+const X_AXIS = new THREE.Vector3(1, 0, 0);

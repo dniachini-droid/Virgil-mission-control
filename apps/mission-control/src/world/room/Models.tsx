@@ -1,6 +1,6 @@
 import { useFrame } from '@react-three/fiber';
 import { use, useMemo, useRef } from 'react';
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
 import { breathe } from '../characters/breathing.js';
 import { type FaceState, Visor } from '../characters/Visor.js';
@@ -9,7 +9,8 @@ import { loadConsole2 } from '../props/console2Asset.js';
 import { loadPorthole } from '../props/portholeAsset.js';
 import { loadProver } from '../props/proverAsset.js';
 import { loadStation } from '../props/stationAsset.js';
-import { layout } from './palette.js';
+import type { ScreenContent } from '../screens/ScreenBank.js';
+import { layout, room } from './palette.js';
 
 /**
  * The owner-supplied static models, placed. Each loader returns a group whose
@@ -45,6 +46,76 @@ export function SideStation() {
 
 /** What the Prover is doing; a rigged Prover reads the same prop later. */
 export type ProverActivity = 'rest' | 'receiving' | 'working' | 'reported';
+
+const STATION_LIGHT: Record<ProverActivity, string> = {
+  rest: room.emit.teal,
+  receiving: room.emit.ice,
+  working: room.warm.amber,
+  reported: '#b6ff5c',
+};
+
+/**
+ * The station's own light, over the Prover's head, in the colour of what
+ * the station is doing: teal at rest, ice while a hand-off arrives — with
+ * a flicker as each packet lands, at the panel's packet rate — amber while
+ * he works, beating at the panel's check rhythm, and the verdict's colour
+ * once it is reported. It is what lets the state be read off him and his
+ * station from across the room, not only off the panel.
+ */
+export function StationLight({
+  activity,
+  verdict,
+}: {
+  activity: ProverActivity;
+  verdict: ScreenContent['verdict'];
+}) {
+  const light = useRef<THREE.PointLight>(null);
+  const since = useRef({ activity: '' as string, at: 0, t: 0 });
+  const { reducedMotion } = useSettings();
+  const colour = useMemo(
+    () =>
+      new THREE.Color(
+        activity === 'reported' && verdict === 'BLOCKED' ? '#ff3b5c' : STATION_LIGHT[activity],
+      ),
+    [activity, verdict],
+  );
+  useFrame((_, delta) => {
+    if (!light.current) return;
+    const c = since.current;
+    if (!reducedMotion) c.t += delta;
+    if (c.activity !== activity) {
+      c.activity = activity;
+      c.at = c.t;
+    }
+    const s = c.t - c.at;
+    let intensity = 0.7;
+    if (activity === 'receiving') {
+      // A flash on each landing: packets every 0.26 s from 0.8 s, eight of them.
+      const k = Math.floor((s - 0.8) / 0.26);
+      const f = (s - 0.8 - k * 0.26) / 0.26;
+      intensity = 0.9 + (k >= 0 && k < 8 ? 0.9 * (1 - f) : 0.15 * Math.sin(s * 6));
+    } else if (activity === 'working') {
+      // The check beat: half a check, 0.525 s, a bright attack and a decay.
+      const f = (s % 0.525) / 0.525;
+      intensity = 1.1 + 0.8 * (1 - f) ** 2;
+    } else if (activity === 'reported') {
+      intensity = 1.5 + 0.2 * Math.sin(s * 3);
+    }
+    light.current.color.copy(colour);
+    light.current.intensity = intensity;
+  });
+  const [sx, , sz] = layout.stationAt;
+  return (
+    <pointLight
+      ref={light}
+      position={[sx, 2.05, sz + 0.25]}
+      distance={3.2}
+      decay={2}
+      color={colour}
+      intensity={0.7}
+    />
+  );
+}
 
 /**
  * The Prover, standing in the centre of his station, with his face. The

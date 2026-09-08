@@ -9,7 +9,7 @@ import type { FaceState } from '../characters/Visor.js';
 import { ScreenBank, StationPanel } from '../screens/ScreenBank.js';
 import { forcedState, useDemo } from './demo.js';
 import { LightingRig } from './LightingRig.js';
-import { ConsoleRing, PortholeFrame, ProverFigure, SideStation } from './Models.js';
+import { ConsoleRing, PortholeFrame, ProverFigure, SideStation, StationLight } from './Models.js';
 import { Orrery } from './Orrery.js';
 import { layout, room } from './palette.js';
 import { RoomShell } from './RoomShell.js';
@@ -138,8 +138,9 @@ function Cast({ demo }: { demo: boolean }) {
       <VirgilRigged pose={state.pose} face={state.virgilFace} />
       <ScreenBank content={state.content} />
       <SideStation />
-      {/* The station's panel floats over its left desk, turned to the
-          camera, clear of the Prover who now stands at its centre. */}
+      {/* The station's panel floats over its left desk (the camera's left),
+          turned to the camera, clear of the Prover who now stands at its
+          centre. No stand: the owner approved floating panels. */}
       <StationPanel
         position={[
           sx + Math.cos(layout.stationRotationY) * -0.52 + Math.sin(layout.stationRotationY) * -0.2,
@@ -152,6 +153,7 @@ function Cast({ demo }: { demo: boolean }) {
         verdict={state.content.verdict}
       />
       <ProverFigure face={state.proverFace} activity={state.proverActivity} />
+      <StationLight activity={state.proverActivity} verdict={state.content.verdict} />
     </>
   );
 }

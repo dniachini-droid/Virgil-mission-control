@@ -20,7 +20,10 @@
  *
  * Subsetting is a modification of the Font Software under the SIL Open
  * Font License 1.1 and is recorded as one in
- * `assets/licenses/ASSET_PROVENANCE.md`. The source files are read only.
+ * `assets/licenses/ASSET_PROVENANCE.md`. The unmodified source fonts are
+ * committed under `assets/fonts/` with their licence texts beside them
+ * under `assets/licenses/`; this script refuses a source whose SHA-256
+ * differs from the one the register records, as `pack-window.mjs` does.
  *
  * Usage: node asset-pipeline/subset-font.mjs
  */
@@ -39,22 +42,23 @@ const UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const LOWER = 'abcdefghijklmnopqrstuvwxyz';
 const DIGITS = '0123456789';
 
+/** Source digests as recorded in `assets/licenses/ASSET_PROVENANCE.md`. */
 const FONTS = [
   {
     name: 'tektur-medium',
     family: 'Tektur',
-    source: '/mnt/skills/examples/canvas-design/canvas-fonts/Tektur-Medium.ttf',
-    licence: '/mnt/skills/examples/canvas-design/canvas-fonts/Tektur-OFL.txt',
-    licenceCopy: 'assets/licenses/TEKTUR-OFL.txt',
+    source: 'assets/fonts/Tektur-Medium.ttf',
+    sourceSha256: '52bbe8c9b057b3d2da4eeace31a524b1ea26a1375ae34319cf6900ccc57a4c82',
+    licence: 'assets/licenses/TEKTUR-OFL.txt',
     // Display: the screens set it in capitals only.
     characters: UPPER + DIGITS + PUNCTUATION,
   },
   {
     name: 'geist-mono-regular',
     family: 'Geist Mono',
-    source: '/mnt/skills/examples/canvas-design/canvas-fonts/GeistMono-Regular.ttf',
-    licence: '/mnt/skills/examples/canvas-design/canvas-fonts/GeistMono-OFL.txt',
-    licenceCopy: 'assets/licenses/GEISTMONO-OFL.txt',
+    source: 'assets/fonts/GeistMono-Regular.ttf',
+    sourceSha256: 'a55c1b51cda4afeab9e471e7947b85a20f7c8831d7e6b1470c1b7fbdc0f0f15e',
+    licence: 'assets/licenses/GEISTMONO-OFL.txt',
     // Data: hashes, counts and small labels, upper and lower case.
     characters: UPPER + LOWER + DIGITS + PUNCTUATION,
   },
@@ -79,10 +83,14 @@ function checksum(buf) {
 }
 
 function subset(font) {
-  const file = readFileSync(font.source);
+  const file = readFileSync(join(repoRoot, font.source));
   const sourceSha = createHash('sha256').update(file).digest('hex');
-  const licence = readFileSync(font.licence, 'utf8');
-  if (!licence.includes('SIL OPEN FONT LICENSE Version 1.1')) fail(`${font.name}: licence is not OFL 1.1`);
+  if (sourceSha !== font.sourceSha256) {
+    fail(`${font.name}: ${font.source} is ${sourceSha}, the register records ${font.sourceSha256}`);
+  }
+  const licence = readFileSync(join(repoRoot, font.licence), 'utf8');
+  if (!licence.includes('SIL OPEN FONT LICENSE Version 1.1'))
+    fail(`${font.name}: licence is not OFL 1.1`);
   if (file.readUInt32BE(0) !== 0x00010000) fail(`${font.name}: not a TrueType (glyf) font`);
 
   const numTables = file.readUInt16BE(4);
@@ -94,7 +102,18 @@ function subset(font) {
     const length = file.readUInt32BE(o + 12);
     tables.set(tag, file.subarray(offset, offset + length));
   }
-  for (const tag of ['head', 'hhea', 'maxp', 'OS/2', 'hmtx', 'name', 'cmap', 'loca', 'glyf', 'post']) {
+  for (const tag of [
+    'head',
+    'hhea',
+    'maxp',
+    'OS/2',
+    'hmtx',
+    'name',
+    'cmap',
+    'loca',
+    'glyf',
+    'post',
+  ]) {
     if (!tables.has(tag)) fail(`${font.name}: no ${tag} table`);
   }
 
@@ -141,7 +160,8 @@ function subset(font) {
   // ---- which glyphs to keep, following composites.
   const loca = tables.get('loca');
   const glyf = tables.get('glyf');
-  const locaAt = (i) => (indexToLocFormat === 0 ? loca.readUInt16BE(i * 2) * 2 : loca.readUInt32BE(i * 4));
+  const locaAt = (i) =>
+    indexToLocFormat === 0 ? loca.readUInt16BE(i * 2) * 2 : loca.readUInt32BE(i * 4);
   const glyphData = (gid) => glyf.subarray(locaAt(gid), locaAt(gid + 1));
   const kept = new Set([0]);
   const chars = [];
@@ -169,8 +189,10 @@ function subset(font) {
           stack.push(component);
           p += 4;
           p += flags & 0x0001 ? 4 : 2; // ARG_1_AND_2_ARE_WORDS
-          if (flags & 0x0008) p += 2; // WE_HAVE_A_SCALE
-          else if (flags & 0x0040) p += 4; // WE_HAVE_AN_X_AND_Y_SCALE
+          if (flags & 0x0008)
+            p += 2; // WE_HAVE_A_SCALE
+          else if (flags & 0x0040)
+            p += 4; // WE_HAVE_AN_X_AND_Y_SCALE
           else if (flags & 0x0080) p += 8; // WE_HAVE_A_TWO_BY_TWO
           if (!(flags & 0x0020)) break; // MORE_COMPONENTS
         }
@@ -283,7 +305,7 @@ function subset(font) {
       sha256: sourceSha,
       bytes: file.length,
       licence: 'SIL Open Font License 1.1',
-      licenceCopy: font.licenceCopy,
+      licenceText: font.licence,
       provenance: 'assets/licenses/ASSET_PROVENANCE.md',
     },
     subset: {
@@ -299,14 +321,13 @@ function subset(font) {
     },
   };
   writeFileSync(join(outDir, `${font.name}.json`), `${JSON.stringify(metadata, null, 2)}\n`);
-  writeFileSync(join(repoRoot, font.licenceCopy), licence);
   console.log(
     `subset-font[${font.name}]: ${file.length} B -> ${result.length} B (${b64.length} B base64), ` +
       `${kept.size} of ${numGlyphs} glyphs, ${chars.length} characters` +
       (missing.length ? `, missing "${missing.join('')}"` : ''),
   );
   console.log(`subset-font[${font.name}]: dropped ${metadata.subset.tablesDropped.join(' ')}`);
-  console.log(`subset-font[${font.name}]: licence copied verbatim to ${font.licenceCopy}`);
+  console.log(`subset-font[${font.name}]: licence ${font.licence} read, OFL 1.1`);
 }
 
 for (const font of FONTS) subset(font);

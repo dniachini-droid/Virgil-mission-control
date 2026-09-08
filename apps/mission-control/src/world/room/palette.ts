@@ -90,7 +90,7 @@ export const room = {
  */
 const STATION_AT = [2.85, 0, -2.75] as [number, number, number];
 const STATION_ROTATION_Y = -0.5;
-const STATION_FLOOR = 0.109;
+const STATION_FLOOR = 0.108;
 const PROVER_IN_STATION = [0, STATION_FLOOR, 0.1] as [number, number, number];
 const PROVER_AT = [
   STATION_AT[0] + Math.sin(STATION_ROTATION_Y) * PROVER_IN_STATION[2],
@@ -113,10 +113,12 @@ export const layout = {
   stationAt: STATION_AT,
   stationRotationY: STATION_ROTATION_Y,
   /**
-   * The station's measured standing floor: flat at 0.109 m over |x| ≤ 0.35
-   * and z −0.35 … +0.55 in its own frame, with desks rising to 0.44–0.60 m
-   * at the back and both sides. A U with a clear centre, like the console's
-   * well. `test/prover-station.test.ts` re-measures it.
+   * The station's measured standing floor: a deck at 0.108 m, flat to
+   * within 4 mm over |x| ≤ 0.3 from z −0.2 to its open front at z +0.55 in
+   * its own frame, with desks rising to 0.44–0.60 m at the back and both
+   * sides. A U with a clear centre, like the console's well.
+   * `test/prover-station.test.ts` re-measures it from the payload and holds
+   * the Prover clear of it at every extreme of his breathing.
    */
   stationFloor: STATION_FLOOR,
   /** Where the Prover stands in the station's frame: its centre, a little forward. */

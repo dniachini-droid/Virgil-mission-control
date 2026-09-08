@@ -3,20 +3,21 @@
  *
  * The owner: "when virgil is waiting I want him to move but only breathing
  * etc, same as the prover." So both characters idle on this — a rise of up
- * to 1.2 cm, a sway of ±0.6° and a yaw of ±1.1°, at three rates that never
+ * to 1.5 cm, a sway of ±0.6° and a yaw of ±1.1°, at three rates that never
  * share a period, so it does not visibly loop. Rigged clips are reserved
  * for events (a turn, a hand-off, a verdict); a rigged Prover drops in the
  * same way later.
  *
  * The rise starts at the standing height and only goes up. V3 and V4
  * centred it on the standing height, which sank the Prover's feet 1.5 cm
- * into the floor on every exhale; and the sway is small because it pivots
+ * into the floor on every exhale; and the sway is smaller than the 1.5°
+ * asked for because it pivots
  * at the feet, and a foot's edge at 0.29 m from the axis dips 7.5 mm at
  * the old ±1.5°. `test/prover-station.test.ts` checks that these numbers
  * keep the Prover clear of his station at every extreme.
  */
 export const BREATH = {
-  rise: 0.012,
+  rise: 0.015,
   sway: 0.0105,
   yaw: 0.02,
   riseHz: 0.143,

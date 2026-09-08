@@ -2,8 +2,8 @@ import { useFrame } from '@react-three/fiber';
 import { useRef, useState } from 'react';
 import type { VirgilPose } from '../characters/VirgilRigged.js';
 import type { FaceState } from '../characters/Visor.js';
-import type { ProverActivity } from './Models.js';
 import type { ScreenContent } from '../screens/ScreenBank.js';
+import type { ProverActivity } from './Models.js';
 
 /**
  * A scripted demonstration, twenty seconds, looping: Virgil rests, turns
