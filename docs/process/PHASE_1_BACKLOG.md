@@ -274,8 +274,8 @@ Recorded as direction the owner gave, not as decisions. None of it is a decision
   cause — the set's one glass is additive and reflects the environment. That was the diagnosis and not
   the fix, and the screens stayed grey: measured on the committed V8.2 artifact, the picture's own
   near-black ink read at **luminance 93–99 of 255**. V8.3 shapes the glass's environment term by angle
-  instead of turning the environment down, and the same rectangles now read **39–40** (the centre slab
-  56, which is the verdict's own green and not the glass). See `PHASE_1_RUN_RECORD.md`, "V8.3", item 1.
+  instead of turning the environment down, and the same rectangles now read **39.0–39.9** (the
+  centre slab 52.4, which is the verdict's own green and not the glass). See `PHASE_1_RUN_RECORD.md`, "V8.3", item 1.
 
   **The A/B must isolate the lighting, so its "before" frames come from the V8.1 build, not from V8.**
   V8.1 replaces the console screens with fitted flat planes; a comparison taken against V8 would show

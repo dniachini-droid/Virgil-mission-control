@@ -511,12 +511,14 @@ The owner's instruction for the console screens (§0.9): *"make them compleetyle
 
 **What the frames show, measured on the same rectangles at the same beats:**
 
-| surface | V8.2 median luminance | V8.3 | 
+Both readings are of the *committed* artifacts — `v8-2-s2-virgil-40106793c7.html` and `v8-3-s2-virgil-02f9b504c1.html`, the files the owner opens — over the same rectangle of the same surface at the same beat, as the median of the sRGB luminance in it:
+
+| surface | V8.2 median luminance | V8.3 |
 |---|---|---|
 | the Fabricator's screen (`fab-close`, 16 s) | 93.4 | **39.9** |
-| the Keeper's screen (`keeper-close`, 46 s) | 93.1 | **39.2** |
-| Virgil's left slab (`board`, 30 s) | 94.2 | **38.9** |
-| Virgil's centre slab | 99.2 | **55.9** |
+| the Keeper's screen (`keeper-close`, 46 s) | 93.1 | **39.6** |
+| Virgil's left slab (`board`, 30 s) | 94.2 | **39.6** |
+| Virgil's centre slab | 99.2 | **52.4** |
 | Virgil's right slab | 93.4 | **39.0** |
 
 The centre slab is the one that does not reach the others, and the reason is not the glass: it is the verdict's own green — the frame rule lifted for the verdict moment, the converging ring and its glow. Nothing in this pass touched it.
@@ -610,3 +612,11 @@ No performance measurement and no look on real graphics hardware; OD-0005's two 
 - mobile: **134.4 % of 6 MiB, 140.9 % of 6 MB — over on both readings**, as every viewing point has been.
 
 Nothing was cut for the number.
+
+### The reproducibility rebuild, on the artifact as committed
+
+`pnpm reproduce:owner`, run after the artifact was committed at `3bd5996`: newest artifact `v8-3-s2-virgil-02f9b504c1.html`; recovered source commit `02f9b504c110291f43c9251bf2c2a033e7916ba0` and build date from the artifact's own bytes; rebuilt in a detached worktree at that commit; `cmp` **identical**; `sha256 9fa7c18fd62dfd57055fe453d364ba0cd750a80b1291f007dcff93953782c394 (8456305 bytes)`, which is the committed digest. **PASS — the committed artifact is byte-for-byte derivable from its commit.**
+
+### Frames from the committed artifact
+
+The six registered frames were then captured again from `docs/process/PHASE_1_owner-builds/v8-3-s2-virgil-02f9b504c1.html` — the file the owner opens — and looked at. All six show the footer reading `viewing point V8.3` from commit `02f9b504c110291f43c9251bf2c2a033e7916ba0`, no `+uncommitted changes`, zero console errors, and the view key confirmed in `.room-controls button.is-active` before each shot. The Fabricator's display is black with a warm specular streak across the top of the curve and `FILES 8 · COMMITS 3` legible under it; the Keeper's `PASS` is green on black; at the Board `VIRGIL` is white on black and `READY FOR REVIEW` white on black; Virgil's visor is one smooth dome with a single clean highlight and no facet edge anywhere on it; the phone frame shows all three slabs black. The `ILLUSTRATIVE · NOT REAL STATE` band is legible on every surface that carries it in every frame. The medians in item 1's table are measured on these frames.
