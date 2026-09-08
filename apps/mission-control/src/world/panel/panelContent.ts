@@ -37,6 +37,25 @@ import { verdictLook } from '../screens/verdicts.js';
  * because the screens do not carry prose. That is one level of detail over
  * one source, not two sources.
  *
+ * **The prose is authored per station state, and it describes the
+ * station and never the screen.** V9 shipped a first version that said
+ * *"The Fabricator holds no work. Its console is dark."* while his
+ * console was visibly lit and reading `FABRICATOR / READY` in the same
+ * frame — two surfaces saying opposite things at the same instant, which
+ * is the class of defect the owner caught in V7 and which the panel makes
+ * worse rather than better, because prose set in clean HTML is far more
+ * believable than a small glowing screen.
+ *
+ * The screen was not wrong: `READY` is what a station shows for the
+ * moment between its report and its picture collapsing (`crt.ts`, 2.4 s),
+ * and it is a true word for a station that holds no work. The **panel**
+ * was wrong, because it made a claim about the console's picture — a
+ * thing it does not own and cannot know. So the prose states the
+ * station's own condition and nothing else, and `test/panel.test.ts`
+ * holds that at every beat of all three loops for every role: every
+ * state has prose, and no state's prose contains a claim that state does
+ * not hold.
+ *
  * **Every number is illustrative.** They are the demonstration's fixed
  * schedules, and the panel carries `ILLUSTRATIVE · NOT REAL STATE` in a
  * solid amber band directly under its header, on every document, at full
@@ -204,7 +223,7 @@ function roleDoc(state: DemoState, role: Role): PanelDoc {
           ? 'The Fabricator is implementing the approved plan inside its assigned worktree, writing files and committing as it goes. Nothing it reports will be evidence.'
           : station === 'RECEIVING'
             ? 'A grant has been issued and the Fabricator is taking the work: the plan, the permitted paths, the base commit and the expiry.'
-            : 'The Fabricator holds no work. Its console is dark.';
+            : 'The Fabricator holds no work: nothing has been handed to it, and no grant is open.';
     sections.push({
       title: 'PLAN',
       kind: 'lines',
@@ -239,7 +258,7 @@ function roleDoc(state: DemoState, role: Role): PanelDoc {
           ? 'Verification is running the required checks against the candidate commit. Nothing is decided until every one has resolved.'
           : station === 'RECEIVING'
             ? 'The Prover is taking the candidate: the commit, the required checks and the evidence the builder handed over.'
-            : 'The Prover holds no work. Its console is dark.';
+            : 'The Prover holds no work: no candidate has been handed to it for verification.';
     sections.push({
       title: `CHECKS · ${tally.passed + tally.failed + tally.skipped} OF ${PROVER_CHECKS} RESOLVED`,
       kind: 'table',
@@ -269,7 +288,7 @@ function roleDoc(state: DemoState, role: Role): PanelDoc {
           ? 'The Keeper is reading the candidate against the constitution and raising findings as it goes. A finding has a stable identity and a severity from the moment it is raised.'
           : station === 'RECEIVING'
             ? 'The Keeper is taking the candidate for review: the commit, the verification record and the evidence behind it.'
-            : 'The Keeper holds no work. Its console is dark.';
+            : 'The Keeper holds no work: no candidate has been handed to it for review.';
     sections.push({
       title: `FINDINGS · ${tally.findings} OF ${KEEPER_FINDINGS.length} RAISED · ${tally.blocking} BLOCKING`,
       kind: 'table',

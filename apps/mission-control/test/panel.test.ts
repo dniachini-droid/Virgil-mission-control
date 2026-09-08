@@ -312,6 +312,84 @@ describe('one tap does both, and back is one step per level', () => {
     expect(src('world/screens/ScreenBank.tsx')).toContain('onClick=');
   });
 
+  /*
+   * **The prose is audited against the station's actual state**, the way
+   * `demo.test.ts` audits the slab labels against the constitution's
+   * transition table. V9 shipped a first version whose READY prose said
+   * *"Its console is dark"* while the console was visibly lit and reading
+   * `FABRICATOR / READY` in the same frame — the V7 defect again, and
+   * worse in the panel, because prose in clean HTML is more believable
+   * than a small glowing screen.
+   *
+   * The durable fix is not the sentence, it is this: the prose is
+   * authored per station state and may not make a claim its state does
+   * not hold. In particular it may say nothing about the console's
+   * picture at all, which is a thing the panel does not own.
+   */
+  it('says nothing about a station that its state does not hold, at every beat', () => {
+    /** Words no state's prose may use, and why. */
+    const NEVER: { word: RegExp; because: string }[] = [
+      { word: /\bdark\b/i, because: 'the panel does not own the console’s picture' },
+      { word: /\blit\b/i, because: 'the panel does not own the console’s picture' },
+      { word: /\bscreen\b/i, because: 'the panel does not own the console’s picture' },
+      { word: /\bconsole is\b/i, because: 'the panel does not own the console’s picture' },
+    ];
+    /** What each station state may and may not be said to be doing. */
+    const BY_STATE: Record<string, { must: RegExp; mustNot: RegExp[] }> = {
+      READY: { must: /holds no work/i, mustNot: [/is implementing/i, /reported/i, /returned/i] },
+      RECEIVING: { must: /taking|arriv/i, mustNot: [/holds no work/i, /returned a verdict/i] },
+      WORKING: {
+        must: /is implementing|is running|is reading/i,
+        mustNot: [/holds no work/i, /returned/i, /reported complete/i],
+      },
+      REPORTED: {
+        must: /reported complete|returned/i,
+        mustNot: [/holds no work/i, /is implementing|is running|is reading/i],
+      },
+    };
+    for (const { loop, seconds } of everyBeat()) {
+      const state = demoAt(seconds, loop, true);
+      for (const role of ROLES) {
+        const { station } = stationBeat(state, role);
+        const doc = panelDoc(state, { kind: 'role', role });
+        const where = `${role} ${station} at ${loop}:${seconds}`;
+        expect(doc.lead.length, `${where}: no prose`).toBeGreaterThan(40);
+        for (const { word, because } of NEVER) {
+          expect(word.test(doc.lead), `${where}: "${doc.lead}" — ${because}`).toBe(false);
+        }
+        const rule = BY_STATE[station] as NonNullable<(typeof BY_STATE)[string]>;
+        expect(rule.must.test(doc.lead), `${where}: prose does not describe the state`).toBe(true);
+        for (const forbidden of rule.mustNot) {
+          expect(forbidden.test(doc.lead), `${where}: prose claims what is not so`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('has prose for every station state a role can be in', () => {
+    const seen = new Map<string, Set<string>>();
+    for (const { loop, seconds } of everyBeat()) {
+      const state = demoAt(seconds, loop, true);
+      for (const role of ROLES) {
+        const { station } = stationBeat(state, role);
+        const doc = panelDoc(state, { kind: 'role', role });
+        const set = seen.get(role) ?? new Set<string>();
+        set.add(station);
+        seen.set(role, set);
+        expect(doc.lead.trim().length, `${role} ${station}`).toBeGreaterThan(0);
+      }
+    }
+    // The demonstration puts every role through all four.
+    for (const role of ROLES) {
+      expect([...(seen.get(role) ?? [])].sort()).toEqual([
+        'READY',
+        'RECEIVING',
+        'REPORTED',
+        'WORKING',
+      ]);
+    }
+  });
+
   it('gives every target a document with a lead, a section and evidence', () => {
     for (const { loop, seconds } of everyBeat()) {
       const state = demoAt(seconds, loop, true);
