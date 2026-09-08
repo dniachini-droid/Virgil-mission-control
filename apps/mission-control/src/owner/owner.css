@@ -109,3 +109,26 @@
   letter-spacing: 0.02em;
   color: var(--amber);
 }
+
+/* V6: two rows of controls — demo, view, and who to look at. */
+.room-controls {
+  flex-wrap: wrap;
+  max-width: 560px;
+  row-gap: 4px;
+}
+.room-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 10px;
+}
+.room-controls-hint {
+  flex-basis: 100%;
+  margin-left: 0;
+}
+.room-demo-badge {
+  top: 124px;
+}
+.room-stage canvas {
+  cursor: default;
+}

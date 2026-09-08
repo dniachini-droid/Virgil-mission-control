@@ -9,41 +9,37 @@ import { type FaceState, Visor } from './Visor.js';
 import { bonePositions, fitHeadSurface, VIRGIL_VISOR } from './visorFit.js';
 
 /**
- * Virgil, rigged, standing at the centre of his console and facing the
- * camera.
+ * Virgil, rigged, standing on his console's deck and facing the camera.
  *
- * V5, on the owner's "virgil is moving too much": he no longer idles on a
- * clip. `Happy_Sway_Standing` measures as a full human sway — the hips
- * travel up to 20 cm and the head turns up to 36° through it — which is
- * orders of magnitude more than breathing, and it is not played at all. At
- * rest he holds the first frame of `Idle_11`, a natural standing pose, and
- * breathes procedurally (`breathing.ts`), the same motion the Prover has.
- * The clips are reserved for events, blended in from the rest pose and
- * back over half a second:
+ * V6: the stylised Virgil (`virgil-model-candidate-05-rigged.glb`) with
+ * three clips, and for the first time a **refusal**:
  *
- *  - `look`: `Look_Around_Dumbfounded`, when he addresses something, and
- *    as his reaction to a BLOCKED verdict;
+ *  - rest: the first frame of `Idle_11` held, with procedural breathing
+ *    (`breathing.ts`) — the owner's V5 direction that he only breathes
+ *    while waiting stands;
  *  - `handoff`: `Agree_Gesture`, the hand-off;
- *  - `nod`: his reaction to a PASS. Not a clip: the first seconds of
- *    `Agree_Gesture` were tried for it and measure as a 16 cm body shift
- *    with the head turned 22–26°, not a nod. This is two small dips of the
- *    head joint, applied after the mixer so the visor rides along.
+ *  - `blocked`: `Angry_Ground_Stomp`, **wired to BLOCKED** — the clip every
+ *    previous build lacked, and BLOCKED is the state this whole system
+ *    exists to make legible;
+ *  - `nod`: his reaction to a PASS, two small dips of the head joint,
+ *    applied after the mixer so the visor rides along.
  *
- * A clip that ends returns him to rest by itself; a pose that changes
- * before a clip ends crossfades. No refusal clip exists yet; a blocked
- * state is expressed through the visor and light (`Visor.tsx`).
+ * The V5 `look` pose is gone with its clip (`Look_Around_Dumbfounded` is
+ * not in this file). A clip that ends returns him to rest by itself; a
+ * pose that changes before a clip ends crossfades.
  *
- * With reduced motion he holds the rest pose and does not breathe.
+ * With reduced motion he holds the rest pose and does not breathe; his
+ * face is drawn static (`Visor.tsx`).
  */
-export type VirgilPose = 'rest' | 'look' | 'handoff' | 'nod';
+export type VirgilPose = 'rest' | 'handoff' | 'blocked' | 'nod';
 
 const REST_CLIP = 'Idle_11';
 type ClipPose = Exclude<VirgilPose, 'rest' | 'nod'>;
-const CLIP_FOR: Record<ClipPose, string> = {
-  look: 'Look_Around_Dumbfounded',
+export const CLIP_FOR: Record<ClipPose, string> = {
   handoff: 'Agree_Gesture',
+  blocked: 'Angry_Ground_Stomp',
 };
-const FADE = 0.55;
+const FADE = 0.45;
 /** The nod: two dips, 9° each, over 1.4 s. */
 const NOD_SECONDS = 1.4;
 const NOD_RADIANS = 0.16;
@@ -59,9 +55,11 @@ function nodAngle(elapsed: number): number {
 export function VirgilRigged({
   pose = 'rest',
   face = 'idle',
+  onSelect,
 }: {
   pose?: VirgilPose;
   face?: FaceState;
+  onSelect?: () => void;
 }) {
   const virgil = use(loadRiggedVirgil());
   const { reducedMotion } = useSettings();
@@ -162,8 +160,9 @@ export function VirgilRigged({
       }
     }
     // The nod, after the mixer has written the pose: local +x on the head
-    // joint pitches the face down (measured; `headfront` moves down and
-    // back), so it is not accumulated, it is added to this frame's pose.
+    // joint pitches the face down (`headfront` sits on the joint's +z, so a
+    // positive turn about +x carries it toward −y), so it is not
+    // accumulated, it is added to this frame's pose.
     if (nod.current.at >= 0) {
       const angle = nodAngle(mixer.time - nod.current.at);
       if (angle > 0) {
@@ -183,12 +182,19 @@ export function VirgilRigged({
 
   return (
     <>
-      <group ref={breath} position={layout.virgilAt}>
+      <group
+        ref={breath}
+        position={layout.virgilAt}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelect?.();
+        }}
+      >
         <primitive object={virgil.placed} />
       </group>
       {/* Rendered into the head bone without re-parenting it: the panel rides
           the head through every clip and the nod. */}
-      {createPortal(<Visor state={face} surface={surface} lightIntensity={1.5} />, virgil.head)}
+      {createPortal(<Visor state={face} surface={surface} lightIntensity={1.2} />, virgil.head)}
     </>
   );
 }

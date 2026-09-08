@@ -14,28 +14,35 @@ import { layout, room } from './palette.js';
  * the aperture, that rims his crown, shoulders and the discs beside his head,
  * plus a violet fill so his shadow side is blue rather than black.
  *
- * The environment map is not optional. All three models arrive with metalness
- * and roughness at 1.0 and the texture doing the work; a metallic surface with
- * nothing to reflect renders black. The `<Environment>` here is procedural —
- * no preset, no file, nothing fetched — and it encodes the same contrast:
- * warm panels above and in front, one large cool panel behind.
+ * V6: the stylised set is matte and non-metallic (`metallicFactor` 0 in
+ * every file), so it lights correctly without the environment map doing
+ * the work — and it reflects far more diffuse light than the metallic
+ * ornate set did, so every intensity here is roughly half of V5's, read
+ * off the first V6 captures where Virgil's cream head blew out to white.
+ * The map stays for the porthole frame, which is the one ornate model
+ * still used and still carries a metallic-roughness map, at half strength. The same
+ * rig lights both presentations; only where the cool side comes from
+ * changes — the wall's window in the room, the arch on the tabletop.
  */
-export function LightingRig() {
+export function LightingRig({ view }: { view: 'room' | 'tabletop' }) {
   const { tier } = useSettings();
   const coarse = tier === 'constrained' || tier === 'mobile';
-  const [wx, wy, wz] = layout.windowCentre;
+  const [wx, wy, wz] =
+    view === 'room'
+      ? layout.windowCentre
+      : [layout.tabletop.archAt[0], 2.8, layout.tabletop.archAt[2]];
   const [vx, vy, vz] = layout.virgilAt;
   const [cx, , cz] = layout.consoleCentre;
 
   return (
     <group>
-      {/* Warm key. Shadows on, because the console's own shadow on the floor
-          and Virgil's on the console are what seat them in the room. */}
+      {/* Warm key. Shadows on, because the cast's shadows on the floor are
+          what seat them in the set. */}
       <spotLight
         color={room.warm.key}
-        intensity={55}
+        intensity={26}
         position={[-3.2, 5.6, 2.4]}
-        angle={0.55}
+        angle={0.62}
         penumbra={0.7}
         decay={2}
         distance={22}
@@ -45,82 +52,70 @@ export function LightingRig() {
         shadow-normalBias={0.02}
         target-position={[vx, vy + 0.9, vz]}
       />
-      {/* Warm second key from the right, lower and weaker, so his face is not
-          a single hard slope of light. */}
+      {/* Warm second key from the right, lower and weaker, so no face is a
+          single hard slope of light. */}
       <spotLight
         color={room.warm.amber}
-        intensity={22}
+        intensity={11}
         position={[3.4, 3.8, 1.2]}
-        angle={0.6}
+        angle={0.7}
         penumbra={0.8}
         decay={2}
-        distance={10}
+        distance={11}
         target-position={[vx, vy + 1.0, vz]}
       />
-      {/* The console's practicals: the screen arc is on the near side now,
-          facing him, so its amber comes up into his chest and the underside
-          of his face from in front — the reference's uplight. Two lights,
-          offset, so it has a direction. */}
+      {/* The console's practicals: amber up into his chest and the underside
+          of his face from in front — the reference's uplight. */}
       <pointLight
         color={room.warm.amberDeep}
-        intensity={3.5}
+        intensity={2}
         distance={6}
         decay={2}
         position={[cx - 0.6, 0.85, cz + 1.0]}
       />
       <pointLight
         color={room.warm.amber}
-        intensity={2.5}
+        intensity={1.5}
         distance={6}
         decay={2}
         position={[cx + 0.7, 0.85, cz + 1.0]}
       />
-      {/* The cool side. A directional from beyond the window, low enough to
-          come through the aperture and catch the top of his crown and the gold
-          discs. */}
+      {/* The cool side. A directional from beyond the window or the arch,
+          catching crowns and shoulders from behind. */}
       <directionalLight
         color={room.cool.window}
         intensity={2.6}
         position={[wx + 1.5, wy + 2.5, wz - 6]}
         target-position={[vx, vy + 1.3, vz]}
       />
-      {/* Violet fill from beyond the aperture, so the shadow side of everything
-          the window sees goes blue instead of black. Placed outside the wall:
-          sitting just inside it, it lit the sill so hard that the sill's
-          reflection in the floor read as a lilac hot patch (V1's flaw). */}
+      {/* Violet fill from beyond, so the shadow side of everything goes
+          blue instead of black. */}
       <pointLight
         color={room.cool.violet}
-        intensity={14}
+        intensity={9}
         distance={18}
         decay={2}
         position={[wx, wy + 1.6, wz - 3.5]}
       />
-      {/* Ambient: warm above and below. The walls are cream and the coves are
-          amber, so the room's own ambient is warm; the cool arrives only
-          through the aperture, from the two lights above. */}
-      <hemisphereLight color={room.warm.key} groundColor={room.warm.amberDeep} intensity={0.42} />
+      {/* Ambient: warm above and below. */}
+      <hemisphereLight color={room.warm.key} groundColor={room.warm.amberDeep} intensity={0.3} />
 
       <Environment resolution={coarse ? 64 : 256} frames={1} background={false}>
-        {/* The sphere the panels sit in: deep blue-violet, so metals that see
-            nothing else reflect the window's colour, not black. */}
         <mesh scale={60}>
           <sphereGeometry args={[1, 24, 16]} />
           <meshBasicMaterial color={room.cool.deep} side={1} />
         </mesh>
-        {/* Cool: one large panel behind, where the window is. */}
         <Lightformer
           form="circle"
-          intensity={5}
+          intensity={2.5}
           color={room.cool.window}
           position={[0, 4, -18]}
           scale={14}
           target={[0, 1, 0]}
         />
-        {/* Warm: a ceiling ring of panels and a front panel, the room's coves
-            and the amber bounce off cream walls. */}
         <Lightformer
           form="ring"
-          intensity={4}
+          intensity={2}
           color={room.warm.cove}
           position={[0, 12, -2]}
           scale={9}
@@ -128,7 +123,7 @@ export function LightingRig() {
         />
         <Lightformer
           form="rect"
-          intensity={3}
+          intensity={1.5}
           color={room.warm.key}
           position={[0, 5, 16]}
           scale={[20, 6, 1]}
@@ -136,7 +131,7 @@ export function LightingRig() {
         />
         <Lightformer
           form="rect"
-          intensity={2}
+          intensity={1}
           color={room.warm.amber}
           position={[-16, 3, 0]}
           scale={[10, 4, 1]}
@@ -144,16 +139,15 @@ export function LightingRig() {
         />
         <Lightformer
           form="rect"
-          intensity={2}
+          intensity={1}
           color={room.warm.amber}
           position={[16, 3, 0]}
           scale={[10, 4, 1]}
           target={[0, 1, 0]}
         />
-        {/* The floor's own bounce, warm and dim, from below. */}
         <Lightformer
           form="rect"
-          intensity={1.2}
+          intensity={0.6}
           color={room.surface.cream}
           position={[0, -10, 0]}
           scale={[24, 24, 1]}

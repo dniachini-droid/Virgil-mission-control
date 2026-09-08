@@ -325,10 +325,13 @@ function imageFor(info, label) {
 const maps = {
   base_color: imageFor(pbr.baseColorTexture, 'baseColorTexture'),
 };
-if (pbr.metallicRoughnessTexture) maps.metallic_roughness = imageFor(pbr.metallicRoughnessTexture, 'mr');
+if (pbr.metallicRoughnessTexture)
+  maps.metallic_roughness = imageFor(pbr.metallicRoughnessTexture, 'mr');
 if (material.normalTexture) maps.normal = imageFor(material.normalTexture, 'normalTexture');
-for (const key of Object.keys(TEXTURES)) if (!maps[key]) fail(`plan names "${key}" but the source has no such map`);
-for (const key of Object.keys(maps)) if (!TEXTURES[key]) fail(`source has "${key}" but the plan omits it`);
+for (const key of Object.keys(TEXTURES))
+  if (!maps[key]) fail(`plan names "${key}" but the source has no such map`);
+for (const key of Object.keys(maps))
+  if (!TEXTURES[key]) fail(`source has "${key}" but the plan omits it`);
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const page = await browser.newPage();
 await page.goto('about:blank');

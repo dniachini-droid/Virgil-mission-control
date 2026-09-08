@@ -6,24 +6,36 @@ import { buildGeometry, decodeMeshyPayload } from '../src/world/assets/meshyAsse
 import {
   bonePositions,
   buildVisorGeometry,
+  buildVisorMesh,
   createVisorMaterial,
   fitHeadSurface,
   type HeadSurface,
-  PROVER_VISOR,
   placedPositions,
   VIRGIL_VISOR,
 } from '../src/world/characters/visorFit.js';
-import proverBase64 from '../src/world/props/prover-asset.b64.txt?raw';
-import proverMetadata from '../src/world/props/prover-asset.json';
+import {
+  fabricator2Base64Payload,
+  keeper2Base64Payload,
+  prover2Base64Payload,
+} from '../src/world/props/v6Assets.js';
+import { CAST, ROLES, type Role } from '../src/world/room/cast.js';
 import { decodeVirgilPayload, parseVirgilGlb } from '../src/world/virgil/virgilRigged.js';
 
 /**
  * The visors hid a defect once: in V3 both panels were silently culled, and
  * the close-ups that seemed to show a fitted face were showing the baked
- * texture underneath. These tests build each visor exactly as the room
- * does — same payloads, same fit, same specs, same material — and fail if a
- * panel stops being double-sided, leaves its head, floats off it, or lets
- * the head poke through it. They run under node with no renderer.
+ * texture underneath. These tests build each visor exactly as the set
+ * does — same payloads, same fit, same specs, same mesh builder — and fail
+ * if a panel stops being double-sided, gets culled or hidden, leaves its
+ * head, floats off it, or lets the head poke through it. They run under
+ * node with no renderer.
+ *
+ * KR-57: three mutations survived V5's tests — re-siding the material
+ * after `createVisorMaterial()` returned, deleting `frustumCulled={false}`,
+ * and adding `visible={false}`. The mesh is now built by `buildVisorMesh`
+ * and those three properties are asserted on the object it returns; and
+ * `Visor.tsx` is held to using it and nothing else, so the routes by which
+ * a component could undo them are closed by source guards below.
  */
 
 const src = (file: string) => readFileSync(resolve(import.meta.dirname, '../src', file), 'utf8');
@@ -51,11 +63,11 @@ function panelZ(surface: HeadSurface, x: number, y: number): number {
  *  - no head vertex under the panel is in front of it (nothing pokes through);
  *  - from every panel vertex, the head surface is directly behind it, at
  *    least the offset away and at most `MAX_GAP` away (nothing floats). The
- *    fit lifts nodes over rivets and groove edges, so the gap is not the
- *    offset everywhere: measured on 2026-09-07, the worst is 13.0 mm, at
- *    Virgil's top corners over the seam that runs down each side of his
- *    plate — under the rounded corner the canvas cuts away. The worst
- *    gaps are reported on failure.
+ *    fit lifts nodes over relief, so the gap is not the offset everywhere.
+ *    V5's bound was 15 mm, measured against a worst of 13.0 mm on the
+ *    ornate Virgil's plate seams; the V6 worst gaps are recorded in
+ *    `docs/process/PHASE_1_HOW_TO_LOOK_V6.md`. The worst gaps are reported
+ *    on failure.
  */
 const MAX_GAP = 0.015;
 
@@ -66,7 +78,7 @@ function expectFitted(
   index: ArrayLike<number>,
   headBounds: THREE.Box3,
   isHead: (vertex: number) => boolean,
-) {
+): number {
   const { spec } = surface;
   const panel = buildVisorGeometry(surface);
   const vertices = panel.getAttribute('position');
@@ -125,77 +137,119 @@ function expectFitted(
     floating.length,
     `${label}: ${floating.length} of ${gaps.length} panel vertices float more than ${MAX_GAP * 1000} mm off the head; worst ${worst}`,
   ).toBe(0);
+  return (gaps[0] as { gap: number }).gap;
 }
 
-describe('the visor material', () => {
-  it('is double-sided, because a culled visor is a face that is not there', () => {
-    const material = createVisorMaterial(new THREE.Texture());
+describe('the visor mesh (KR-57)', () => {
+  const texture = new THREE.Texture();
+
+  it('has a double-sided, untone-mapped material, because a culled visor is a face that is not there', () => {
+    const material = createVisorMaterial(texture);
     expect(material.side).toBe(THREE.DoubleSide);
     expect(material.toneMapped).toBe(false);
   });
 
-  it('is the only material Visor.tsx uses', () => {
-    const visor = src('world/characters/Visor.tsx');
-    expect(visor).toContain('createVisorMaterial(');
-    expect(visor).not.toMatch(/<mesh(Basic|Standard|Physical|Lambert|Phong)Material/);
-    expect(visor).not.toMatch(/new THREE\.Mesh\w*Material/);
+  it('is built uncullable, visible and still double-sided by the one builder the component uses', () => {
+    const surface: HeadSurface = {
+      spec: VIRGIL_VISOR,
+      z: new Float32Array((VIRGIL_VISOR.rows + 1) * (VIRGIL_VISOR.cols + 1)).fill(0.5),
+      bounds: new THREE.Box3(),
+      triangles: 1,
+    };
+    const mesh = buildVisorMesh(surface, texture);
+    expect(mesh.frustumCulled).toBe(false);
+    expect(mesh.visible).toBe(true);
+    expect(mesh.material.side).toBe(THREE.DoubleSide);
+    expect(mesh.material.map).toBe(texture);
+    expect(mesh.geometry.getAttribute('position').count).toBe(
+      (VIRGIL_VISOR.rows + 1) * (VIRGIL_VISOR.cols + 1),
+    );
   });
 
-  it('is fitted from the same specs the room uses', () => {
+  it('is the only way Visor.tsx makes a mesh, and nothing there re-sides, culls or hides it', () => {
+    const visor = src('world/characters/Visor.tsx');
+    expect(visor).toContain('buildVisorMesh(surface, texture)');
+    expect(visor).toContain('<primitive object={mesh} />');
+    // No JSX mesh or material of its own: the builder is the only route.
+    expect(visor).not.toMatch(/<mesh[\s>]/);
+    expect(visor).not.toMatch(/<mesh(Basic|Standard|Physical|Lambert|Phong)Material/);
+    expect(visor).not.toMatch(/new THREE\.Mesh\w*Material/);
+    expect(visor).not.toContain('createVisorMaterial(');
+    // The three survivors of V5's tests, by name.
+    expect(visor).not.toMatch(/\.side\s*=/);
+    expect(visor).not.toMatch(/frustumCulled\s*=/);
+    expect(visor).not.toMatch(/visible\s*=/);
+    expect(visor).not.toMatch(/visible=\{/);
+    // KR-55: no early return that removes the face.
+    expect(visor).not.toMatch(/return null/);
+  });
+
+  it('is fitted from the specs that travel with each model', () => {
     expect(src('world/characters/VirgilRigged.tsx')).toContain('VIRGIL_VISOR');
-    expect(src('world/room/Models.tsx')).toContain('PROVER_VISOR');
-    // The Prover's face breathes with him: it is inside his animated group.
-    const models = src('world/room/Models.tsx');
-    expect(models.indexOf('<Visor')).toBeGreaterThan(models.indexOf('<group ref={group}'));
+    const figure = src('world/characters/Figure.tsx');
+    expect(figure).toContain('member.model.visor');
+    // A figure's face breathes with it: it is inside the breathing group.
+    expect(figure.indexOf('<Visor')).toBeGreaterThan(figure.indexOf('<group'));
+    for (const role of ROLES) expect(CAST[role].model.visor).toBeDefined();
   });
 });
 
-describe("the Prover's visor", () => {
-  const buffer = decodeMeshyPayload(proverMetadata, proverBase64);
-  const geometry = buildGeometry(proverMetadata, buffer);
+const PAYLOADS: Record<Role, string> = {
+  fabricator: fabricator2Base64Payload,
+  prover: prover2Base64Payload,
+  keeper: keeper2Base64Payload,
+};
+
+/**
+ * Each character's head, independently of the fit, in the placed frame
+ * (metres, feet at the origin). Read off the previews and ray scans of
+ * 2026-09-08: the Fabricator's boxy head spans y 1.13–1.51; the Prover's
+ * helmet y 1.05–1.50 inside |x| 0.35 (his eye-stalks stand at ±0.5); the
+ * Keeper's hood y 0.94–1.49.
+ */
+const HEAD: Record<Role, { y0: number; y1: number; halfWidth: number }> = {
+  fabricator: { y0: 1.13, y1: 1.51, halfWidth: 0.42 },
+  prover: { y0: 1.05, y1: 1.5, halfWidth: 0.35 },
+  keeper: { y0: 0.94, y1: 1.49, halfWidth: 0.5 },
+};
+
+describe.each(ROLES)('the %s’s visor', (role) => {
+  const { metadata, visor } = CAST[role].model;
+  const buffer = decodeMeshyPayload(metadata, PAYLOADS[role]);
+  const geometry = buildGeometry(metadata, buffer);
   const mesh = new THREE.Mesh(geometry);
-  // As meshyAsset.ts places him: scaled to 1.6 m, lifted onto his feet.
-  const { scale, positionScale, baseOffsetY } = proverMetadata.runtime;
+  // As meshyAsset.ts places them: scaled to 1.7 m, lifted onto their feet.
+  const { scale, positionScale, baseOffsetY } = metadata.runtime;
   mesh.scale.setScalar(scale * positionScale);
   mesh.position.y = baseOffsetY;
   const positions = placedPositions(mesh);
   const index = geometry.index as THREE.BufferAttribute;
-
-  // His head, independently of the fit: the dome between his collar and the
-  // stem of his halo. Measured from the payload: the dome spans y 0.89–1.30
-  // and the halo ring begins at y 1.35, out to |x| 0.44.
+  const head = HEAD[role];
   const isHead = (v: number) => {
     const x = positions[v * 3] as number;
     const y = positions[v * 3 + 1] as number;
-    return y >= 0.85 && y <= 1.33 && Math.abs(x) <= 0.3;
+    return y >= head.y0 && y <= head.y1 && Math.abs(x) <= head.halfWidth;
   };
   const headBounds = new THREE.Box3();
   for (let v = 0; v < positions.length / 3; v += 1) {
     if (isHead(v)) headBounds.expandByPoint(new THREE.Vector3().fromArray(positions, v * 3));
   }
 
-  it('sits on his head, below the halo, and not on the halo ring', () => {
-    expect(PROVER_VISOR.y1).toBeLessThan(1.33);
-    expect(headBounds.max.y).toBeLessThan(1.34);
+  it('sits within the head', () => {
+    expect(visor.y0).toBeGreaterThan(head.y0);
+    expect(visor.y1).toBeLessThan(head.y1);
+    expect(visor.halfWidth).toBeLessThan(head.halfWidth);
   });
 
-  it('is a spherical cap that hugs the dome and never leaves it', () => {
-    const surface = fitHeadSurface(positions, index.array, PROVER_VISOR);
-    expectFitted('prover', surface, positions, index.array, headBounds, isHead);
-    // It wraps: the centre stands well in front of the corners.
-    const { spec, z } = surface;
-    const centre = z[
-      Math.floor(spec.rows / 2) * (spec.cols + 1) + Math.floor(spec.cols / 2)
-    ] as number;
-    const corner = z[0] as number;
-    expect(centre - corner).toBeGreaterThan(0.03);
-    expect(centre).toBeGreaterThan(0.19);
-    expect(centre).toBeLessThan(0.23);
+  it('hugs the face and never leaves it', () => {
+    const surface = fitHeadSurface(positions, index.array, visor);
+    const worst = expectFitted(role, surface, positions, index.array, headBounds, isHead);
+    expect(worst).toBeLessThanOrEqual(MAX_GAP);
   });
 });
 
 describe("Virgil's visor", () => {
-  it('is fitted to his flat visor plate in the head joint and never leaves his head', async () => {
+  it('is fitted to the screen on his head in the head joint and never leaves his head', async () => {
     const gltf = await parseVirgilGlb(decodeVirgilPayload());
     let skinned: THREE.SkinnedMesh | null = null;
     gltf.scene.traverse((o) => {
@@ -214,16 +268,18 @@ describe("Virgil's visor", () => {
     const index = mesh.geometry.index as THREE.BufferAttribute;
     const surface = fitHeadSurface(positions, index.array, VIRGIL_VISOR, isHead);
     expectFitted('virgil', surface, positions, index.array, headBounds, isHead);
-    // His face front is a plate, not a dome: 5 cm of relief at most across
-    // the whole panel (measured 4.5 cm: the side seams against the lifted
-    // nodes), where a dome this wide would show more than 10 cm.
+    // His screen is a dome, not a plate: measured 2026-09-08 on the fitted
+    // panel at z 0.535 at its centre falling to 0.355 at the top corners in
+    // joint units (0.6 m per unit) — 0.181 of relief, 10.9 cm at scale.
+    // The bounds here hold that shape, not a plate's.
     let min = Number.POSITIVE_INFINITY;
     let max = Number.NEGATIVE_INFINITY;
     for (const z of surface.z) {
       min = Math.min(min, z);
       max = Math.max(max, z);
     }
-    expect(max - min).toBeLessThan(0.05);
-    expect(max).toBeGreaterThan(0.22);
+    expect(max - min).toBeGreaterThan(0.1);
+    expect(max - min).toBeLessThan(0.25);
+    expect(max).toBeGreaterThan(0.5);
   });
 });

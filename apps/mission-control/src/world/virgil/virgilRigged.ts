@@ -1,10 +1,12 @@
 /**
  * The rigged, animated Virgil, from
- * `assets/models/candidates/virgil-model-candidate-03-rigged.glb`, reduced by
- * `asset-pipeline/reduce-rigged.mjs`.
+ * `assets/models/candidates/virgil-model-candidate-05-rigged.glb` (V6, the
+ * stylised Virgil), reduced by `asset-pipeline/reduce-rigged.mjs`.
  *
  * The payload carries an image-free GLB (skin, skeleton, the clips the room
- * uses) followed by three WebP images. `GLTFLoader.parse()` reads the GLB
+ * uses) followed by its WebP images — one base colour for the V6 source,
+ * which declares `metallicFactor` 0 and `roughnessFactor` 0.8 and carries
+ * no other map; the factors are recorded under `runtime` and applied here. `GLTFLoader.parse()` reads the GLB
  * from memory; because it contains no images it creates no `blob:` URL and
  * issues no request — the one network behaviour GLTFLoader has, and the
  * reason the static props avoid it entirely. The images are decoded from
@@ -100,11 +102,14 @@ export function parseVirgilGlb(
 
 async function build(): Promise<RiggedVirgil> {
   const buffer = decodeVirgilPayload();
+  const sections = metadata.payload.sections as Record<string, Section | undefined>;
   const [gltf, map, metallicRoughness, normalMap] = await Promise.all([
     parseVirgilGlb(buffer),
     decodeTexture(buffer, 'map_base_color', SRGBColorSpace),
-    decodeTexture(buffer, 'map_metallic_roughness', LinearSRGBColorSpace),
-    decodeTexture(buffer, 'map_normal', LinearSRGBColorSpace),
+    sections.map_metallic_roughness
+      ? decodeTexture(buffer, 'map_metallic_roughness', LinearSRGBColorSpace)
+      : null,
+    sections.map_normal ? decodeTexture(buffer, 'map_normal', LinearSRGBColorSpace) : null,
   ]);
 
   let mesh: SkinnedMesh | null = null;
@@ -114,13 +119,19 @@ async function build(): Promise<RiggedVirgil> {
   if (!mesh) throw new Error('virgil rigged: no skinned mesh in the GLB');
   const skinned = mesh as SkinnedMesh;
 
+  const runtime = metadata.runtime as typeof metadata.runtime & {
+    metalness?: number;
+    roughness?: number;
+  };
   skinned.material = new MeshStandardMaterial({
     map,
     normalMap,
     roughnessMap: metallicRoughness,
     metalnessMap: metallicRoughness,
-    metalness: 1,
-    roughness: 1,
+    // The declared factors (matte 0 / 0.8 for the V6 source); 1.0 where a
+    // source declares none and a map carries the values.
+    metalness: runtime.metalness ?? 1,
+    roughness: runtime.roughness ?? 1,
     side: FrontSide,
   });
   skinned.castShadow = true;

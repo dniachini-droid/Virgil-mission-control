@@ -4,21 +4,24 @@ import * as THREE from 'three';
  * Fits a visor panel to a head's own geometry.
  *
  * V3 placed each face as a curved plate at hand-set coordinates, fitted to
- * the bezel by close-up screenshot. On the Prover that put a rectangle on a
- * sphere, and on Virgil it put the edges of a strongly curved plate inside
- * his flat visor — his face front is a flat plate (z 0.23–0.25 across
- * x ±0.32, y 0.09–0.45 in head-bone units) and the Prover's is a sphere
- * (centre y 1.08, R 0.22 m, RMS 6.5 mm over 805 vertices). Neither is a
- * cylinder segment.
- *
- * So the panel is now **derived from the head**: a grid over the panel's
- * extent in the head's frame, each node ray-cast onto the head's front
- * triangles along −z, and lifted `offset` off the surface it hit. A flat face
- * gets a flat panel, a dome gets a spherical cap, and there is no coordinate
- * to eyeball. `test/visor.test.ts` runs the same fit on the same geometry in
- * node and fails if a panel leaves its head or stops hugging it — the defect
- * V3 found (both panels silently culled) hid itself once, and nothing here is
+ * the bezel by close-up screenshot; V4 replaced that with a panel **derived
+ * from the head**: a grid over the panel's extent in the head's frame, each
+ * node ray-cast onto the head's front triangles along −z, and lifted
+ * `offset` off the surface it hit. A flat face gets a flat panel, a dome
+ * gets a spherical cap, and there is no coordinate to eyeball.
+ * `test/visor.test.ts` runs the same fit on the same geometry in node and
+ * fails if a panel leaves its head or stops hugging it — the defect V3
+ * found (both panels silently culled) hid itself once, and nothing here is
  * allowed to hide again.
+ *
+ * V6: four heads, all from the stylised cast, and every one of them is a
+ * black plate or dome the model was made with — Virgil's is a rounded
+ * screen filling most of his head, the Fabricator's a rectangular screen,
+ * the Prover's an astronaut dome, the Keeper's the dark opening of a hood.
+ * The specs below were read off ray scans of each model (recorded in
+ * `docs/process/PHASE_1_HOW_TO_LOOK_V6.md`) and held to the geometry by the
+ * test. The panel mesh itself is built by `buildVisorMesh`, so that its
+ * culling and visibility flags are set in one tested place (KR-57).
  *
  * Everything in this file is pure three.js and runs without a renderer.
  */
@@ -51,36 +54,81 @@ export interface HeadSurface {
 }
 
 /**
- * Virgil's visor in the `Head` joint's frame (source units; the scene is
- * scaled 0.769 to 1.8 m). His measured plate runs x ±0.32 and y 0.09–0.45,
- * with a recessed groove (z 0.20) along y 0.45–0.47 where it ends; the
- * panel stops short of the plate's edge on every side and clear of the
- * groove, so that it is fitted to the plate and bridges nothing.
+ * Virgil's screen in the `Head` joint's frame (source units of the rigged
+ * candidate 05; the scene is scaled 0.6 to 1.8 m). Measured by ray scan on
+ * 2026-09-08: his face front is a shallow dome from y 0.20 to 0.85 and
+ * x ±0.55, z 0.53 at its centre falling to 0.44 at x ±0.5 and 0.41 at the
+ * top; below y 0.2 the rays pass under his chin. The panel stops inside
+ * that on every side.
  */
 export const VIRGIL_VISOR: VisorSpec = {
-  halfWidth: 0.25,
-  y0: 0.15,
-  y1: 0.43,
-  cols: 20,
-  rows: 12,
-  offset: 0.004,
-  zMin: 0.12,
-  corner: 0.22,
+  halfWidth: 0.42,
+  y0: 0.27,
+  y1: 0.78,
+  cols: 24,
+  rows: 14,
+  offset: 0.005,
+  zMin: 0.3,
+  corner: 0.3,
 };
 
 /**
- * The Prover's visor in his placed frame (metres, feet at the origin). His
- * dome is the sphere centred at y 1.08; the band is centred on that, where
- * the sphere faces forward, and ends well below the halo ring at y 1.35.
+ * The Fabricator's screen, in his placed frame (metres, feet at the
+ * origin, scale 0.85). His head is a box with a rectangular black screen
+ * on its front, measured at x ±0.22 and y 0.42–0.69 in source units
+ * (placed: ±0.19 m, 1.21–1.44 m), its surface at z 0.45–0.47 source. The
+ * panel sits inside the black.
+ */
+export const FABRICATOR_VISOR: VisorSpec = {
+  halfWidth: 0.16,
+  y0: 1.23,
+  y1: 1.41,
+  cols: 20,
+  rows: 12,
+  offset: 0.003,
+  zMin: 0.25,
+  corner: 0.28,
+};
+
+/**
+ * The Prover's visor: a black dome on an astronaut helmet, measured at
+ * x ±0.24 and y 0.28–0.62 source (placed 1.09–1.38 m), the helmet sphere
+ * reaching z 0.49 source at its centre. His eye-stalks stand at x ±0.5 and
+ * his halo above y 0.85, both outside the panel. The first V6 close-up
+ * showed the face drawn small in the middle of the black, so the panel
+ * was widened to fill it; the test holds it to the dome. Its top stops at
+ * 1.295 m: the helmet's brim ridge stands proud of the visor from about
+ * 1.30 m up, and a panel that reached 1.32 m was lifted 16.5 mm over it —
+ * past the 15 mm bound, which is the helmet's fact and not the bound's.
  */
 export const PROVER_VISOR: VisorSpec = {
-  halfWidth: 0.15,
-  y0: 0.985,
-  y1: 1.175,
+  halfWidth: 0.17,
+  y0: 1.09,
+  y1: 1.295,
   cols: 24,
   rows: 12,
   offset: 0.003,
-  zMin: 0.05,
+  // The dome curves back at the panel's upper corners (nothing in front of
+  // z 0.3 there); a lower floor lets the fit follow it, and the rounded
+  // outline cuts those corners from the canvas anyway.
+  zMin: 0.2,
+  corner: 0.45,
+};
+
+/**
+ * The Keeper's face: the dark opening of his hood, x ±0.16 and y 0.14–0.43
+ * source (placed 0.97–1.22 m). The hood's brow overhangs the opening from
+ * y 0.40 up (z 0.30 against a face at 0.21), so the panel stops below it;
+ * inside the opening the face is a smooth dark surface at z 0.21–0.25.
+ */
+export const KEEPER_VISOR: VisorSpec = {
+  halfWidth: 0.1,
+  y0: 1.0,
+  y1: 1.14,
+  cols: 16,
+  rows: 12,
+  offset: 0.003,
+  zMin: 0.1,
   corner: 0.45,
 };
 
@@ -245,6 +293,25 @@ export function createVisorMaterial(map: THREE.Texture): THREE.MeshBasicMaterial
     side: THREE.DoubleSide,
     alphaTest: 0.5,
   });
+}
+
+/**
+ * The whole visor mesh, and the only way `Visor.tsx` may make one (KR-57).
+ * Three things a culled or hidden face depends on are set here and checked
+ * by `test/visor.test.ts` on the object this returns, not on the source
+ * text: the material is the double-sided one above and is not re-sided
+ * afterwards; `frustumCulled` is off, because the panel rides a joint whose
+ * bounds three.js does not track; and it is visible.
+ */
+export function buildVisorMesh(
+  surface: HeadSurface,
+  map: THREE.Texture,
+): THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> {
+  const mesh = new THREE.Mesh(buildVisorGeometry(surface), createVisorMaterial(map));
+  mesh.frustumCulled = false;
+  mesh.visible = true;
+  mesh.name = 'visor';
+  return mesh;
 }
 
 /** The centre of the panel's front, for placing its light. */

@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(appRoot, 'dist', 'owner-build');
 
-const stageSlug = process.env.VIRGIL_OWNER_STAGE_SLUG ?? 's2-v5';
+const stageSlug = process.env.VIRGIL_OWNER_STAGE_SLUG ?? 's2-v6';
 const shortSha = (
   process.env.VIRGIL_OWNER_SHA ??
   execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()

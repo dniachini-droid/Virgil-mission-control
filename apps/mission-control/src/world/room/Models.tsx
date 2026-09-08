@@ -2,27 +2,26 @@ import { useFrame } from '@react-three/fiber';
 import { use, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
-import { breathe } from '../characters/breathing.js';
-import { type FaceState, Visor } from '../characters/Visor.js';
-import { fitHeadSurface, PROVER_VISOR, placedPositions } from '../characters/visorFit.js';
-import { loadConsole2 } from '../props/console2Asset.js';
+import type { Activity } from '../characters/Figure.js';
 import { loadPorthole } from '../props/portholeAsset.js';
-import { loadProver } from '../props/proverAsset.js';
-import { loadStation } from '../props/stationAsset.js';
-import type { ScreenContent } from '../screens/ScreenBank.js';
+import { loadConsole3 } from '../props/v6Assets.js';
+import { CAST, figurePlacement, type Role, stationToWorld } from './cast.js';
+import type { Report } from './demo.js';
 import { layout, room } from './palette.js';
 
 /**
  * The owner-supplied static models, placed. Each loader returns a group whose
  * origin is the model's base at its chosen real-world size, so placing one is
- * a matter of where its feet go — the centre-pivot correction and the
- * single-siding both happen in `meshyAsset.ts`, not here. The animated
- * Virgil lives in `../characters/VirgilRigged.tsx`.
+ * a matter of where its feet go — the centre-pivot correction, the
+ * single-siding and the declared matte factors all happen in
+ * `meshyAsset.ts`, not here. The animated Virgil lives in
+ * `../characters/VirgilRigged.tsx`; the three characters in
+ * `../characters/Figure.tsx`.
  */
 
-/** The ring console, as authored: its low open side faces the camera. */
-export function ConsoleRing() {
-  const console_ = use(loadConsole2());
+/** Virgil's console: the low oval ring with the raised deck he stands on. */
+export function VirgilConsole() {
+  const console_ = use(loadConsole3());
   return (
     <primitive
       object={console_.placed}
@@ -32,22 +31,16 @@ export function ConsoleRing() {
   );
 }
 
-/** One generic side station. The station is a place; the agent is the identity. */
-export function SideStation() {
-  const station = use(loadStation());
+/** One role's own station, from the cast table. */
+export function Station({ role }: { role: Role }) {
+  const member = CAST[role];
+  const station = use(member.station.load());
   return (
-    <primitive
-      object={station.placed}
-      position={layout.stationAt}
-      rotation={[0, layout.stationRotationY, 0]}
-    />
+    <primitive object={station.placed} position={member.at} rotation={[0, member.rotationY, 0]} />
   );
 }
 
-/** What the Prover is doing; a rigged Prover reads the same prop later. */
-export type ProverActivity = 'rest' | 'receiving' | 'working' | 'reported';
-
-const STATION_LIGHT: Record<ProverActivity, string> = {
+const STATION_LIGHT: Record<Activity, string> = {
   rest: room.emit.teal,
   receiving: room.emit.ice,
   working: room.warm.amber,
@@ -55,19 +48,21 @@ const STATION_LIGHT: Record<ProverActivity, string> = {
 };
 
 /**
- * The station's own light, over the Prover's head, in the colour of what
- * the station is doing: teal at rest, ice while a hand-off arrives — with
- * a flicker as each packet lands, at the panel's packet rate — amber while
- * he works, beating at the panel's check rhythm, and the verdict's colour
- * once it is reported. It is what lets the state be read off him and his
- * station from across the room, not only off the panel.
+ * A station's own light, over its character's head, in the colour of what
+ * the station is doing: teal at rest, ice while a hand-off arrives — with a
+ * flash as each packet lands, at the panel's packet rate — amber while
+ * they work, beating at the panel's check rhythm, and the report's colour
+ * once it is reported. It is what lets the state be read off a character
+ * and their station from across the room, not only off the panel.
  */
 export function StationLight({
+  role,
   activity,
-  verdict,
+  report,
 }: {
-  activity: ProverActivity;
-  verdict: ScreenContent['verdict'];
+  role: Role;
+  activity: Activity;
+  report: Report;
 }) {
   const light = useRef<THREE.PointLight>(null);
   const since = useRef({ activity: '' as string, at: 0, t: 0 });
@@ -75,9 +70,13 @@ export function StationLight({
   const colour = useMemo(
     () =>
       new THREE.Color(
-        activity === 'reported' && verdict === 'BLOCKED' ? '#ff3b5c' : STATION_LIGHT[activity],
+        activity === 'reported' && report === 'BLOCKED'
+          ? '#ff3b5c'
+          : activity === 'reported' && report === 'COMPLETE'
+            ? room.emit.ice
+            : STATION_LIGHT[activity],
       ),
-    [activity, verdict],
+    [activity, report],
   );
   useFrame((_, delta) => {
     if (!light.current) return;
@@ -104,11 +103,12 @@ export function StationLight({
     light.current.color.copy(colour);
     light.current.intensity = intensity;
   });
-  const [sx, , sz] = layout.stationAt;
+  const { local } = figurePlacement(role);
+  const position = stationToWorld(role, local[0], 2.1, local[2] + 0.2);
   return (
     <pointLight
       ref={light}
-      position={[sx, 2.05, sz + 0.25]}
+      position={position}
       distance={3.2}
       decay={2}
       color={colour}
@@ -118,52 +118,9 @@ export function StationLight({
 }
 
 /**
- * The Prover, standing in the centre of his station, with his face. The
- * file has no rig, so he idles on breathing alone (`breathing.ts`), out of
- * phase with Virgil and a little quicker while he works. His visor is
- * fitted to his dome from the dome's own triangles (`visorFit.ts`,
- * `PROVER_VISOR`) and lives inside the same group, so it breathes with him.
- *
- * The seam for the rigged Prover the owner may supply: `activity` is the
- * whole of what this component knows, and today it only changes the
- * breathing rate. A rigged model replaces the `<primitive>` and maps
- * `activity` to clips, the way `VirgilRigged.tsx` maps poses; nothing
- * upstream changes.
- */
-export function ProverFigure({
-  face = 'idle',
-  activity = 'rest',
-}: {
-  face?: FaceState;
-  activity?: ProverActivity;
-}) {
-  const prover = use(loadProver());
-  const { reducedMotion } = useSettings();
-  const group = useRef<THREE.Group>(null);
-  const surface = useMemo(() => {
-    const index = prover.mesh.geometry.index;
-    if (!index) throw new Error('prover: the mesh has no index');
-    return fitHeadSurface(placedPositions(prover.mesh), index.array, PROVER_VISOR);
-  }, [prover]);
-  useFrame(({ clock }) => {
-    if (!group.current || reducedMotion) return;
-    const b = breathe(clock.getElapsedTime(), 2.1, activity === 'working' ? 1.6 : 1);
-    group.current.position.y = layout.proverAt[1] + b.rise;
-    group.current.rotation.z = b.sway;
-    group.current.rotation.y = layout.proverRotationY + b.yaw;
-  });
-  return (
-    <group ref={group} position={layout.proverAt} rotation={[0, layout.proverRotationY, 0]}>
-      <primitive object={prover.placed} />
-      <Visor state={face} surface={surface} lightIntensity={1.1} />
-    </group>
-  );
-}
-
-/**
- * The porthole frame, a ring in its own XY plane. Its group origin is the
- * ring's lowest point, so it is lowered by that offset to centre it on the
- * aperture; its back face sits against the wall.
+ * The porthole frame in the room: a ring in its own XY plane. Its group
+ * origin is the ring's lowest point, so it is lowered by that offset to
+ * centre it on the aperture; its back face sits against the wall.
  */
 export function PortholeFrame() {
   const porthole = use(loadPorthole());
@@ -174,4 +131,18 @@ export function PortholeFrame() {
       position={[x, y - porthole.metadata.runtime.baseOffsetY, z]}
     />
   );
+}
+
+/**
+ * The same porthole standing free at the back of the tabletop's disc: an
+ * arch, which gives a flat disc a skyline. The payload is sized for the
+ * wall (11 m); here it is scaled to `layout.tabletop.archDiameter`, its
+ * foot on the disc, and the reason is the one in the spec — without it the
+ * silhouette is all horizontal.
+ */
+export function Arch() {
+  const porthole = use(loadPorthole());
+  const k = layout.tabletop.archDiameter / porthole.metadata.runtime.targetMetres;
+  const [x, y, z] = layout.tabletop.archAt;
+  return <primitive object={porthole.placed} position={[x, y, z]} scale={k} />;
 }

@@ -14,26 +14,8 @@
     "charactersMissing": "",
     "glyphsKept": 65,
     "glyphsInSource": 414,
-    "tablesKept": [
-      "OS/2",
-      "cmap",
-      "glyf",
-      "head",
-      "hhea",
-      "hmtx",
-      "loca",
-      "maxp",
-      "name",
-      "post"
-    ],
-    "tablesDropped": [
-      "GDEF",
-      "GPOS",
-      "GSUB",
-      "STAT",
-      "gasp",
-      "prep"
-    ],
+    "tablesKept": ["OS/2", "cmap", "glyf", "head", "hhea", "hmtx", "loca", "maxp", "name", "post"],
+    "tablesDropped": ["GDEF", "GPOS", "GSUB", "STAT", "gasp", "prep"],
     "bytes": 10072,
     "base64Bytes": 13432,
     "sha256": "a011fc8a0cac39874752b10ec28548a4e125dbe953fc8ca5c7ea32388207edfe"

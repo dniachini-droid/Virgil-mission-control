@@ -1,25 +1,36 @@
 import { useFrame } from '@react-three/fiber';
 import { useRef, useState } from 'react';
+import type { Activity } from '../characters/Figure.js';
 import type { VirgilPose } from '../characters/VirgilRigged.js';
 import type { FaceState } from '../characters/Visor.js';
 import type { ScreenContent } from '../screens/ScreenBank.js';
-import type { ProverActivity } from './Models.js';
+import type { Role } from './cast.js';
 
 /**
- * A scripted demonstration, twenty seconds, looping: Virgil rests, turns
- * toward the Prover, hands off with `Agree_Gesture`; the station receives
- * (V5: a beat of its own, with the arrival shown on its panel), the Prover
- * works, a verdict returns, Virgil reacts (a nod on PASS, the dumbfounded
- * turn on BLOCKED), reset.
+ * A scripted demonstration, thirty seconds, looping, through the three
+ * hops the constitution describes: Virgil hands off to the Fabricator, who
+ * builds and **reports complete** (a claim, never evidence —
+ * `.claude/agents/fabricator.md`); Virgil hands off to the Prover, who
+ * runs checks and returns a verdict; on a PASS the Keeper reviews and
+ * returns his; Virgil reacts — a nod on a PASS, and on a BLOCKED, for the
+ * first time, the **refusal**: `Angry_Ground_Stomp`.
  *
  * **Nothing behind this is real.** No event, no check, no review drives it;
  * it is a timeline of fixed numbers, and every surface it touches says so —
- * the badge on the page, the ILLUSTRATIVE label on every screen, and the
- * owner document. It exists to show what the product does, with only what
- * exists today. Alternate loops end in PASS and BLOCKED so the blocked state
- * is seen, expressed through face, light and colour (no refusal clip exists).
+ * the badge on the page, the ILLUSTRATIVE band on every screen, and the
+ * owner document. Alternate loops end in PASS and BLOCKED so the blocked
+ * state is seen.
  */
 export type StationState = 'READY' | 'RECEIVING' | 'WORKING' | 'REPORTED';
+/** What a station reports. COMPLETE is the Fabricator's claim, not a verdict. */
+export type Report = 'PASS' | 'BLOCKED' | 'COMPLETE' | '—';
+
+export interface MemberState {
+  face: FaceState;
+  activity: Activity;
+  station: StationState;
+  report: Report;
+}
 
 export interface DemoState {
   running: boolean;
@@ -27,67 +38,155 @@ export interface DemoState {
   loop: number;
   pose: VirgilPose;
   virgilFace: FaceState;
-  proverFace: FaceState;
-  proverActivity: ProverActivity;
-  stationState: StationState;
+  cast: Record<Role, MemberState>;
   content: ScreenContent;
 }
 
-export const DEMO_LENGTH = 20;
+export const DEMO_LENGTH = 30;
+
+const IDLE: MemberState = { face: 'idle', activity: 'rest', station: 'READY', report: '—' };
 
 export function demoAt(seconds: number, loop: number, running: boolean): DemoState {
-  const outcome = loop % 2 === 0 ? 'PASS' : 'BLOCKED';
+  const outcome: 'PASS' | 'BLOCKED' = loop % 2 === 0 ? 'PASS' : 'BLOCKED';
   const base: DemoState = {
     running,
     seconds,
     loop,
     pose: 'rest',
     virgilFace: 'idle',
-    proverFace: 'idle',
-    proverActivity: 'rest',
-    stationState: 'READY',
-    content: { verdict: '—', active: null, phase: 'build · illustrative' },
+    cast: { fabricator: IDLE, prover: IDLE, keeper: IDLE },
+    content: { verdict: '—', active: null, phase: 'READY' },
   };
   if (!running) return base;
-  if (seconds < 4) return base;
-  if (seconds < 6.5) {
-    return { ...base, pose: 'look', virgilFace: 'attentive' };
+  const at = (overrides: Partial<DemoState>, cast: Partial<Record<Role, MemberState>>) => ({
+    ...base,
+    ...overrides,
+    cast: { ...base.cast, ...cast },
+  });
+  if (seconds < 2.5) return base;
+  // Hand-off to the Fabricator.
+  if (seconds < 5.5) {
+    return at(
+      {
+        pose: 'handoff',
+        virgilFace: 'attentive',
+        content: { verdict: '—', active: 'Fabricator', phase: 'HAND-OFF' },
+      },
+      {
+        fabricator: { face: 'attentive', activity: 'receiving', station: 'RECEIVING', report: '—' },
+      },
+    );
   }
-  if (seconds < 9.5) {
-    return {
-      ...base,
-      pose: 'handoff',
-      virgilFace: 'attentive',
-      proverFace: 'attentive',
-      proverActivity: 'receiving',
-      stationState: 'RECEIVING',
-      content: { verdict: '—', active: 'Prover', phase: 'hand-off · illustrative' },
-    };
+  // The Fabricator builds.
+  if (seconds < 10) {
+    return at(
+      {
+        virgilFace: 'attentive',
+        content: { verdict: '—', active: 'Fabricator', phase: 'BUILD' },
+      },
+      { fabricator: { face: 'working', activity: 'working', station: 'WORKING', report: '—' } },
+    );
   }
-  if (seconds < 16) {
-    return {
-      ...base,
-      pose: 'rest',
-      virgilFace: 'attentive',
-      proverFace: 'working',
-      proverActivity: 'working',
-      stationState: 'WORKING',
-      content: { verdict: '—', active: 'Prover', phase: 'verification · illustrative' },
-    };
+  // The Fabricator reports complete: a claim, shown in ice, not a verdict.
+  if (seconds < 12) {
+    return at(
+      {
+        virgilFace: 'attentive',
+        content: { verdict: '—', active: 'Fabricator', phase: 'CLAIMED' },
+      },
+      {
+        fabricator: {
+          face: 'attentive',
+          activity: 'reported',
+          station: 'REPORTED',
+          report: 'COMPLETE',
+        },
+      },
+    );
   }
-  if (seconds < 19) {
-    const face: FaceState = outcome === 'PASS' ? 'passed' : 'blocked';
-    return {
-      ...base,
-      pose: outcome === 'PASS' ? 'nod' : 'look',
-      virgilFace: face,
-      proverFace: face,
-      proverActivity: 'reported',
-      stationState: 'REPORTED',
-      content: { verdict: outcome, active: null, phase: 'verdict · illustrative' },
-    };
+  // Hand-off to the Prover.
+  if (seconds < 15) {
+    return at(
+      {
+        pose: 'handoff',
+        virgilFace: 'attentive',
+        content: { verdict: '—', active: 'Prover', phase: 'HAND-OFF' },
+      },
+      { prover: { face: 'attentive', activity: 'receiving', station: 'RECEIVING', report: '—' } },
+    );
   }
-  return base;
+  // The Prover verifies.
+  if (seconds < 20) {
+    return at(
+      {
+        virgilFace: 'attentive',
+        content: { verdict: '—', active: 'Prover', phase: 'VERIFY' },
+      },
+      { prover: { face: 'working', activity: 'working', station: 'WORKING', report: '—' } },
+    );
+  }
+  // The Prover's verdict. On a BLOCKED the loop ends here with the refusal.
+  if (outcome === 'BLOCKED') {
+    if (seconds < 24) {
+      return at(
+        {
+          pose: 'blocked',
+          virgilFace: 'blocked',
+          content: { verdict: 'BLOCKED', active: null, phase: 'VERDICT' },
+        },
+        {
+          prover: { face: 'blocked', activity: 'reported', station: 'REPORTED', report: 'BLOCKED' },
+        },
+      );
+    }
+    return base;
+  }
+  if (seconds < 22) {
+    return at(
+      {
+        pose: 'nod',
+        virgilFace: 'passed',
+        content: { verdict: 'PASS', active: null, phase: 'VERDICT' },
+      },
+      { prover: { face: 'passed', activity: 'reported', station: 'REPORTED', report: 'PASS' } },
+    );
+  }
+  // The Keeper reviews.
+  if (seconds < 24) {
+    return at(
+      {
+        virgilFace: 'attentive',
+        content: { verdict: 'PASS', active: 'Keeper', phase: 'REVIEW' },
+      },
+      {
+        prover: { face: 'idle', activity: 'reported', station: 'REPORTED', report: 'PASS' },
+        keeper: { face: 'attentive', activity: 'receiving', station: 'RECEIVING', report: '—' },
+      },
+    );
+  }
+  if (seconds < 27.5) {
+    return at(
+      {
+        virgilFace: 'attentive',
+        content: { verdict: 'PASS', active: 'Keeper', phase: 'REVIEW' },
+      },
+      {
+        prover: { face: 'idle', activity: 'reported', station: 'REPORTED', report: 'PASS' },
+        keeper: { face: 'working', activity: 'working', station: 'WORKING', report: '—' },
+      },
+    );
+  }
+  return at(
+    {
+      pose: 'nod',
+      virgilFace: 'passed',
+      content: { verdict: 'PASS', active: null, phase: 'REVIEWED' },
+    },
+    {
+      prover: { face: 'idle', activity: 'reported', station: 'REPORTED', report: 'PASS' },
+      keeper: { face: 'passed', activity: 'reported', station: 'REPORTED', report: 'PASS' },
+    },
+  );
 }
 
 /**
@@ -96,46 +195,58 @@ export function demoAt(seconds: number, loop: number, running: boolean): DemoSta
  */
 export function forcedState(face: FaceState): DemoState {
   const base = demoAt(0, 0, false);
+  const all = (member: MemberState): Record<Role, MemberState> => ({
+    fabricator: member,
+    prover: member,
+    keeper: member,
+  });
   switch (face) {
     case 'attentive':
       return {
         ...base,
         virgilFace: 'attentive',
-        proverFace: 'attentive',
-        proverActivity: 'receiving',
-        stationState: 'RECEIVING',
-        content: { verdict: '—', active: 'Prover', phase: 'hand-off · illustrative' },
+        cast: all({ face: 'attentive', activity: 'receiving', station: 'RECEIVING', report: '—' }),
+        content: { verdict: '—', active: 'Prover', phase: 'HAND-OFF' },
       };
     case 'working':
       return {
         ...base,
         virgilFace: 'working',
-        proverFace: 'working',
-        proverActivity: 'working',
-        stationState: 'WORKING',
-        content: { verdict: '—', active: 'Prover', phase: 'verification · illustrative' },
+        cast: all({ face: 'working', activity: 'working', station: 'WORKING', report: '—' }),
+        content: { verdict: '—', active: 'Prover', phase: 'VERIFY' },
       };
     case 'passed':
       return {
         ...base,
         virgilFace: 'passed',
-        proverFace: 'passed',
-        proverActivity: 'reported',
-        stationState: 'REPORTED',
-        content: { verdict: 'PASS', active: null, phase: 'verdict · illustrative' },
+        cast: all({ face: 'passed', activity: 'reported', station: 'REPORTED', report: 'PASS' }),
+        content: { verdict: 'PASS', active: null, phase: 'VERDICT' },
       };
     case 'blocked':
       return {
         ...base,
+        pose: 'blocked',
         virgilFace: 'blocked',
-        proverFace: 'blocked',
-        proverActivity: 'reported',
-        stationState: 'REPORTED',
-        content: { verdict: 'BLOCKED', active: null, phase: 'verdict · illustrative' },
+        cast: all({
+          face: 'blocked',
+          activity: 'reported',
+          station: 'REPORTED',
+          report: 'BLOCKED',
+        }),
+        content: { verdict: 'BLOCKED', active: null, phase: 'VERDICT' },
       };
     default:
       return base;
   }
+}
+
+function memberChanged(a: MemberState, b: MemberState): boolean {
+  return (
+    a.face !== b.face ||
+    a.activity !== b.activity ||
+    a.station !== b.station ||
+    a.report !== b.report
+  );
 }
 
 /**
@@ -159,11 +270,12 @@ export function useDemo(running: boolean): DemoState {
     if (
       next.pose !== state.pose ||
       next.virgilFace !== state.virgilFace ||
-      next.proverFace !== state.proverFace ||
-      next.proverActivity !== state.proverActivity ||
-      next.stationState !== state.stationState ||
+      memberChanged(next.cast.fabricator, state.cast.fabricator) ||
+      memberChanged(next.cast.prover, state.cast.prover) ||
+      memberChanged(next.cast.keeper, state.cast.keeper) ||
       next.content.verdict !== state.content.verdict ||
       next.content.active !== state.content.active ||
+      next.content.phase !== state.content.phase ||
       next.running !== state.running
     ) {
       setState(next);

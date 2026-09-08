@@ -48,7 +48,13 @@ interface Section {
 
 export interface MeshyAssetMetadata {
   source: { path: string; sha256: string };
-  measured: { vertexCount: number; triangleCount: number };
+  measured: {
+    vertexCount: number;
+    triangleCount: number;
+    /** Source-unit bounds, before `runtime.scale`; the cast table derives standing points from them. */
+    boundsMin: number[];
+    boundsMax: number[];
+  };
   runtime: {
     targetAxis: string;
     targetMetres: number;
