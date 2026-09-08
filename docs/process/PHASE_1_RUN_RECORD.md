@@ -1,4 +1,4 @@
-# Phase 1 run record — stage S2, viewing points V0 to V6
+# Phase 1 run record — stage S2, viewing points V0 to V8
 
 Opened 2026-09-08 by the V6 pass, on finding KR-56 of the review of `a4f8b70`: no Phase 1 run record with commit SHAs existed. Every earlier viewing point is recorded here from the repository's own history (`git log`, the committed artifacts and their `.sha256` files, the `PHASE_1_HOW_TO_LOOK_V*.md` documents); V6 is recorded from the session that built it. This is a record of what was run and what it produced. It decides nothing. It is not an event log in `packages/domain/` — the backlog item "record real runs as events" stays open, and this file is the prose that item says should be events.
 
@@ -172,6 +172,37 @@ V6 was 9,804,742 bytes; V7 is 1,408,758 bytes (14.4 %) smaller. **That size is w
 ### What was not done
 
 No performance measurement. No look on real graphics hardware. No test of the file on iOS — no session here can. The three walking rigs have not arrived; the seam is built and the glide is the placeholder. The consoles' own screens (spec §0.9) are queued for the next pass and not started. CI (KR-50/KR-59) was unblocked by the owner's root-config permission and deferred to its own pass; that pass is recorded below. Generation prompts and times for the models remain outstanding. The Prover and Keeper model assignments remain provisional.
+
+## V8 — the pass of 2026-09-08, from the owner's review of V7
+
+Branch `claude/virgil-phase-1-slice`, forward from `d937b3b` (V7 delivered, CI live). Direction: the owner's eight changes and the amendments relayed during the pass, written into `docs/process/PHASE_1_STYLISED_SPEC.md` §0.10 **before** the work began (`0f041ea`) and extended as the amendments arrived. Every increment was committed and pushed as it landed. CI ran on every push; the runs are recorded below as the API reported them.
+
+| Commit | What |
+|---|---|
+| `0f041ea` | The V8 direction written down first: §0.10.1–0.10.10 of the spec |
+| `375d42f` | The set: symmetrical consoles carrying their own screens (`asset-pipeline/fit-screen.mjs`, `screens/ConsoleScreen.tsx`), no window, the level camera, the raised backdrop, the turn (`locomotion.ts`), the receiving and returning beats (`screens/stationScreen.ts`, `returning.ts`, `arrival.ts`), counters (`tally.ts`), the four verdicts (`verdicts.ts`), the CRT (`crt.ts`), the spotlight (`Models.tsx`), the owner gate, Virgil's slabs driven from the candidate state; the tests rewritten and added |
+| RUN_RECORD_COMMIT_2 | The standing point moved left of the screen and the close-up camera to its side, after the first capture showed the Fabricator's back hiding his own screen; the console pictures inset so the honesty band clears the bezel's lip; the planet and the station swapped sides; the clocks capped at 0.1 s a frame; the capture entry point (`#/?demo=&loop=`); the spec's §0.10.11–13 |
+| RUN_RECORD_COMMIT_3 | The V8 artifact, its digest, this record and the owner document |
+
+### Checks run on RUN_RECORD_SOURCE_SHA, all with `TURBO_FORCE=true`
+
+RUN_RECORD_CHECKS
+
+### Size, against both readings of the budget
+
+RUN_RECORD_SIZE
+
+### Measurements this pass made, for the record
+
+- **The consoles' screens** (`fit-screen.mjs`, on the shipped 256² payloads, 2026-09-08): each station has exactly one usable screen, a recessed navy panel in a cream bezel, tilted back, facing the front, with pale writing baked in. Selected by geometry — a region, a facing within 25°, and at least four of seven samples darker than luminance 0.15 — because the screens are navy (luminance about 0.03), the same as the trim, so the visor's near-black rule finds nothing, and because the baked writing (0.2–0.5) would be punched out of a per-pixel mask. The Fabricator's: 38 of 261 triangles in its region (194 rejected by facing, 22 wholly dark), 0.549 m², 0.959 × 0.565 m, mean normal (0, 0.24, 0.97). The Prover's: 23 of 84 (61, 12), 0.434 m², 0.933 × 0.521 m, (0, 0.22, 0.98). The Keeper's: 41 of 280 (166, 20), 0.518 m², 0.892 × 0.579 m, (−0.01, 0.23, 0.97). Rendered with the selected triangles highlighted, each selection is the screen surface to its bezel's edge, and `test/console-screens.test.ts` holds every triangle to the region, the facing and the payload's digest.
+- **The turn** (`locomotion.ts`): the step response of a second-order system, damping 0.7, natural frequency 5 rad/s, 1.6 s long — overshoot 4.60 % of the way, peaking at 0.88 s, within 0.12 % of settled at 1.6 s, zero velocity at the start. On a 150° turn that is a 7° overshoot. `test/locomotion.test.ts` holds one overshoot, no more than that, and a settle; `test/cast-clearance.test.ts` sweeps every character through eight yaws of the turn and the overshoot past the screen facing, at both facings with every breathing extreme, and finds no shared surface voxel with their console.
+- **The standing point**: the console's measured front plus 0.2 m plus the character's widest horizontal reach from its axis (`placedReach`), so no yaw can bring a shoulder nearer than the gap; 0.88 m to the console's left, because the screens span about x −0.66..0.36 and the first capture, at 0.55 m, showed the Fabricator's back hiding his own screen once he turned to it.
+- **The layout**: the side consoles at x ±2.85, z −3.75, turned in 0.38 rad; the centre console at z −5.15; the slabs at y 3.05, z −1.35; the camera 11° above a target at chest height (1.05 m), 11 m out in landscape and 13 m in portrait, the lens widened only as far as ±4.35 m needs at that distance (36° landscape, 59° portrait at 390 × 664); the planet at (+9, 6.5, −36) and the station at (−11, 3.4, −29) from the disc's centre.
+- **The demonstration**: three loops of 56, 44 and 44 s (PASS then the Keeper's PASS_WITH_NON_BLOCKING_FINDINGS and the owner gate; BLOCKED; INSUFFICIENT_EVIDENCE); receiving beats of 6 s; every candidate state a word from `constitution/authority.json` and every step an allowed transition, held by `test/demo.test.ts`.
+
+### What was not done
+
+No performance measurement. No look on real graphics hardware. No test of the file on iOS. The tubes (§0.10.9) are not built; the arrival point is. The walking rigs are not needed and not waited on. Generation prompts and times for the models remain outstanding. The Prover and Keeper model assignments remain provisional. The porthole payload stays in the bundle for the retired room.
 
 ## Continuous integration — the pass of 2026-09-08
 
