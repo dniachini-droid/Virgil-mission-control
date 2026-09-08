@@ -18,6 +18,7 @@ Everything below was built and checked on a machine that renders in software. No
 | V7 | `ffa3e18cffb17ec55588ac8facc544d9ee1f4043` | `v7-s2-virgil-ffa3e18cff.html` | `PHASE_1_HOW_TO_LOOK_V7.md` | The tabletop: faces on the head, screens as objects |
 | V8 | `934554159f8021478887603c9230d459eed763da` | `v8-s2-virgil-934554159f.html` | `PHASE_1_HOW_TO_LOOK_V8.md` | Symmetrical consoles carrying their own screens; the receiving and the return; four verdicts; the turn |
 | **V8.1** | **`64e2e746782930c0efc6a494177511cc54f3956c`** | **`v8-1-s2-virgil-64e2e74678.html`** | **`PHASE_1_HOW_TO_LOOK_V8.md` (V8.1 note appended)** | **Four rendering defects repaired: the close-ups reach their pose and show the whole screen, the screens are flat, the chrome is opaque** |
+| **V8.2** | **`40106793c7aff850c9a46970a17fde9d4b96b76a`** | **`v8-2-s2-virgil-40106793c7.html`** | **`PHASE_1_HOW_TO_LOOK_V8.md` (V8.2 note appended)** | **Two authorised items: the screens go to the edge of the model's own opening with the corners it has, and the set is lit** |
 
 The V5 source commit `868971a` and its documents were merged to `main` by the owner as pull request #7 (`90b116c`); the V6 branch was restarted forward from that merge.
 
@@ -473,3 +474,22 @@ Every assertion in `console-screens.test.ts` that still describes the shipped ge
 ### What this pass did not do
 
 No performance measurement and no look on real graphics hardware; OD-0005's two checks remain **not performed**. The visors are untouched — their measurements stand in the backlog and they are a separate pass. The close-up cameras are not re-framed, so the characters are still largely cropped out of their own close-ups, as V8.1 recorded and for the reason recorded there. Neither the ledger nor the conversation panel was begun. The CRT collapse has still never been seen by anybody in a frame. Virgil's slabs' displays are still washed out by the additive glass at the Board angle, as above, and their canvas is still drawn at the opening's aspect rather than the display plane's, which stretches the slab picture by about 2.8 % — the same class of fault V8.1 fixed for the consoles, found while reading the slab code, measured, and left alone as outside these two items.
+
+### The artifact, its digest and the rebuild
+
+- **`build:owner` from a clean tree** at `4010679` (`git status --short` empty before it ran) — `v8-2-s2-virgil-40106793c7.html`, **8,442,332 bytes**, `sha256 64d10a77f8b5256f67df6178cf1a60c8c4d4d4d2b684f236b049f6813b85ea8e`. The footer carries no `+uncommitted changes` marker and its stage line reads `viewing point V8.2`.
+- **`sha256sum -c`** over every committed Owner Build digest — all **eleven OK**, including the new one.
+- **`pnpm reproduce:owner`** — recovered source commit `40106793c7aff850c9a46970a17fde9d4b96b76a` and build date from the artifact's own bytes, rebuilt in a detached worktree at that commit, `cmp` **identical**, `sha256 64d10a77f8b5256f67df6178cf1a60c8c4d4d4d2b684f236b049f6813b85ea8e (8442332 bytes)`, which is the committed digest. **PASS — the committed artifact is byte-for-byte derivable from its commit.** Run first against the untracked file, where it correctly refused: `FAILED — v8-2-s2-virgil-40106793c7.html has no commit that added it; an untracked artifact cannot be reproduced`.
+
+### Frames from the committed artifact
+
+The five registered frames were then captured again from `docs/process/PHASE_1_owner-builds/v8-2-s2-virgil-40106793c7.html` — the file the owner opens — and looked at. All five show the footer reading `viewing point V8.2` from commit `40106793c7`, no `+uncommitted changes`, zero console errors, and the view key confirmed in `.room-controls button.is-active` before each shot. The Fabricator's and the Keeper's pictures fill their openings with rounded corners and a legible band; the wide and phone frames show the three stations lit and the disc polished with the star crisp on it.
+
+### Size, against both readings of the budget
+
+**8,442,332 bytes**: 8.051 MiB, or 8.442 MB. V8.1 was 8,432,557 bytes, so V8.2 is **9,775 bytes (0.116 %) larger** — the outline fit, the rounded surfaces, the finish and the smears, less the two deleted insets. No payload changed: every model, mask, font and window layer is byte-identical to V8.1. Against `docs/architecture/PERFORMANCE_STRATEGY.md`'s ≤ 12 MB desktop and ≤ 6 MB mobile, which does not say which unit it means:
+
+- desktop: **67.1 % of 12 MiB, 70.4 % of 12 MB — inside on both readings**;
+- mobile: **134.2 % of 6 MiB, 140.7 % of 6 MB — over on both readings**, as every viewing point has been.
+
+Nothing was cut for the number.
