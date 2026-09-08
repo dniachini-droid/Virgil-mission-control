@@ -2,6 +2,7 @@ import { ContactShadows } from '@react-three/drei';
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
+import { createFloorTexture } from './floorGraphic.js';
 import { layout, room } from './palette.js';
 
 /**
@@ -20,6 +21,12 @@ import { layout, room } from './palette.js';
  * the scene; a contact shadow under the cast replaces it, and the floor's
  * inlay — the star from the approved reference, previously lost competing
  * with the reflection — is drawn bigger and bolder as a graphic shape.
+ *
+ * **V7: the room is retired, not removed.** The owner: "Room retired for
+ * now. No window. I might go back to it." It is reachable behind the `V`
+ * key and `#/?view=room`, is not the default, and is not offered for
+ * judgement. Its floor inlay is drawn as one texture like the tabletop's
+ * (`floorGraphic.ts`), so the retired view does not keep the z-fight.
  */
 export function RoomShell() {
   const { tier } = useSettings();
@@ -27,9 +34,8 @@ export function RoomShell() {
 
   return (
     <group>
-      <Floor />
-      <FloorInlay coarse={coarse} />
-      <Contact coarse={coarse} />
+      <Floor coarse={coarse} />
+      <Contact coarse={coarse} centre={[0, 0, -1.6]} />
       <BackWall coarse={coarse} />
       <Sill />
       <SideWallsAndCeiling />
@@ -38,17 +44,41 @@ export function RoomShell() {
   );
 }
 
-function Floor() {
+function Floor({ coarse }: { coarse: boolean }) {
+  const depth = layout.backWallZ - layout.wallZ;
+  const width = 2 * layout.sideWallX;
+  const size = Math.max(width, depth);
+  const zMid = (layout.backWallZ + layout.wallZ) / 2;
+  const texture = useMemo(
+    () =>
+      createFloorTexture({
+        centre: [0, zMid],
+        size,
+        console: [layout.consoleCentre[0], layout.consoleCentre[2]],
+        star: layout.tabletop.starAt,
+        pixels: coarse ? 1024 : 2048,
+      }),
+    [size, zMid, coarse],
+  );
+  // The plane is cut from the square texture's middle so metres map alike
+  // on both axes.
+  const geometry = useMemo(() => {
+    const g = new THREE.PlaneGeometry(width, depth);
+    const uv = g.getAttribute('uv');
+    for (let i = 0; i < uv.count; i += 1) {
+      uv.setXY(
+        i,
+        0.5 + (uv.getX(i) - 0.5) * (width / size),
+        0.5 + (uv.getY(i) - 0.5) * (depth / size),
+      );
+    }
+    return g;
+  }, [width, depth, size]);
   return (
-    <mesh
-      position={[0, 0, (layout.backWallZ + layout.wallZ) / 2]}
-      rotation={[-Math.PI / 2, 0, 0]}
-      receiveShadow
-    >
+    <mesh position={[0, 0, zMid]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow geometry={geometry}>
       {/* A rectangle inside the walls, not a disc: a floor that ran on past
           the wall showed through the aperture in V1. */}
-      <planeGeometry args={[2 * layout.sideWallX, layout.backWallZ - layout.wallZ]} />
-      <meshStandardMaterial color={room.surface.creamShadow} roughness={0.92} metalness={0} />
+      <meshStandardMaterial map={texture} roughness={0.92} metalness={0} />
     </mesh>
   );
 }
@@ -78,109 +108,6 @@ export function Contact({
       color={room.surface.navy}
       frames={Number.POSITIVE_INFINITY}
     />
-  );
-}
-
-/** A four-point star, as a shape. */
-export function starShape(outer: number, inner: number): THREE.Shape {
-  const shape = new THREE.Shape();
-  const points = 4;
-  for (let i = 0; i < points * 2; i += 1) {
-    const r = i % 2 === 0 ? outer : inner;
-    const a = (i / (points * 2)) * Math.PI * 2;
-    const x = Math.cos(a) * r;
-    const y = Math.sin(a) * r;
-    if (i === 0) shape.moveTo(x, y);
-    else shape.lineTo(x, y);
-  }
-  shape.closePath();
-  return shape;
-}
-
-/**
- * The inlay: a navy disc round the console's foot with two gold rings, and
- * the four-point star in front of it, big — graphic shapes rather than
- * surface detail, and matte.
- */
-export function FloorInlay({
-  coarse,
-  centre = layout.consoleCentre,
-  starAt = [0, 0.9] as const,
-  y = 0.004,
-}: {
-  coarse: boolean;
-  centre?: readonly [number, number, number];
-  starAt?: readonly [number, number];
-  y?: number;
-}) {
-  const star = useMemo(() => new THREE.ShapeGeometry(starShape(1.35, 0.3)), []);
-  const gold = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: room.surface.gold,
-        roughness: 0.75,
-        metalness: 0,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-      }),
-    [],
-  );
-  const navy = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: room.surface.navy,
-        roughness: 0.9,
-        metalness: 0,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-      }),
-    [],
-  );
-  const segments = coarse ? 64 : 160;
-  const [cx, , cz] = centre;
-  return (
-    <group>
-      <mesh position={[cx, y, cz]} rotation={[-Math.PI / 2, 0, 0]} material={navy} receiveShadow>
-        <circleGeometry args={[2.35, segments]} />
-      </mesh>
-      {[
-        { r: 1.95, w: 0.12 },
-        { r: 2.35, w: 0.16 },
-        { r: 3.4, w: 0.1 },
-      ].map(({ r, w }) => (
-        <mesh
-          key={r}
-          position={[cx, y + 0.001, cz]}
-          rotation={[-Math.PI / 2, 0, 0]}
-          material={gold}
-          receiveShadow
-        >
-          <ringGeometry args={[r, r + w, segments]} />
-        </mesh>
-      ))}
-      {/* The star, in the foreground where the camera sees it. */}
-      <mesh
-        position={[starAt[0], y + 0.001, starAt[1]]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        material={navy}
-      >
-        <circleGeometry args={[1.55, segments]} />
-      </mesh>
-      <mesh
-        geometry={star}
-        material={gold}
-        position={[starAt[0], y + 0.002, starAt[1]]}
-        rotation={[-Math.PI / 2, 0, Math.PI / 4]}
-        receiveShadow
-      />
-      <mesh
-        position={[starAt[0], y + 0.002, starAt[1]]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        material={gold}
-      >
-        <ringGeometry args={[1.55, 1.68, segments]} />
-      </mesh>
-    </group>
   );
 }
 

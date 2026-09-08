@@ -45,7 +45,7 @@
 /* The room stage: the canvas fills the viewport above the footer. */
 .room-stage {
   position: fixed;
-  inset: 0 0 34px 0;
+  inset: 0 0 var(--owner-footer-height, 34px) 0;
   background: #0a0c24;
 }
 .room-stage canvas {
@@ -113,8 +113,9 @@
 /* V6: two rows of controls — demo, view, and who to look at. */
 .room-controls {
   flex-wrap: wrap;
-  max-width: 560px;
+  max-width: min(560px, calc(100vw - 24px));
   row-gap: 4px;
+  box-sizing: border-box;
 }
 .room-controls-group {
   display: flex;
@@ -131,4 +132,44 @@
 }
 .room-stage canvas {
   cursor: default;
+}
+
+/* V7: a phone held upright. The V6 capture at 390 px showed "Keeper" cut
+   off the right edge and the hint wrapping badly; the bar now fits the
+   width, the buttons tighten, the hint hides, and the badge and footer
+   take less of the frame. */
+@media (max-width: 520px) {
+  .room-controls {
+    left: 8px;
+    top: 8px;
+    padding: 4px 6px;
+    gap: 4px;
+    font-size: 10px;
+  }
+  .room-controls button {
+    padding: 3px 6px;
+  }
+  .room-controls-group {
+    margin-right: 6px;
+  }
+  .room-controls-label {
+    letter-spacing: 0.04em;
+  }
+  .room-controls-hint {
+    display: none;
+  }
+  .room-demo-badge {
+    top: 74px;
+    left: 8px;
+    right: 8px;
+    max-width: none;
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+  .owner-footer {
+    font-size: 9px;
+    line-height: 1.4;
+    gap: 2px 10px;
+    padding: 3px 8px;
+  }
 }

@@ -2,15 +2,16 @@ import { use, useMemo } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
 import { StarField } from '../StarField.js';
+import { createFloorTexture } from './floorGraphic.js';
 import { Arch } from './Models.js';
 import { layout, room } from './palette.js';
-import { Contact, FloorInlay } from './RoomShell.js';
+import { Contact } from './RoomShell.js';
 import { loadWindowTextures } from './WindowView.js';
 
 /**
- * The tabletop: the second presentation (`docs/process/PHASE_1_STYLISED_SPEC.md`
- * §2), shipped beside the room with one key to switch, so the owner
- * compares rather than remembers.
+ * The tabletop: V7's presentation (`docs/process/PHASE_1_STYLISED_SPEC.md`
+ * §2 as amended — the room is retired, not removed, and this is the
+ * default).
  *
  * A disc floor with a visible edge, so it reads as an object rather than a
  * room; no walls, no ceiling, no window aperture. The owner's nebula is the
@@ -23,13 +24,15 @@ import { loadWindowTextures } from './WindowView.js';
  * stands free as an arch at the back of the disc, which gives a flat disc
  * a skyline. The grain is a post-process (`VirgilRoom.tsx`).
  *
- * The backdrop is built for a camera looking **down** at 30°: what it sees
- * behind the disc is below the horizon, from about 12° to 48° under it at
- * the authored pose and lower still at the orbit's top. The first V6
- * capture put the nebula on a plane centred above the horizon and its
- * bottom edge cut across the frame; so the nebula now wraps a tall
- * cylinder round the whole set, mirrored so no edge can show, and the
- * planet and the station hang below the horizon where the camera looks.
+ * The backdrop is built for a camera looking **down** at 30° (38° on a
+ * phone): what it sees behind the disc is below the horizon, so the nebula
+ * wraps a tall cylinder round the whole set, mirrored so no edge can show,
+ * and the planet and the station hang below the horizon where the camera
+ * looks.
+ *
+ * V7: the floor's inlay is one texture on the disc's top face
+ * (`floorGraphic.ts`), because the coplanar rings V6 laid over the floor
+ * z-fought on the owner's phone.
  */
 export function Tabletop() {
   const { tier } = useSettings();
@@ -37,8 +40,7 @@ export function Tabletop() {
   return (
     <group>
       <Disc coarse={coarse} />
-      <FloorInlay coarse={coarse} centre={layout.consoleCentre} starAt={[0, 1.1]} y={0.006} />
-      <Contact coarse={coarse} centre={layout.tabletop.centre} scale={15} />
+      <Contact coarse={coarse} centre={layout.tabletop.centre} scale={13} />
       <Arch />
       <Backdrop coarse={coarse} />
       <StarField count={coarse ? 900 : 2600} radius={260} />
@@ -46,13 +48,29 @@ export function Tabletop() {
   );
 }
 
-/** The disc: matte cream, a thick navy band at its edge, and a shadowed underside. */
+/**
+ * The disc: matte cream with the inlay drawn into its one top face, a
+ * thick navy band and a gold line at its edge, and a shadowed underside.
+ * The cylinder's own top cap sits a centimetre under the face so the two
+ * never share a plane.
+ */
 function Disc({ coarse }: { coarse: boolean }) {
-  const { centre, radius, thickness } = layout.tabletop;
+  const { centre, radius, thickness, starAt } = layout.tabletop;
   const segments = coarse ? 64 : 128;
+  const texture = useMemo(
+    () =>
+      createFloorTexture({
+        centre: [centre[0], centre[2]],
+        size: radius * 2,
+        console: [layout.consoleCentre[0], layout.consoleCentre[2]],
+        star: starAt,
+        pixels: coarse ? 1024 : 2048,
+      }),
+    [centre, radius, starAt, coarse],
+  );
   return (
     <group position={[centre[0], centre[1] - thickness / 2, centre[2]]}>
-      <mesh receiveShadow>
+      <mesh position={[0, -0.005, 0]}>
         <cylinderGeometry args={[radius, radius * 0.96, thickness, segments]} />
         <meshStandardMaterial color={room.surface.creamShadow} roughness={0.92} metalness={0} />
       </mesh>
@@ -75,10 +93,10 @@ function Disc({ coarse }: { coarse: boolean }) {
           side={THREE.DoubleSide}
         />
       </mesh>
-      {/* Its top face carries the room's warm tone a little more strongly. */}
-      <mesh position={[0, thickness / 2 + 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      {/* The one top face, carrying the inlay. */}
+      <mesh position={[0, thickness / 2, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[radius, segments]} />
-        <meshStandardMaterial color={room.surface.cream} roughness={0.92} metalness={0} />
+        <meshStandardMaterial map={texture} roughness={0.9} metalness={0} />
       </mesh>
     </group>
   );

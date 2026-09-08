@@ -61,27 +61,22 @@ const BLOCK_RED = '#ff3b5c';
 const RULE = 10;
 
 export function ScreenBank({ content }: { content: ScreenContent }) {
-  const [cx, , cz] = layout.consoleCentre;
-  // Behind the outer track (1.72 m + band) so no planet passes through a panel.
-  // Above the station panels (1.62 m) so the two rows never overlap from
-  // the room's camera.
-  const y = 1.85;
-  const z = cz - 2.05;
+  const { y, z, spread, splay } = layout.screenBank;
   return (
     <group>
       <Panel
-        position={[cx - 1.55, y, z + 0.3]}
-        rotation={[0, 0.24, 0]}
+        position={[-spread, y - 0.08, z + 0.35]}
+        rotation={[-0.12, splay, 0]}
         draw={(c, t) => drawRoles(c, t, content)}
       />
       <Panel
-        position={[cx, y + 0.06, z - 0.08]}
-        rotation={[0, 0, 0]}
+        position={[0, y, z]}
+        rotation={[-0.12, 0, 0]}
         draw={(c, t) => drawReview(c, t, content)}
       />
       <Panel
-        position={[cx + 1.55, y, z + 0.3]}
-        rotation={[0, -0.24, 0]}
+        position={[spread, y - 0.08, z + 0.35]}
+        rotation={[-0.12, -splay, 0]}
         draw={(c, t) => drawCandidate(c, t, content)}
       />
     </group>

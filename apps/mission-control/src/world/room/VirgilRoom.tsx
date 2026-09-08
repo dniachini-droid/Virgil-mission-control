@@ -25,25 +25,28 @@ import { forcedState, useDemo } from './demo.js';
 import { LightingRig } from './LightingRig.js';
 import { PortholeFrame, Station, StationLight, VirgilConsole } from './Models.js';
 import { Orrery } from './Orrery.js';
-import { layout, room } from './palette.js';
+import { type CameraPose, layout, room, tabletopCamera } from './palette.js';
 import { RoomShell } from './RoomShell.js';
 import { Tabletop } from './Tabletop.js';
 import { WindowView } from './WindowView.js';
 
 /**
- * Virgil and his cast, in two presentations that share every prop and
- * every character (`docs/process/PHASE_1_STYLISED_SPEC.md` §2):
+ * Virgil and his cast on the tabletop (`docs/process/PHASE_1_STYLISED_SPEC.md`
+ * §2, as amended for V7):
  *
- *  - **the room**, as approved from V1 to V5 — walls, the porthole in the
- *    wall, the window layers behind it, the coves; its camera as before;
- *  - **the tabletop** — a disc with a visible edge, no walls, the porthole
- *    standing free as an arch, the nebula with stars and grain as the
- *    backdrop, a camera at 30° on a 120° arc.
+ *  - **the tabletop** — the presentation. A disc with a visible edge, no
+ *    walls, the porthole standing free as an arch, the nebula with stars
+ *    and grain as the backdrop, a camera at 30° on a 120° arc, and on a
+ *    phone held upright a steeper camera of its own (`tabletopCamera`);
+ *  - **the room** — **retired, not removed.** The owner: "Room retired for
+ *    now. No window. I might go back to it. But for the time being, we
+ *    proceed with tabletop." Its code stays, reachable behind the `V` key
+ *    and `#/?view=room`, so that going back costs nothing; it is not the
+ *    default and is not offered for judgement.
  *
- * One key switches (`V`), and buttons do the same. Selecting a character —
- * a click, or `1`–`4` — drops the camera to near their eye level with their
- * panel beside them; `Esc` or `0` returns. The demonstration is scripted
- * and says so on every surface.
+ * Selecting a character — a click, or `1`–`4` — drops the camera to near
+ * their eye level with their panel beside them; `Esc` or `0` returns. The
+ * demonstration is scripted and says so on every surface.
  *
  * Nothing here is a measurement of performance or of how it looks; the
  * container this is built in renders in software and misrepresents bloom
@@ -80,7 +83,7 @@ export function VirgilRoom() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const start = cameraPose(view, focus);
+  const start = cameraPose(view, focus, viewportAspect());
   return (
     <SettingsContext.Provider value={settings}>
       <div className="room-stage">
@@ -93,7 +96,7 @@ export function VirgilRoom() {
             toneMappingExposure: 0.92,
             powerPreference: 'high-performance',
           }}
-          camera={{ position: start.position, fov: start.fov, near: 0.1, far: 400 }}
+          camera={{ position: start.position, fov: start.fov, near: 0.2, far: 400 }}
           onCreated={({ gl }) => {
             registerRenderer(gl);
           }}
@@ -137,17 +140,18 @@ export function VirgilRoom() {
             <span className="room-controls-label">View</span>
             <button
               type="button"
-              className={view === 'room' ? 'is-active' : ''}
-              onClick={() => setView('room')}
-            >
-              Room
-            </button>
-            <button
-              type="button"
               className={view === 'tabletop' ? 'is-active' : ''}
               onClick={() => setView('tabletop')}
             >
               Tabletop
+            </button>
+            <button
+              type="button"
+              className={view === 'room' ? 'is-active' : ''}
+              onClick={() => setView('room')}
+              title="The room is retired, not removed; it is here in case the owner goes back to it"
+            >
+              Room (retired)
             </button>
           </span>
           <span className="room-controls-group">
@@ -164,8 +168,8 @@ export function VirgilRoom() {
             ))}
           </span>
           <span className="room-controls-hint">
-            Drag to look around. Scroll to move closer. V switches the view; click a character to go
-            to them; Esc comes back.
+            Drag to look around. Scroll to move closer. Tap a character to go to them; Esc comes
+            back. V shows the retired room.
           </span>
         </div>
         {demo ? (
@@ -249,19 +253,25 @@ function Post({ view }: { view: View }) {
   );
 }
 
-interface Pose {
-  position: [number, number, number];
-  target: [number, number, number];
-  fov: number;
+type Pose = CameraPose;
+
+/** The viewport's aspect at mount, for the first pose; the rig follows resizes. */
+function viewportAspect(): number {
+  if (typeof window === 'undefined') return 16 / 9;
+  const footer = Number.parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue('--owner-footer-height'),
+  );
+  return window.innerWidth / Math.max(1, window.innerHeight - (footer || 34));
 }
 
 /**
- * The camera for a view and a focus. The two authored views, and for each
- * character a pose near their eye level — read off the visor spec that
- * travels with their model — a little to one side so the panel beside them
- * is in the frame.
+ * The camera for a view, a focus and the viewport's aspect. The authored
+ * views — the tabletop's answers to the aspect, so a phone held upright
+ * gets its own framing — and for each character a pose near their eye
+ * level, read off the visor that travels with their model, a little to one
+ * side so the panel beside them is in the frame.
  */
-export function cameraPose(view: View, focus: Focus): Pose {
+export function cameraPose(view: View, focus: Focus, aspect = 16 / 9): Pose {
   if (focus === 'virgil') {
     const [vx, vy, vz] = layout.virgilAt;
     // His screen's centre is 1.13 m above his feet (head joint at 0.81 m,
@@ -283,7 +293,8 @@ export function cameraPose(view: View, focus: Focus): Pose {
       fov: 38,
     };
   }
-  const cam = view === 'room' ? layout.camera : layout.tabletop.camera;
+  if (view === 'tabletop') return tabletopCamera(aspect);
+  const cam = layout.camera;
   return { position: [...cam.position], target: [...cam.target], fov: cam.fov };
 }
 
@@ -335,9 +346,12 @@ export function limitsFor(view: View, focus: Focus, pose: Pose): Limits {
       maxDistance: 10,
     };
   }
+  // The tabletop: ±12.6° of elevation about the pose's own, on a 120° arc.
+  const dy = pose.position[1] - pose.target[1];
+  const polar = Math.atan2(Math.hypot(dx, dz), dy);
   return {
-    minPolarAngle: Math.PI / 3 - 0.22,
-    maxPolarAngle: Math.PI / 3 + 0.22,
+    minPolarAngle: polar - 0.22,
+    maxPolarAngle: polar + 0.22,
     minAzimuthAngle: -Math.PI / 3,
     maxAzimuthAngle: Math.PI / 3,
     minDistance: 6,
@@ -354,6 +368,10 @@ export function limitsFor(view: View, focus: Focus, pose: Pose): Limits {
 function Rig({ view, focus }: { view: View; focus: Focus }) {
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
   const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
+  // The aspect in coarse steps, so that a phone's browser chrome sliding in
+  // and out does not re-pose the camera, while turning the phone does.
+  const aspect = Math.round((size.width / Math.max(1, size.height)) * 10) / 10;
   const { reducedMotion } = useSettings();
   const [limits, setLimits] = useState<Limits>(UNBOUNDED);
   const flight = useRef<{
@@ -366,7 +384,7 @@ function Rig({ view, focus }: { view: View; focus: Focus }) {
   const first = useRef(true);
 
   useEffect(() => {
-    const to = cameraPose(view, focus);
+    const to = cameraPose(view, focus, aspect);
     const c = controls.current;
     flight.current = {
       from: {
@@ -380,7 +398,7 @@ function Rig({ view, focus }: { view: View; focus: Focus }) {
     };
     first.current = false;
     setLimits(UNBOUNDED);
-  }, [view, focus, camera, reducedMotion]);
+  }, [view, focus, camera, reducedMotion, aspect]);
 
   useFrame((_, delta) => {
     const f = flight.current;
@@ -448,9 +466,9 @@ function forcedFace(): FaceState | null {
   return (FACE_STATES as readonly string[]).includes(value ?? '') ? (value as FaceState) : null;
 }
 
-/** `#/?view=tabletop` opens on the tabletop; the room otherwise. */
+/** `#/?view=room` opens on the retired room; the tabletop otherwise. */
 function initialView(): View {
-  return query().get('view') === 'tabletop' ? 'tabletop' : 'room';
+  return query().get('view') === 'room' ? 'room' : 'tabletop';
 }
 
 /** `#/?cam=prover` opens looking at the Prover, for the captures. */

@@ -50,11 +50,13 @@ page.on('pageerror', (e) => pageErrors.push(String(e)));
 page.on('request', (r) => requests.push(r.url()));
 
 const visited: string[] = [];
-for (const route of ['', '#/s1', '#/spike/foundry', '#/spike/mind']) {
+// The default route is the tabletop; `#/?view=room` is the retired room,
+// visited so that a retirement never silently becomes a removal.
+for (const route of ['', '#/?view=room', '#/s1', '#/spike/foundry', '#/spike/mind']) {
   await page.goto(`${fileUrl}${route}`, { waitUntil: 'load' });
-  if (route === '') {
-    // The room: wait until all three models and the window layers have
-    // decoded and a frame has drawn, not merely until a canvas exists.
+  if (route === '' || route === '#/?view=room') {
+    // The set: wait until every model and the window layers have decoded
+    // and a frame has drawn, not merely until a canvas exists.
     await page.locator('canvas').waitFor({ timeout: 30_000 });
     await page.waitForFunction(() => '__virgilRoomReady' in window, undefined, {
       timeout: 120_000,
@@ -66,7 +68,7 @@ for (const route of ['', '#/s1', '#/spike/foundry', '#/spike/mind']) {
     await page.waitForFunction(() => '__virgilRenderer' in window, undefined, { timeout: 30_000 });
   }
   await page.waitForTimeout(1500);
-  visited.push(route === '' ? '(room)' : route);
+  visited.push(route === '' ? '(tabletop)' : route === '#/?view=room' ? '(retired room)' : route);
 }
 
 const footer = (await page.locator('.owner-footer').first().innerText()).replace(/\s+/g, ' ');

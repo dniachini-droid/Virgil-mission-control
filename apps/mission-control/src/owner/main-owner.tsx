@@ -1,4 +1,4 @@
-import { StrictMode, useEffect } from 'react';
+import { StrictMode, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HashRouter, Link, Route, Routes, useNavigate } from 'react-router';
 import { FoundrySpike } from '../spikes/foundry/FoundrySpike.js';
@@ -51,9 +51,29 @@ function RootRelativeLinks() {
   return null;
 }
 
+/**
+ * The provenance footer. Its height is published as a CSS variable so the
+ * stage above it can reserve exactly that strip: on a phone the footer
+ * wraps to several lines, and V6 hid the bottom of the frame under it.
+ */
 function OwnerFooter() {
+  const footer = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const element = footer.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    const publish = () => {
+      document.documentElement.style.setProperty(
+        '--owner-footer-height',
+        `${Math.ceil(element.getBoundingClientRect().height)}px`,
+      );
+    };
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   return (
-    <footer className="owner-footer">
+    <footer className="owner-footer" ref={footer}>
       <span>
         <b>Virgil Owner Build</b> — {__OWNER_BUILD_STAGE__}
       </span>
