@@ -3,17 +3,17 @@ import { createRoot } from 'react-dom/client';
 import { HashRouter, Link, Route, Routes, useNavigate } from 'react-router';
 import { FoundrySpike } from '../spikes/foundry/FoundrySpike.js';
 import { MindSpike } from '../spikes/mind/MindSpike.js';
+import { VirgilRoom } from '../world/room/VirgilRoom.js';
 import '../ui/app.css';
 import './owner.css';
 
 /**
  * The Owner Build entry point.
  *
- * This file exists only to make the application openable from a `file://` URL,
- * which is the one thing stage S1 of `docs/process/PHASE_1_PLAN.md` sets out to
- * prove. It renders the existing, owner-rejected Phase 0 spikes without altering
- * them: no scene, shader, palette or timing in `src/spikes/` or `src/world/` is
- * touched from here.
+ * Stage S1 made the application openable from a `file://` URL. This stage puts
+ * Virgil in his room behind it: the default route is `VirgilRoom`, the first
+ * art-directed viewing point. The owner-rejected Phase 0 spikes stay reachable
+ * under `#/s1`, unaltered — nothing in `src/spikes/` is touched from here.
  *
  * Three differences from `src/main.tsx`, all forced by `file://` and none of them
  * visual:
@@ -64,7 +64,9 @@ function OwnerFooter() {
         built <code>{__OWNER_BUILD_DATE__}</code>
       </span>
       <span className="owner-footer-note">
-        Performance on this machine is not a measurement and is not recorded as one.
+        Performance on this machine is not a measurement and is not recorded as one. The two
+        graphics-hardware checks in OD-0005 are deferred and recorded as not performed, never as
+        met.
       </span>
     </footer>
   );
@@ -86,15 +88,15 @@ function Index() {
       >
         Virgil Owner Build — {__OWNER_BUILD_STAGE__}
       </h1>
-      <p style={{ color: 'var(--amber)' }}>
-        What is inside this file is the <b>rejected Phase 0 spike</b>. It is not being offered for
-        your judgement, and it is not the art direction you approved. This viewing point asks one
-        question only: <b>can you open it?</b>
-      </p>
       <p>
-        If you are reading this page, the answer is already yes. Everything below is optional. If
-        you would like to see it move, open either world and use the numbered buttons along the
-        bottom.
+        <Link to="/" style={{ color: 'var(--gold)' }}>
+          Virgil in his room
+        </Link>{' '}
+        is the page this file opens on. This page keeps the earlier material reachable.
+      </p>
+      <p style={{ color: 'var(--amber)' }}>
+        Below are the <b>rejected Phase 0 spikes</b>, kept only so that viewing point V0 remains
+        reproducible. They are not the art direction you approved and are not offered for judgement.
       </p>
       <ul>
         <li>
@@ -109,10 +111,6 @@ function Index() {
         </li>
       </ul>
       <p style={{ color: 'var(--ash)' }}>
-        Keyboard: ← → step through the sequence, Home and End jump to the ends. The controls at the
-        top switch reduced motion, hold the camera still, and change the detail tier.
-      </p>
-      <p style={{ color: 'var(--ash)' }}>
         This file contains no network requests and needs no internet connection once downloaded.
       </p>
     </main>
@@ -124,7 +122,8 @@ createRoot(document.getElementById('root') as HTMLElement).render(
     <HashRouter>
       <RootRelativeLinks />
       <Routes>
-        <Route path="/" element={<Index />} />
+        <Route path="/" element={<VirgilRoom />} />
+        <Route path="/s1" element={<Index />} />
         <Route path="/spike/foundry" element={<FoundrySpike />} />
         <Route path="/spike/mind" element={<MindSpike />} />
       </Routes>

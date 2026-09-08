@@ -50,16 +50,23 @@ page.on('pageerror', (e) => pageErrors.push(String(e)));
 page.on('request', (r) => requests.push(r.url()));
 
 const visited: string[] = [];
-for (const route of ['', '#/spike/foundry', '#/spike/mind']) {
+for (const route of ['', '#/s1', '#/spike/foundry', '#/spike/mind']) {
   await page.goto(`${fileUrl}${route}`, { waitUntil: 'load' });
   if (route === '') {
+    // The room: wait until all three models and the window layers have
+    // decoded and a frame has drawn, not merely until a canvas exists.
+    await page.locator('canvas').waitFor({ timeout: 30_000 });
+    await page.waitForFunction(() => '__virgilRoomReady' in window, undefined, {
+      timeout: 120_000,
+    });
+  } else if (route === '#/s1') {
     await page.getByRole('heading', { level: 1 }).waitFor({ timeout: 15_000 });
   } else {
     await page.locator('canvas').waitFor({ timeout: 30_000 });
     await page.waitForFunction(() => '__virgilRenderer' in window, undefined, { timeout: 30_000 });
   }
   await page.waitForTimeout(1500);
-  visited.push(route === '' ? '(index)' : route);
+  visited.push(route === '' ? '(room)' : route);
 }
 
 const footer = (await page.locator('.owner-footer').first().innerText()).replace(/\s+/g, ' ');
