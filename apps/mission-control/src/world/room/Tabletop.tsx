@@ -3,7 +3,6 @@ import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
 import { StarField } from '../StarField.js';
 import { createFloorTexture } from './floorGraphic.js';
-import { Arch } from './Models.js';
 import { layout, room } from './palette.js';
 import { Contact } from './RoomShell.js';
 import { loadWindowTextures } from './WindowView.js';
@@ -20,15 +19,18 @@ import { loadWindowTextures } from './WindowView.js';
  * recompressed it and no original exists, so its clouds are soft, and it
  * is the stars going mushy that reads as bad, not soft clouds; crisp
  * procedural star points and grain are the agreed remedy. The planet and
- * the station stay as separate, unobstructed depth layers. The porthole
- * stands free as an arch at the back of the disc, which gives a flat disc
- * a skyline. The grain is a post-process (`VirgilRoom.tsx`).
+ * the station stay as separate, unobstructed depth layers. The grain is a
+ * post-process (`VirgilRoom.tsx`).
  *
- * The backdrop is built for a camera looking **down** at 30° (38° on a
- * phone): what it sees behind the disc is below the horizon, so the nebula
- * wraps a tall cylinder round the whole set, mirrored so no edge can show,
- * and the planet and the station hang below the horizon where the camera
- * looks.
+ * V8 (§0.10.3): **no window.** The owner, twice: "remove the circular
+ * window. I asked for that." The arch V7 kept as a skyline element is
+ * gone; the disc has no tall element and its silhouette is horizontal,
+ * which the near-level camera (§0.10.4) reads as a stage. And (§0.10.5)
+ * the planet and the station are **raised**: at a near-level camera the
+ * disc's far edge hides everything under the horizon — the owner: "the
+ * planet and space station in the background is covered by the floating
+ * tabletop, so they need to be moved up." The nebula still wraps a tall
+ * cylinder round the whole set, mirrored so no edge can show.
  *
  * V7: the floor's inlay is one texture on the disc's top face
  * (`floorGraphic.ts`), because the coplanar rings V6 laid over the floor
@@ -41,7 +43,6 @@ export function Tabletop() {
     <group>
       <Disc coarse={coarse} />
       <Contact coarse={coarse} centre={layout.tabletop.centre} scale={13} />
-      <Arch />
       <Backdrop coarse={coarse} />
       <StarField count={coarse ? 900 : 2600} radius={260} />
     </group>
@@ -105,7 +106,8 @@ function Disc({ coarse }: { coarse: boolean }) {
 /**
  * The owner's three window layers as a backdrop: the nebula wrapped round
  * a tall cylinder far outside the disc, mirrored at its seams; the planet
- * and the station as planes nearer in, below the horizon, so they slide
+ * and the station as planes nearer in, above the disc's far edge from the
+ * level camera (`layout.tabletop.planetAt`, `stationAt`), so they slide
  * against the nebula as the camera moves on its arc. Untone-mapped, as
  * behind the glass. The textures are the room's, cloned so the wrap and
  * repeat set here never reach the window.
@@ -121,19 +123,16 @@ function Backdrop({ coarse }: { coarse: boolean }) {
     return t;
   }, [textures]);
   const [cx, , cz] = layout.tabletop.centre;
+  const [px, py, pz] = layout.tabletop.planetAt;
+  const [sx, sy, sz] = layout.tabletop.stationAt;
   return (
     <group>
-      <mesh position={[cx, -30, cz]} rotation={[0, Math.PI, 0]}>
+      <mesh position={[cx, -20, cz]} rotation={[0, Math.PI, 0]}>
         <cylinderGeometry args={[58, 58, 170, coarse ? 32 : 64, 1, true]} />
         <meshBasicMaterial map={nebula} toneMapped={false} side={THREE.BackSide} />
       </mesh>
-      <Layer texture={textures.planet} position={[cx - 9, -11, cz - 34]} height={12} transparent />
-      <Layer
-        texture={textures.station}
-        position={[cx + 9.5, -6.5, cz - 27]}
-        height={5}
-        transparent
-      />
+      <Layer texture={textures.planet} position={[cx + px, py, cz + pz]} height={11} transparent />
+      <Layer texture={textures.station} position={[cx + sx, sy, cz + sz]} height={5} transparent />
     </group>
   );
 }

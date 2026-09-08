@@ -15,6 +15,7 @@ import {
   placedPositions,
   VISOR_PAINT,
   type VisorMask,
+  type VisorRegion,
 } from '../src/world/characters/visorFit.js';
 import {
   fabricator2Base64Payload,
@@ -84,7 +85,9 @@ function expectMask(
   );
   expect(new Set(mask.triangles).size, `${label}: duplicate triangles`).toBe(mask.triangles.length);
 
-  const { halfWidth, y0, y1, zMin } = mask.region;
+  // A visor's region is a head's front; a screen's (`fit-screen.mjs`) is a box.
+  expect('halfWidth' in mask.region, `${label}: a visor's region`).toBe(true);
+  const { halfWidth, y0, y1, zMin } = mask.region as VisorRegion;
   const bounds = new THREE.Box3();
   const p = new THREE.Vector3();
   for (const t of mask.triangles) {

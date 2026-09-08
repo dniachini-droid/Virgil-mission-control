@@ -19,8 +19,9 @@ import {
 import { Figure } from '../characters/Figure.js';
 import { VirgilRigged } from '../characters/VirgilRigged.js';
 import type { FaceState } from '../characters/Visor.js';
-import { ScreenBank, StationPanel } from '../screens/ScreenBank.js';
-import { CAST, eyeHeight, figurePlacement, panelPlacement, ROLES, type Role } from './cast.js';
+import { ConsoleScreen } from '../screens/ConsoleScreen.js';
+import { ScreenBank } from '../screens/ScreenBank.js';
+import { CAST, eyeHeight, figurePlacement, ROLES, type Role, screenCentre } from './cast.js';
 import { forcedState, useDemo } from './demo.js';
 import { LightingRig } from './LightingRig.js';
 import { PortholeFrame, Station, StationLight, VirgilConsole } from './Models.js';
@@ -35,9 +36,9 @@ import { WindowView } from './WindowView.js';
  * §2, as amended for V7):
  *
  *  - **the tabletop** — the presentation. A disc with a visible edge, no
- *    walls, the porthole standing free as an arch, the nebula with stars
- *    and grain as the backdrop, a camera at 30° on a 120° arc, and on a
- *    phone held upright a steeper camera of its own (`tabletopCamera`);
+ *    walls, no window (V8), the nebula with stars and grain as the
+ *    backdrop, the three consoles symmetrical behind Virgil's, a camera
+ *    almost level with the characters on a 120° arc (`tabletopCamera`);
  *  - **the room** — **retired, not removed.** The owner: "Room retired for
  *    now. No window. I might go back to it. But for the time being, we
  *    proceed with tabletop." Its code stays, reachable behind the `V` key
@@ -45,15 +46,16 @@ import { WindowView } from './WindowView.js';
  *    default and is not offered for judgement.
  *
  * Selecting a character — a click, or `1`–`4` — drops the camera to near
- * their eye level with their panel beside them; `Esc` or `0` returns. The
- * demonstration is scripted and says so on every surface.
+ * their eye level with their console's screen beside them; `5` looks at
+ * Virgil's three slabs; `Esc` or `0` returns. The demonstration is
+ * scripted and says so on every surface.
  *
  * Nothing here is a measurement of performance or of how it looks; the
  * container this is built in renders in software and misrepresents bloom
  * and colour. The owner's machine is the only display this project has.
  */
 export type View = 'room' | 'tabletop';
-export type Focus = 'all' | 'virgil' | Role;
+export type Focus = 'all' | 'virgil' | 'board' | Role;
 
 export function VirgilRoom() {
   const [demo, setDemo] = useState(true);
@@ -77,6 +79,7 @@ export function VirgilRoom() {
       else if (event.key === '2') setFocus('fabricator');
       else if (event.key === '3') setFocus('prover');
       else if (event.key === '4') setFocus('keeper');
+      else if (event.key === '5') setFocus('board');
       else if (event.key === '0' || event.key === 'Escape') setFocus('all');
     };
     window.addEventListener('keydown', onKey);
@@ -114,7 +117,6 @@ export function VirgilRoom() {
             ) : (
               <Tabletop />
             )}
-            <VirgilConsole />
             <Orrery />
             <Cast demo={demo} onSelect={setFocus} />
             <Ready />
@@ -156,20 +158,26 @@ export function VirgilRoom() {
           </span>
           <span className="room-controls-group">
             <span className="room-controls-label">Look at</span>
-            {(['all', 'virgil', ...ROLES] as Focus[]).map((who) => (
+            {(['all', 'virgil', ...ROLES, 'board'] as Focus[]).map((who) => (
               <button
                 type="button"
                 key={who}
                 className={focus === who ? 'is-active' : ''}
                 onClick={() => setFocus(who)}
               >
-                {who === 'all' ? 'All' : who === 'virgil' ? 'Virgil' : CAST[who].label}
+                {who === 'all'
+                  ? 'All'
+                  : who === 'virgil'
+                    ? 'Virgil'
+                    : who === 'board'
+                      ? 'Board'
+                      : CAST[who].label}
               </button>
             ))}
           </span>
           <span className="room-controls-hint">
-            Drag to look around. Scroll to move closer. Tap a character to go to them; Esc comes
-            back. V shows the retired room.
+            Drag to look around. Scroll to move closer. Tap a character to go to them; Board is
+            Virgil's three screens; Esc comes back. V shows the retired room.
           </span>
         </div>
         {demo ? (
@@ -194,31 +202,33 @@ function Backdrop({ view }: { view: View }) {
 
 /**
  * Everyone in the set and everything they read: Virgil (rigged) with his
- * face and the screen bank behind him; each of the three at their own
- * station with their face, their panel and their light. Driven by the demo
- * timeline when it runs, otherwise resting.
+ * face, his console spotlit while he conducts, and his three slabs above
+ * him; each of the three at their own console with their face, the
+ * console's own screen and its light, the console spotlit while they
+ * work. Driven by the demo timeline when it runs, otherwise resting.
  */
 function Cast({ demo, onSelect }: { demo: boolean; onSelect: (focus: Focus) => void }) {
   const forced = forcedFace();
   const running = useDemo(demo && forced === null);
   const state = forced ? forcedState(forced) : running;
+  const virgilBusy = state.pose !== 'rest' || state.virgilFace !== 'idle';
   return (
     <>
+      <VirgilConsole active={virgilBusy && !state.content.ownerGate} />
       <VirgilRigged pose={state.pose} face={state.virgilFace} onSelect={() => onSelect('virgil')} />
-      <ScreenBank content={state.content} />
+      <ScreenBank content={state.content} outcome={state.outcome} />
       {ROLES.map((role) => {
         const member = state.cast[role];
-        const panel = panelPlacement(role);
         return (
           <group key={role}>
-            <Station role={role} />
+            <Station role={role} active={member.activity !== 'rest'} />
             <Figure role={role} face={member.face} activity={member.activity} onSelect={onSelect} />
-            <StationPanel
-              position={panel.position}
-              rotation={panel.rotation}
-              occupant={CAST[role].label}
+            <ConsoleScreen
+              role={role}
               state={member.station}
               report={member.report}
+              outcome={state.outcome}
+              quiet={state.content.ownerGate ? 0.75 : 0}
             />
             <StationLight role={role} activity={member.activity} report={member.report} />
           </group>
@@ -266,10 +276,12 @@ function viewportAspect(): number {
 
 /**
  * The camera for a view, a focus and the viewport's aspect. The authored
- * views — the tabletop's answers to the aspect, so a phone held upright
- * gets its own framing — and for each character a pose near their eye
- * level, read off the visor that travels with their model, a little to one
- * side so the panel beside them is in the frame.
+ * views — the tabletop's answers to the aspect, almost level with the
+ * characters — and for each character a pose near their eye level, read
+ * off the visor that travels with their model, standing where their
+ * console's screen is in the frame beside them; for Virgil his face; for
+ * the board his three slabs, from a distance the aspect needs to hold
+ * all three.
  */
 export function cameraPose(view: View, focus: Focus, aspect = 16 / 9): Pose {
   if (focus === 'virgil') {
@@ -279,18 +291,31 @@ export function cameraPose(view: View, focus: Focus, aspect = 16 / 9): Pose {
     const eye = vy + 1.13;
     return { position: [vx + 0.55, eye + 0.25, vz + 3.1], target: [vx, eye - 0.05, vz], fov: 38 };
   }
+  if (focus === 'board') {
+    const { y, z, spread } = layout.screenBank;
+    const fov = 44;
+    const halfWidth = spread + 0.85;
+    const distance = Math.max(5, halfWidth / (Math.tan((fov / 2) * (Math.PI / 180)) * aspect));
+    return { position: [0, y - 0.1, z + distance], target: [0, y - 0.15, z], fov };
+  }
   if (focus !== 'all') {
     const { at, rotationY: f } = figurePlacement(focus);
     const eye = eyeHeight(focus);
+    const screen = screenCentre(focus);
     const side = layout.stations[focus].cameraSide;
     const fx = Math.sin(f);
     const fz = Math.cos(f);
     const rx = Math.cos(f);
     const rz = -Math.sin(f);
+    // Look between the face and the screen, from in front, a little to
+    // the screen's side, so both are in the frame.
+    const tx = at[0] * 0.55 + screen[0] * 0.45;
+    const tz = at[2] * 0.55 + screen[2] * 0.45;
+    const ty = eye * 0.6 + screen[1] * 0.4;
     return {
-      position: [at[0] + fx * 2.7 + rx * 0.6 * side, eye + 0.3, at[2] + fz * 2.7 + rz * 0.6 * side],
-      target: [at[0] + rx * 0.4, eye - 0.05, at[2] + rz * 0.4],
-      fov: 38,
+      position: [tx + fx * 3.0 + rx * 0.6 * side, ty + 0.3, tz + fz * 3.0 + rz * 0.6 * side],
+      target: [tx, ty - 0.05, tz],
+      fov: 40,
     };
   }
   if (view === 'tabletop') return tabletopCamera(aspect);
@@ -333,7 +358,7 @@ export function limitsFor(view: View, focus: Focus, pose: Pose): Limits {
       minAzimuthAngle: azimuth - 0.7,
       maxAzimuthAngle: azimuth + 0.7,
       minDistance: 1.4,
-      maxDistance: 6,
+      maxDistance: focus === 'board' ? 14 : 6,
     };
   }
   if (view === 'room') {
@@ -346,12 +371,14 @@ export function limitsFor(view: View, focus: Focus, pose: Pose): Limits {
       maxDistance: 10,
     };
   }
-  // The tabletop: ±12.6° of elevation about the pose's own, on a 120° arc.
+  // The tabletop: from a little below the pose's own elevation to some
+  // way above it, on a 120° arc — the owner can rise to look over the
+  // set but not sink under the disc.
   const dy = pose.position[1] - pose.target[1];
   const polar = Math.atan2(Math.hypot(dx, dz), dy);
   return {
-    minPolarAngle: polar - 0.22,
-    maxPolarAngle: polar + 0.22,
+    minPolarAngle: polar - 0.45,
+    maxPolarAngle: polar + 0.1,
     minAzimuthAngle: -Math.PI / 3,
     maxAzimuthAngle: Math.PI / 3,
     minDistance: 6,
@@ -474,7 +501,8 @@ function initialView(): View {
 /** `#/?cam=prover` opens looking at the Prover, for the captures. */
 function initialFocus(): Focus {
   const cam = query().get('cam');
-  if (cam === 'virgil' || (ROLES as readonly string[]).includes(cam ?? '')) return cam as Focus;
+  if (cam === 'virgil' || cam === 'board' || (ROLES as readonly string[]).includes(cam ?? ''))
+    return cam as Focus;
   return 'all';
 }
 

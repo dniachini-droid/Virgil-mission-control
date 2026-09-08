@@ -41,6 +41,13 @@ import { createGlassMaterial as createGlass, PAINT_TEST, type PaintRule } from '
  * the three figures once his was seen to work. The pipeline records, per
  * head, how ragged the paint's edge is.
  *
+ * **V8: the consoles' screens use the same builder** (`screens/ConsoleScreen.tsx`,
+ * `asset-pipeline/fit-screen.mjs`, §0.10.2). A screen mask names the
+ * console's own screen triangles with a rule that keeps every pixel, the
+ * glass stands a little further off (`gap`), and the face material
+ * carries the CRT power uniforms (`crt.ts`) a screen turns on and off
+ * with — at their identity for a visor. One face, one glass, two hosts.
+ *
  * Everything in this file is pure three.js and runs without a renderer.
  */
 
@@ -57,13 +64,32 @@ export type { PaintRule };
 /** How far the glass stands off the face, in metres. */
 export const GLASS_GAP_M = 0.006;
 
-/** What `fit-visor.mjs` writes. */
+/** The region `fit-visor.mjs` looked in: a head's front. */
+export interface VisorRegion {
+  halfWidth: number;
+  y0: number;
+  y1: number;
+  zMin: number;
+}
+/** The region `fit-screen.mjs` looked in: a box holding a console's screen. */
+export interface ScreenRegion {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+  z0: number;
+  z1: number;
+}
+
+/** What `fit-visor.mjs` writes — and, in the same shape, `fit-screen.mjs`. */
 export interface VisorMask {
   source: { asset: string; payloadSha256: string };
   frame: string;
   joint: string | null;
+  /** `screen` for a console's screen; absent for a visor. */
+  kind?: string;
   paint: PaintRule & { space: string; samplesPerTriangle: number; overridesDefault: boolean };
-  region: { halfWidth: number; y0: number; y1: number; zMin: number };
+  region: VisorRegion | ScreenRegion;
   measured: {
     trianglesConsidered: number;
     trianglesPainted: number;
@@ -72,6 +98,9 @@ export interface VisorMask {
     triangleBounds: { min: number[]; max: number[] };
     paintBounds: { min: number[]; max: number[] };
     centre: number[];
+    /** A screen's area and mean normal (`fit-screen.mjs`); absent for a visor. */
+    areaSquareMetres?: number;
+    meanNormal?: number[];
   };
   /** Triangle indices into the head geometry's index buffer (triangle n is indices 3n..3n+2). */
   triangles: number[];
@@ -94,6 +123,7 @@ export function buildVisorGeometry(
   mask: VisorMask,
   fitPositions: ArrayLike<number>,
   metresPerUnit: number,
+  gapMetres = GLASS_GAP_M,
 ): VisorGeometry {
   const index = source.index;
   if (!index) throw new Error('visor: the head geometry has no index');
@@ -132,7 +162,7 @@ export function buildVisorGeometry(
   const { min, max } = mask.measured.paintBounds;
   const width = (max[0] as number) - (min[0] as number);
   const height = (max[1] as number) - (min[1] as number);
-  const gap = GLASS_GAP_M / metresPerUnit;
+  const gap = gapMetres / metresPerUnit;
   const n = new THREE.Vector3();
   for (let i = 0; i < count; i += 1) {
     const v = order[i] as number;
@@ -204,11 +234,27 @@ const FACE_FRAGMENT = /* glsl */ `
   uniform sampler2D tPaint;
   uniform float uPaintLuminance;
   uniform float uPaintChroma;
+  // The CRT (screens/crt.ts): the image's scale about its centre, its
+  // brightness, an added flash, and the afterglow dot. Identity for a visor.
+  uniform vec2 uScale;
+  uniform float uPower;
+  uniform float uFlash;
+  uniform float uGlow;
+  uniform float uAspect;
   varying vec2 vUv;
   varying vec2 vFaceUv;
   void main() {
     ${PAINT_TEST.replace('PAINT_UV', 'vUv')}
-    gl_FragColor = vec4(texture2D(tFace, vFaceUv).rgb, 1.0);
+    vec2 c = vFaceUv - 0.5;
+    vec2 q = c / max(uScale, vec2(0.0005));
+    float inside = step(abs(q.x), 0.5) * step(abs(q.y), 0.5);
+    vec3 image = texture2D(tFace, q + 0.5).rgb * inside;
+    // The same light in a thinner band is brighter: the collapsing line glows.
+    float squeeze = min(1.0 / max(uScale.x * uScale.y, 0.04), 5.0);
+    vec3 colour = image * uPower * squeeze + uFlash * inside * vec3(0.92, 0.96, 1.0);
+    float d = length(vec2(c.x * uAspect, c.y));
+    colour += uGlow * vec3(0.85, 0.95, 1.0) * smoothstep(0.05, 0.0, d);
+    gl_FragColor = vec4(colour, 1.0);
     #include <colorspace_fragment>
   }
 `;
@@ -224,6 +270,7 @@ export function createFaceMaterial(
   face: THREE.Texture,
   paint: THREE.Texture,
   rule: PaintRule = VISOR_PAINT,
+  aspect = 1,
 ): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
@@ -231,6 +278,11 @@ export function createFaceMaterial(
       tPaint: { value: paint },
       uPaintLuminance: { value: rule.luminance },
       uPaintChroma: { value: rule.chroma },
+      uScale: { value: new THREE.Vector2(1, 1) },
+      uPower: { value: 1 },
+      uFlash: { value: 0 },
+      uGlow: { value: 0 },
+      uAspect: { value: aspect },
     },
     vertexShader: FACE_VERTEX,
     fragmentShader: FACE_FRAGMENT,
@@ -275,9 +327,11 @@ export function buildVisorMeshes(
   metresPerUnit: number,
   faceTexture: THREE.Texture,
   paint: THREE.Texture,
+  options: { gapMetres?: number } = {},
 ): VisorMeshes {
-  const geometry = buildVisorGeometry(head.geometry, mask, fitPositions, metresPerUnit);
-  const faceMaterial = createFaceMaterial(faceTexture, paint, mask.paint);
+  const gapMetres = options.gapMetres ?? GLASS_GAP_M;
+  const geometry = buildVisorGeometry(head.geometry, mask, fitPositions, metresPerUnit, gapMetres);
+  const faceMaterial = createFaceMaterial(faceTexture, paint, mask.paint, faceAspect(mask));
   const glassMaterial = createGlassMaterial(paint, mask.paint);
   const skinned = (head as THREE.SkinnedMesh).isSkinnedMesh ? (head as THREE.SkinnedMesh) : null;
   const make = (g: THREE.BufferGeometry, m: THREE.Material, name: string) => {

@@ -22,15 +22,13 @@ import { layout, room } from './palette.js';
  * The map stays for the porthole frame, which is the one ornate model
  * still used and still carries a metallic-roughness map, at half strength. The same
  * rig lights both presentations; only where the cool side comes from
- * changes — the wall's window in the room, the arch on the tabletop.
+ * changes — the wall's window in the room, the back of the disc on the
+ * tabletop (V8: the arch is gone, the light it stood in stays).
  */
 export function LightingRig({ view }: { view: 'room' | 'tabletop' }) {
   const { tier } = useSettings();
   const coarse = tier === 'constrained' || tier === 'mobile';
-  const [wx, wy, wz] =
-    view === 'room'
-      ? layout.windowCentre
-      : [layout.tabletop.archAt[0], 2.8, layout.tabletop.archAt[2]];
+  const [wx, wy, wz] = view === 'room' ? layout.windowCentre : layout.tabletop.coolLightAt;
   const [vx, vy, vz] = layout.virgilAt;
   const [cx, , cz] = layout.consoleCentre;
 

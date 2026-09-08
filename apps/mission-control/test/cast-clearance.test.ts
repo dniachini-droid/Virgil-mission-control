@@ -6,6 +6,7 @@ import {
   type MeshyAssetMetadata,
 } from '../src/world/assets/meshyAsset.js';
 import { BREATH, BREATH_EXTREMES, type Breath } from '../src/world/characters/breathing.js';
+import { OVERSHOOT } from '../src/world/characters/locomotion.js';
 import { placedPositions } from '../src/world/characters/visorFit.js';
 import {
   console3Base64Payload,
@@ -21,10 +22,11 @@ import {
   CAST,
   FACE_TURN,
   figurePlacement,
-  idlePlacement,
+  placedReach,
   ROLES,
   type Role,
   STAND_GAP,
+  workingPlacement,
 } from '../src/world/room/cast.js';
 import { layout } from '../src/world/room/palette.js';
 import {
@@ -37,10 +39,14 @@ import {
  * Nobody stands in anything. V5 held the Prover clear of his station by
  * re-measuring the station from its payload and voxelising both surfaces;
  * V6 does the same for all three characters at their own stations, and
- * for Virgil on his console's deck. V7 adds each character's idle
- * position (they stand aside until a job arrives, §0.7) and the path
- * between the two. The numbers in `palette.ts` and `cast.ts` are held to
- * the models rather than remembered from them.
+ * for Virgil on his console's deck. V8 (§0.10.8) replaces the idle-aside
+ * position with a turn in place: the character stands in one spot and
+ * turns to face their screen, so the clearance is held **through the
+ * whole turn** — at the front facing, at the screen facing, at every
+ * yaw between, and past the screen facing by the turn's overshoot — with
+ * the breathing at its extremes at both ends. The numbers in
+ * `palette.ts` and `cast.ts` are held to the models rather than
+ * remembered from them.
  */
 
 function placed(metadata: MeshyAssetMetadata, base64: string) {
@@ -113,20 +119,26 @@ describe.each(ROLES)('the %s at their station', (role) => {
   const figure = placed(CAST[role].model.metadata, PAYLOADS[role].figure);
   const placement = figurePlacement(role);
 
-  it('stands on the floor, clear of the station’s front edge, at its front-left corner', () => {
+  it('stands on the floor, clear of the station’s front edge at any angle, to its left', () => {
     let stationFront = Number.NEGATIVE_INFINITY;
     for (let i = 0; i < station.positions.length; i += 3) {
       stationFront = Math.max(stationFront, station.positions[i + 2] as number);
     }
-    let figureBack = Number.POSITIVE_INFINITY;
+    // The figure's widest horizontal reach from its axis: what it sweeps when it turns.
+    let reach = 0;
     for (let i = 0; i < figure.positions.length; i += 3) {
-      figureBack = Math.min(figureBack, figure.positions[i + 2] as number);
+      reach = Math.max(
+        reach,
+        Math.hypot(figure.positions[i] as number, figure.positions[i + 2] as number),
+      );
     }
+    expect(placedReach(CAST[role].model.metadata)).toBeGreaterThanOrEqual(reach - 0.002);
     const [x, y, z] = placement.local;
     expect(y).toBe(0);
     expect(x).toBeLessThan(0);
-    // The standing point is derived from the two models' measured fronts.
-    expect(z + figureBack - stationFront).toBeCloseTo(STAND_GAP, 3);
+    // The standing point is derived from the station's measured front and
+    // the figure's measured reach, so no yaw brings it nearer than the gap.
+    expect(z - placedReach(CAST[role].model.metadata) - stationFront).toBeCloseTo(STAND_GAP, 3);
     expect(placement.rotationY).toBeCloseTo(CAST[role].rotationY * FACE_TURN, 6);
     // Feet on the floor.
     let lowest = Number.POSITIVE_INFINITY;
@@ -141,8 +153,8 @@ describe.each(ROLES)('the %s at their station', (role) => {
   // machine: pnpm check once failed this on Vitest's 5 s default while two
   // software-rendering captures ran beside it. The bound is the geometry's,
   // not the clock's.
-  it('touches no station geometry at any extreme of their breathing, at work, idle, and on the way', {
-    timeout: 180_000,
+  it('touches no station geometry at any extreme of their breathing, facing front, facing the screen, and through the turn', {
+    timeout: 240_000,
   }, () => {
     const stationIndex = station.geometry.index as THREE.BufferAttribute;
     const figureIndex = figure.geometry.index as THREE.BufferAttribute;
@@ -155,26 +167,31 @@ describe.each(ROLES)('the %s at their station', (role) => {
     );
     expect(stationVoxels.size).toBeGreaterThan(5_000);
     expect(BREATH.rise).toBeLessThanOrEqual(0.02);
-    const idle = idlePlacement(role);
-    // The figure in the station's frame: turned by (FACE_TURN − 1) of the
-    // station's rotation, since both are placed in the room and the figure
-    // turns a little more toward the camera than the station does. Every
-    // breathing extreme at the working position; the rest pose at the idle
-    // position and at the middle of the glide between them.
+    const atScreen = workingPlacement(role);
+    // The figure in the station's frame: yawed relative to the station,
+    // since both are placed in the room. Every breathing extreme at both
+    // facings; the rest pose at eight yaws through the turn and at the
+    // overshoot past the screen facing.
     const poses: { label: string; local: [number, number, number]; yaw: number; b: Breath }[] = [];
     for (const b of [{ rise: 0, sway: 0, yaw: 0 }, ...BREATH_EXTREMES]) {
-      poses.push({ label: 'working', local: placement.local, yaw: placement.rotationY, b });
+      poses.push({ label: 'front', local: placement.local, yaw: placement.rotationY, b });
+      poses.push({ label: 'screen', local: placement.local, yaw: atScreen.rotationY, b });
     }
     const still = { rise: 0, sway: 0, yaw: 0 };
-    poses.push({ label: 'idle', local: idle.local, yaw: idle.rotationY, b: still });
+    let dr = atScreen.rotationY - placement.rotationY;
+    dr = Math.atan2(Math.sin(dr), Math.cos(dr));
+    for (let k = 1; k <= 8; k += 1) {
+      poses.push({
+        label: `turn ${k}/8`,
+        local: placement.local,
+        yaw: placement.rotationY + dr * (k / 8),
+        b: still,
+      });
+    }
     poses.push({
-      label: 'midway',
-      local: [
-        (placement.local[0] + idle.local[0]) / 2,
-        0,
-        (placement.local[2] + idle.local[2]) / 2,
-      ],
-      yaw: (placement.rotationY + idle.rotationY) / 2,
+      label: 'overshoot',
+      local: placement.local,
+      yaw: placement.rotationY + dr * (1 + OVERSHOOT),
       b: still,
     });
     for (const { label, local, yaw, b } of poses) {

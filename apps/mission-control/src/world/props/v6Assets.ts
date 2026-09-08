@@ -18,16 +18,19 @@ import fabricator2Json from './fabricator2-asset.json';
 import fabricator2Visor from './fabricator2-visor.json';
 import fabricatorStationBase64 from './fabricatorStation-asset.b64.txt?raw';
 import fabricatorStationJson from './fabricatorStation-asset.json';
+import fabricatorStationScreen from './fabricatorStation-screen.json';
 import keeper2Base64 from './keeper2-asset.b64.txt?raw';
 import keeper2Json from './keeper2-asset.json';
 import keeper2Visor from './keeper2-visor.json';
 import keeperStationBase64 from './keeperStation-asset.b64.txt?raw';
 import keeperStationJson from './keeperStation-asset.json';
+import keeperStationScreen from './keeperStation-screen.json';
 import prover2Base64 from './prover2-asset.b64.txt?raw';
 import prover2Json from './prover2-asset.json';
 import prover2Visor from './prover2-visor.json';
 import proverStationBase64 from './proverStation-asset.b64.txt?raw';
 import proverStationJson from './proverStation-asset.json';
+import proverStationScreen from './proverStation-screen.json';
 
 export const console3Metadata: MeshyAssetMetadata = console3Json;
 export const fabricatorStationMetadata: MeshyAssetMetadata = fabricatorStationJson;
@@ -41,6 +44,17 @@ export const keeper2Metadata: MeshyAssetMetadata = keeper2Json;
 export const fabricator2VisorMask: VisorMask = fabricator2Visor;
 export const prover2VisorMask: VisorMask = prover2Visor;
 export const keeper2VisorMask: VisorMask = keeper2Visor;
+
+/**
+ * Which of each station's triangles are its screen
+ * (`asset-pipeline/fit-screen.mjs`, V8 §0.10.2): the same mask shape as a
+ * visor's, so the same builder draws the live screen on the console's own
+ * surface, with a rule that keeps every pixel because the screens carry
+ * baked writing.
+ */
+export const fabricatorStationScreenMask: VisorMask = fabricatorStationScreen;
+export const proverStationScreenMask: VisorMask = proverStationScreen;
+export const keeperStationScreenMask: VisorMask = keeperStationScreen;
 
 export const console3Base64Payload = console3Base64;
 export const fabricatorStationBase64Payload = fabricatorStationBase64;

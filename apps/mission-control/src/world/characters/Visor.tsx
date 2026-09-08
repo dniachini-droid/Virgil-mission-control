@@ -25,7 +25,12 @@ import { buildVisorMeshes, faceAspect, type VisorMask } from './visorFit.js';
  * a blink on every change of state, eye forms per state, a wash of the
  * state's colour up from below and a rim of it along the bottom so the
  * colour reads even when the eyes are a few pixels, and a point light in
- * the state's colour that lights the chest.
+ * the state's colour that lights the chest. V8 (§0.10.8) adds the
+ * **flare**: the owner asked that when work arrives "an animation plays
+ * on their face/eyes" before they turn to their screen, so on becoming
+ * attentive the eyes widen sharply and a ring of the state's colour
+ * bursts out of each and fades over `FLARE_SECONDS` — the face registers
+ * the summons, then the body turns (`Figure.tsx`).
  *
  * **Reduced motion (KR-55).** V5 returned nothing under reduced motion,
  * which removed the face and its light entirely — Virgil showed a baked
@@ -114,9 +119,14 @@ export interface FaceAppearance {
   open: number;
   /** The glow's pulse, 0.64 .. 1. */
   pulse: number;
+  /** The summons registering: 1 at the moment of becoming attentive, 0 once it has passed. */
+  flare: number;
   /** Whether the canvas needs drawing this frame. */
   draw: boolean;
 }
+
+/** How long the flare takes to pass. `Figure.tsx` waits for it before the turn. */
+export const FLARE_SECONDS = 0.9;
 
 export interface FaceClock {
   t: number;
@@ -126,6 +136,8 @@ export interface FaceClock {
   lastDraw: number;
   /** The state last drawn, so a static face is redrawn only on a change. */
   drawnState: FaceState | null;
+  /** When the state last changed, on this clock; the flare runs from it. */
+  stateAt?: number;
 }
 
 /**
@@ -146,8 +158,9 @@ export function faceAppearance(
   if (reducedMotion) {
     const draw = clock.drawnState !== state;
     clock.drawnState = state;
-    return { style, colour, open: 1, pulse: 1, draw };
+    return { style, colour, open: 1, pulse: 1, flare: 0, draw };
   }
+  if (clock.drawnState !== state) clock.stateAt = clock.t;
   clock.t += delta;
   let open = 1;
   if (state !== 'blocked') {
@@ -166,11 +179,16 @@ export function faceAppearance(
     }
   }
   const pulse = 0.82 + 0.18 * Math.sin(clock.t * Math.PI * 2 * PULSE_HZ[state]);
-  // 24 fps is plenty for a face; the texture upload is the cost.
-  const draw = clock.lastDraw < 0 || clock.t - clock.lastDraw >= 1 / 24;
+  // The flare: only on becoming attentive, and only while it lasts.
+  const sinceState = clock.t - (clock.stateAt ?? clock.t);
+  const flare =
+    state === 'attentive' && sinceState < FLARE_SECONDS ? 1 - sinceState / FLARE_SECONDS : 0;
+  // 24 fps is plenty for a face; the texture upload is the cost — but the
+  // flare is drawn every frame while it lasts.
+  const draw = clock.lastDraw < 0 || clock.t - clock.lastDraw >= 1 / 24 || flare > 0;
   if (draw) clock.lastDraw = clock.t;
   clock.drawnState = state;
-  return { style, colour, open, pulse, draw };
+  return { style, colour, open, pulse, flare, draw };
 }
 
 /** Where a visor is: the head, the mask that names its triangles, and the frames things go in. */
@@ -247,13 +265,13 @@ export function Visor({
 
   useFrame((_, delta) => {
     const c = clock.current;
-    const look = faceAppearance(state, reducedMotion, c, delta);
+    const look = faceAppearance(state, reducedMotion, c, Math.min(delta, 0.1));
     if (light.current) {
       light.current.color.copy(colour);
       light.current.intensity = lightIntensity * look.pulse * (state === 'blocked' ? 1.4 : 1);
     }
     if (!look.draw) return;
-    drawFace(canvas, look.style, look.colour, look.open, look.pulse, eyes, c.t);
+    drawFace(canvas, look.style, look.colour, look.open, look.pulse, eyes, c.t, look.flare);
     texture.needsUpdate = true;
   });
 
@@ -293,6 +311,7 @@ export function drawFace(
   pulse: number,
   eyes: boolean,
   t: number,
+  flare = 0,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -338,12 +357,29 @@ export function drawFace(
     return;
   }
 
-  const ew = w * style.eye[0];
-  const eh = h * style.eye[1];
+  // The flare widens the eyes sharply at first and lets them relax back.
+  const widen = 1 + 0.42 * flare * flare;
+  const ew = w * style.eye[0] * widen;
+  const eh = h * style.eye[1] * widen;
   const cy = h * 0.47;
   ctx.lineCap = 'round';
   for (const side of [-1, 1]) {
     const cx = w * 0.5 + side * w * 0.21;
+    if (flare > 0) {
+      // A ring bursting out of each eye and fading as it grows: the
+      // summons registering before the body turns.
+      const burst = 1 - flare;
+      ctx.save();
+      ctx.strokeStyle = colour;
+      ctx.shadowColor = colour;
+      ctx.shadowBlur = 18;
+      ctx.globalAlpha = 0.85 * flare;
+      ctx.lineWidth = Math.max(4, 12 * flare);
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, ew * (0.6 + 1.6 * burst), eh * (0.6 + 1.6 * burst), 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(side * style.tilt);

@@ -4,9 +4,11 @@ import {
   fabricator2Metadata,
   fabricator2VisorMask,
   fabricatorStationMetadata,
+  fabricatorStationScreenMask,
   keeper2Metadata,
   keeper2VisorMask,
   keeperStationMetadata,
+  keeperStationScreenMask,
   loadFabricator2,
   loadFabricatorStation,
   loadKeeper2,
@@ -16,6 +18,7 @@ import {
   prover2Metadata,
   prover2VisorMask,
   proverStationMetadata,
+  proverStationScreenMask,
 } from '../props/v6Assets.js';
 import { layout } from './palette.js';
 
@@ -31,10 +34,17 @@ import { layout } from './palette.js';
  * component knows which file is which; components ask this table.
  *
  * Each character has their own station, by the owner's later direction
- * (§1.2), and stands on the floor at its front-left corner facing the
- * camera, with the station's own screen visible beside their head and
- * their panel floating on their other side. The standing point is derived
- * from the two models' measured bounds, not set by hand.
+ * (§1.2). V8 (§0.10.8), the owner: "have each agent at the console,
+ * sightly to the left so it doesnt obstruct the screens, faciung forward.
+ * When they get sent work, an animation plays on their face/eyes and they
+ * turn aroundfacing the screeen. When its done, they turn aroiund and face
+ * the front again." So a character has **one** standing point — on the
+ * floor in front of their console, to its left, clear of it by a margin
+ * that holds at every angle of the turn — and **two facings**: the front
+ * (`figurePlacement`) and their console's screen (`workingPlacement`).
+ * The standing point is derived from the models' measured bounds, not set
+ * by hand, and the screen is the one `fit-screen.mjs` found on the
+ * console's own mesh.
  */
 export type Role = 'fabricator' | 'prover' | 'keeper';
 export const ROLES: readonly Role[] = ['fabricator', 'prover', 'keeper'];
@@ -49,6 +59,8 @@ export interface FigureModel {
 export interface StationModel {
   load: () => Promise<MeshyAsset>;
   metadata: MeshyAssetMetadata;
+  /** Which of this console's own triangles are its screen. Travels with the model. */
+  screen: VisorMask;
 }
 
 export interface CastMember {
@@ -89,7 +101,11 @@ export const CAST: Record<Role, CastMember> = {
     alias: 'builder',
     identification: 'owner-identified',
     model: FABRICATOR_MODEL,
-    station: { load: loadFabricatorStation, metadata: fabricatorStationMetadata },
+    station: {
+      load: loadFabricatorStation,
+      metadata: fabricatorStationMetadata,
+      screen: fabricatorStationScreenMask,
+    },
     at: layout.stations.fabricator.at,
     rotationY: layout.stations.fabricator.rotationY,
   },
@@ -97,7 +113,11 @@ export const CAST: Record<Role, CastMember> = {
     label: 'Prover',
     identification: 'provisional (session assignment)',
     model: PROVER_MODEL, // ← to swap the Prover and the Keeper, exchange this line's value…
-    station: { load: loadProverStation, metadata: proverStationMetadata },
+    station: {
+      load: loadProverStation,
+      metadata: proverStationMetadata,
+      screen: proverStationScreenMask,
+    },
     at: layout.stations.prover.at,
     rotationY: layout.stations.prover.rotationY,
   },
@@ -105,26 +125,27 @@ export const CAST: Record<Role, CastMember> = {
     label: 'Keeper',
     identification: 'provisional (session assignment)',
     model: KEEPER_MODEL, // ← …with this one, then rename the two files and rewrite their register rows.
-    station: { load: loadKeeperStation, metadata: keeperStationMetadata },
+    station: {
+      load: loadKeeperStation,
+      metadata: keeperStationMetadata,
+      screen: keeperStationScreenMask,
+    },
     at: layout.stations.keeper.at,
     rotationY: layout.stations.keeper.rotationY,
   },
 };
 
-/** Clearance between a station's front edge and the character in front of it. */
+/**
+ * Clearance between a station's front edge and the nearest the character
+ * comes to it at **any** angle of the turn: the character's footprint is
+ * taken as a circle of its widest horizontal reach, so turning in place
+ * can never sweep a shoulder into the console.
+ */
 export const STAND_GAP = 0.2;
 /** How far to the station's left (its −x) the character stands, so its screen shows. */
 export const STAND_SIDE = -0.55;
-/** The character turns a little more toward the camera than the station does. */
+/** The character faces the camera a little more squarely than the station does. */
 export const FACE_TURN = 0.7;
-/**
- * Where a character idles, relative to where they work (V7 §0.7): a step
- * further to the station's left and a step forward, standing aside until
- * a job arrives, when they move up to the panel. Both positions are in
- * front of the station, so the straight path between them never comes
- * nearer to it than the working position does.
- */
-export const IDLE_ASIDE: readonly [number, number] = [-0.7, 0.45];
 
 /** A point in a station's frame, in the room. */
 export function stationToWorld(
@@ -146,6 +167,22 @@ export function placedFront(metadata: MeshyAssetMetadata): number {
   return (metadata.measured.boundsMax[2] as number) * metadata.runtime.scale;
 }
 
+/**
+ * A model's widest horizontal reach from its own axis, from its measured
+ * bounds: the radius of the circle it sweeps when it turns in place.
+ */
+export function placedReach(metadata: MeshyAssetMetadata): number {
+  const x = Math.max(
+    Math.abs(metadata.measured.boundsMax[0] as number),
+    Math.abs(metadata.measured.boundsMin[0] as number),
+  );
+  const z = Math.max(
+    Math.abs(metadata.measured.boundsMax[2] as number),
+    Math.abs(metadata.measured.boundsMin[2] as number),
+  );
+  return Math.hypot(x, z) * metadata.runtime.scale;
+}
+
 export interface Placement {
   /** In the station's frame. */
   local: [number, number, number];
@@ -154,14 +191,15 @@ export interface Placement {
 }
 
 /**
- * Where a character stands: on the floor, `STAND_GAP` clear of the station's
- * front edge (both measured), at its front-left corner, turned toward the
- * camera. `test/cast-clearance.test.ts` holds the figure clear of the
- * station at every extreme of its breathing.
+ * Where a character stands, facing the front: on the floor, `STAND_GAP`
+ * clear of the station's front edge at every angle of the turn (both
+ * measured), to the console's left, turned toward the camera.
+ * `test/cast-clearance.test.ts` holds the figure clear of the station at
+ * every extreme of its breathing and through the whole turn.
  */
 export function figurePlacement(role: Role): Placement {
   const member = CAST[role];
-  const dz = placedFront(member.station.metadata) + STAND_GAP + placedFront(member.model.metadata);
+  const dz = placedFront(member.station.metadata) + STAND_GAP + placedReach(member.model.metadata);
   return {
     local: [STAND_SIDE, 0, dz],
     at: stationToWorld(role, STAND_SIDE, 0, dz),
@@ -170,44 +208,32 @@ export function figurePlacement(role: Role): Placement {
 }
 
 /**
- * Where a character idles: aside from the working position by
- * `IDLE_ASIDE`, turned a little further toward the camera. The move
- * between the two is `characters/locomotion.ts`. Held clear of the
- * station by the same test as the working position.
+ * The same standing point, facing the console's screen: the yaw that
+ * points the character at the centre of the screen `fit-screen.mjs`
+ * found, which is behind them and a little to their right. The turn
+ * between the two facings is `characters/locomotion.ts`.
  */
-export function idlePlacement(role: Role): Placement {
-  const working = figurePlacement(role);
-  const [dx, dz] = IDLE_ASIDE;
-  const local: [number, number, number] = [
-    working.local[0] + dx,
-    working.local[1],
-    working.local[2] + dz,
-  ];
-  return {
-    local,
-    at: stationToWorld(role, local[0], local[1], local[2]),
-    rotationY: CAST[role].rotationY * FACE_TURN * 0.8,
-  };
-}
-
-/**
- * Where the character's panel floats: over the station's front-right, at
- * head height, turned as the character is. No stand — the owner approved
- * floating panels in V4.
- */
-export function panelPlacement(role: Role): {
-  position: [number, number, number];
-  rotation: [number, number, number];
-} {
+export function workingPlacement(role: Role): Placement {
+  const front = figurePlacement(role);
   const member = CAST[role];
-  const dz = placedFront(member.station.metadata) + 0.05;
+  const [sx, , sz] = member.station.screen.measured.centre as [number, number, number];
+  const [x, , z] = front.local;
+  // +z is the front in the station's frame; a yaw of 0 faces +z.
+  const yawLocal = Math.atan2(sx - x, sz - z);
   return {
-    position: stationToWorld(role, 0.62, 1.62, dz),
-    rotation: [0, member.rotationY * FACE_TURN, 0],
+    local: front.local,
+    at: front.at,
+    rotationY: member.rotationY + yawLocal,
   };
 }
 
 /** A character's eye height: the centre of the painted visor that travels with the model. */
 export function eyeHeight(role: Role): number {
   return CAST[role].model.visor.measured.centre[1] as number;
+}
+
+/** The centre of a console's screen, in the room. */
+export function screenCentre(role: Role): [number, number, number] {
+  const [sx, sy, sz] = CAST[role].station.screen.measured.centre as [number, number, number];
+  return stationToWorld(role, sx, sy, sz);
 }

@@ -94,14 +94,20 @@ export const room = {
  * below, unchanged, and the room stays reachable; the tabletop is what the
  * owner is asked to judge.
  *
- * The V7 composition arranges the cast **in depth, not across**: the
- * owner, on a phone, had "to zoom out too far to see all of them", and no
- * camera reconciles a wide arrangement with a tall frame. Virgil stands
- * forward at his console; the three agents recede behind him at three
- * different distances, the cluster compacted from a 13 m disc with
- * stations near the rim to stations roughly three to five metres apart.
- * A tall frame reads depth well and width badly, so this is the
- * arrangement the phone sees too, with its own camera (`tabletopCamera`).
+ * V8 (§0.10.1): **the set is symmetrical.** The owner: "each console
+ * should be behind the main virgil console, one directly behinmd it and
+ * the other to the left and right, so its symmetrical." Virgil's console
+ * stays in front and central; the three role consoles stand behind it —
+ * one directly behind, one to its left, one to its right — mirrored about
+ * the centre line, each turned a little in toward Virgil. Which role takes
+ * which slot the owner did not say: the Fabricator is on the left, the
+ * Prover directly behind, the Keeper on the right, in the order of the
+ * three hops, and that is this session's choice, recorded as such.
+ *
+ * V8 (§0.10.3): **no window.** The owner, twice: "remove the circular
+ * window. I asked for that." The arch is gone from the tabletop; the disc
+ * has no tall element and its silhouette is horizontal, which the level
+ * camera (§0.10.4) reads as a stage rather than a plate.
  *
  * Every absolute size is a decision read against a 1.8 m Virgil:
  *
@@ -109,12 +115,10 @@ export const room = {
  *    0.170 m, flat over |x| ≤ 0.68 m, the back rim at 0.87 m, the sides at
  *    about 0.6 m, the front open); he stands on the deck at its centre.
  *  - **The three stations** are 2.2, 2.2 and 2.0 m; each character stands
- *    on the floor at their station's front-left corner (`cast.ts`).
+ *    on the floor at their station's front, to its left (`cast.ts`).
  *  - **The three characters are 1.7 m**, clearly shorter than Virgil.
  *  - **The orrery's tracks** run at Virgil's chest, radii 0.98–1.72 m.
- *  - **The porthole is 11.0 m across** in the retired room, and stands at
- *    5.6 m as the tabletop's arch — the skyline element that stops a flat
- *    disc reading as a straight line.
+ *  - **The porthole is 11.0 m across** in the retired room only.
  */
 const CONSOLE_CENTRE = [0, 0, 0.3] as const;
 /** The console's raised deck, measured from the payload (0.10 units × 1.7). */
@@ -123,6 +127,13 @@ const CONSOLE_DECK = 0.17;
 /** The tabletop's disc: its centre is the set's centre, and the orbit's. */
 const DISC_CENTRE = [0, 0, -2.2] as const;
 const DISC_RADIUS = 5.4;
+
+/** How far the two side consoles stand from the centre line, and how far back; the centre one's depth. */
+const SIDE_X = 2.85;
+const SIDE_Z = -3.75;
+const BACK_Z = -5.15;
+/** The side consoles turn in toward Virgil by this much. */
+const SIDE_TURN = 0.38;
 
 export const layout = {
   virgilHeight: 1.8,
@@ -138,30 +149,31 @@ export const layout = {
   orreryCentre: [CONSOLE_CENTRE[0], 1.2, CONSOLE_CENTRE[2]] as [number, number, number],
 
   /**
-   * The three stations, receding behind Virgil at three depths: the
-   * Fabricator nearest on the left, the Keeper further on the right, the
-   * Prover furthest, near the arch. Each faces the camera, turned a little
-   * in toward the centre. `cameraSide` is which side of a character the
-   * eye-level camera stands on (+1 their right), chosen so that no other
-   * character fills the close-up.
+   * The three stations behind Virgil's console, symmetrical about x = 0:
+   * the Fabricator's to the left and the Keeper's to the right, mirrored
+   * exactly, each turned in toward the centre; the Prover's directly
+   * behind, square to the camera. `cameraSide` is which side of a
+   * character the eye-level camera stands on (+1 their right), chosen so
+   * that their console's screen is in the close-up beside them.
    */
   stations: {
-    fabricator: { at: [-2.55, 0, -3.15] as const, rotationY: 0.5, cameraSide: 1 },
-    keeper: { at: [2.65, 0, -4.05] as const, rotationY: -0.62, cameraSide: -1 },
-    prover: { at: [0.35, 0, -5.45] as const, rotationY: -0.1, cameraSide: 1 },
+    fabricator: { at: [-SIDE_X, 0, SIDE_Z] as const, rotationY: SIDE_TURN, cameraSide: 1 },
+    prover: { at: [0, 0, BACK_Z] as const, rotationY: 0, cameraSide: 1.6 },
+    keeper: { at: [SIDE_X, 0, SIDE_Z] as const, rotationY: -SIDE_TURN, cameraSide: 1 },
   },
 
   /**
-   * The three slabs behind Virgil: a review board, tall and back over the
-   * agents' heads rather than a row at head height that would hide the
-   * cast behind it. Measured against the 30° camera: the board's foot at
-   * 2.55 m over z −2.9 clears the Fabricator's head from the authored pose.
+   * Virgil's three slabs, above him: the owner's one exception to the
+   * consoles carrying their own screens (§0.9), because his ring console's
+   * screens face inward and are unreadably small. Over the back of his
+   * console, high enough that a level camera sees them above the cast and
+   * above the Prover's console behind.
    */
   screenBank: {
-    y: 3.25,
-    z: -2.9,
-    spread: 1.6,
-    splay: 0.22,
+    y: 3.05,
+    z: -1.35,
+    spread: 1.55,
+    splay: 0.2,
   },
 
   // ------------------------------------------------------------ the room
@@ -191,13 +203,25 @@ export const layout = {
     centre: DISC_CENTRE as unknown as [number, number, number],
     radius: DISC_RADIUS,
     thickness: 0.42,
-    /** The porthole standing free as an arch at the back of the disc. */
-    archAt: [0, 0, DISC_CENTRE[2] - DISC_RADIUS + 0.55] as [number, number, number],
-    archDiameter: 5.6,
-    /** Where the two authored cameras look: the set's middle, at waist height. */
-    target: [0, 1.0, -2.4] as [number, number, number],
+    /**
+     * Where the cool light comes from on the tabletop: beyond the back of
+     * the disc, where the arch stood until V8. The light stays; the arch
+     * does not.
+     */
+    coolLightAt: [0, 2.8, DISC_CENTRE[2] - DISC_RADIUS + 0.55] as [number, number, number],
+    /** Where the authored cameras look: the set's middle, at chest height. */
+    target: [0, 1.05, -2.3] as [number, number, number],
     /** The floor's inlaid star, on the open deck front-left of the console. */
     starAt: [-2.95, 0.2] as [number, number],
+    /**
+     * The backdrop layers behind the disc (`Tabletop.tsx`). V8: raised,
+     * because at a near-level camera the disc's far edge hides everything
+     * under the horizon — the owner: "the planet and space station in the
+     * background is covered by the floating tabletop, so they need to be
+     * moved up."
+     */
+    planetAt: [9, 6.5, -36] as [number, number, number],
+    stationAt: [-11, 3.4, -29] as [number, number, number],
   },
 } as const;
 
@@ -208,22 +232,27 @@ export interface CameraPose {
 }
 
 /**
- * The tabletop's camera for a viewport. Landscape: 30° elevation, 12.5 m
- * out, a 36° lens, as the spec authored it. Portrait — a phone held
- * upright — is a different framing, not the same one zoomed out: steeper
- * (38°), so that depth reads as height in the tall frame, and the lens
- * widened only as far as the set's width needs at that distance. Both are
- * pure functions of the aspect so the captures can be checked at
+ * The tabletop's camera for a viewport. V8 (§0.10.4): **almost level
+ * with the characters, a little above** — the owner: "The camera starts
+ * too high up so everything looks squished. It should start almost levelm
+ * with the characters, maybe a tiny bit higher." So the elevation is
+ * `TABLETOP_ELEVATION_DEG` above the target at chest height, not the 30°
+ * of V7, in both orientations. The lens is widened only as far as the
+ * set's width needs at the distance, and in portrait the distance is
+ * larger because a symmetrical set is wide where a phone is tall. Both
+ * are pure functions of the aspect so the captures can be checked at
  * 390 × 664 and 1440 × 900 alike.
  */
+export const TABLETOP_ELEVATION_DEG = 11;
+
 export function tabletopCamera(aspect: number): CameraPose {
   const portrait = aspect < 1;
-  const elevation = (portrait ? 38 : 30) * (Math.PI / 180);
-  const distance = portrait ? 12 : 12.5;
+  const elevation = TABLETOP_ELEVATION_DEG * (Math.PI / 180);
+  const distance = portrait ? 13 : 11;
   const [tx, ty, tz] = layout.tabletop.target;
-  // The set's half-width the frame must hold: the outer stations' far
-  // edges (the Fabricator's at −3.65 m, the Keeper's at 3.45 m).
-  const halfWidth = 3.8;
+  // The set's half-width the frame must hold: the side consoles' outer
+  // corners, at about ±4.2 m, with a little air.
+  const halfWidth = 4.35;
   const widthFov = 2 * Math.atan(halfWidth / (distance * aspect)) * (180 / Math.PI);
   const fov = Math.min(62, Math.max(portrait ? 44 : 36, widthFov));
   return {
