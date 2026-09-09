@@ -12,3 +12,10 @@ coverage/
 test-results/
 playwright-report/
 apps/mission-control/.vite/
+
+# Scratch frames and sweep logs. The 86 files already tracked here stay, by the
+# owner's decision of 9 September ("leave them and stop the bleeding"): removing them
+# from HEAD would not shrink the history. Anything new is ignored, so no later pass is
+# nagged into committing scratch by the stop hook again. Write scratch to the session
+# scratchpad outside the repository instead.
+/scratchpad/
