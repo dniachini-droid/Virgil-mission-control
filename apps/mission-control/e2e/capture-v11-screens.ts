@@ -61,9 +61,16 @@ const errors: string[] = [];
 async function lookAt(page: Page, label: string) {
   await page.locator('[data-touch-target="dev"]').click();
   await page.waitForTimeout(400);
-  await page.getByRole('button', { name: label, exact: true }).click();
+  await page
+    .locator('.v11-dev-row', { hasText: 'Look at' })
+    .getByRole('button', { name: label, exact: true })
+    .click();
   await page.waitForTimeout(300);
-  await page.locator('[data-touch-target="dev"]').click();
+  // Closed by the panel's own Close: stage 4's Performance row made the panel
+  // tall enough to cover the ⋯ that opens it, so a second click on the entry
+  // is intercepted. Addressed by row for the same reason — `Auto` and `All`
+  // are no longer unique names across the whole panel.
+  await page.locator('.v11-dev-close').click();
   // The camera flies for 0.9 s and the display warms up over 1.5 s.
   await page.waitForTimeout(3200);
 }

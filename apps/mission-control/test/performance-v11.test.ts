@@ -127,6 +127,29 @@ describe('the sensible default, which stage 3 assumed and stage 4 derives', () =
     expect(ceilingFor('mobile', 'native', 4, iphone)).toBe(NATIVE_CAP);
   });
 
+  it('does not get quietly lowered by the ladder stepping the tier down', () => {
+    /**
+     * **`verify:owner:v11` found this at a device pixel ratio of 3 and it is
+     * the one thing the brief forbids.** The ladder steps the tier down to shed
+     * the scene's costs, and the pixel-ratio ceiling is read per tier — so
+     * `reduced` drew at 1.25 against `full`'s 2 and was blurrier. The ceiling
+     * now comes from the **detected** tier, so `pixelScale` is the only lever
+     * on resolution and only the last rung pulls it.
+     */
+    const detected = 'mobile';
+    const stepped = tierAfter(detected, LEVEL_PLANS.reduced.tierSteps);
+    expect(stepped).toBe('constrained');
+    expect(ceilingFor(stepped, 'auto', 3, iphone)).toBeLessThan(
+      ceilingFor(detected, 'auto', 3, iphone),
+    );
+    const [, atFull] = dprFor(detected, 'auto', 3, iphone, LEVEL_PLANS.full.pixelScale);
+    const [, atReduced] = dprFor(detected, 'auto', 3, iphone, LEVEL_PLANS.reduced.pixelScale);
+    const [, atMinimal] = dprFor(detected, 'auto', 3, iphone, LEVEL_PLANS.minimal.pixelScale);
+    expect(atReduced).toBe(atFull);
+    expect(atMinimal).toBeLessThan(atFull);
+    expect(atMinimal).toBeGreaterThanOrEqual(MIN_PIXEL_RATIO);
+  });
+
   it('is what the world actually asks the canvas for', () => {
     const [min, max] = dprFor('mobile', 'auto', 3, iphone, 1);
     expect(min).toBe(1);

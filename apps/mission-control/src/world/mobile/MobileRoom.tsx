@@ -325,7 +325,7 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
       level,
       tier,
       loop: drive.loop,
-      pixelRatioCeiling: ceilingFor(tier, sharpness, undefined, {
+      pixelRatioCeiling: ceilingFor(settings.tier, sharpness, undefined, {
         cssWidth: window.innerWidth,
         cssHeight: window.innerHeight,
         devicePixelRatio: window.devicePixelRatio,
@@ -400,8 +400,21 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
         <Canvas
           shadows={!coarse && plan.shadows}
           frameloop={drive.loop}
+          /**
+           * **The detected tier, not the stepped one, and the verifier caught
+           * why.** The ladder steps the tier down to shed the scene's own
+           * costs — stars, anisotropy, shadows. But the pixel-ratio ceiling is
+           * also read per tier, so stepping to `constrained` silently dropped
+           * the ceiling from 2 to 1.25: `reduced` came out **blurrier than
+           * full at a device pixel ratio of 3**, which is the one thing the
+           * brief forbids. `verify:owner:v11` failed on it with those two
+           * numbers.
+           *
+           * So resolution has exactly one lever, `plan.pixelScale`, and only
+           * the last rung of the ladder pulls it.
+           */
           dpr={dprFor(
-            tier,
+            settings.tier,
             sharpness,
             typeof window === 'undefined' ? 1 : window.devicePixelRatio,
             {

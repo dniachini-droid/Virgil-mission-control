@@ -79,7 +79,18 @@ const page = await browser.newPage({
   viewport: { width: 390, height: 844 },
   deviceScaleFactor: 3,
 });
-await page.goto(`${fileUrl}#/?demo=11`, { waitUntil: 'load' });
+/**
+ * **Three minutes, not thirty seconds.** Playwright's default action timeout
+ * assumes a renderer that produces frames. At a device pixel ratio of 3 this
+ * software rasteriser takes seconds per frame, so its "element is stable
+ * across two animation frames" check alone can exceed the default — and the
+ * first version of this loop died there, on a Close button that a hit test
+ * showed was perfectly clickable. The renderer is the slow thing, not the
+ * interface, so the instrument waits longer rather than the product being
+ * blamed.
+ */
+page.setDefaultTimeout(180_000);
+await page.goto(`${fileUrl}#/?demo=11&loop=0&hold=1`, { waitUntil: 'load' });
 await page.locator('canvas').waitFor({ timeout: 30_000 });
 await page.waitForFunction(() => '__virgilRoomReady' in window, undefined, { timeout: 180_000 });
 await page.waitForTimeout(2500);
@@ -88,24 +99,66 @@ const tier = await page.evaluate(
   () => (window as { __virgilRenderer?: string }).__virgilRenderer ?? '(unknown)',
 );
 const ratios: Record<string, number> = {};
-for (const label of ['Low', 'Standard', 'Native']) {
-  // Set through the interface the owner has, not by reaching into the code.
+
+/**
+ * **Set through the row it belongs to, not by name alone.** Stage 4 added an
+ * `Auto` to the Sharpness row and there is now an `Auto` in the Performance
+ * row as well, so `getByRole('button', { name: 'Auto' })` matches two and
+ * Playwright refuses. Each row is addressed by its own label.
+ */
+async function choose(row: string, label: string) {
   await page.locator('[data-touch-target="dev"]').click();
-  await page.getByRole('button', { name: label, exact: true }).click();
-  await page.locator('[data-touch-target="dev"]').click();
+  await page
+    .locator('.v11-dev-row', { hasText: row })
+    .getByRole('button', { name: label, exact: true })
+    .click();
+  // **Closed by the panel's own Close, not by the entry mark.** Stage 4's
+  // Performance row and its status line made the panel tall enough to cover
+  // the ⋯ that opens it, so a second click on the entry is intercepted by the
+  // panel and times out. The panel has always had a Close; it is the control a
+  // reader would use, so it is the one this drives.
+  await page.locator('.v11-dev-close').click();
   await page.waitForTimeout(1200);
-  const measured = await fps(page);
-  const drawing = await page.evaluate(() => {
+}
+
+const drawnAt = () =>
+  page.evaluate(() => {
     const canvas = document.querySelector('canvas');
     return canvas
       ? { css: canvas.clientWidth, device: canvas.width, ratio: canvas.width / canvas.clientWidth }
       : { css: 0, device: 0, ratio: 0 };
   });
+
+for (const label of ['Auto', 'Low', 'Standard', 'Native']) {
+  await choose('Sharpness', label);
+  const measured = await fps(page);
+  const drawing = await drawnAt();
   ratios[label] = measured;
   console.log(
-    `measure fps v11: ${label} — ${measured.toFixed(2)} fps, canvas ${drawing.device} device px for ${drawing.css} CSS px (ratio ${drawing.ratio.toFixed(2)})`,
+    `measure fps v11: sharpness ${label} — ${measured.toFixed(2)} fps, canvas ${drawing.device} device px for ${drawing.css} CSS px (ratio ${drawing.ratio.toFixed(2)})`,
   );
 }
+
+/**
+ * And what the reduced-performance ladder costs, at the default sharpness.
+ * The same caveat governs every figure: this is SwiftShader on a CPU.
+ */
+await choose('Sharpness', 'Auto');
+for (const label of ['Full', 'Reduced', 'Minimal']) {
+  await choose('Performance', label);
+  const measured = await fps(page);
+  const drawing = await drawnAt();
+  const state = await page.evaluate(
+    () =>
+      (window as { __virgilV11?: { level: string; tier: string; redrawScale: number } })
+        .__virgilV11,
+  );
+  console.log(
+    `measure fps v11: level ${label} — ${measured.toFixed(2)} fps, canvas ${drawing.device} device px (ratio ${drawing.ratio.toFixed(2)}), tier ${state?.tier}, screens x${state?.redrawScale}`,
+  );
+}
+await choose('Performance', 'Auto');
+
 console.log(`measure fps v11: renderer ${tier}, viewport 390 x 844, ${SECONDS} s per setting`);
 console.log(
   'measure fps v11: SOFTWARE RENDERING. These figures describe SwiftShader on a CPU, where every extra fragment is paid at full price and the displays’ mip chains are off. They are a direction, not a budget, and no performance figure for any device has been taken.',

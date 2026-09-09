@@ -71,11 +71,32 @@ const MIN_TOUCH_PX = 44;
  * headless Chromium, not devices. The two portrait widths are the ones the
  * brief names; the landscape one is an iPhone held sideways.
  */
-const VIEWPORTS = [
+const ALL_VIEWPORTS = [
   { name: 'portrait-390', width: 390, height: 844, portrait: true },
   { name: 'portrait-430', width: 430, height: 932, portrait: true },
   { name: 'landscape-844', width: 844, height: 390, portrait: false },
 ] as const;
+
+/**
+ * **The whole check, or one named part of it — and the difference is visible
+ * in the result line.**
+ *
+ * `pnpm check` sets neither variable and runs everything, which is the only
+ * arrangement that prints `PASS`. A single run takes about fifteen minutes in
+ * this software renderer, past the ten-minute cap the harness this project is
+ * built in imposes on one foreground command, and a background job dies with
+ * the turn — so a session can run it as `VIRGIL_V11_VIEWPORTS=portrait-390
+ * VIRGIL_V11_TAIL=skip`, then the other two viewports, then
+ * `VIRGIL_V11_VIEWPORTS=none` for the tail.
+ *
+ * **A partial run may never print `PASS`.** It prints `PASS (partial: …)` and
+ * names exactly what it did, so no run record can quote a partial run as the
+ * whole check by accident.
+ */
+const WANTED = process.env.VIRGIL_V11_VIEWPORTS?.split(',').map((name) => name.trim());
+const VIEWPORTS = WANTED ? ALL_VIEWPORTS.filter((v) => WANTED.includes(v.name)) : ALL_VIEWPORTS;
+const RUN_TAIL = process.env.VIRGIL_V11_TAIL !== 'skip';
+const PARTIAL = WANTED !== undefined || !RUN_TAIL;
 
 /**
  * **The simulated onscreen keyboard.**
@@ -841,87 +862,355 @@ for (const viewport of VIEWPORTS) {
 // property of SwiftShader. So what is measured is the interval between the
 // camera moving and the record appearing, which the renderer's latency is
 // common to and therefore cancels out of.
-const tapAndTime = async (x: number, y: number, budgetMs: number) => {
-  const startedAt = Date.now();
-  await page.mouse.move(x, y);
-  await page.mouse.down();
-  await page.mouse.up();
-  let movedAt = -1;
-  let openedAt = -1;
-  while (Date.now() - startedAt < budgetMs) {
-    const sample = await page.evaluate(() => ({
-      focus: (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus ?? '(none)',
-      panels: document.querySelectorAll('.v11w-root').length,
-    }));
-    const at = Date.now() - startedAt;
-    if (movedAt < 0 && sample.focus !== 'all') movedAt = at;
-    if (openedAt < 0 && sample.panels === 1) {
-      openedAt = at;
-      break;
+if (RUN_TAIL) {
+  const tapAndTime = async (x: number, y: number, budgetMs: number) => {
+    const startedAt = Date.now();
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.up();
+    let movedAt = -1;
+    let openedAt = -1;
+    while (Date.now() - startedAt < budgetMs) {
+      const sample = await page.evaluate(() => ({
+        focus: (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus ?? '(none)',
+        panels: document.querySelectorAll('.v11w-root').length,
+      }));
+      const at = Date.now() - startedAt;
+      if (movedAt < 0 && sample.focus !== 'all') movedAt = at;
+      if (openedAt < 0 && sample.panels === 1) {
+        openedAt = at;
+        break;
+      }
+      await page.waitForTimeout(40);
     }
-    await page.waitForTimeout(40);
+    return { movedAt, openedAt, gap: openedAt < 0 || movedAt < 0 ? -1 : openedAt - movedAt };
+  };
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${fileUrl}#/`, { waitUntil: 'load' });
+  await waitForWorld(page);
+  const normalTarget = await page
+    .locator('[data-touch-target="virgil"]')
+    .boundingBox({ timeout: 10_000 })
+    .catch(() => null);
+  const normal = normalTarget
+    ? await tapAndTime(
+        normalTarget.x + normalTarget.width / 2,
+        normalTarget.y + normalTarget.height / 2,
+        12_000,
+      )
+    : { movedAt: -1, openedAt: -1, gap: -1 };
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto(`${fileUrl}#/`, { waitUntil: 'load' });
+  await waitForWorld(page);
+  const reducedIsOn = await page.evaluate(
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
+  const reducedTarget = await page
+    .locator('[data-touch-target="virgil"]')
+    .boundingBox({ timeout: 10_000 })
+    .catch(() => null);
+  const reduced = reducedTarget
+    ? await tapAndTime(
+        reducedTarget.x + reducedTarget.width / 2,
+        reducedTarget.y + reducedTarget.height / 2,
+        12_000,
+      )
+    : { movedAt: -1, openedAt: -1, gap: -1 };
+
+  if (!reducedIsOn) failures.push('reduced-motion: the emulation did not take');
+  if (normal.openedAt < 0) failures.push('the record never opened at the default motion setting');
+  if (reduced.openedAt < 0) failures.push('reduced-motion: the record never opened');
+  /**
+   * **What this asserts changed with the owner's decision, and it is stricter.**
+   *
+   * Stage 1 required the reduced-motion gap to be *smaller* than the default's,
+   * because at stage 1 the default deliberately waited 1.02 s for the camera
+   * before opening the record. The owner's decision in
+   * `docs/process/PHASE_1_CONVERSATION_INTERFACE.md` §5b removes that wait
+   * altogether — one tap does both, concurrently — so the thing to require now is
+   * that **neither** setting waits: the window appears in the same sample as the
+   * camera move, at 40 ms of polling resolution, in both. A regression that
+   * reintroduced any delay in either mode fails here.
+   */
+  if (normal.gap !== 0) {
+    failures.push(
+      `the window waited ${normal.gap} ms after the camera moved; one tap must do both`,
+    );
   }
-  return { movedAt, openedAt, gap: openedAt < 0 || movedAt < 0 ? -1 : openedAt - movedAt };
-};
+  if (reduced.gap !== 0) {
+    failures.push(`reduced-motion: the window waited ${reduced.gap} ms after the camera moved`);
+  }
+  notes.push(
+    `motion (portrait 390): default — camera at ${normal.movedAt} ms, record at ${normal.openedAt} ms, gap ${normal.gap} ms; reduced — camera at ${reduced.movedAt} ms, record at ${reduced.openedAt} ms, gap ${reduced.gap} ms. Wall-clock figures are this software renderer's, not the product's; the gap is the measurement.`,
+  );
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
 
-await page.setViewportSize({ width: 390, height: 844 });
-await page.goto(`${fileUrl}#/`, { waitUntil: 'load' });
-await waitForWorld(page);
-const normalTarget = await page
-  .locator('[data-touch-target="virgil"]')
-  .boundingBox({ timeout: 10_000 })
-  .catch(() => null);
-const normal = normalTarget
-  ? await tapAndTime(
-      normalTarget.x + normalTarget.width / 2,
-      normalTarget.y + normalTarget.height / 2,
-      12_000,
+  /**
+   * **Stage 4's own checks, driven on the built artifact rather than read off
+   * the source.** Four things the brief asks for and one it asks not to happen:
+   *
+   *  - the world **slows** when a full-screen window is over it;
+   *  - the world **stops** when the page is hidden, and starts again when it
+   *    comes back;
+   *  - the reduced-performance mode is reachable, and — the sentence this whole
+   *    stage turns on — **it is not blurrier**: `reduced` draws at exactly the
+   *    pixel ratio `full` draws at, and only `minimal` lowers it, never below 1;
+   *  - the canvas never asks for more pixels than the tier's budget allows;
+   *  - and the functional interface text is **DOM text**: the window's own
+   *    headline is a text node in the document, and there is no canvas anywhere
+   *    inside the window's subtree.
+   */
+  const perfNotes: string[] = [];
+  const read = () =>
+    page.evaluate(
+      () =>
+        (
+          window as {
+            __virgilV11?: {
+              level: string;
+              tier: string;
+              loop: string;
+              pixelRatioCeiling: number;
+              redrawScale: number;
+            };
+          }
+        ).__virgilV11,
+    );
+  const canvasPixels = () =>
+    page.evaluate(() => {
+      const canvas = document.querySelector('canvas');
+      return canvas
+        ? {
+            device: canvas.width * canvas.height,
+            ratio: canvas.width / Math.max(1, canvas.clientWidth),
+          }
+        : { device: 0, ratio: 0 };
+    });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${fileUrl}#/?demo=11&loop=0&hold=1`, { waitUntil: 'load' });
+  await page.reload({ waitUntil: 'load' });
+  await waitForWorld(page);
+
+  const atRest = await read();
+  const restPixels = await canvasPixels();
+  if (atRest?.loop !== 'always') {
+    failures.push(`performance: the world is "${atRest?.loop}" with nothing over it, not "always"`);
+  }
+  // The mobile tier's pixel budget, from `world/mobile/performance.ts`.
+  if (restPixels.device > 1_600_000) {
+    failures.push(
+      `performance: the canvas is ${restPixels.device} device pixels, past the mobile budget of 1600000`,
+    );
+  }
+  perfNotes.push(
+    `performance: at rest — level ${atRest?.level}, tier ${atRest?.tier}, loop ${atRest?.loop}, ratio ceiling ${atRest?.pixelRatioCeiling}, canvas ${restPixels.device} device px (mobile budget 1600000)`,
+  );
+
+  // A window over the world: reduced, not stopped, and the displays halve.
+  const virgilTarget = await page
+    .locator('[data-touch-target="virgil"]')
+    .boundingBox({ timeout: 10_000 })
+    .catch(() => null);
+  if (virgilTarget) {
+    await page.mouse.move(
+      virgilTarget.x + virgilTarget.width / 2,
+      virgilTarget.y + virgilTarget.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.up();
+    await frames(page, 3);
+  }
+  const withWindow = await read();
+  if (withWindow?.loop !== 'demand') {
+    failures.push(
+      `performance: the world is "${withWindow?.loop}" with a window over it, not "demand"`,
+    );
+  }
+  perfNotes.push(`performance: with a window open — loop ${withWindow?.loop}`);
+
+  // The functional interface text is DOM text, measured in the document.
+  const windowText = await page.evaluate(() => {
+    const root = document.querySelector('.v11w-root');
+    if (!root) return { headline: '', chars: 0, canvases: -1 };
+    const headline = root.querySelector('h1, h2, .v11w-headline');
+    return {
+      headline: (headline?.textContent ?? '').trim().slice(0, 80),
+      chars: (root.textContent ?? '').trim().length,
+      canvases: root.querySelectorAll('canvas').length,
+    };
+  });
+  if (windowText.canvases !== 0) {
+    failures.push(
+      `window: ${windowText.canvases} canvas element(s) inside the window's own subtree`,
+    );
+  }
+  if (windowText.chars < 200) {
+    failures.push(`window: only ${windowText.chars} characters of DOM text in the window`);
+  }
+  perfNotes.push(
+    `window text is DOM text: ${windowText.chars} characters, 0 canvases inside it, headline "${windowText.headline}"`,
+  );
+
+  await page.evaluate(() => (window as { __virgilV11Reset?: () => void }).__virgilV11Reset?.());
+  await frames(page, 3);
+
+  // Hidden: stopped. `visibilityState` is read-only, so it is substituted and
+  // the product's own `visibilitychange` handler is what runs.
+  await page.evaluate(() => {
+    // **A data property, not a getter.** `tsx` compiles any named function
+    // inside an `evaluate` into an `esbuild` `__name(...)` call that does not
+    // exist in the page, and an object literal's `get:` is a named function. The
+    // first run of this check died on exactly that, which this file already
+    // records once for a different helper.
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'hidden',
+      configurable: true,
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await frames(page, 2);
+  const whenHidden = await read();
+  if (whenHidden?.loop !== 'never') {
+    failures.push(`performance: the world is "${whenHidden?.loop}" while the page is hidden`);
+  }
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'visible',
+      configurable: true,
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await frames(page, 2);
+  const whenBack = await read();
+  if (whenBack?.loop !== 'always') {
+    failures.push(`performance: the world did not resume; it is "${whenBack?.loop}"`);
+  }
+  perfNotes.push(`performance: hidden → ${whenHidden?.loop}, visible again → ${whenBack?.loop}`);
+
+  /**
+   * **The reduced level is not a blurrier level — measured at a device pixel
+   * ratio of 3, because at 1 the assertion is vacuous.**
+   *
+   * A headless page reports `devicePixelRatio` 1, and every ceiling is floored
+   * at one device pixel per CSS pixel, so all three levels draw at 1 and the
+   * comparison proves nothing. `measure-fps-v11.ts` records the same trap
+   * costing it a whole first run of figures. So this opens its own context at
+   * `deviceScaleFactor: 3` — the ratio an iPhone reports — where `auto` resolves
+   * to 2 and the minimal level's 0.625 of it resolves to 1.25.
+   */
+  const dpr3 = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+  });
+  const dpr3Page = await dpr3.newPage();
+  dpr3Page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(`dpr3: ${message.text()}`);
+  });
+  const levels: Record<
+    string,
+    { ratio: number; device: number; level: string | undefined; scale: number | undefined }
+  > = {};
+  for (const level of ['full', 'reduced', 'minimal']) {
+    await dpr3Page.goto(`${fileUrl}#/?demo=11&loop=0&hold=1&perf=${level}`, { waitUntil: 'load' });
+    await dpr3Page.reload({ waitUntil: 'load' });
+    await waitForWorld(dpr3Page);
+    await frames(dpr3Page, 4);
+    const state = await dpr3Page.evaluate(
+      () =>
+        (
+          window as {
+            __virgilV11?: { level: string; pixelRatioCeiling: number; redrawScale: number };
+          }
+        ).__virgilV11,
+    );
+    const pixels = await dpr3Page.evaluate(() => {
+      const canvas = document.querySelector('canvas');
+      return canvas
+        ? {
+            device: canvas.width * canvas.height,
+            ratio: canvas.width / Math.max(1, canvas.clientWidth),
+          }
+        : { device: 0, ratio: 0 };
+    });
+    levels[level] = {
+      ratio: Math.round(pixels.ratio * 100) / 100,
+      device: pixels.device,
+      level: state?.level,
+      scale: state?.redrawScale,
+    };
+    if (state?.level !== level) {
+      failures.push(`performance: #/?perf=${level} produced level "${state?.level}"`);
+    }
+  }
+  const full = levels.full;
+  const reducedLevel = levels.reduced;
+  const minimal = levels.minimal;
+  if (full && full.ratio <= 1) {
+    failures.push(
+      `performance: at deviceScaleFactor 3 the full level drew at ratio ${full.ratio}; the comparison below would prove nothing`,
+    );
+  }
+  if (full && reducedLevel && reducedLevel.ratio !== full.ratio) {
+    failures.push(
+      `performance: the reduced level draws at ratio ${reducedLevel.ratio} against full's ${full.ratio} — the reduced mode must not be a blurrier mode`,
+    );
+  }
+  if (
+    full &&
+    reducedLevel &&
+    !(
+      reducedLevel.scale !== undefined &&
+      full.scale !== undefined &&
+      reducedLevel.scale < full.scale
     )
-  : { movedAt: -1, openedAt: -1, gap: -1 };
+  ) {
+    failures.push('performance: the reduced level does not reduce the displays’ redraw rate');
+  }
+  if (minimal && full && minimal.ratio >= full.ratio) {
+    failures.push(
+      `performance: the minimal level draws at ratio ${minimal.ratio}, no lower than full's ${full.ratio}`,
+    );
+  }
+  if (minimal && minimal.ratio < 1) {
+    failures.push(
+      `performance: the minimal level draws at ratio ${minimal.ratio}, below one device pixel per CSS pixel`,
+    );
+  }
+  // The pixel budget binds at the device's own ratio too.
+  if (full && full.device > 1_600_000) {
+    failures.push(
+      `performance: at deviceScaleFactor 3 the canvas is ${full.device} device pixels, past the mobile budget`,
+    );
+  }
+  perfNotes.push(
+    `performance levels at deviceScaleFactor 3: ${Object.entries(levels)
+      .map(([name, v]) => `${name} ratio ${v.ratio}, canvas ${v.device} px, screens x${v.scale}`)
+      .join('; ')}`,
+  );
+  const noticeAtMinimal = await dpr3Page.locator('.v11-perf').count();
+  await dpr3.close();
 
-await page.emulateMedia({ reducedMotion: 'reduce' });
-await page.goto(`${fileUrl}#/`, { waitUntil: 'load' });
-await waitForWorld(page);
-const reducedIsOn = await page.evaluate(
-  () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-);
-const reducedTarget = await page
-  .locator('[data-touch-target="virgil"]')
-  .boundingBox({ timeout: 10_000 })
-  .catch(() => null);
-const reduced = reducedTarget
-  ? await tapAndTime(
-      reducedTarget.x + reducedTarget.width / 2,
-      reducedTarget.y + reducedTarget.height / 2,
-      12_000,
-    )
-  : { movedAt: -1, openedAt: -1, gap: -1 };
-
-if (!reducedIsOn) failures.push('reduced-motion: the emulation did not take');
-if (normal.openedAt < 0) failures.push('the record never opened at the default motion setting');
-if (reduced.openedAt < 0) failures.push('reduced-motion: the record never opened');
-/**
- * **What this asserts changed with the owner's decision, and it is stricter.**
- *
- * Stage 1 required the reduced-motion gap to be *smaller* than the default's,
- * because at stage 1 the default deliberately waited 1.02 s for the camera
- * before opening the record. The owner's decision in
- * `docs/process/PHASE_1_CONVERSATION_INTERFACE.md` §5b removes that wait
- * altogether — one tap does both, concurrently — so the thing to require now is
- * that **neither** setting waits: the window appears in the same sample as the
- * camera move, at 40 ms of polling resolution, in both. A regression that
- * reintroduced any delay in either mode fails here.
- */
-if (normal.gap !== 0) {
-  failures.push(`the window waited ${normal.gap} ms after the camera moved; one tap must do both`);
+  // The notice is present exactly when the world is doing less than authored.
+  if (noticeAtMinimal !== 1) {
+    failures.push(
+      `performance: ${noticeAtMinimal} reduced-performance notices at the minimal level`,
+    );
+  }
+  await page.goto(`${fileUrl}#/`, { waitUntil: 'load' });
+  await page.reload({ waitUntil: 'load' });
+  await waitForWorld(page);
+  const noticeAtFull = await page.locator('.v11-perf').count();
+  if (noticeAtFull !== 0) {
+    failures.push(`performance: a reduced-performance notice is showing at the full level`);
+  }
+  perfNotes.push(
+    `performance: the notice shows at minimal (${noticeAtMinimal}) and not at full (${noticeAtFull}) — a tier change is never silent`,
+  );
+  for (const note of perfNotes) notes.push(note);
 }
-if (reduced.gap !== 0) {
-  failures.push(`reduced-motion: the window waited ${reduced.gap} ms after the camera moved`);
-}
-notes.push(
-  `motion (portrait 390): default — camera at ${normal.movedAt} ms, record at ${normal.openedAt} ms, gap ${normal.gap} ms; reduced — camera at ${reduced.movedAt} ms, record at ${reduced.openedAt} ms, gap ${reduced.gap} ms. Wall-clock figures are this software renderer's, not the product's; the gap is the measurement.`,
-);
-await page.emulateMedia({ reducedMotion: 'no-preference' });
 
 const renderer = await page.evaluate(
   () => (window as { __virgilRenderer?: string }).__virgilRenderer,
@@ -956,6 +1245,12 @@ if (failures.length > 0) {
   console.error(`owner build v11 verify: FAILED\n  ${failures.join('\n  ')}`);
   process.exit(1);
 }
+if (PARTIAL) {
+  console.log(
+    `owner build v11 verify: PASS (partial: viewports ${VIEWPORTS.map((v) => v.name).join(', ') || 'none'}${RUN_TAIL ? ', with the motion and performance checks' : ', without the motion and performance checks'}) — every assertion that ran passed. This is not the whole check and may not be recorded as one.`,
+  );
+  process.exit(0);
+}
 console.log(
-  'owner build v11 verify: PASS — opens from file://, no console errors, no off-document requests, no horizontal overflow with the window open or closed, every touch target and every window control at least 44 x 44, one tap opens the window and moves the camera together, back is one step per level, the composer stays above a simulated keyboard and claims nothing was sent, no session control is enabled, the gesture guard holds, V10 still loads at #/v10',
+  'owner build v11 verify: PASS — opens from file://, no console errors, no off-document requests, no horizontal overflow with the window open or closed, every touch target and every window control at least 44 x 44, one tap opens the window and moves the camera together, back is one step per level, the composer stays above a simulated keyboard and claims nothing was sent, no session control is enabled, the gesture guard holds, the world slows under an open window and stops when the page is hidden, the reduced-performance mode is reachable and is not a blurrier mode, the window’s own text is DOM text with no canvas in it, V10 still loads at #/v10',
 );
