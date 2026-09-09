@@ -423,11 +423,7 @@ function DemoBadge({
         className={`v11-badge${recorded ? ' is-recorded' : ''}`}
         data-touch-target="badge"
         aria-expanded={open}
-        aria-label={
-          recorded
-            ? 'Recorded run — what this means'
-            : 'Demo data — what this means'
-        }
+        aria-label={recorded ? 'Recorded run — what this means' : 'Demo data — what this means'}
         onClick={onToggle}
       >
         <span className="v11-badge-dot" aria-hidden="true" />
