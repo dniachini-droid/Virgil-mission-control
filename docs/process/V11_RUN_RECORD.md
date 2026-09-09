@@ -288,3 +288,457 @@ one existing `sha256sum -c *.sha256` covers it.
   has not happened.
 - Stages 2, 3 and 4 of the brief are not started. The screens, the windows, the twelve review states
   and the KTX2/Draco/Meshopt assessment the brief's second caution requires are all still ahead.
+
+---
+
+## Stage 2 — the in-world screens
+
+**Scope, and what was deliberately not done.** Stage 2 is the four in-world display
+families: the three role consoles' screens and Virgil's three slabs. **The window redesign is
+stage 3** and the panel is untouched; **no composition work was done beyond the two edits and the
+one arrangement the owner asked for after seeing this stage's own frames**; and **no performance
+work was done beyond what the screens needed** — which turned out to be more than none, and is
+recorded below rather than left to stage 4.
+
+**The owner's decision of the day removed two comparison stages.** *"Decision made: proceed now
+without an additional comparative evaluation stage. … Do not spend time implementing and comparing
+all three options. The earlier alternatives are no longer candidates."* So there is no three-way
+treatment comparison and no three-way bezel comparison in this record. What was kept, because it is
+not a comparison and is what has caught every real defect in this project, is **render it, look at
+it, refine it, look again**.
+
+### The design, and the four things looking at it changed
+
+The whole system is `apps/mission-control/src/world/screens/v11/`. One typography, one spacing
+system, one status semantics, one glass treatment, one set of transition principles, one
+information hierarchy — enforced by the shape of the code rather than by memory: every display is
+the same five calls in the same order, and only the picture in the well, the vocabulary in the rail
+and the accent on the edge differ.
+
+It was designed as a **standalone study** first, exactly as V9's panel was. `study/screens-v11.html`
+renders all six displays at the texture resolution the world gives them, then again at the CSS size
+they occupy on a 390 px portrait viewport, from the same `drawConsoleScreen` and `drawSlab` the
+world calls. `node study/capture-screens-v11.mjs <tier>` builds it, serves it and screenshots it in
+one synchronous process; the frames are in `scratchpad/study-v11-screens/`. **The harness is
+committed**, because V10 recorded what throwing V9's measuring script away cost — when the owner
+asked a follow-up question about the visors it could not be reproduced and a defect was left
+unfixed.
+
+Four iterations, each from a frame, each recorded in the code at the place it changed:
+
+1. the conclusion under the hero ran into the secondary rail on exactly the states whose terms are
+   longest. The lead's line count is now computed from the space left, not fixed at two;
+2. the status mark's ring was **0.6 of a CSS pixel** at the overview and vanished into the mipmap.
+   Its stroke is 0.17 of the radius now and its interior fill is stronger, so the primary state
+   resolves as a coloured disc at 43 × 25 px;
+3. `SAFE TO MERGE` broken over two lines came out at 60 canvas pixels where the same term on one
+   line comes out at 103. The hero now tries one, two and three lines and keeps whichever gives the
+   larger type, with the split **balanced** because the longest line is what bounds the size;
+4. the Keeper's finding flags were clipped by the well's edge; the Prover's isolated failure was
+   printed over its own constellation; the dependency chain and the ledger overlapped; and the
+   candidate's provenance chain was drawn through the identity's own glyphs.
+
+**Bloom is controlled by arithmetic, not by taste.** The display material is `toneMapped={false}`,
+so the texture's own luminance is what the bloom pass sees, and its threshold is 0.86. Every type
+and status colour is declared under it — ivory at 0.850, cyan 0.727, amber 0.754, gold 0.812 — and
+only the one white-hot core at 0.964 is over it and meant to bleed.
+`test/screen-system-v11.test.ts` computes each one and fails if a colour crosses to the wrong side.
+So text does not bleed into its own counters, and it is not asserted, it is measured.
+
+### The measurement the stage is judged on
+
+The brief: *"Measure the physical size each display occupies on a 390-CSS-px portrait viewport, in
+CSS pixels, and state whether the primary status is legible at that size. That is the number that
+decides whether this stage succeeded."*
+
+**At 390 × 844, the overview:**
+
+| Display | Drawn size | Primary state legible there? |
+|---|---|---|
+| Virgil's **verdict** slab (primary) | **172.3 × 120.6 px** | **yes** — `PASS`, `BLOCKED`, `NO VERDICT` read plainly |
+| Virgil's **run ledger** slab | **131.5 × 88.6 px** | **yes** for the holder's name; the ledger's own rows read as shape and colour |
+| Virgil's **candidate** slab | **131.5 × 88.6 px** | **yes** — `SAFE TO MERGE`, `VERIFICATION INCOMPLETE` |
+| the **Fabricator's** console screen | **43.3 × 25.4 px** | **no, not as text.** As colour and as a mark |
+| the **Prover's** console screen | **36.4 × 19.5 px** | **no, not as text.** As colour and as a mark |
+| the **Keeper's** console screen | **39.5 × 26.0 px** | **no, not as text.** As colour and as a mark |
+
+**And in each display's own close-up, where the words are meant to be read:** the Fabricator
+200.2 × 117.4, the Prover 174.4 × 93.3, the Keeper 177.2 × 117.1, and Virgil's three at the board
+camera 204.7 × 134.4 and 165.8 × 110.3. All are 2.6× to 3.2× the threshold.
+
+**The threshold is this project's own measurement, not a guess.** `PHASE_1_PLAN.md` records screen
+text collapsing between 96 px and 64 px of display width (contrast 0.715 at 480 px falling to 0.358
+at 48 px), and `PHASE_1_CONVERSATION_INTERFACE.md` states it as *"screen text collapses below about
+64 px"*. So:
+
+**The hierarchy is a consequence of that arithmetic and not a preference.** The three consoles are
+below the threshold at the overview by a factor of about 1.6 and cannot be made legible there at any
+type size; Virgil's three slabs are above it by 2.1× to 2.7×. So **the readable overview state lives
+on Virgil's slabs**, which is also where the brief puts *"overall project state, the current
+hand-off, owner decisions awaiting attention"*, and the three consoles carry their state at the
+overview as **one status colour washed at 8.5 % over the glass, one status-coloured accent along the
+top edge, and one status mark about ten CSS pixels across whose interior shape is the state** — a
+tick, a bar, a turning segment, an inward chevron, a ring with a piece missing, a seal. Colour
+resolves at four pixels; a shape that size resolves at ten; the word resolves when the camera goes
+to the console. `test/screen-geometry-v11.test.ts` asserts both sides of that — the slabs above 64
+px, the consoles below — so a future change that closes the gap is noticed rather than assumed.
+
+**What the owner's instruction to keep complexity meant in practice.** *"Do not remove complexity
+merely because all microtext cannot be read from the overview. Establish hierarchy within that
+complexity."* Each display carries four levels: the status mark and its colour, which survive the
+overview; the hero term, which resolves at the close-up; the agent's own animated picture in the
+well; and a rail of four columns of real counts, identifiers and check names, which is **meant** to
+be unreadable at distance and is not reduced for it.
+
+### The three role consoles: Option A, and what it could and could not do
+
+The constraint, stated plainly: *"thinner bezels, more glass, less bulky beige framing"* asks to
+change geometry the owner commissioned from Meshy, which may not be modified, and no new asset may
+enter `assets/`. His decision was **Option A** — *"a lightweight authored thin bezel/faceplate
+overlay fitted over each immutable Meshy console opening"*, slim and pearl-white or ivory, with
+restrained gold edge detailing, fitted to the console's actual angle and opening, with no
+z-fighting, clipping or floating, and the existing animated screen content preserved.
+
+**It is derived, not posed.** `screens/v11/bezel.ts` builds it in the same frame the picture is
+drawn in: `screenPlane.ts`'s fitted plane, whose normal is the mean normal
+`asset-pipeline/fit-screen.mjs` measured over the console's own screen triangles, and
+`screenOutline.ts`'s rounded-rect fit to the opening's own border. The three openings it fits are
+re-measured from the payloads by `test/screen-geometry-v11.test.ts` rather than trusted: the fits
+are the Fabricator's **955.4 × 569.0 mm at a 77.9 mm radius**, the Prover's **885.7 × 488.7 at
+42.9**, the Keeper's **886.6 × 590.4 at 81.1**, and the drawn outlines inside them are
+939.3 × 552.9, 855.0 × 458.1 and 871.6 × 575.4.
+
+**A flat faceplate was tried first and the measurement refused it.** At every ring width from 75 mm
+down to 25 mm, the offset a flat plate needs to clear the console's own surround came out at **22 mm
+on the Keeper and 32 mm on the Prover**, because both models have a lip that rises immediately
+outside the opening. A plate standing a finger's width off the console reads as floating, which the
+owner's decision names as a failure; the test asserting the offset stays under 11 mm failed on two
+consoles out of three.
+
+**So the plate conforms to the surface it covers.** 864 rays per console are cast against a local
+mesh of the opening's own neighbourhood; the inner lip sits a measured clearance in front of the
+picture's plane, and from there outward the front face rides the surface beneath it, smoothed along
+the ring so raycast noise cannot make the edge jagged and clamped to within 2 mm of that surface so
+the smoothing cannot lift it. The measured result, per console:
+
+| | Fabricator | Prover | Keeper |
+|---|---|---|---|
+| ring width | 62.0 mm | 62.0 mm | 62.0 mm |
+| inner opening, inside the drawn outline | 4 mm on every side | 4 mm | 4 mm |
+| the model's own frame covered, per side | **74.0 mm** | **81.3 mm** | **73.5 mm** |
+| inner lip's offset in front of the fitted plane | 13.62 mm | 9.00 mm | 9.26 mm |
+| the surround's own greatest height under the ring | 32.89 mm | 29.23 mm | **91.19 mm** |
+| **minimum gap** (the z-fighting bound) | 3.50 mm | 3.50 mm | 3.50 mm |
+| **outer edge's gap** (it meets the console) | 5.50 mm | 5.50 mm | 5.50 mm |
+| **greatest lift over a ridge** (the floating bound) | 4.00 mm | 5.50 mm | 5.50 mm |
+| samples with no surface beneath them | 0 of 864 | 0 of 864 | 0 of 864 |
+
+**How I satisfied myself it neither fights nor floats at the angles the camera reaches.** By
+construction: no sample is behind the surface it covers (minimum gap 3.5 mm, positive by
+definition), and no sample stands more than 5.5 mm in front of the highest point the surround
+reaches on the same radius. Both bounds are asserted per console. And by looking: the three
+close-ups at 390 × 844 in `scratchpad/v11-s2-frames/` show the plate bedded onto each console's own
+casing with no seam, no shimmer along the join and no shadow gap, including on the Prover's
+chamfered opening.
+
+**What it cost, and the limitation, recorded rather than argued.** The plate makes the immediate
+73–81 mm of each console's beige surround into pearl ivory with a 6 mm gold inner lip, and the
+display's own picture now runs to that lip. **What it cannot do is make the model's frame
+narrower.** The console bodies are the owner's geometry: below and around the 62 mm ring the beige
+casing, its dials and its cabinet are exactly as Meshy modelled them, and in the close-up frames
+they still occupy most of the shot. The reason is geometric and worth stating precisely: the
+surround is **not a bezel of even width**. Measured outward from the opening at 96 points, its width
+before the surface turns away runs from **2 mm to 500 mm** on the same console — median 8 mm on the
+Fabricator, 118 on the Keeper, 188 on the Prover — so no constant-width authored ring can both cover
+it and stay on it. Per the owner's instruction — *"if an individual model imposes an unavoidable
+limitation, refine that console's glass and screen presentation instead, record the limitation, and
+continue"* — the rest of the refinement went into the glass and the picture, and this is the
+limitation. **The finding the brief asked for, plainly: the beige frame cannot be made thin without
+replacing the `.glb`s.** The faceplate makes it cleaner, not thinner.
+
+### Virgil's three slabs, rebuilt
+
+His are authored geometry, so the owner's instruction was to rebuild rather than work around:
+*"They are ours, so there is no constraint to work around — they should be the clearest statement of
+the system."* The overall object stays **1.540 × 1.040 m**, because `mobile/composition.ts` solves
+stage 1's portrait frame against exactly that; everything inside it moves from frame to glass.
+
+| | V10 | V11 | |
+|---|---|---|---|
+| bezel, each side | 120 mm | **32 mm** | −73 % |
+| opening | 1.300 × 0.800 m | **1.476 × 0.976 m** | |
+| glass area | 1.040 m² | **1.441 m²** | **+38 %** |
+| case depth behind the plate | 396 mm (a half-ellipsoid) | **150 mm** (a chamfered box) | −62 % |
+| plate depth | 50 mm | 30 mm | −40 % |
+| glass bulge | 30 mm | 18 mm | −40 % |
+| inner lip | plain cream | **gold, 5 mm** | |
+
+`test/screen-bank-v11.test.ts` computes every figure in that table from both versions' own code.
+The swollen shell that made the V10 slab read as an old Mac is gone; against *"refined celestial
+instrumentation"* it was the single most retro thing in the set.
+
+**One defect in the rebuild, found by looking at the first built artifact and worth recording
+because of how it hid.** The three slabs rendered as **blank cream rectangles** — no picture, no
+glass, no lip — with **no console error and nothing thrown**. An `ExtrudeGeometry`'s bevel reaches
+*past* both ends of its depth, so the shell's front bevel came out at z = +0.009, in front of the
+display plane at −0.009: a solid mesh in front of a live one, which is not an error. Every layer is
+now placed by its own **measured** front extent from one table, and
+`test/screen-bank-v11.test.ts` builds all five geometries under node and asserts their z extents
+stack in order — a check that costs 30 ms and would have caught it before a forty-minute build.
+
+### The close-up black screen: diagnosed and fixed
+
+Stage 1 found by looking that all three console displays render black in their own close-ups, in
+V11 and identically in the committed V10 artifact.
+
+**It was never a drawing failure.** V10's power rule is `state !== 'READY'`, which comes from the
+owner's own V8 instruction — *"we should avoid having every screen on if its not in use … when the
+keepewr isnt doing work it should stay off his screen"* — and the scripted demonstration gives
+**one** station work at a time. So at any moment two of the three are correctly, deliberately dark,
+and a close-up entered at an arbitrary second lands on a dark screen two times in three. The
+`#/?cam=<role>` capture entry point made it three times in three, because it opens at demonstration
+second zero when all three are idle.
+
+**The fix keeps the owner's instruction and adds one clause: a display is also on while the camera
+is looking at it.** Going to a console is using it. It warms up through `crt.ts`'s own power-on, so
+arriving reads as the television turn-on he asked for rather than a light switch, and what it then
+shows is `STANDBY` with the role's identity, its last conclusion and its full secondary detail. In
+the overview nothing changes: the idle screens are dark, exactly as he asked. **Verified by
+looking** — the three close-ups in `scratchpad/v11-s2-frames/` are lit, legible and titled.
+
+**The other half of that stage-1 finding is not fixed and is not this stage's to fix.** The
+character is still cropped out of their own close-up. `closeUp.ts` records the reason in its own
+header — the camera stands on the screen's own axis, which is the one direction from which nothing
+on the console can cover the screen, and the character stands up to 47° off that axis. At 390 × 844
+the close-up's **horizontal half-angle is 17.1°**, so in portrait the two cannot both be in frame
+and the screen wins. There is a real remedy — standing the camera further back along the same axis
+keeps the screen the same size on screen while shrinking the character's angular offset — and it
+was not taken here, because it changes a camera stage 2 was not asked to change and it needs
+`test/close-up-sight.test.ts` re-run over the longer sight lines. It is named here so the next pass
+has it.
+
+### Texture memory added, against the tiers
+
+The texture width is scaled by tier, with mipmaps and anisotropic filtering
+(`screens/v11/resolution.ts`): **2048 px at `ultra` and `desktop`, 1536 at `laptop`, 1024 at
+`mobile` and `constrained`** — the brief's floor, never below it, because *"preserve performance by
+reducing invisible work rather than by making visible screens blurry"*. The six displays' totals,
+computed by `test/screen-geometry-v11.test.ts` from their own measured aspects, four bytes a texel
+and a full mip chain:
+
+| Tier | Width | Six displays | Tier's texture budget | Share |
+|---|---|---|---|---|
+| ultra | 2048 | **80.6 MB** | 512 MB | 16 % |
+| desktop | 2048 | **80.6 MB** | 256 MB | 31 % |
+| laptop | 1536 | **45.3 MB** | 192 MB | 24 % |
+| mobile | 1024 | **20.1 MB** | 128 MB | 16 % |
+| constrained | 1024 | **20.1 MB** | 64 MB | 31 % |
+
+A phone gets `mobile` (`detectTier` returns it for any viewport whose short side is under 700 px),
+so **the figure that matters is 20.1 MB of 128**. The test fails if any tier crosses a third of its
+budget, because the models, the environment and the two backdrop planes have to fit in the same
+budget. V10's six displays were a fixed 1024 with no mip chain, 15.1 MB, so **stage 2 adds 5.0 MB
+on a phone**. There is one further CPU cost, stated because it is not free: the static glass layers
+are drawn once per display into a cached canvas and blitted, which is one backing canvas per
+display — **14.5 MB on a phone and 57 MB at 2048** — hard-capped at six entries.
+
+### The performance regression, measured, reduced, and not hidden
+
+Six live displays are not free, and this is the number: **V11's route renders at 1.49 frames a
+second in this container against V10's 1.88** — a 21 % frame-time regression, measured by counting
+`requestAnimationFrame` callbacks over four seconds on both routes of the same built artifact. It
+was worse before it was reduced: 1.23 fps at the first measurement.
+
+What was done about it, in the order the brief's *"reduce invisible work"* implies:
+
+- the redraw rates are two thirds of the first version's — 24 fps at `ultra` and `desktop`, 18 at
+  `laptop`, **12 at `mobile`**, 8 at `constrained`. The pictures are slow by design; Virgil's orrery
+  turns once in ninety seconds, so 12 is indistinguishable from 18;
+- the static glass layers — three full-canvas gradient composites, the well's recess, its graticule
+  and the key light's highlight — are drawn once per display and blitted;
+- on a **software renderer** the displays redraw 1.5 times a second and their textures carry no mip
+  chain at all. **So this container does not exercise the mipmap path, and no frame taken here is
+  evidence about minification quality on a GPU.** That is the renderer adaptation
+  `docs/architecture/PERFORMANCE_STRATEGY.md` describes, applied to one cost and recorded rather
+  than assumed.
+
+**The regression made a check fail, and the check was right.** At 1.4 fps a fixed 1,200 ms wait is
+under two frames, so three of `verify:owner:v11`'s assertions began failing while the behaviour they
+test was correct: a touch target measured before its first projection, and a panel measured before
+React had committed its close. **Nothing asserted was relaxed.** The fixed sleeps became frame
+counts and polled conditions — the panel still has to close and the target still has to be on
+screen; they are simply no longer required to happen inside an interval that describes SwiftShader.
+This is the same fault stage 1 recorded and fixed once already for the motion measurement, in its
+own words: *"Timing by the wall clock would make the assertion a property of SwiftShader."*
+
+### Two content faults, found by reading, and the test that will catch the next
+
+Both were on the verdict slab's `default` branch.
+
+**`IN FLIGHT` in a verdict position.** `constitution/authority.json`'s `reviewVerdicts` are exactly
+`PASS`, `PASS_WITH_NON_BLOCKING_FINDINGS`, `BLOCKED` and `INSUFFICIENT_EVIDENCE`. Under a heading
+reading `VERDICT`, a large word that is not one of them presents a non-verdict as a verdict, and the
+big word is what reads at distance while the small line under it does not. It reads **`NO VERDICT`**
+now. The header chip that says `IN FLIGHT` stays: there it describes the review, not the verdict.
+
+**`HEADING FOR <outcome>` announced the verdict before the review reported.** The scripted
+demonstration knows how its loop ends, so the display said `HEADING FOR BLOCKED` while the Prover
+was still working. Nothing in this architecture can know a verdict before a review returns one, so a
+display implying it teaches the owner something untrue about his own system — the same family as the
+V7 defect he caught when a slab read "awaiting review" during a build. The outcome is gone from that
+line entirely, not softened to a hint.
+
+The audit those two prompted found three more leaks and two more invented words:
+
+- the verdict slab's evidence rail drew `evidenceLines(outcome)` unconditionally, so on a loop
+  scripted to end BLOCKED it read `301 PASSED · 1 FAILED` while the Prover was still working. Until
+  a verdict returns it now shows the holder, the candidate, the authority and
+  `EVIDENCE — NONE RETURNED YET`;
+- the Prover's three verification gates closed in red as soon as the loop was one that would end in
+  a refusal. They now follow the checks that have actually resolved;
+- the isolated failure's label chose `FAILED` or `COULD NOT RUN` from the outcome; it reads the
+  check's own resolved state;
+- `chipsFor` took the outcome and chose between two identical strings — harmless, and the exact
+  shape of a leak. Removed;
+- `hopNodes` coloured a returned hop by `outcome === 'BLOCKED' && i === 1`, and on a refusal marked
+  all three hops returned and green although the Keeper never ran on that loop: **a hop that did not
+  happen shown as one that passed.** Both derived from the content now;
+- a station reporting `PASS` read `PASSED`, a tense variant of a verdict, and one reporting
+  `PASS_WITH_NON_BLOCKING_FINDINGS` also read `PASSED`, with the verdict slab abbreviating it to
+  `PASS WITH FINDINGS` — which drops the one word the verdict exists to carry. Shortening it to
+  `PASS` would name a **different one of the four**. It is set in full now, over three balanced
+  lines where the column is too narrow for two.
+
+**The durable part is `test/screen-content-v11.test.ts`:** 299 assertions over the whole of every
+screen's rendered text, at every half-second of all three loops, that no verdict word appears before
+a verdict has returned — matched as whole words, so the Prover's own `PASSED` **count label** is
+allowed, because a check resolving during the work *is* the work and hiding it would be dishonest
+the other way. It also holds every word in a verdict position to the four, every word in a
+candidate-state position to the fifteen, and the long verdict to its full form. V10's own
+no-verdict-before-review test looked only at the rendered verdict word and could not see prose or a
+rail.
+
+### The bands, removed on the owner's instruction
+
+The amber `ILLUSTRATIVE · NOT REAL STATE` band is removed from all six of V11's in-world displays in
+the scripted mode, on the owner's instruction — *"No bands. No demo signage on the screens. And the
+screens now will use the entire space of the screen properly"* — and each display's header, hero,
+well and secondary rail are laid out into the freed area rather than leaving a gap; the persistent
+`Demo data` badge stage 1 built remains in the chrome, V10's bands are untouched, and the replay
+still draws its own three lines.
+
+### The composition edits the owner asked for after seeing this stage's frames
+
+**The default portrait camera comes down from 28° to 22°.** *"the default camera angle is too high
+up… bring the camera down a little bit more level so it's not looking on top of the tabletop."* The
+camera stands 7.02 m up where it stood 8.48, so the disc is foreshortened rather than displayed, and
+**it stays movable**, as he asked: *"we could potentially even, like, lock that in place, but we can
+do that later. Still make it movable."*
+
+**Virgil's three slabs became a shallow triangle.** *"They are currently arranged in one horizontal
+row and appear too small on the iPhone. Preserve their existing visual design, content and
+animations, but enlarge them and arrange them in a shallow triangular composition"* — and, when that
+collided with two things he had asked for earlier, *"Just move the screens as I have instructed.
+Everything else remains the same."* So `screens/v11/bank.ts` changes **position and scale only**:
+the same object, the same canvas, the same layout, the same type and the same animations, moved and
+seen larger. His own priority order settled the collisions — the consoles stay readable, the primary
+clears the safe area and the `⋯` control, then the size targets — and **all three are satisfied at
+once**, which was not obvious: enlarging a slab moves the camera that frames it, so on-screen size is
+not proportional to scale, and the five numbers were found by sweeping 1,600 combinations with the
+composition solver re-run on every trial.
+
+| Measured at 390 × 844 | Target | Measured |
+|---|---|---|
+| primary (verdict) | 155–175 CSS px | **172.3** |
+| supporting, each | 125–140 | **131.5** |
+| gap between the supporting pair | 10–16 | **14** |
+| primary larger than the pair | 25–35 % | **28.4 %** |
+| supporting pair clear of the consoles | — | **42 px** (46 px at 430 × 932) |
+| clearance above the primary | — | **103 px** at 390 × 844, **115 px** at 430 × 932 |
+
+The cluster is 4.68 m wide and 3.51 m tall, so shallow and wide rather than a tall pyramid, centred
+on the line through Virgil. The gentle hover continues and the nudge on a state change is in — the
+primary eases 6 cm forward and the pair 5 cm outward over 1.1 s — both position only, both stopped
+by reduced motion. **Judged from the frames at 390 × 844 and 430 × 932: the three role consoles
+below the cluster are clearly readable as consoles, their own screens visible and lit or dark
+according to the beat, and Virgil is unobscured.**
+
+**Two things these edits did to known weaknesses.** Stage 1 recorded honestly that a 1 : 2.16
+portrait frame leaves the top third as sky; the raised cluster and the two depth planes now occupy
+that band, and in the frames it reads as a composed upper register rather than emptiness — a side
+benefit, not a cost. And **landscape pays for the cluster**, which is the one number that went the
+wrong way: holding a 2.93 m primary inside an 844 × 390 frame takes the solver to its widest lens and
+furthest distance, so the three consoles' displays there fall from 40.7 to **23.4 CSS px** and the
+whole set reads as a wide establishing view. Portrait is the composition the owner names as primary
+and the one his targets are set at; landscape is the intentional secondary and this is recorded
+rather than smoothed.
+
+**V9's ledger design is preserved deliberately, on the owner's own correction** — *"no I don't want
+to overrule the V9 decision. Please keep that."* The run ledger is **131.5 px wide** at 390 and reads
+there as **shape and colour**: three role nodes joined by a fine gold chain, three elapsed bars and
+three verdict marks. Its role names do not read at that width, which is V9's intended behaviour and
+not a defect, and nothing was enlarged or removed to change it.
+
+### The preservation contract, and the strongest evidence yet for it
+
+None of the files the brief names was edited. And this stage adds **zero bytes** to V10's build:
+building V10's entry from a clean tree at this branch's HEAD gives **8,528,318 bytes**, byte-count
+identical to stage 1's figure, because stage 2's drawing lives entirely in
+`src/world/screens/v11/` and no shared world file was touched — `ConsoleScreen.tsx`,
+`ScreenBank.tsx`, `stationScreen.ts`, `draw.ts`, `screenPlane.ts`, `closeUp.ts` and `palette.ts` are
+all exactly as V10 left them. The 77-byte difference stage 1 isolated and explained is unchanged
+and no new one was added.
+
+### The checks, as printed
+
+| Check | Result |
+|---|---|
+| `pnpm check` — biome | `Checked 251 files in 211ms. No fixes applied.` |
+| `pnpm check` — typecheck | `Tasks: 8 successful, 8 total` |
+| `pnpm check` — tests | agent-contracts 70, visual-language 18, knowledge-graph 24, gate-engine 19, domain 104, **mission-control 740 in 26 files** |
+| `pnpm check` — `verify:owner` | `PASS — opens from file://, no console errors, no off-document requests`; `console errors 0` |
+| `pnpm check` — `verify:owner:v11` | `PASS — opens from file://, no console errors, no off-document requests, no horizontal overflow, every touch target at least 44 x 44, the gesture guard holds, V10 still loads at #/v10`; 13 targets, smallest 48 px; reduced-motion gap **0 ms** against **1,809 ms** by default |
+| Mind Scan | `82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `mind scan: no findings` |
+| `build:owner` from a clean tree | `v10-s2-virgil-07b129bfb1.html`, **8,528,318 bytes** — identical to stage 1's |
+| `build:owner:v11` from a clean tree | `v11-s2-virgil-07b129bfb1.html`, **8,605,472 bytes** |
+| `sha256sum -c *.sha256` | **17 committed artifacts, all `OK`** |
+| `pnpm reproduce:owner` | `identical — rebuilt from 4ae03314d93ed6e26982f3691034974ff5b3887b`; `PASS` |
+| `pnpm reproduce:owner:v11` | `identical — rebuilt from 07b129bfb1ba63bb19c5ec275f3d0af571182208`; `PASS` |
+
+**Tests added this stage: 380, none changed, skipped or weakened.** The app's suite goes from 360 to
+740: 34 for the display geometry and the faceplate, 22 for the shared system, 17 for the rebuilt
+slabs and their layer order, 299 for the content vocabulary and the verdict-leak invariant, and 8
+for the two composition edits and the owner's cluster targets.
+
+### The artifact
+
+`docs/process/PHASE_1_owner-builds/v11/v11-s2-virgil-07b129bfb1.html`, sha256
+`df667741844c6c2669f878968b996308c7409883742eab547208c2073c160835`, **8,605,472 bytes** — 0.57 %
+larger than stage 1's 8,556,332 against identical model payloads, which is the whole of the new
+display system, the faceplate geometry and the rebuilt slabs. Its digest is
+`docs/process/PHASE_1_owner-builds/v11-s2-virgil-07b129bfb1.html.sha256`, at the top level so the
+one existing `sha256sum -c *.sha256` covers it.
+
+**V10, unchanged, is still at `#/v10` in the same file**, verified in the browser inside this build:
+1 control bar, 12 buttons, 1 demonstration badge, 1 provenance footer, 0 V11 nodes.
+
+### What this stage does not claim
+
+- **No visual-quality judgment has been made on real graphics hardware.** Every frame here was
+  rendered in software by SwiftShader. OD-0005 defers the two graphics-hardware checks and requires
+  them recorded as not performed, never as met.
+- **Every iPhone check is a simulated viewport in headless Chromium.** 390 × 844, 430 × 932 and
+  844 × 390 are CSS pixel sizes given to a browser, not devices. **No real device has been used and
+  no real-device check has been performed.**
+- **The mipmap and anisotropy path is not exercised in this container**, because a software renderer
+  turns it off (above). The settings for real renderers are held by a unit test; no frame here is
+  evidence about minification quality, and the microtext's behaviour under a 24 : 1 minification on
+  a GPU is **not measured**.
+- **The frame-rate figures are this container's.** 1.49 fps against V10's 1.88 describes SwiftShader
+  and says nothing about a phone. No performance figure against the tier budgets has been taken on
+  any device, and `PERFORMANCE_STRATEGY.md`'s measurement section still reads "None has been
+  performed on any branch."
+- **A pass here is a builder's claim.** The deterministic checks are the evidence; independent
+  review has not happened.
+- Stages 3 and 4 of the brief are not started: the full-screen windows, the twelve review states and
+  the KTX2/Draco/Meshopt assessment the brief's second caution requires are all still ahead.
