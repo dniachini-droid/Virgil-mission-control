@@ -69,13 +69,21 @@ export interface ConsoleScreenInput {
   work?: HopWork | undefined;
   t: number;
   since: number;
+  /**
+   * Whether the honesty band is drawn. `mode === 'replay'` and nothing
+   * else: the scripted mode's labelling lives on the persistent
+   * `Demo data` badge (`system.ts`, `BAND_PIXELS_AT_1024`), and the
+   * replay's three lines make the opposite claim about content that is
+   * real.
+   */
+  showBand: boolean;
 }
 
 export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScreenInput) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  const { role, label, state, report, outcome, quiet, corner, work, t, since } = input;
-  const m = metrics(canvas.width, canvas.height, corner);
+  const { role, label, state, report, outcome, quiet, corner, work, t, since, showBand } = input;
+  const m = metrics(canvas.width, canvas.height, corner, showBand);
   const accent = accentOf(role);
   const primary = primaryFor(role, state, report);
   const colour = colourOf(primary.status);
@@ -203,7 +211,7 @@ export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScree
   quieten(ctx, m, quiet);
   reflections(ctx, m, t);
   sweep(ctx, m, since, colour);
-  honestyBand(ctx, m, bandLines());
+  if (m.band > 0) honestyBand(ctx, m, bandLines());
 }
 
 /**
@@ -257,8 +265,9 @@ export function ledgerRowAtUv(
   uvY: number,
   canvasWidth: number,
   canvasHeight: number,
+  showBand = false,
 ): number | null {
-  const m = metrics(canvasWidth, canvasHeight);
+  const m = metrics(canvasWidth, canvasHeight, 0, showBand);
   const r = ledgerRect(m);
   // The texture's v runs up; the canvas's y runs down.
   const y = (1 - uvY) * canvasHeight;
@@ -276,6 +285,8 @@ export interface SlabInput {
   corner: number;
   t: number;
   since: number;
+  /** Whether the honesty band is drawn: `mode === 'replay'` and nothing else. */
+  showBand: boolean;
 }
 
 /**
@@ -299,8 +310,8 @@ export interface SlabInput {
 export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  const { kind, content, outcome, seconds, corner, t, since } = input;
-  const m = metrics(canvas.width, canvas.height, corner);
+  const { kind, content, outcome, seconds, corner, t, since, showBand } = input;
+  const m = metrics(canvas.width, canvas.height, corner, showBand);
   const accent = accentOf('virgil');
   const gate = content.ownerGate;
 
@@ -375,7 +386,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
     quieten(ctx, m, gate ? 0.6 : 0);
     reflections(ctx, m, t);
     sweep(ctx, m, since, colour);
-    honestyBand(ctx, m, bandLines());
+    if (m.band > 0) honestyBand(ctx, m, bandLines());
     return;
   }
 
@@ -427,7 +438,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
     quieten(ctx, m, gate ? 0.6 : 0);
     reflections(ctx, m, t);
     sweep(ctx, m, since, STATUS.cyan);
-    honestyBand(ctx, m, bandLines());
+    if (m.band > 0) honestyBand(ctx, m, bandLines());
     return;
   }
 
@@ -489,7 +500,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
   joins(ctx, m);
   reflections(ctx, m, t);
   sweep(ctx, m, since, colour);
-  honestyBand(ctx, m, bandLines());
+  if (m.band > 0) honestyBand(ctx, m, bandLines());
 }
 
 /**

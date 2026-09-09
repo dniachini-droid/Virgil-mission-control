@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { buildGeometry, decodeMeshyPayload } from '../src/world/assets/meshyAsset.js';
 import { placedPositions } from '../src/world/characters/visorFit.js';
-import { mobilePose, overviewPose } from '../src/world/mobile/composition.js';
+import { mobilePose, overviewPose, PORTRAIT_FRAME } from '../src/world/mobile/composition.js';
 import {
   fabricatorStationBase64Payload,
   keeperStationBase64Payload,
@@ -11,6 +11,7 @@ import {
 import { CAST, ROLES, type Role } from '../src/world/room/cast.js';
 import { layout } from '../src/world/room/palette.js';
 import { screenPlan } from '../src/world/screens/screenPlane.js';
+import { V11_BANK_LIFT, v11Bank } from '../src/world/screens/v11/bank.js';
 import { bezelPlan } from '../src/world/screens/v11/bezel.js';
 import { TEXTURE_WIDTH, textureBytes } from '../src/world/screens/v11/resolution.js';
 import { v11SlabPlan } from '../src/world/screens/v11/ScreenBankV11.js';
@@ -122,7 +123,7 @@ function displays() {
       openingMm: [2 * d.halfWidth * 1000, 2 * d.halfHeight * 1000],
     };
   }
-  const { y, z, spread, splay } = layout.screenBank;
+  const { y, z, spread, splay } = v11Bank();
   const plan = v11SlabPlan(1024);
   const slabs: [string, [number, number, number], [number, number, number]][] = [
     ['slab-roles', [-spread, y - 0.08, z + 0.35], [-0.1, splay, 0]],
@@ -202,12 +203,12 @@ describe('how large each display is on a 390 x 844 portrait viewport', () => {
    * its own width and height rather than by a bounding box.
    */
   const OVERVIEW: Record<string, [number, number]> = {
-    fabricator: [43.4, 25.0],
-    prover: [36.6, 19.4],
-    keeper: [39.7, 25.8],
-    'slab-roles': [85.2, 53.6],
-    'slab-verdict': [83.2, 52.8],
-    'slab-candidate': [85.2, 53.6],
+    fabricator: [43.3, 25.4],
+    prover: [36.4, 19.5],
+    keeper: [39.5, 26.0],
+    'slab-roles': [87.6, 58.3],
+    'slab-verdict': [85.4, 57.2],
+    'slab-candidate': [87.6, 58.3],
   };
 
   it.each(Object.keys(OVERVIEW))('%s is the size it was measured at', (id) => {
@@ -294,20 +295,20 @@ describe('the other two viewports, recorded so a change is noticed', () => {
       430,
       932,
       {
-        fabricator: [47.9, 27.6],
-        prover: [40.3, 21.3],
-        keeper: [43.8, 28.4],
-        'slab-verdict': [91.7, 58.2],
+        fabricator: [47.8, 28.0],
+        prover: [40.2, 21.5],
+        keeper: [43.5, 28.7],
+        'slab-verdict': [94.1, 63.0],
       },
     ],
     [
       844,
       390,
       {
-        fabricator: [52.5, 30.2],
-        prover: [41.6, 22.3],
-        keeper: [47.2, 30.7],
-        'slab-verdict': [105.0, 70.6],
+        fabricator: [40.7, 23.4],
+        prover: [32.3, 17.3],
+        keeper: [36.6, 23.8],
+        'slab-verdict': [84.1, 57.8],
       },
     ],
   ];
@@ -343,11 +344,11 @@ describe('the texture memory the six displays add', () => {
     }
     // Recorded to a tenth of a megabyte, so the run record's figures and
     // the code cannot drift apart.
-    expect(totals.mobile).toBeCloseTo(20.13, 1);
-    expect(totals.constrained).toBeCloseTo(20.13, 1);
-    expect(totals.laptop).toBeCloseTo(45.29, 1);
-    expect(totals.desktop).toBeCloseTo(80.52, 1);
-    expect(totals.ultra).toBeCloseTo(80.52, 1);
+    expect(totals.mobile).toBeCloseTo(20.14, 1);
+    expect(totals.constrained).toBeCloseTo(20.14, 1);
+    expect(totals.laptop).toBeCloseTo(45.32, 1);
+    expect(totals.desktop).toBeCloseTo(80.57, 1);
+    expect(totals.ultra).toBeCloseTo(80.57, 1);
   });
 });
 
@@ -400,5 +401,86 @@ describe('the authored bezel overlay, derived from each model’s own opening', 
     // so a flat plate clearing them would have stood off the console.
     expect(bezelPlan('prover').surfaceMaxFront).toBeGreaterThan(0.01);
     expect(bezelPlan('keeper').surfaceMaxFront).toBeGreaterThan(0.01);
+  });
+});
+
+describe('the two composition edits the owner asked for after seeing stage 2', () => {
+  /**
+   * *"the default camera angle is too high up… bring the camera down a
+   * little bit more level so it's not looking on top of the tabletop"*, and
+   * *"we need to bring all of the three screens above virgil… not increase
+   * their height. Just move them up a bit higher just so that they're not…
+   * blocking the consoles behind."*
+   *
+   * Both are held here rather than described, because they interact: a
+   * lower camera raises everything in frame and raising the slabs raises
+   * them again, so the two together could push the slabs off the top edge.
+   */
+  it('stands the portrait camera lower than stage 1’s 28°', () => {
+    expect(PORTRAIT_FRAME.elevation).toBeLessThan(28);
+    const pose = overviewPose(390 / 844);
+    // 7.02 m up against stage 1's 8.48.
+    expect(pose.position[1]).toBeLessThan(7.5);
+    expect(pose.position[1]).toBeGreaterThan(6.2);
+  });
+
+  it('lifts the slabs without changing their size', () => {
+    expect(V11_BANK_LIFT).toBeGreaterThan(0.9);
+    expect(v11Bank().y).toBeCloseTo(layout.screenBank.y + V11_BANK_LIFT, 9);
+    // Only the position moved: the slab is the same object it was.
+    expect(v11SlabPlan(1024).openingWidth).toBeCloseTo(1.476, 6);
+    expect(v11SlabPlan(1024).openingHeight).toBeCloseTo(0.976, 6);
+  });
+
+  it('clears the role consoles behind, which is what the lift is for', () => {
+    for (const [w, h] of [
+      [390, 844],
+      [430, 932],
+    ] as [number, number][]) {
+      const camera = cameraFor(overviewPose(w / h), w, h);
+      const slabBottom = Math.max(
+        ...['slab-roles', 'slab-verdict', 'slab-candidate'].map((id) => {
+          const display = DISPLAYS[id];
+          if (!display) throw new Error(id);
+          return Math.max(
+            ...display.quad.map((corner) => ((1 - corner.clone().project(camera).y) / 2) * h),
+          );
+        }),
+      );
+      const consoleTop = Math.min(
+        ...ROLES.map((role) => {
+          const display = DISPLAYS[role];
+          if (!display) throw new Error(role);
+          return Math.min(
+            ...display.quad.map((corner) => ((1 - corner.clone().project(camera).y) / 2) * h),
+          );
+        }),
+      );
+      // The slabs' lowest edge sits clear above the consoles' highest
+      // screen edge, in screen pixels, at both portrait viewports.
+      expect(consoleTop - slabBottom, `${w}x${h}`).toBeGreaterThan(20);
+    }
+  });
+
+  it('keeps the slabs inside the top of the frame at every viewport', () => {
+    for (const [w, h] of [
+      [390, 844],
+      [430, 932],
+      [844, 390],
+    ] as [number, number][]) {
+      const camera = cameraFor(overviewPose(w / h), w, h);
+      const top = Math.min(
+        ...['slab-roles', 'slab-verdict', 'slab-candidate'].map((id) => {
+          const display = DISPLAYS[id];
+          if (!display) throw new Error(id);
+          return Math.min(
+            ...display.quad.map((corner) => ((1 - corner.clone().project(camera).y) / 2) * h),
+          );
+        }),
+      );
+      // Portrait leaves hundreds of pixels; landscape is the tight one, at
+      // about 18 px, and it is recorded rather than asserted loosely.
+      expect(top, `${w}x${h}`).toBeGreaterThan(12);
+    }
   });
 });

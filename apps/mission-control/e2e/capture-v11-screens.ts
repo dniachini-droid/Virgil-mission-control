@@ -18,8 +18,8 @@
  * OD-0005 defers those two checks and requires them recorded as not
  * performed, never as met.
  *
- * Usage: pnpm --filter mission-control capture:v11:screens -- p390
- *        VIRGIL_V11_ROUTE=#/v10 pnpm --filter mission-control capture:v11:screens -- p390
+ * Usage: pnpm --filter mission-control capture:v11:screens -- p390 consoles
+ *        VIRGIL_V11_ROUTE=#/v10 pnpm --filter mission-control capture:v11:screens -- p390 consoles
  */
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -68,19 +68,29 @@ async function lookAt(page: Page, label: string) {
   await page.waitForTimeout(3200);
 }
 
-/** Waits until the demonstration's own clock passes `seconds` of its loop. */
-async function seek(page: Page, seconds: number) {
+/**
+ * Waits until the demonstration's own clock is **inside** the span
+ * `[seconds, seconds + span)` of its loop.
+ *
+ * The first version waited for `seconds >= want` and returned at once
+ * whenever the clock was already past — so a shot meant for the
+ * Fabricator's working beat at 11 s was taken at 30 s, where the
+ * Fabricator is idle, and the frame showed STANDBY when it should have
+ * shown BUILDING. The loop comes round, so waiting for the window costs at
+ * most one loop and is right every time.
+ */
+async function seek(page: Page, seconds: number, span = 4) {
   await page.waitForFunction(() => '__virgilDemo' in window, undefined, { timeout: 120_000 });
   await page.waitForFunction(
-    (want) => {
+    (range: { from: number; to: number }) => {
       const demo = (window as Window & { __virgilDemo?: { seconds: number } }).__virgilDemo;
-      return demo !== undefined && demo.seconds >= want;
+      return demo !== undefined && demo.seconds >= range.from && demo.seconds < range.to;
     },
-    seconds,
-    { timeout: 300_000, polling: 120 },
+    { from: seconds, to: seconds + span },
+    { timeout: 300_000, polling: 100 },
   );
-  await page.waitForTimeout(700);
 }
+
 /** Loads the world once, at the overview, and waits for it. */
 async function boot(page: Page, hash: string) {
   await page.goto(`${fileUrl}${hash}`, { waitUntil: 'load' });
@@ -98,10 +108,10 @@ async function boot(page: Page, hash: string) {
  * standby, which is the state the black-screen defect was hiding.
  */
 const CLOSE_UPS: [string, string, number][] = [
-  ['fabricator-working', 'Fabricator', 11],
-  ['prover-working', 'Prover', 26],
-  ['keeper-working', 'Keeper', 41],
-  ['keeper-standby', 'Keeper', 8],
+  ['fabricator-working', 'Fabricator', 9],
+  ['prover-working', 'Prover', 24],
+  ['keeper-working', 'Keeper', 39],
+  ['keeper-standby', 'Keeper', 20],
 ];
 
 /**
@@ -133,36 +143,50 @@ page.on('pageerror', (e) => errors.push(`${which} uncaught: ${e}`));
 
 const route = process.env.VIRGIL_V11_ROUTE ?? '#/';
 const prefix = route === '#/v10' ? `v10-${which}` : which;
+/**
+ * Which set of shots this run takes. One phase per invocation: this
+ * renderer needs about a hundred seconds to reach the first frame and a
+ * loop of the demonstration is another fifty, so a run that took every
+ * shot ran past ten minutes and had to be pushed into the background —
+ * where, as this project has learnt five times, it dies with the turn.
+ */
+const phase = process.argv[3] ?? 'consoles';
 await boot(page, route);
 
-// The overview, at three moments, from the distance the displays are
-// actually seen from.
-for (const seconds of [11, 26, 45]) {
-  await seek(page, seconds);
-  await page.screenshot({ path: `${shots}/${prefix}-overview-${seconds}s.png` });
-}
-
-// Each console, close, at the second its own agent is working — and two of
-// them again while idle, which is the state the black screen was hiding.
-for (const [label, look, seconds] of CLOSE_UPS) {
-  await seek(page, seconds);
-  await lookAt(page, look);
-  await page.screenshot({ path: `${shots}/${prefix}-${label}.png` });
+if (phase === 'overview') {
+  // The overview, at three moments, from the distance the displays are
+  // actually seen from: the Fabricator building, the Prover verifying, the
+  // Keeper reviewing.
+  for (const seconds of [11, 26, 41]) {
+    await seek(page, seconds);
+    await page.screenshot({ path: `${shots}/${prefix}-overview-${seconds}s.png` });
+  }
+} else if (phase === 'consoles') {
+  for (const [label, look, seconds] of CLOSE_UPS) {
+    await seek(page, seconds);
+    await lookAt(page, look);
+    await page.screenshot({ path: `${shots}/${prefix}-${label}.png` });
+    await lookAt(page, 'All');
+  }
+} else if (phase === 'board') {
+  await seek(page, 45, 8);
+  await lookAt(page, 'Board');
+  await page.screenshot({ path: `${shots}/${prefix}-board.png` });
   await lookAt(page, 'All');
+  await seek(page, 50, 5);
+  await lookAt(page, 'Board');
+  await page.screenshot({ path: `${shots}/${prefix}-board-gate.png` });
+  await lookAt(page, 'All');
+  await seek(page, 30, 4);
+  await lookAt(page, 'Virgil');
+  await page.screenshot({ path: `${shots}/${prefix}-virgil.png` });
+} else {
+  throw new Error(`unknown phase ${phase}; one of overview, consoles, board`);
 }
-
-// Virgil's three slabs, and Virgil.
-await seek(page, 45);
-await lookAt(page, 'Board');
-await page.screenshot({ path: `${shots}/${prefix}-board.png` });
-await lookAt(page, 'All');
-await seek(page, 50);
-await lookAt(page, 'Virgil');
-await page.screenshot({ path: `${shots}/${prefix}-virgil.png` });
 await page.close();
 
 await browser.close();
-console.log(`capture v11 screens: ${which} frames in ${shots}`);
+console.log(`capture v11 screens: ${prefix} ${phase} frames in ${shots}`);
 console.log(`capture v11 screens: console errors ${errors.length}`);
 for (const error of errors) console.log(`capture v11 screens: ${error}`);
 console.log(

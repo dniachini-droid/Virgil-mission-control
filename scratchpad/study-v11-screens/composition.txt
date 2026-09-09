@@ -1,0 +1,33 @@
+--- 390x844: cam 0.00,7.02,11.80 fov 58.0 target 0.00,1.30,-2.35
+  fabricator      43.3 x 25.4 css px   top 390 bottom 421
+  prover          36.4 x 19.5 css px   top 369 bottom 388
+  keeper          39.5 x 26.0 css px   top 364 bottom 395
+  slab-roles      87.6 x 58.3 css px   top 268 bottom 328
+  slab-verdict    85.4 x 57.2 css px   top 260 bottom 317
+  slab-candidate  87.6 x 58.3 css px   top 268 bottom 328
+  slab bank top edge at y = 260.2 css px (clearance above 260.2 px)
+  worst critical point |ndc| = 0.832 (1.0 is the frame edge)
+  board slab-verdict 120.7 x 79.6 css px
+
+--- 430x932: cam 0.00,7.03,11.83 fov 58.0 target 0.00,1.30,-2.35
+  fabricator      47.8 x 28.0 css px   top 431 bottom 465
+  prover          40.2 x 21.5 css px   top 407 bottom 429
+  keeper          43.5 x 28.7 css px   top 402 bottom 436
+  slab-roles      96.6 x 64.3 css px   top 296 bottom 363
+  slab-verdict    94.1 x 63.0 css px   top 288 bottom 351
+  slab-candidate  96.6 x 64.3 css px   top 296 bottom 363
+  slab bank top edge at y = 287.6 css px (clearance above 287.6 px)
+  worst critical point |ndc| = 0.832 (1.0 is the frame edge)
+  board slab-verdict 133.1 x 87.8 css px
+
+--- 844x390: cam 0.00,3.97,7.89 fov 42.5 target 0.00,1.25,-2.25
+  fabricator      40.7 x 23.4 css px   top 170 bottom 197
+  prover          32.3 x 17.3 css px   top 157 bottom 175
+  keeper          36.6 x 23.8 css px   top 148 bottom 174
+  slab-roles      88.7 x 59.9 css px   top 19 bottom 81
+  slab-verdict    84.1 x 57.8 css px   top 18 bottom 75
+  slab-candidate  88.7 x 59.9 css px   top 19 bottom 81
+  slab bank top edge at y = 17.7 css px (clearance above 17.7 px)
+  worst critical point |ndc| = 0.920 (1.0 is the frame edge)
+  board slab-verdict 143.5 x 94.6 css px
+

@@ -71,6 +71,7 @@ export function ConsoleScreenV11({
   quiet = 0,
   work,
   attention = false,
+  showBand = false,
   onOpen,
 }: {
   role: Role;
@@ -81,6 +82,14 @@ export function ConsoleScreenV11({
   quiet?: number;
   /** Whether the camera is looking at this console. Powers the display on. */
   attention?: boolean;
+  /**
+   * Whether the honesty band is drawn. **False in the scripted mode**, on
+   * the owner's instruction: *"No bands. No demo signage on the screens.
+   * And the screens now will use the entire space of the screen
+   * properly."* True in the replay, whose three lines make the opposite
+   * claim about content that is real.
+   */
+  showBand?: boolean;
   onOpen: () => void;
 }) {
   use(loadScreenFonts());
@@ -193,6 +202,7 @@ export function ConsoleScreenV11({
       work,
       t: c.t,
       since: c.t - c.stateAt,
+      showBand,
     });
     texture.needsUpdate = true;
   });

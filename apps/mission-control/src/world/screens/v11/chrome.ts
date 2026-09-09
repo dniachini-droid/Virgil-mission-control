@@ -322,18 +322,18 @@ export function headerRail(
 
 /** Where the agent's own picture goes: the well, and the rect it may use. */
 export function wellRect(m: Metrics): Rect {
-  const { w, h, pad, header, band, rail, u, heroWidth } = m;
+  const { w, h, pad, header, band, foot, rail, u, heroWidth } = m;
   const top = pad + header + 1.6 * u;
-  const bottom = h - band - rail - 1.2 * u;
+  const bottom = h - band - foot - rail - 1.2 * u;
   const x = pad + heroWidth + 1.6 * u;
   return { x, y: top, w: w - pad - x, h: bottom - top };
 }
 
 /** Where the primary state goes. */
 export function heroRect(m: Metrics): Rect {
-  const { h, pad, header, band, rail, u, heroWidth } = m;
+  const { h, pad, header, band, foot, rail, u, heroWidth } = m;
   const top = pad + header + 1.6 * u;
-  const bottom = h - band - rail - 1.2 * u;
+  const bottom = h - band - foot - rail - 1.2 * u;
   return { x: pad + 1.4 * u, y: top, w: heroWidth, h: bottom - top };
 }
 
@@ -653,9 +653,14 @@ export function scrim(ctx: Ctx, r: Rect, strength = 0.66) {
 
 /** The body of a display: everything between the header rule and the rail. */
 export function bodyRect(m: Metrics): Rect {
-  const { w, h, pad, header, band, rail, u } = m;
+  const { w, h, pad, header, band, foot, rail, u } = m;
   const top = pad + header + 1.6 * u;
-  return { x: pad + 1.4 * u, y: top, w: w - 2 * pad - 2.8 * u, h: h - band - rail - 1.2 * u - top };
+  return {
+    x: pad + 1.4 * u,
+    y: top,
+    w: w - 2 * pad - 2.8 * u,
+    h: h - band - foot - rail - 1.2 * u - top,
+  };
 }
 
 /** Greedy word wrap on the mono face, at most `max` lines, the last elided. */
@@ -708,15 +713,19 @@ export function microRail(
   m: Metrics,
   columns: readonly { label: string; value: string; colour?: string | undefined }[],
 ) {
-  const { w, h, u, pad, band, rail, hair } = m;
-  const top = h - band - rail;
-  hairline(ctx, pad, top, w - pad, top, TEXT, hair, 0.12);
-  const usable = w - 2 * pad - 2.8 * u;
+  const { w, h, u, pad, band, foot, rail, hair, corner } = m;
+  const top = h - band - foot - rail;
+  // Where the band is gone the rail sits inside the rounded corner's own
+  // curve, so its ends come in by however much that curve has eaten at the
+  // height the rail's text reaches.
+  const bite = band > 0 ? 0 : Math.ceil(cornerInset(corner, foot + rail * 0.3));
+  hairline(ctx, pad + bite, top, w - pad - bite, top, TEXT, hair, 0.12);
+  const usable = w - 2 * (pad + bite) - 2.8 * u;
   const each = usable / Math.max(1, columns.length);
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   columns.forEach((column, i) => {
-    const x = pad + 1.4 * u + i * each;
+    const x = pad + bite + 1.4 * u + i * each;
     if (i > 0)
       hairline(ctx, x - 1.2 * u, top + 1.1 * u, x - 1.2 * u, top + rail - 1.4 * u, TEXT, hair, 0.1);
     spaced(ctx, '0.14em');

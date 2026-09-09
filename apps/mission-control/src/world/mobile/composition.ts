@@ -2,6 +2,7 @@ import type { PanelTarget, SlabName } from '../panel/panelContent.js';
 import { CAST, eyeHeight, figurePlacement, ROLES, type Role, screenCentre } from '../room/cast.js';
 import { closeUpPose, fovFor, screenCorners } from '../room/closeUp.js';
 import { type CameraPose, layout } from '../room/palette.js';
+import { v11Bank } from '../screens/v11/bank.js';
 
 /**
  * **V11 stage 1: a composition authored for a phone held upright, and a
@@ -76,13 +77,23 @@ export interface Frame {
 }
 
 /**
- * Upright. The elevation is the whole idea: at 27° the eye is high enough that
- * Virgil's console rim (0.87 m at z = +0.3) cannot cut across the specialists
- * standing 2–3.5 m behind it, and low enough that the set still reads as a
- * place seen from within rather than a map.
+ * Upright. The elevation is the whole idea: high enough that Virgil's
+ * console rim (0.87 m at z = +0.3) cannot cut across the specialists
+ * standing 2–3.5 m behind it, and low enough that the set reads as a place
+ * seen from within rather than a map.
+ *
+ * **Stage 2 brings it down from 28° to 22°**, on the owner's instruction
+ * after seeing the stage-2 overview: *"the default camera angle is too high
+ * up… bring the camera down a little bit more level so it's not looking on
+ * top of the tabletop."* At 28° the camera stood 8.48 m up and the disc's
+ * top surface was displayed; at 22° it stands 7.02 m up and the disc is
+ * foreshortened, which is the difference between looking down onto the
+ * tabletop and standing at it. The camera stays movable — he raised
+ * locking it and deferred it: *"we could potentially even, like, lock that
+ * in place, but we can do that later. Still make it movable."*
  */
 export const PORTRAIT_FRAME: Frame = {
-  elevation: 28,
+  elevation: 22,
   target: [0, 1.3, -2.35],
   minDistance: 11.5,
   maxDistance: 19,
@@ -127,7 +138,7 @@ export function compositionPoints(): Vec3[] {
     for (const dz of [-1.15, 1.15]) points.push([vx + dx, vy, vz + dz]);
   }
   // His three slabs, as boxes: the board has to be legible from the overview.
-  const { y, z, spread } = layout.screenBank;
+  const { y, z, spread } = v11Bank();
   const slabHalfWidth = 1.3 / 2 + 0.12;
   const slabHalfHeight = 0.8 / 2 + 0.12;
   for (const [sx, sy, sz] of [
@@ -314,7 +325,7 @@ function slabAnchor(id: string, label: string, point: Vec3, slab: SlabName): Anc
  */
 export function anchors(): Anchor[] {
   const [vx, vy, vz] = layout.virgilAt;
-  const { y, z, spread } = layout.screenBank;
+  const { y, z, spread } = v11Bank();
   const list: Anchor[] = [
     {
       id: 'virgil',
@@ -372,7 +383,7 @@ export function mobilePose(focus: MobileFocus, aspect: number): CameraPose {
     };
   }
   if (focus === 'board') {
-    const { y, z, spread } = layout.screenBank;
+    const { y, z, spread } = v11Bank();
     const fov = orientationFor(aspect) === 'portrait' ? 52 : 44;
     const halfWidth = spread + 0.85;
     const distance = Math.max(5, halfWidth / (Math.tan((fov / 2) * (Math.PI / 180)) * aspect));

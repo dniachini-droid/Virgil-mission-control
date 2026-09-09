@@ -153,12 +153,23 @@ export interface Metrics {
   pad: number;
   /** The corner radius of the drawn outline, in canvas pixels. */
   corner: number;
-  /** The honesty band's height, unchanged in proportion from V10. */
+  /**
+   * The honesty band's height: V10's own 118 canvas pixels scaled by the
+   * canvas width in the replay, and **zero in the scripted mode**.
+   */
   band: number;
   /** The header rail's height. */
   header: number;
   /** The secondary-detail rail's height, above the band. */
   rail: number;
+  /**
+   * The clear space below the rail. Zero where the band is drawn, because
+   * the band **is** the foot; otherwise the outer margin plus a share of
+   * the corner radius so the rail clears the curve it now sits in, capped
+   * at four and a half units — a console's 78–81 mm corner would otherwise
+   * take more of the foot than the margin needs.
+   */
+  foot: number;
   /** The hero column's width: where the primary state lives. */
   heroWidth: number;
   /** Type sizes. */
@@ -173,24 +184,43 @@ export interface Metrics {
 }
 
 /**
- * **The band's height is 18.6 % of the canvas, exactly V10's proportion.**
+ * **The honesty band, and why V11's scripted mode no longer draws one.**
  *
- * V10 drew it as a constant 118 canvas pixels on a canvas 1024 wide, at
- * every aspect and on every display. It is stated here as 118 **scaled by
- * the canvas width**, which reproduces V10's height exactly on the coarse
- * tier and grows it in proportion when the tier gives the display a larger
- * texture. So the band occupies the same share of the physical display as
- * it did in V10 — 19.6 % of a console's height, 18.6 % of a slab's — and a
- * stage whose job is to make the screens prettier is not the stage that
- * makes the one element admitting the content is invented smaller. It is
- * restyled — a gold hairline over an amber field, the words letterspaced
- * and fitted — and it is not reduced by one pixel.
+ * V10 drew a 118-canvas-pixel amber band along the foot of all six
+ * displays, reading `ILLUSTRATIVE · NOT REAL STATE`, at every aspect and
+ * on every tier. The owner, of the stage-2 frames: *"Can we please remove
+ * the 'demo' orange bars from the bottom of each screen? Because I can't
+ * see what it looks like without it. And we also need to position things
+ * without it. I don't want to remove it and then have to go back to
+ * designing. Take it off. I know it's a demo."*
+ *
+ * So in V11's **scripted** mode there is no band, and the freed area is
+ * not left as a gap: `foot` below is the only thing that replaces it, and
+ * the well, the hero column and the secondary rail all grow into the rest,
+ * which is what the second half of that instruction asks for.
+ *
+ * **The labelling has not been dropped; it has moved.** V11's chrome
+ * carries the persistent `Demo data` badge stage 1 built, which states in
+ * full: *"This is a scripted demonstration. No repository event, check or
+ * live session drives the information currently shown."* The owner's own
+ * V11 brief called for that trade. What it costs, recorded rather than
+ * argued: **a screenshot cropped to the world alone, away from the badge,
+ * now carries no marking of its own.**
+ *
+ * **In `replay` the band stays, and that is not an inconsistency.** The
+ * replay shows a run that actually happened, and its three lines say
+ * `NOT LIVE STATE` — the opposite claim, about content that is real. The
+ * flag is therefore driven from the mode and never from taste: every
+ * caller passes `showBand = mode === 'replay'`, and
+ * `test/screen-system-v11.test.ts` fails if a band appears in the scripted
+ * mode or is missing from the replay.
  */
 export const BAND_PIXELS_AT_1024 = 118;
 
-export function metrics(w: number, h: number, corner = 0): Metrics {
+export function metrics(w: number, h: number, corner = 0, showBand = false): Metrics {
   const u = h / 48;
   const hair = Math.max(2, Math.round(h / 300));
+  const band = showBand ? Math.round((BAND_PIXELS_AT_1024 * w) / 1024) : 0;
   return {
     w,
     h,
@@ -199,9 +229,10 @@ export function metrics(w: number, h: number, corner = 0): Metrics {
     rule: hair * 1.5,
     pad: 2.2 * u,
     corner,
-    band: Math.round((BAND_PIXELS_AT_1024 * w) / 1024),
+    band,
     header: 5.2 * u,
     rail: 6.4 * u,
+    foot: band > 0 ? 0 : Math.min(2.2 * u + 0.3 * corner, 4.5 * u),
     heroWidth: 0.4 * w,
     type: {
       hero: 0.185 * h,

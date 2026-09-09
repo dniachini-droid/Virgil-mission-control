@@ -73,23 +73,66 @@ describe('the bloom contract', () => {
 });
 
 describe('the honesty band', () => {
-  it('is exactly V10’s height at V10’s canvas width, and never smaller', () => {
-    expect(BAND_PIXELS_AT_1024).toBe(BAND_HEIGHT);
-    expect(metrics(1024, 603).band).toBe(BAND_HEIGHT);
-    expect(metrics(1024, 634).band).toBe(BAND_HEIGHT);
+  /**
+   * The owner, of the stage-2 frames: *"No bands. No demo signage on the
+   * screens. And the screens now will use the entire space of the screen
+   * properly."* So in the scripted mode there is no band at all, and the
+   * whole display area is laid out — a margin below the rail, not a gap
+   * where the band used to be.
+   *
+   * In the replay it stays, at V10's own height, because there the three
+   * lines say `NOT LIVE STATE` about content that is real.
+   */
+  it('is not drawn at all in the scripted mode', () => {
+    for (const width of Object.values(TEXTURE_WIDTH)) {
+      for (const aspect of [1.699, 1.8665, 1.5146, 1.507]) {
+        const m = metrics(width, Math.round(width / aspect), 80);
+        expect(m.band).toBe(0);
+      }
+    }
   });
 
-  it('grows with the canvas, so its share of the physical display never shrinks', () => {
+  it('is exactly V10’s height in the replay, at V10’s canvas width', () => {
+    expect(BAND_PIXELS_AT_1024).toBe(BAND_HEIGHT);
+    expect(metrics(1024, 603, 80, true).band).toBe(BAND_HEIGHT);
+    expect(metrics(1024, 679, 20, true).band).toBe(BAND_HEIGHT);
+  });
+
+  it('grows with the canvas in the replay, so its share never shrinks', () => {
     for (const width of [1024, 1536, 2048]) {
-      for (const aspect of [1.699, 1.8665, 1.5146, 1.616]) {
+      for (const aspect of [1.699, 1.8665, 1.5146, 1.507]) {
         const height = Math.round(width / aspect);
-        const share = metrics(width, height).band / height;
-        const v10 = (BAND_HEIGHT * (1024 / 1024)) / Math.round(1024 / aspect);
+        const share = metrics(width, height, 80, true).band / height;
+        const v10 = BAND_HEIGHT / Math.round(1024 / aspect);
         expect(share).toBeGreaterThanOrEqual(v10 - 1e-3);
       }
     }
   });
+
+  it('gives the freed area to the layout rather than leaving it empty', () => {
+    // The body is taller without the band by the band's height less the
+    // margin the rounded corner needs: nothing is wasted beyond that.
+    // Each display's own measured corner radius, in its own canvas pixels.
+    for (const [aspect, corner] of [
+      [1.699, 85],
+      [1.507, 17],
+    ] as [number, number][]) {
+      const height = Math.round(1024 / aspect);
+      const withBand = metrics(1024, height, corner, true);
+      const without = metrics(1024, height, corner, false);
+      const gained = bodyHeight(without) - bodyHeight(withBand);
+      expect(gained).toBeGreaterThan(withBand.band - without.foot - 1);
+      expect(without.foot).toBeGreaterThan(0);
+      expect(without.foot).toBeLessThan(withBand.band * 0.5);
+    }
+  });
 });
+
+/** The body's height, from the metrics alone: what `bodyRect` computes. */
+function bodyHeight(m: ReturnType<typeof metrics>): number {
+  const top = m.pad + m.header + 1.6 * m.u;
+  return m.h - m.band - m.foot - m.rail - 1.2 * m.u - top;
+}
 
 describe('the status vocabulary', () => {
   it('never draws the Fabricator’s COMPLETE as a pass: it is a claim, not evidence', () => {

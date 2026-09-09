@@ -7,8 +7,9 @@ import type { SlabName } from '../../panel/panelContent.js';
 import type { ReplaySpeed } from '../../replay/replayTimeline.js';
 import type { Outcome, RunMode, ScreenContent } from '../../room/demo.js';
 import { wasTap } from '../../room/gesture.js';
-import { layout, room } from '../../room/palette.js';
+import { room } from '../../room/palette.js';
 import { loadScreenFonts } from '../fonts.js';
+import { v11Bank } from './bank.js';
 import { ANISOTROPY, REDRAW_FPS, TEXTURE_WIDTH } from './resolution.js';
 import { drawSlab, ledgerRowAtUv, type SlabKind } from './screens.js';
 
@@ -239,13 +240,15 @@ export function ScreenBankV11({
   speed: ReplaySpeed;
   onOpen: (slab: SlabName, row?: number) => void;
 }) {
-  const { y, z, spread, splay } = layout.screenBank;
-  void mode;
+  const { y, z, spread, splay } = v11Bank();
+  // The honesty band is drawn in the replay and nowhere else (`system.ts`).
+  const showBand = mode === 'replay';
   void speed;
   return (
     <group>
       <Slab
         kind="roles"
+        showBand={showBand}
         position={[-spread, y - 0.08, z + 0.35]}
         rotation={[-0.1, splay, 0]}
         content={content}
@@ -256,6 +259,7 @@ export function ScreenBankV11({
       />
       <Slab
         kind="verdict"
+        showBand={showBand}
         position={[0, y, z]}
         rotation={[-0.1, 0, 0]}
         content={content}
@@ -265,6 +269,7 @@ export function ScreenBankV11({
       />
       <Slab
         kind="candidate"
+        showBand={showBand}
         position={[spread, y - 0.08, z + 0.35]}
         rotation={[-0.1, -splay, 0]}
         content={content}
@@ -278,6 +283,7 @@ export function ScreenBankV11({
 
 function Slab({
   kind,
+  showBand,
   position,
   rotation,
   content,
@@ -287,6 +293,7 @@ function Slab({
   onOpenRow,
 }: {
   kind: SlabKind;
+  showBand: boolean;
   position: [number, number, number];
   rotation: [number, number, number];
   content: ScreenContent;
@@ -346,6 +353,7 @@ function Slab({
       corner: plan.cornerPixels,
       t: c.t,
       since: c.t - c.at,
+      showBand,
     });
     texture.needsUpdate = true;
   });
@@ -372,7 +380,7 @@ function Slab({
           if (!wasTap()) return;
           const row =
             onOpenRow && event.uv
-              ? ledgerRowAtUv(event.uv.y, plan.canvasWidth, plan.canvasHeight)
+              ? ledgerRowAtUv(event.uv.y, plan.canvasWidth, plan.canvasHeight, showBand)
               : null;
           if (onOpenRow && row !== null) onOpenRow(row);
           else onOpen();

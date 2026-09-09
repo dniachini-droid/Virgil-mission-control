@@ -1,0 +1,25 @@
+elev 28° lift 0.62m: cam y 8.48 dist 15.30 fov 58.0 | verdict 85.1x54.9 top 301 | slab bank bottom 371 vs highest console body 350 → gap -21 px
+elev 28° lift 0.90m: cam y 8.48 dist 15.30 fov 58.0 | verdict 85.9x55.8 top 286 | slab bank bottom 356 vs highest console body 350 → gap -6 px
+elev 28° lift 1.15m: cam y 8.48 dist 15.30 fov 58.0 | verdict 86.7x56.7 top 271 | slab bank bottom 342 vs highest console body 350 → gap 8 px
+elev 28° lift 1.40m: cam y 8.48 dist 15.30 fov 58.0 | verdict 87.5x57.7 top 257 | slab bank bottom 328 vs highest console body 350 → gap 21 px
+
+elev 24° lift 0.62m: cam y 7.51 dist 15.27 fov 58.0 | verdict 84.5x55.5 top 294 | slab bank bottom 362 vs highest console body 357 → gap -5 px
+elev 24° lift 0.90m: cam y 7.51 dist 15.27 fov 58.0 | verdict 85.2x56.4 top 278 | slab bank bottom 347 vs highest console body 357 → gap 10 px
+elev 24° lift 1.15m: cam y 7.51 dist 15.27 fov 58.0 | verdict 85.9x57.1 top 264 | slab bank bottom 333 vs highest console body 357 → gap 24 px
+elev 24° lift 1.40m: cam y 7.51 dist 15.27 fov 58.0 | verdict 86.5x57.9 top 249 | slab bank bottom 318 vs highest console body 357 → gap 39 px
+
+elev 22° lift 0.62m: cam y 7.02 dist 15.26 fov 58.0 | verdict 84.1x55.7 top 291 | slab bank bottom 358 vs highest console body 361 → gap 3 px
+elev 22° lift 0.90m: cam y 7.02 dist 15.26 fov 58.0 | verdict 84.8x56.5 top 275 | slab bank bottom 342 vs highest console body 361 → gap 19 px
+elev 22° lift 1.15m: cam y 7.02 dist 15.26 fov 58.0 | verdict 85.4x57.2 top 260 | slab bank bottom 328 vs highest console body 361 → gap 33 px
+elev 22° lift 1.40m: cam y 7.02 dist 15.26 fov 58.0 | verdict 86.0x57.9 top 245 | slab bank bottom 314 vs highest console body 361 → gap 47 px
+
+elev 20° lift 0.62m: cam y 6.52 dist 15.26 fov 58.0 | verdict 83.8x55.8 top 288 | slab bank bottom 354 vs highest console body 365 → gap 11 px
+elev 20° lift 0.90m: cam y 6.52 dist 15.26 fov 58.0 | verdict 84.4x56.5 top 272 | slab bank bottom 338 vs highest console body 365 → gap 27 px
+elev 20° lift 1.15m: cam y 6.52 dist 15.26 fov 58.0 | verdict 84.9x57.1 top 257 | slab bank bottom 324 vs highest console body 365 → gap 41 px
+elev 20° lift 1.40m: cam y 6.52 dist 15.26 fov 58.0 | verdict 85.5x57.7 top 242 | slab bank bottom 309 vs highest console body 365 → gap 55 px
+
+elev 18° lift 0.62m: cam y 6.01 dist 15.25 fov 58.0 | verdict 83.4x55.7 top 285 | slab bank bottom 350 vs highest console body 369 → gap 19 px
+elev 18° lift 0.90m: cam y 6.01 dist 15.25 fov 58.0 | verdict 83.9x56.3 top 269 | slab bank bottom 334 vs highest console body 369 → gap 34 px
+elev 18° lift 1.15m: cam y 6.01 dist 15.25 fov 58.0 | verdict 84.4x56.9 top 254 | slab bank bottom 320 vs highest console body 369 → gap 49 px
+elev 18° lift 1.40m: cam y 6.01 dist 15.25 fov 58.0 | verdict 84.9x57.5 top 240 | slab bank bottom 305 vs highest console body 369 → gap 63 px
+

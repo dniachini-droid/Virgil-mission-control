@@ -22,7 +22,6 @@
 
 import type { Role } from '../src/world/room/cast.js';
 import type { Outcome, Report, ScreenContent, StationState } from '../src/world/room/demo.js';
-import { setBandOnTwoLines } from '../src/world/screens/draw.js';
 import { loadScreenFonts } from '../src/world/screens/fonts.js';
 import { TEXTURE_WIDTH } from '../src/world/screens/v11/resolution.js';
 import { drawConsoleScreen, drawSlab } from '../src/world/screens/v11/screens.js';
@@ -40,7 +39,7 @@ const DISPLAYS = [
     kind: 'console' as const,
     aspect: 1.699,
     cornerFraction: 77.868 / 939.343,
-    css: [43.4, 25.0],
+    css: [43.3, 25.4],
     closeUp: [200.2, 117.4],
   },
   {
@@ -48,7 +47,7 @@ const DISPLAYS = [
     kind: 'console' as const,
     aspect: 1.8665,
     cornerFraction: 42.898 / 855.034,
-    css: [36.6, 19.4],
+    css: [36.4, 19.5],
     closeUp: [174.4, 93.3],
   },
   {
@@ -56,7 +55,7 @@ const DISPLAYS = [
     kind: 'console' as const,
     aspect: 1.5146,
     cornerFraction: 81.107 / 871.564,
-    css: [39.7, 25.8],
+    css: [39.5, 26.0],
     closeUp: [177.2, 117.1],
   },
   {
@@ -64,7 +63,7 @@ const DISPLAYS = [
     kind: 'slab' as const,
     aspect: 1.486 / 0.986,
     cornerFraction: 0.025 / 1.486,
-    css: [85.2, 53.6],
+    css: [87.6, 58.3],
     closeUp: [326.4, 214.4],
   },
   {
@@ -72,7 +71,7 @@ const DISPLAYS = [
     kind: 'slab' as const,
     aspect: 1.486 / 0.986,
     cornerFraction: 0.025 / 1.486,
-    css: [83.2, 52.8],
+    css: [85.4, 57.2],
     closeUp: [306.1, 206.6],
   },
   {
@@ -80,7 +79,7 @@ const DISPLAYS = [
     kind: 'slab' as const,
     aspect: 1.486 / 0.986,
     cornerFraction: 0.025 / 1.486,
-    css: [85.2, 53.6],
+    css: [87.6, 58.3],
     closeUp: [367.8, 230.8],
   },
 ];
@@ -191,6 +190,8 @@ function canvasFor(width: number, aspect: number): HTMLCanvasElement {
   return canvas;
 }
 
+let showBand = false;
+
 function draw(display: (typeof DISPLAYS)[number], moment: Moment, canvas: HTMLCanvasElement) {
   const corner = display.cornerFraction * canvas.width;
   if (display.kind === 'console') {
@@ -204,6 +205,7 @@ function draw(display: (typeof DISPLAYS)[number], moment: Moment, canvas: HTMLCa
       corner,
       t: moment.t,
       since: moment.since,
+      showBand,
     });
   } else {
     drawSlab(canvas, {
@@ -214,6 +216,7 @@ function draw(display: (typeof DISPLAYS)[number], moment: Moment, canvas: HTMLCa
       corner,
       t: moment.t,
       since: moment.since,
+      showBand,
     });
   }
 }
@@ -223,8 +226,7 @@ async function main() {
   const params = new URLSearchParams(window.location.search);
   const tier = (params.get('tier') ?? 'mobile') as keyof typeof TEXTURE_WIDTH;
   const only = params.get('only');
-  const twoLine = params.get('band') !== 'one';
-  setBandOnTwoLines(twoLine);
+  const showBand = params.get('band') === 'replay';
   const width = TEXTURE_WIDTH[tier] ?? 1024;
   const root = document.getElementById('study') as HTMLElement;
   const head = document.createElement('div');
