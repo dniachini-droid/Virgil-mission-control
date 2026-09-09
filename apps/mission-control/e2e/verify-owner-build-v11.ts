@@ -380,40 +380,86 @@ for (const viewport of VIEWPORTS) {
 // ------------------------------------------ reduced motion, at the same viewport
 //
 // The rule the brief asks for and KR-55 is the history of: reduced motion is
-// honoured by arriving, never by hiding. With no transition to wait for there
-// is nothing to wait for, so the record opens at once rather than after a pause
-// that would mean nothing — and the record still opens.
-await page.emulateMedia({ reducedMotion: 'reduce' });
+// honoured by **arriving**, never by hiding. With no transition to wait for
+// there is nothing to wait for, so the record opens in the same render as the
+// camera move rather than after a pause that would mean nothing.
+//
+// **Measured as a gap, not as a clock.** A first attempt asserted that the
+// record opens within 350 ms of the press and failed while the product was
+// correct: in this container the first `evaluate` after a synthetic press
+// returned at 2,518 ms, because the software renderer takes that long to run
+// the handler and draw — V10's run record already measured 845 ms from press
+// to handler here. Timing by the wall clock would make the assertion a
+// property of SwiftShader. So what is measured is the interval between the
+// camera moving and the record appearing, which the renderer's latency is
+// common to and therefore cancels out of.
+const tapAndTime = async (x: number, y: number, budgetMs: number) => {
+  const startedAt = Date.now();
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.up();
+  let movedAt = -1;
+  let openedAt = -1;
+  while (Date.now() - startedAt < budgetMs) {
+    const sample = await page.evaluate(() => ({
+      focus: (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus ?? '(none)',
+      panels: document.querySelectorAll('.panel-root').length,
+    }));
+    const at = Date.now() - startedAt;
+    if (movedAt < 0 && sample.focus !== 'all') movedAt = at;
+    if (openedAt < 0 && sample.panels === 1) {
+      openedAt = at;
+      break;
+    }
+    await page.waitForTimeout(40);
+  }
+  return { movedAt, openedAt, gap: openedAt < 0 || movedAt < 0 ? -1 : openedAt - movedAt };
+};
+
 await page.setViewportSize({ width: 390, height: 844 });
 await page.goto(`${fileUrl}#/`, { waitUntil: 'load' });
 await waitForWorld(page);
+const normalTarget = await page
+  .locator('[data-touch-target="virgil"]')
+  .boundingBox({ timeout: 10_000 })
+  .catch(() => null);
+const normal = normalTarget
+  ? await tapAndTime(
+      normalTarget.x + normalTarget.width / 2,
+      normalTarget.y + normalTarget.height / 2,
+      12_000,
+    )
+  : { movedAt: -1, openedAt: -1, gap: -1 };
+
+await page.emulateMedia({ reducedMotion: 'reduce' });
+await page.goto(`${fileUrl}#/`, { waitUntil: 'load' });
+await waitForWorld(page);
+const reducedIsOn = await page.evaluate(
+  () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+);
 const reducedTarget = await page
   .locator('[data-touch-target="virgil"]')
   .boundingBox({ timeout: 10_000 })
   .catch(() => null);
-if (!reducedTarget) {
-  failures.push('reduced-motion: no Virgil target');
-} else {
-  await page.mouse.move(
-    reducedTarget.x + reducedTarget.width / 2,
-    reducedTarget.y + reducedTarget.height / 2,
-  );
-  await page.mouse.down();
-  await page.mouse.up();
-  await page.waitForTimeout(350);
-  const immediate = await page.evaluate(() => ({
-    panel: document.querySelectorAll('.panel-root').length,
-    focus: (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus ?? '(none)',
-  }));
-  if (immediate.panel !== 1) {
-    failures.push(
-      `reduced-motion: the record took longer than 350 ms to open (${immediate.panel} panels)`,
-    );
-  }
-  notes.push(
-    `reduced-motion (portrait 390): the record opens at once — panels ${immediate.panel}, focus ${immediate.focus}`,
+const reduced = reducedTarget
+  ? await tapAndTime(
+      reducedTarget.x + reducedTarget.width / 2,
+      reducedTarget.y + reducedTarget.height / 2,
+      12_000,
+    )
+  : { movedAt: -1, openedAt: -1, gap: -1 };
+
+if (!reducedIsOn) failures.push('reduced-motion: the emulation did not take');
+if (normal.openedAt < 0) failures.push('the record never opened at the default motion setting');
+if (reduced.openedAt < 0) failures.push('reduced-motion: the record never opened');
+if (normal.gap >= 0 && reduced.gap >= 0 && reduced.gap >= normal.gap) {
+  failures.push(
+    `reduced-motion: the record still waits out a transition — ${reduced.gap} ms after the camera moved, against ${normal.gap} ms at the default setting`,
   );
 }
+notes.push(
+  `motion (portrait 390): default — camera at ${normal.movedAt} ms, record at ${normal.openedAt} ms, gap ${normal.gap} ms; reduced — camera at ${reduced.movedAt} ms, record at ${reduced.openedAt} ms, gap ${reduced.gap} ms. Wall-clock figures are this software renderer's, not the product's; the gap is the measurement.`,
+);
 await page.emulateMedia({ reducedMotion: 'no-preference' });
 
 const renderer = await page.evaluate(
