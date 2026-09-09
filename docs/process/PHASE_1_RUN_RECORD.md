@@ -20,6 +20,8 @@ Everything below was built and checked on a machine that renders in software. No
 | **V8.1** | **`64e2e746782930c0efc6a494177511cc54f3956c`** | **`v8-1-s2-virgil-64e2e74678.html`** | **`PHASE_1_HOW_TO_LOOK_V8.md` (V8.1 note appended)** | **Four rendering defects repaired: the close-ups reach their pose and show the whole screen, the screens are flat, the chrome is opaque** |
 | **V8.2** | **`40106793c7aff850c9a46970a17fde9d4b96b76a`** | **`v8-2-s2-virgil-40106793c7.html`** | **`PHASE_1_HOW_TO_LOOK_V8.md` (V8.2 note appended)** | **Two authorised items: the screens go to the edge of the model's own opening with the corners it has, and the set is lit** |
 | **V8.3** | **`02f9b504c110291f43c9251bf2c2a033e7916ba0`** | **`v8-3-s2-virgil-02f9b504c1.html`** | **`PHASE_1_HOW_TO_LOOK_V8.md` (V8.3 note appended)** | **Two authorised items that share one file: the displays read black with a travelling reflection, and the four visors are smooth** |
+| **V9** | **`6357cceafedff97ca5dfc98d1d8e6ddff03fb37d`** | **`v9-s2-virgil-6357cceafe.html`** | **`PHASE_1_HOW_TO_LOOK_V9.md`** | **A screen opens a panel with the full record; the ledger keeps the board; the visors read as black glass** |
+| **V10** | **`4ae03314d93ed6e26982f3691034974ff5b3887b`** | **`v10-s2-virgil-4ae03314d9.html`** | **`PHASE_1_HOW_TO_LOOK_V10.md`** | **The world replays a run that actually happened: the Phase 0 consolidation, at 90×, with its real SHAs, verdicts and findings** |
 
 The V5 source commit `868971a` and its documents were merged to `main` by the owner as pull request #7 (`90b116c`); the V6 branch was restarted forward from that merge.
 
@@ -818,3 +820,96 @@ And four after-only frames, because V8.3 has nothing to compare them with: **pan
 - **The ledger** at the board close-up: `LEDGER`, `CANDIDATE 9abcdef012`, three rows with their glyph boxes, names, bars, `12.0S` and their rings; the badge no longer covers it. At the wide view the colour, the bar and the ring carry; the names do not.
 - **The visors**: the bright mark in the middle of Virgil's is gone in the after frame and present in the before, and the crops that prove which fix removed which are named under item 7. At the wide view all four read as black glass with their eyes and a faint travelling colour from the room.
 - **Virgil's slabs** fill their openings further than they did, and the honesty band's words are correspondingly larger.
+
+## V10 — the pass of 2026-09-08 and 09: the world replays a run that actually happened
+
+Branch `claude/virgil-phase-1-slice`, from `df638de`. The owner's direction of 8 September: an example script, not at normal speed, with the new text on the screens. The run chosen is the only one in this repository whose independent review has a recorded verdict — the Phase 0 consolidation, `956be26064` reviewed BLOCKED and the repaired `3b9a964e7d` reviewed PASS_WITH_NON_BLOCKING_FINDINGS, merged as `cd0981d`.
+
+### The pass was interrupted by a container restart, and this is what that cost
+
+**The container running the first session was restarted after `8986f06` and before the pass closed.** The code work survived, because it had been committed and pushed; the **closing stage was lost** — nobody had yet built the artifact, looked at a single frame of it, run the checks, written the digest, or written this section. Two correct lines were left uncommitted in the working tree (the artifact's stage slug and the footer's stage line) and were committed as `7c11007` at the start of the second session.
+
+The consequence is recorded rather than smoothed over: **`8986f06` shipped 33 tests, and not one frame of the thing it built had been looked at.** Four display defects were in it, and all four were found in the first hour of looking. A success report is not evidence; neither is a green test suite.
+
+A second thing happened on the branch during the pass and is recorded because a reader of the history will see it: **`e8fc13f`, "The owner stops the visual polish at V10 and turns to the product", was committed to this branch by another writer while this pass was running.** It adds forty-four lines to `PHASE_1_BACKLOG.md` and touches nothing else. This pass neither wrote it nor relied on it.
+
+| Commit | What |
+|---|---|
+| `8986f06` | The replay: the recorded run, the two clocks, the honesty band, the mode selector, 33 tests |
+| `7c11007` | The artifact's stage slug (`v10-s2`) and the footer's stage line |
+| `9a69f87` | Repair 1 — the panel's tables of three and four columns were unreadable |
+| `494d2ec` | Repair 2 — a label wraps rather than abbreviate |
+| `3813b48` | Repair 3 — what the frames showed that the measurement did not |
+| `001031b` | Repair 4 — the verdict's second line ran into its own mark |
+| `acc96d0` | Defect B — the panel's close control did nothing |
+| `4ae0331` | Defect A — a drag or a zoom opened a window |
+| `32d672c` | The artifact and its digest |
+
+### What the replay is, and the two claims it rests on
+
+**Recorded time** is UTC instants read out of the repository: git committer timestamps, and the run record's own `startedAt` and `completedAt`. **Playback time** is pacing, chosen here, and nothing derived from it is ever shown as a duration of the work. The speed control's label is the compression itself — the recorded span over the playback length — so `90×` is derived and not asserted.
+
+**Claim 1: no reviewer's verdict is visible before its review reported.** Asserted by test over the whole beat sequence at all three speeds. **Confirmed in the rendered artifact**: at the `k1-working` beat the board shows three rows with the Keeper's unresolved, the candidate slab reads `REVIEW IN PROGRESS`, and the verdict slab reads `PASS` — which is the Prover's verdict, already reported, not the Keeper's. At the next beat the same slab reads `BLOCKED` and the Keeper's row seals red. The honest limit of that, seen in the frame: **the verdict slab shows the last verdict returned without naming whose it is**; only the ledger says which hop returned it.
+
+**Claim 2: recorded time and playback time never mix.** Confirmed in the rendered artifact three ways. The panel's run document was read out of the DOM at 30×, 90× and 180× and diffed: **the only line that differs is `You are watching at N×`.** `24 M 57 S`, the eight `NOT RECORDED`, `1 H 30 M`, the four window lengths and every UTC instant are byte-identical at all three speeds. The badge's `REPLAYED AT N×` moves while `began 06 SEP 23:30 UTC and ran 1 H 30 M` does not. And the ledger slab was captured at magnification at 90× and at 30× on the same beat: the same `24 M 57 S`, the same bar length, the same two `NOT RECORDED` with no bar.
+
+### What was looked at, and what looking found
+
+Twenty-two frames at 1280 × 800 and 390 × 664, plus nine magnified crops rendered at a device scale factor of 3 and thirteen panel documents measured in the DOM. Zero console errors in every capture.
+
+**The replay reads as intended.** The mode selector shows `Replay` active with the speed beside it; the badge is ice on a deep ground against the demonstration's amber; the three-line honesty band is fully legible at magnification and is not clipped; the BLOCKED moment reads at a glance (Virgil's visor red, the Keeper's red, the verdict slab crimson, the candidate slab `BLOCKED` over the real SHA `956be26064`); the `PASS WITH NON-BLOCKING FINDINGS` moment reads as a qualified pass and never as a bare `PASS`; and at 390 × 664 the controls wrap to five rows, all legible, with the badge carrying the whole sentence in words.
+
+**Four display defects were found by looking, none by a test.**
+
+1. **The panel's tables of three and four columns were unreadable at their most important column.** The replay is the first content in this panel with such tables; the CSS suited a pair, and applied `width: 100%; max-width: 0; text-overflow: ellipsis` to the first column of every table. Measured in the built artifact at 1280 × 800: every finding's ID cell was given **14 px of the 52 px `KR-01` needs**, so all ten read `KR`; the provenance's DOCUMENT cell was given 14 px of the **419 px** `docs/process/run-records/consolidation.run-record.json` needs; the findings table was **876 px wide inside a 614 px panel** and ran past the edge of the window, so its DISPOSITION column could not be seen at all; the WINDOWS table was 823 px in the same 614. Thirteen clipped cells on the review document, eleven on the run document, thirteen on the review document at 390 × 664. **The scripted demonstration's own panel measured 0 clipped and 0 overflowing before the change**, so this was the replay's own defect and nothing of V9's was broken.
+2. **`overflow-wrap: anywhere` then chopped words that had room** — `KR-01` as `KR-` above `01`, the `BLOCKING` chip as `BLOCKIN` above `G` — because it also tells a table that every character is a break opportunity. `break-word` instead, which keeps a column at least as wide as its longest word. **The measurement had said nothing was clipped; the frame said otherwise.**
+3. **A path is one long word.** `docs/decisions/OD-0004-non-blocking-findings-disposition.md` is 59 characters, 437 px of mono, so under `break-word` the provenance table could not shrink below it and ran past a 390 px panel. That one column — and only it — may break anywhere; the prose beside it keeps whole words. Holding `KR-01` on one line then pushed the findings table 18 px past the phone panel, so the gutters close from 14 px to 6 px at the phone breakpoint.
+4. **The verdict's second line ran into its own mark.** Measured in the built artifact with the committed subset loaded: **`WITH NON-BLOCKING FINDINGS` is 673 px at 40 px** in Outfit Bold at 0.04em, and its box on a slab is **566 px** — `w − 128 − 330`, which ends where the mark begins. `fitFont` stopped at a floor of 40 whether the text fitted or not, so the line ran **107 px, about four characters, past its box and under the mark**. It is the only string in the verdict vocabulary that does not fit: `BLOCKED` is 202 px at 40, `PASS` 107. The floor is now a parameter, defaulting to the 40 every existing caller had; the verdict's second line passes 26 and the fitter reaches 32 px, where the line measures 538 px. **V9's item 3.1 measured this line's foot and fixed a vertical collision; its width was never checked, and the scripted demonstration has shown the same collision since V8 raised that verdict on its third loop.**
+
+**After all four: 0 clipped cells and 0 tables overflowing, on all six panel documents at 1280 × 800 and all six at 390 × 664, in both modes.**
+
+### A near-false defect, recorded because the method caused it
+
+The verdict slab's evidence rows — the deterministic counts under the verdict — were absent from every early frame, and were nearly reported as a defect. They are not. The slab's arrival animation runs on the canvas's own clock, which advances `min(delta, 0.1)` **per rendered frame**, exactly as the replay's clock does; the rows arrive 2.7 s after a verdict changes. Every early frame was taken within 2.7 s of **page mount**, because `#/?demo=<seconds>` seeks the replay's clock forward but the canvas's clock still starts at zero. Captured later in the same verdict, the rows are there and correct: `FINDINGS 10 · BLOCKING 2`, `KR-01 AND KR-02 BLOCKING`, `EVERY DETERMINISTIC CHECK WAS GREEN`. **A capture entry point is not a viewing state, and a frame taken at mount is not a frame of the running world.**
+
+### The owner's three defects, from using V9 on real hardware
+
+His words: *"the opening of the windows is way too sensitive. Ie when I'm trying to scroll and move the camera or zoom in, a window opens. I'm not sure if it's that too many places are clickable or that it's way too sensitive. The crosses at the bottom right don't work only sliding the windows down works. But it's too sensitive so I'm finding it's opening windows when I just want to navigate. Also the space under Virgil's visor isn't fixed."*
+
+**Defect A — a drag or a zoom opened a window. Cause: there was no threshold to raise, because there was no threshold.** React Three Fiber fires `onClick` on the pointer-up whose press began on the same object, with no regard for distance, duration, a second finger or the wheel. An orbit starts and ends on the same screen, so an orbit opened that screen's document, every time. `world/room/gesture.ts` now records a press at its start and interrogates it at its end: a tap moved ≤ 6 CSS px, lasted ≤ 400 ms, was the only pointer down at any moment, had no wheel turn inside it, and did not move the camera. Two details only the hardware showed: the gesture is timed **press to release**, not press to handler — **3.5 ms against 845 ms** in this software renderer, and timing by the handler's clock would have made the rule depend on the frame rate; and the camera is compared **only while the finger is down**, because damping eases the view for about a second after a fling and counting that tail refused the tap that follows an orbit.
+
+**What can be pressed, since he suspects too many things are.** Measured, not guessed: **six meshes open a document** — the three slab displays on Virgil's board (the left one also maps the pressed row to a hop) and the three station screens. **Four more move the camera without opening anything** — the whole group of each of the three agents, and Virgil's. Nothing else in the scene takes a press. All ten now ask first. **Whether a character's body should be pressable at all is left unchanged and is the coordinator's to settle.**
+
+**Defect B — the close control did nothing. Two causes, both found by clicking it in a browser rather than by reading the markup.** First, the entry and the exit shared one animation handle: the exit is started inside `close()`, which in the same breath clears the target, which changes the entry effect's dependency, which runs that effect's cleanup, which cancelled the handle the exit had just been written into — so `setLeaving(null)` never ran and the panel stayed mounted with `target` null, and with it null the Escape listener is not attached either. **Sliding it down only appeared to work**: the drag leaves the sheet translated off the foot of the screen at zero opacity, so it looks dismissed and is not. Second, `<Canvas>` connects its pointer events to the canvas's **parent** element, which is `.room-stage` — and the panel is inside it, so every press on the panel was also raycast into the scene. A press that hit nothing ran `onPointerMissed`, which re-frames the camera; **pressing the close control started a 0.9 s camera flight**, and that flight is why the panel still appeared not to close once the first cause was fixed. The panel and the controls now stop pointer events at their roots.
+
+**There is no cross.** The only control is the `ESC` button at the panel's top right, now **44 px square** where it was 42 — below the 44 px a thumb hits reliably. The marks at the corners that look like part of it are the world's corner brackets, decorative, `pointer-events: none`. That is reported and not changed: what the control should look like is the owner's to say.
+
+Verified in the browser on the built artifact, at 1280 × 800 and 390 × 664: a 144 px drag opens nothing; a drag back opens nothing; a wheel inside a press opens nothing; **a tap opens the centre slab's document at both sizes**; the close control closes the panel at both sizes and measures 44 × 44 at both; Escape closes it at both; zero console errors. One recorded behaviour rather than an assertion: **a tap taken while the view is still easing from a zoom is refused at 1280 × 800 and accepted at 390 × 664.** The guard errs towards not opening, which is the direction the defect was in.
+
+**Defect C — the space under Virgil's visor. Not fixed, and not attempted.** Looked at in a magnified close-up of his face from the committed artifact: the dark visor meets the bright rim cleanly along the top, and along the **bottom** there is a band of the head's own cream between the drawn glass and the rim. That is consistent with the paint rule discarding inside V9's 15 mm rim band, where the model's paint at the lower edge is light.
+
+It was not repaired because **the measurement the coordinator asked for does not exist in this repository.** V9's figures — every mask triangle sampled at 78 points against the mask's own boundary polyline — were produced by a throwaway script in a working directory and were not committed. Reproducing them needs the paint texture decoded and sampled with a UV-to-metres mapping, and this container has no image decoder available to node: there is no `sharp`, no PIL, and the bundled ffmpeg has no PNG decoder. Doing it properly means sampling the texture inside the browser, where it is already decoded, and exporting the mesh's UV-to-position mapping alongside it. **Widening the rim band without that number is exactly what the coordinator forbade**, and guessing at a silhouette that V8.3 and V9 held to nanometres would be worse than leaving it. The next pass needs: the drawn region's lower boundary against the head's painted region, per visor, in millimetres, and the depth at which the discarded fraction falls to zero along the bottom edge specifically.
+
+### The checks, as printed
+
+| Check | Result |
+|---|---|
+| `pnpm check` — biome | `Checked 213 files in 144ms. No fixes applied.` |
+| `pnpm check` — typecheck | `Tasks: 8 successful, 8 total` |
+| `pnpm check` — tests | agent-contracts 70, visual-language 18, knowledge-graph 24, gate-engine 19, domain 104, **mission-control 269 in 18 files** |
+| `pnpm check` — `verify:owner` | `PASS — opens from file://, no console errors, no off-document requests`; `console errors 0`; renderer `ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)` |
+| Mind Scan | `82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `mind scan: no findings` |
+| `build:owner` from a clean tree | `v10-s2-virgil-4ae03314d9.html`, 8.13 MB (8,528,241 bytes) |
+| `sha256sum -c` | `v10-s2-virgil-4ae03314d9.html: OK` |
+| `pnpm reproduce:owner` | `identical — rebuilt from 4ae03314d93ed6e26982f3691034974ff5b3887b`; `PASS — the committed artifact is byte-for-byte derivable from its commit` |
+
+**Tests added this pass: 33 in `8986f06` (the replay), 4 for the panel's table layout, 1 for the verdict line's width, 15 for the gesture guard. None was changed, skipped or weakened.** The app's suite went from 220 to 269.
+
+**The artifact.** `docs/process/PHASE_1_owner-builds/v10-s2-virgil-4ae03314d9.html`, sha256 `98d83ac4cb90dddeddabbe70f09e179c5746e6ae161fa1245ac003a04eb8729f`, 8,528,241 bytes — **0.47 % larger than V9's 8,488,594**, which is the replay's recorded run, its panel documents and the gesture guard against V9's identical model payloads.
+
+### What this pass does not claim
+
+- **No visual-quality judgment has been made on real graphics hardware.** Every frame in this section was rendered in software. OD-0005 defers the two graphics-hardware checks and requires them recorded as **not performed**, never as met.
+- **The replay is past fact, not live state**, and every surface of it says so. It is a recording of a merged lineage, not this repository's condition now.
+- **Eight of the run's nine hops have no recorded duration**, and the build prints `NOT RECORDED` rather than a number for each. The backlog item "record real runs as events" is what would change that.
+- **Defect C is open**, and so are the two items V9 left: the CRT collapse that nobody has yet seen in a frame, and the close-ups that still crop the characters.
