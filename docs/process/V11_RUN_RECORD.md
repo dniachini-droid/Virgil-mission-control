@@ -1568,7 +1568,32 @@ foreground cap. Every part ran in the foreground.
 | `pnpm verify:owner` | `PASS — opens from file://, no console errors, no off-document requests`; `console errors 0` |
 | `pnpm verify:owner:v11` | `PASS`; `console errors 0`; 13 targets, smallest 48 px; reduced-motion gap **0 ms**; **`0 demo words, 0 not-real-state bands`** in the window at both viewports and **`demo signs outside the one chip 0`** in the ordinary interface |
 | Mind Scan | `82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `mind scan: no findings` |
-| `build:owner` from a clean tree | **8,528,318 bytes** — identical to stages 1, 2 and 3 |
+| `build:owner` from a clean tree | `v10-s2-virgil-5d16cbc3ab.html`, **8,528,318 bytes** — identical to stages 1, 2 and 3 |
+| `build:owner:v11` from a clean tree | `v11-s3-virgil-5d16cbc3ab.html`, **8,682,729 bytes** |
+| `sha256sum -c *.sha256` | **18 committed artifacts, all `OK`** |
+| `pnpm reproduce:owner` | `identical — rebuilt from 4ae03314d93ed6e26982f3691034974ff5b3887b`; `PASS` |
+| `pnpm reproduce:owner:v11` | `identical — rebuilt from 5d16cbc3abd0e6da3c9ba0ba58b53f36f75db6c0`; `PASS` |
+
+**The preservation contract, and the strongest single number in this record.**
+Building V10's entry from a clean tree at this pass's own HEAD gives
+**8,528,318 bytes** — byte-count identical to stages 1, 2 and 3. Nothing outside
+`src/world/mobile/`, `src/world/window/` and V11's own verifier and config was
+edited; `room/closeUp.ts`, `room/palette.ts`, `screens/draw.ts` and
+`screens/v11/bank.ts` are exactly as stage 3 left them, and V10's own close-ups
+still come from `closeUpPose` unchanged.
+
+### The artifact
+
+`docs/process/PHASE_1_owner-builds/v11/v11-s3-virgil-5d16cbc3ab.html`, sha256
+`14e3c7357a745e6607a9e73bbaa80781161885660508bba90f74bcc6a323fcb4`,
+**8,682,729 bytes** — 2,156 bytes (0.025 %) larger than stage 3's 8,680,573
+against identical model payloads: the new close-up module, its test's own
+exports, the demo signage removed and the longer stage line. Its digest is
+`docs/process/PHASE_1_owner-builds/v11-s3-virgil-5d16cbc3ab.html.sha256`, at the
+top level so the one existing `sha256sum -c *.sha256` covers it and V10's
+reproducer still finds V10's own newest artifact. **How to open it is unchanged
+from stage 3**: `#/` is V11, `#/v10` is V10 in the same file, `#/s1`,
+`#/spike/foundry` and `#/spike/mind` are the rejected Phase 0 spikes.
 
 **Tests: 10 added, two replaced, none skipped or weakened.** The app's suite goes
 from 816 to 826: nine for the station close-up and one for the recorded run's own
