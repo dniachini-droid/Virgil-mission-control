@@ -1658,3 +1658,702 @@ history and it is the owner's call.
 - **A pass here is a builder's claim.** The deterministic checks are the
   evidence; independent review has not happened.
 - **Stage 4 is not started.**
+
+---
+
+## Stage 4 — performance, the twelve review states, and the verification evidence
+
+**Scope.** The last stage of the brief. Three things: the performance work and
+the compressed-format assessment its second caution requires; the twelve review
+states, each reachable and each looked at; and the verification evidence the
+brief lists, followed by the closing summary. One item outside that scope was
+done and is recorded with its reason: the Keeper's finding **K11-02**, which
+his review says should be repaired at its cause rather than documented.
+
+**An independent review exists now, and this stage is a delta on it.**
+`docs/process/V11_KEEPER_REVIEW.md` reviewed candidate `de3c7d8b2a` and returned
+`PASS_WITH_NON_BLOCKING_FINDINGS` with six findings. That candidate is stages 1
+to 3, the station-close-up repair, the demo-signage removal and stage 4's
+compressed-format measurement. **Everything after it in this section is
+unreviewed**, including the reduced-performance mode, the twelve states and this
+record.
+
+---
+
+### Item 1a — the compressed-format assessment: measured, and not adopted
+
+The brief's second caution: *"KTX2, Draco and Meshopt are to be assessed, not
+assumed. Each needs a transcoder or decoder inlined into a single `file://`
+document that is already over the mobile transfer budget. The existing bespoke
+quantised payload may beat them under this constraint. Measure, then choose,
+and record the numbers either way."*
+
+`asset-pipeline/assess-compression.mjs` is the measurement and it is committed.
+It reads every committed runtime payload and re-encodes the geometry with the
+**real** `draco3d` 1.5.7 and `meshoptimizer` 1.1.1 encoders that are already in
+this workspace's pnpm store — no dependency was added, because the lockfile is
+what the Owner Build's reproducibility rests on. Every figure below is a byte
+count of a real encode, except the one that says it is not measured.
+
+**What the document is made of.** The nine payloads are **3,942,257 bytes**
+binary and **5,256,344 bytes** as base64 in the document — **60 % of the
+8,690,854-byte artifact.** Geometry is 3,325,385 of that binary total and
+textures 616,872.
+
+**Per payload, geometry only, in bytes of binary:**
+
+| payload | triangles | today | Draco 14-bit | Draco 16-bit | Meshopt |
+|---|---|---|---|---|---|
+| console3 | 11,933 | 274,710 | 67,172 | 71,549 | 184,787 |
+| fabricator2 | 12,282 | 312,281 | 76,131 | 80,695 | 216,831 |
+| fabricatorStation | 7,990 | 186,299 | 47,403 | 50,393 | 127,565 |
+| keeper2 | 12,470 | 275,332 | 66,586 | 71,125 | 182,887 |
+| keeperStation | 7,907 | 171,943 | 44,145 | 47,160 | 116,341 |
+| porthole | 28,513 | 582,710 | 137,623 | 141,100 | 345,335 |
+| prover2 | 12,481 | 288,905 | 67,340 | 70,742 | 191,100 |
+| proverStation | 8,004 | 189,425 | 47,557 | 50,538 | 130,064 |
+| **the eight together** | | **2,281,605** | **553,957** | **583,302** | **1,494,910** |
+
+Draco is compared at **16 bits** of position, not at glTF's usual 14, because
+this project's own payload is a 16-bit normalised integer over a 2-unit box and
+a comparison at 14 would be a comparison against a coarser mesh. Meshopt is
+compared on **the payload's own quantised bytes** after `reorderMesh`, which is
+what its codec is for and makes it bit-exact: what it decodes is byte-identical
+to what the loader reads today.
+
+**The rigged Virgil is not in that table**, because he arrives as a whole `.glb`
+and not as quantised sections: 1,043,780 bytes, of which the JSON chunk is
+48,220 and the binary chunk 995,540 — 408,860 of mesh attributes, 125,058 of
+indices, 247,108 of skinning and **214,512 of animation across three clips and
+139 accessors**, which no geometry codec touches.
+
+**What each option costs and saves, in the document, over the eight props:**
+
+| | decoder, in the document | geometry saved, in the document | **net** |
+|---|---|---|---|
+| **Draco** | **334,046** (`DRACOLoader.js` 19,030 + `draco_wasm_wrapper.js` 58,456 + `draco_decoder.wasm` 192,420 → 256,560 as base64) | 2,264,404 | **−1,930,358** |
+| **Meshopt** | **29,256** (`meshopt_decoder.module.js`, whose wasm is already inside it) | 1,048,924 | **−1,019,668** |
+| **KTX2** | **856,894** (`KTX2Loader.js` 36,567 + `ktx-parse` 19,932 + `zstddec` 39,754 + `basis_transcoder.js` 57,529 + `basis_transcoder.wasm` 527,333 → 703,112 as base64) | **not measured** | **+34,398 at best** |
+
+**KTX2 is settled without an encoder, and here is why that is legitimate.**
+There is no `basisu`, `toktx` or KTX2 encoder in this environment and none may
+be installed, so **the transcoded texture size was NOT MEASURED** and is not
+estimated. It does not need to be: the transcoder costs **856,894 bytes** in the
+document and **every texture in the whole build is 822,496 bytes** in it. A
+transcoded set of *zero bytes* would still make the document **34,398 bytes
+larger**. KTX2's real prize is GPU texture memory rather than transfer, and this
+build's six live displays already dominate that at 20.1 MB of a 128 MB mobile
+budget (stage 2) against the models' textures at 0.6 MB of source. **Rejected,
+on a measurement.**
+
+**One option the brief does not name, measured because it costs no decoder at
+all.** `DecompressionStream('gzip')` is in the browser already: **0 bytes of
+decoder**. Gzipping the payloads and base64-ing the result takes the 5,256,388
+bytes they occupy to **3,940,072** — **1,316,316 saved, for nothing.** That is
+more than Meshopt saves, for 29,256 fewer bytes of decoder.
+
+**And the combination, measured rather than assumed to compose.** Draco geometry
+plus the untouched `.glb` and textures, gzipped, plus the Draco decoder:
+**2,739,030 bytes in the document against today's 5,256,388** — a saving of
+**2,517,358**, which would take this artifact from 8.29 MB to about **6.17 MB**.
+That is the only combination measured here that comes near the 6 MB mobile
+transfer budget in `PERFORMANCE_STRATEGY.md`, and it still does not meet it.
+
+**The choice, and it is a choice not a deferral by omission: none of the three
+is adopted in stage 4.** The reasons, in order of weight:
+
+1. **Every one of them changes the payload that V10's own world renders from.**
+   `src/world/assets/meshyAsset.ts` and the twelve `.b64.txt` payloads are
+   shared: V11's route and V10's route read the same bytes. The preservation
+   contract's strongest single number is that V10 built from a clean tree is
+   8,528,318 bytes at every stage of this branch, and adopting any codec moves
+   it by about a megabyte. That is a change the owner should make knowingly, not
+   one a stage-4 session should make on its way past.
+2. **It is a pipeline change, not an edit.** `asset-pipeline/reduce-model.mjs`
+   generates the payloads and its own header records why it may not sit in the
+   build path: re-encoding images through Chromium is not bit-stable across
+   versions. A codec step therefore needs either a second generation of derived
+   committed files or a redesign of that pipeline, and both are their own pass
+   with their own review.
+3. **No visual verification is possible here.** A geometry codec's defects are
+   visual, this container has no GPU, and OD-0005 defers exactly that judgement
+   to the owner's own machine.
+
+**The recommendation, with the numbers attached, for whoever takes it:** Draco
+saves the most and Meshopt is the safe one — bit-exact, a 29 kB decoder, no
+worker and no wasm to inline, and a test could prove the decoded bytes equal
+today's byte for byte. Gzip beats Meshopt on bytes at no decoder cost and is
+the cheapest first move. **KTX2 should not be attempted in this document at
+all.**
+
+---
+
+### Item 1b — the graceful reduced-performance mode
+
+The brief: *"a graceful reduced-performance mode rather than a visibly blurry
+default"*, and the instruction that the pixel-ratio decision is now load-bearing
+because stage 3 raised the default from 1.25 to 2 on a phone.
+
+**The ladder gives up invisible work before it gives up a single pixel of
+sharpness**, in the order `PERFORMANCE_STRATEGY.md` already sets out
+(Amendment 1 section S) — *particle density, volumetric resolution, reflection
+and shadow quality, background traffic, geometry detail, post-processing
+intensity* — in which **resolution does not appear at all**. So resolution is
+the last rung, not the first. `src/world/mobile/performance.ts` declares the
+three levels as data, so `test/performance-v11.test.ts` holds them:
+
+| | tier steps | screens redraw | post | shadows | pixel ratio | faces | display resolution |
+|---|---|---|---|---|---|---|---|
+| **Full** | 0 | ×1 | on | on | ×1 | animated | unchanged |
+| **Reduced** | 1 | **×0.5** | **off** | **off** | **×1** | animated | unchanged |
+| **Minimal** | 2 | **×0.25** | off | off | **×0.625**, floored at 1 | animated | unchanged |
+
+`faces` and `displayResolution` are declared rather than described, and a test
+fails if a future level tries to switch either off — because the brief names
+both (*"preserve character facial and state animation"*, and the displays' 1024
+px floor from stage 2).
+
+**The default pixel ratio is derived now, not assumed.** Stage 3 shipped a flat
+2 on every phone. `autoPixelRatio` takes the smallest of three bounds: the
+device's own ratio, the tier's ceiling, and **the tier's pixel budget** — 1.6
+megapixels on `mobile`. At 390 × 844 the budget alone would allow 2.20, so the
+tier's 2 binds and the answer is 2 rather than the device's 3; at 1024 × 1366 on
+the same tier the budget binds and the answer is 1.06. A flat 2 could not tell
+those two apart, and their fragment cost differs by a factor of seven. It is
+rounded **down** to two places, never up: a cap that rounds up is not a cap.
+`Auto` is the default; the owner's three explicit settings are untouched,
+because an override that quietly refuses to do what it says is worse than none.
+
+**The governor.** 90-frame windows; two consecutive windows over the tier's
+budget step down one level; sixty seconds under 70 % of budget gives one back;
+never above the level the reader chose. Those are `PERFORMANCE_STRATEGY.md`'s
+own rules, which that document records as design-level only and nothing
+implemented. **It is switched off on a software renderer, deliberately**: this
+container runs twenty times over the mobile budget, so a live governor would
+step every frame in this record down to `minimal` and nothing here would show
+what the product does. The consequence is stated rather than hidden — **the
+step-down path is exercised by a synthetic frame trace in
+`test/performance-v11.test.ts` and by forcing a level in the hidden menu, and
+has never been observed engaging on a real device, because no real device has
+been used.**
+
+**A tier change is never silent.** A discreet `Reduced performance mode` line
+appears at the top left whenever the world is doing less than it was authored
+to, and disappears when it is not. It carries no action, so it is not a touch
+target; it carries no demonstration vocabulary, so the one `Demo data` chip
+stays the only thing in this interface that speaks about the demonstration.
+Driven in the built artifact: **1 notice at `minimal`, 0 at `full`.**
+
+**The reduced mode was caught being blurrier than the full one, by the check
+written to catch exactly that.** At a device pixel ratio of 3 the reduced level
+drew at **1.25** against the full level's **2**. The cause: the ladder steps the
+tier down to shed the scene's costs, and the pixel-ratio ceiling is also read
+per tier, so stepping to `constrained` lowered the ceiling as a side effect.
+Resolution has one lever now — the plan's own `pixelScale`, read against the
+**detected** tier — and only the last rung pulls it. Measured again on the
+artifact: **full 2, reduced 2, minimal 1.25**, and never below 1.
+
+**The two cases the brief names, driven on the built artifact:**
+
+| | measured |
+|---|---|
+| nothing over the world | `frameloop` **always** |
+| a full-screen window open over it | `frameloop` **demand**, driven at 15 fps |
+| the page hidden | `frameloop` **never** |
+| the page visible again | `frameloop` **always** |
+
+It is **reduced and not paused** under a window for one reason: the window's own
+content is published from the demonstration's clock, which advances inside the
+render loop, so stopping the loop would freeze the thing being read. 15 fps is a
+quarter of the work and keeps the clock honest — every animated thing in this
+set caps its own frame delta at 0.1 s, and 1/15 s is inside that cap, so no beat
+is skipped or slowed.
+
+**"Load Virgil and the critical foreground first and defer secondary assets" —
+built, measured, and switched off.** There is no network in an Owner Build, so
+"load" can only mean decode and upload. Split into two Suspense boundaries, at
+390 × 844, three runs:
+
+| | cast on screen | backdrop on screen |
+|---|---|---|
+| run 1 | 13.79 s | 2.39 s |
+| run 2 | 13.82 s | 2.61 s |
+| run 3 | 13.70 s | 2.54 s |
+
+**The cast is eleven seconds later than the backdrop, not earlier**, because
+Virgil's rigged payload is 1.16 MB against the two backdrop planes' 0.65 MB.
+Deferring the backdrop cannot make Virgil arrive sooner — he was never waiting
+for it. What the split does instead is paint a **command centre with nobody in
+it** for eleven seconds, which is a picture of a state this system cannot be in.
+So the default is one boundary in exactly V10's order, and `#/?defer=1` keeps
+the experiment reproducible from the committed artifact. The first frame this
+session captured with the split showed precisely that empty stage, and it is why
+the measurement exists at all.
+
+**The rest of the brief's performance list, answered honestly:**
+
+- **compressed GLB, Draco, Meshopt, KTX2** — measured above, none adopted;
+- **mipmaps and anisotropic filtering** — done at stage 2: 1024 px displays with
+  a full mip chain and anisotropy 4 on the mobile tier, 20.1 MB of a 128 MB
+  budget. **Not exercised in this container**, which turns mipmaps off on a
+  software renderer;
+- **sensible levels of detail** — **not done, and not disguised.** There is no
+  LOD system: every model is one mesh at one detail, and adding LOD needs
+  decimated meshes from a pipeline step and new committed payloads — the same
+  class of change as adopting a codec, and deferred with it. What the tiers
+  reduce instead is star count, post-processing, shadows, anisotropy, redraw
+  rate and pixel ratio;
+- **bake lighting where possible** — the environment is a `<Environment>` with
+  `frames={1}`: rendered **once** into a 64² cube map on the coarse tiers and
+  256² elsewhere, not re-rendered per frame;
+- **limit expensive dynamic lights and real-time shadows** — counted from
+  `LightingRig.tsx`: on a phone **9 lights** (3 spot, 4 point, 1 directional,
+  1 hemisphere) and **0 shadow casters**; on the desktop tiers 11 lights and
+  **1** shadow caster at 2048². The three per-console rim lights collapse to one
+  shared light on a phone. The reduced level turns shadows off at every tier;
+- **pause or reduce expensive scene animation when a full-screen window is
+  open** — done, above;
+- **stop unnecessary rendering when the page is hidden** — done, above;
+- **preserve character facial and state animation** — preserved at every level,
+  declared as data and held by a test;
+- **a graceful reduced-performance mode rather than a visibly blurry default** —
+  done, above, including the defect the check found.
+
+**What it costs, measured — and the measurement's own verdict on itself.**
+`pnpm --filter mission-control measure:fps:v11`, at 390 × 844 with the page told
+to report a device pixel ratio of 3:
+
+| | canvas | this container |
+|---|---|---|
+| sharpness **Auto** | 780 device px for 390 CSS px (ratio 2.00) | **0.65 fps** |
+| sharpness Low | 487 (1.25) | **0.94 fps** |
+| sharpness Standard | 780 (2.00) | **0.63 fps** |
+| sharpness Native | 1170 (3.00) | **0.34 fps** |
+| level **Full** | 780 (2.00), tier mobile, screens ×1 | **0.66 fps** |
+| level **Reduced** | 780 (2.00), tier constrained, screens ×0.5 | **0.66 fps** |
+| level **Minimal** | 487 (1.25), tier constrained, screens ×0.25 | **0.90 fps** |
+
+**Read the fifth and sixth rows together, because they are the honest result of
+this stage.** In this container the Reduced level buys **nothing measurable** —
+0.66 against 0.66 — and the only rung that moves the number is the one that
+lowers the pixel ratio, which is the opposite of what the ladder is designed to
+do. That is a property of a **CPU rasteriser**, where fragment count dominates
+absolutely and where the things Reduced gives up are either already off on a
+coarse tier or cost almost nothing: it is not evidence that the reduction order
+is wrong on a GPU, and it is not evidence that it is right. **No performance
+figure for any device has been taken and none is implied.** These figures
+describe SwiftShader on a CPU with the displays' mip chains off, and they are a
+direction, not a budget. `PERFORMANCE_STRATEGY.md`'s measurement section still
+reads "None has been performed on any branch", and this stage does not change
+it.
+
+---
+
+### Item 2 — the twelve review states
+
+Each one is reachable by a **query parameter on the hash**, read once at mount
+exactly as `#/?cam=`, `#/?run=` and `#/?state=` have been read since S1. Stage 4
+adds four: `hold=1`, `win=`, `motion=` and `perf=`. **`hold=1` is what makes
+them deterministic rather than approximate** — it freezes the demonstration at
+the second the URL names, so two runs of the same URL give the same picture
+instead of whichever beat a 1.5 fps container lands on. It freezes the
+demonstration, not the world: the camera still flies and the visors still
+animate.
+
+Append the entry point to the artifact's own `file://` URL. The contact sheet is
+`docs/process/PHASE_1_owner-builds/v11/v11-s4-twelve-review-states.png`, and the
+frames are numbered to match this table.
+
+| # | The brief's words | Entry point | What it is |
+|---|---|---|---|
+| 01 | idle command centre | `#/?demo=0&loop=0&hold=1` | no candidate, every station READY, `NO VERDICT` |
+| 02 | an agent actively working | `#/?demo=11&loop=0&hold=1` | the Fabricator building, inside his own beat |
+| 03 | successful verification | `#/?demo=30&loop=0&hold=1` | the Prover has returned PASS; the candidate is `READY_FOR_REVIEW` |
+| 04 | blocked or failed verification | `#/?demo=30&loop=1&hold=1` | loop 1 ends BLOCKED: a required check failed |
+| 05 | owner decision required | `#/?demo=50&loop=0&hold=1` | the owner gate, `SAFE_TO_MERGE`, everything else quiet |
+| 06 | Virgil's full conversation | `#/?demo=50&loop=0&hold=1&win=virgil` | his window at the gate, every disclosure opened |
+| 07 | the Fabricator window | `#/?demo=11&loop=0&hold=1&win=fabricator` | opened while he is building |
+| 08 | the Prover window, **collapsed** | `#/?demo=30&loop=0&hold=1&win=prover` | conclusion first, 1 of 5 sections open |
+| 09 | the Prover window, **expanded** | the same, then one press on each disclosure | 5 of 5 open: the checks, the facts, the gates |
+| 10 | the Keeper window | `#/?demo=42&loop=0&hold=1&win=keeper` | opened while he is reviewing |
+| 11 | the composer, iPhone keyboard considered | `#/?demo=30&loop=0&hold=1&win=prover` + a **simulated** 336 px keyboard | a question typed and kept |
+| 12 | reduced-motion presentation | `#/?demo=11&loop=0&hold=1&motion=reduce` | and the media preference, both at once |
+| 13 | reduced-performance presentation | `#/?demo=11&loop=0&hold=1&perf=reduced` | the graceful mode forced, with its notice |
+
+Twelve entries, thirteen frames, because the brief counts the Prover's two as
+one. **`#/?win=<agent>` also takes the camera there**, so the entry point
+produces the state a tap produces rather than a window hanging over an overview.
+
+**Two are honestly not URLs alone, and are recorded that way.** Number 09 needs
+one press on each collapsed disclosure — deterministic, and driving the
+interface, which is what this project prefers to asserting from source; the
+window's scroll is then set to the first disclosure by layout, not left wherever
+the clicks scrolled to. Number 11 needs a keyboard, and **no headless browser
+can raise an iOS keyboard**: `visualViewport` is substituted and the product's
+own `useKeyboardInset` path runs against it. **Whether a real iOS keyboard
+leaves the composer where this says it does is NOT PERFORMED.**
+
+**Every image was looked at, and two defects came out of looking.**
+
+**The reduced-motion frame had no hero word on any of the six displays.** No
+`NO VERDICT`, no `FABRICATOR`, no `BUILDING`, no status marks — six screens of
+rails and an orrery, and nothing that says what the system is doing. Both
+display components hold their own clock still under `prefers-reduced-motion`,
+which is right for the hover and the sweep and wrong for everything measured
+from it: `since` stayed at 0, and so did every `clamp01(since / n)` — including
+the hero's own `globalAlpha`. **It had been in the build since stage 2 and no
+frame of it had ever been looked at.** It is the same fault as KR-55, where a
+reduced-motion branch deleted both of Virgil's faces, and the remedy is this
+project's own rule: **arrive, never hide.** `sinceFor` reports every transition
+as long finished when the preference is set. The test measures the hero's
+**alpha** rather than its absence, because the words were in the draw calls all
+along — drawn at zero opacity, which is why nothing but a frame could have
+caught it.
+
+**A state sentence appeared before its state.** `EVERY GATE PASSES. ELIGIBLE,
+NOT MERGED.` is `constitution/STATE_LANGUAGE.md`'s sentence for `SAFE_TO_MERGE`
+and for nothing else, and it was printed under the word `PASS`
+unconditionally — so at the passing loop's thirtieth second, with the candidate
+`READY_FOR_REVIEW` and the Keeper yet to review, the verdict slab told the
+reader the candidate was eligible to merge. **Stage 2's 299-assertion audit
+could not see it**: it looks for a verdict *word* appearing early, and the
+verdict word here was honest; the line under it was not. It reads
+`VERIFICATION PASSED. NOT YET REVIEWED.` now — shortened after looking at the
+slab a second time, because the lead is elided to the width it has and
+"VERIFICATION PASSED. REVIEW HAS NOT …" can be read as *review has not passed*.
+`test/screen-content-v11.test.ts` now holds the sentence to its state at every
+half-second of all three loops.
+
+**One capture artefact, recorded because it looked like a defect and was not.**
+The first reduced-performance frame showed the three slabs with no hero words
+either. Choosing that level steps the tier down, which rebuilds each display's
+canvas and restarts its arrival — and a software renderer redraws them at 1.5
+fps scaled by 0.5, so the arrival takes about ten wall-clock seconds here
+against well under one on a device at 12 fps. The capture waits longer for that
+one frame, and the product was not changed.
+
+---
+
+### The Keeper's K11-02, repaired at its cause
+
+His review: *"a duration or bar drawn where no duration was recorded"* — this
+project's own named failure class, live in V11's rebuilt slab. The run ledger's
+bar was `done ? 1 : active ? clamp01((seconds % 6) / 6) : 0`, and `seconds` is
+the demonstration's **global** clock. So an in-flight hop drew a six-second
+sawtooth that was the same for whichever hop was running and reset every six
+seconds, and every returned hop drew a full bar whatever its length. It read as
+*how far through this hop is*. It measured nothing.
+
+`screens/ledger.ts` already states the rule it broke: *"a bar is a length and a
+length is a claim"*, with `maxElapsed` there so lengths are comparable between
+rows. A length is drawn now only where a duration exists. In the scripted
+demonstration each hop's window is a constant of the script, quoted from
+`demo.ts`'s own `BEATS` rather than restated — 2→14, 17→29, 32→44 — so the bar
+is that hop's real elapsed seconds against the longest hop, and a running one
+grows from its own start. In the **replay** this slab is handed no per-hop
+duration at all, so **no bar is drawn**: the track stays and the claim goes.
+
+The review also recorded that **no test asserted the bar's semantics** and that
+a grep for `elapsed` across the V11 screen tests returned nothing. The fill is a
+pure exported function now, with four assertions on it — including the one the
+old expression would have failed outright: at eight seconds the Prover's hop has
+not started and draws nothing, where the old one drew a full sawtooth.
+
+**The other five findings are not repaired here**, and the reason for each:
+K11-01 is overtaken by this section existing; **K11-03 is the owner's**, and is
+carried into the limitations below as the review asked, because what the review
+found genuinely wrong about it was that the run record did not carry it at all;
+K11-04 is partly reduced (the stage-4 checks poll conditions and count frames)
+and partly still true; K11-05 is the owner's call on tracked scratch, and this
+stage adds 4.0 MB of deliverable frames to that weight, named here rather than
+slipped in; K11-06 stands.
+
+---
+
+### The preservation contract
+
+**V10 built from a clean tree at this stage's own HEAD is 8,528,318 bytes —
+byte-count identical to stages 1, 2, 3 and the pass between them.** Nothing
+outside `src/world/mobile/`, `src/world/screens/v11/`, `src/world/window/` and
+V11's own harnesses was edited; `src/world/assets/meshyAsset.ts`, every payload,
+`room/closeUp.ts`, `room/palette.ts` and `screens/draw.ts` are exactly as they
+were. The 77-byte `Tabletop.tsx` difference stage 1 isolated and explained is
+unchanged and no new one was added. `src/ui/settings.ts` is shared with V10 and
+was deliberately **not** touched, which is why the stepped tier is threaded
+through V11's own context value rather than through a new field on it.
+
+`#/v10` was driven in the browser inside this build at all three viewports: **1
+control bar, 12 buttons, 1 demonstration badge, 1 provenance footer, 0 V11
+nodes.**
+
+---
+
+### The checks, as printed
+
+`pnpm check` was **split into its parts**, because this harness caps one
+foreground command at ten minutes and `verify:owner:v11` alone takes about
+fifteen in a software renderer. Every part below ran in the foreground, at the
+artifact's own commit `99614fa209`, and they are the same commands in the same
+order `pnpm check` runs.
+
+| Check | Result |
+|---|---|
+| `pnpm lint` | `Checked 278 files in 233ms. No fixes applied.` |
+| `pnpm typecheck` | `Tasks: 8 successful, 8 total` |
+| `pnpm test` | agent-contracts 70, visual-language 18, gate-engine 19, domain 104, knowledge-graph 24, **mission-control 861 in 31 files** |
+| `pnpm verify:owner` | `PASS — opens from file://, no console errors, no off-document requests`; `console errors 0`; `requests 1, off-document 0` |
+| `verify:owner:v11`, portrait 390 | `PASS (partial)`; 13 targets, smallest 48 px; 17 window controls, smallest 44; `scrollWidth 390/390`, 0 past the edge; 5 session controls, 0 enabled; composer clear of a simulated keyboard by 48 px |
+| `verify:owner:v11`, portrait 430 | `PASS (partial)`; the same, 32 px of keyboard clearance |
+| `verify:owner:v11`, landscape 844 | `PASS (partial)`; 15 window controls; 29 px of clearance at a 180 px keyboard |
+| `verify:owner:v11`, motion and performance | `PASS (partial)`; reduced-motion gap **0 ms** and default gap **0 ms**; loop always / demand / never / always; levels at DPR 3 **full 2, reduced 2, minimal 1.25**; window text **1,287 DOM characters, 0 canvases** |
+| Mind Scan | `82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `mind scan: no findings` |
+| `build:owner` from a clean tree | `v10-s2-virgil-99614fa209.html`, **8,528,318 bytes** |
+| `build:owner:v11` from a clean tree | `v11-s4-virgil-99614fa209.html`, **8,690,854 bytes** |
+| `sha256sum -c *.sha256` | **19 committed artifacts, all `OK`** |
+| `pnpm reproduce:owner` | `identical — rebuilt from 4ae03314d93ed6e26982f3691034974ff5b3887b`; `PASS` |
+| `pnpm reproduce:owner:v11` | `identical — rebuilt from 99614fa2091eddfa8f5a2f4191684cce62f2a751`; `PASS` |
+
+**A partial run of `verify:owner:v11` may never print `PASS`.** It prints
+`PASS (partial: …)` and names exactly which viewports and which sections ran, so
+no record can quote one as the whole check by accident. The four partial runs
+above together cover every assertion the single run makes, and each of them
+re-runs the shared prelude — the five routes and V10's own chrome — from a fresh
+document.
+
+**Tests added this stage: 35, none changed to pass and none skipped or
+weakened.** The app's suite goes from 826 to 861: 25 for the performance ladder,
+the pixel budget and the governor's step-down and step-up over a synthetic frame
+trace; 6 for the reduced-motion arrival and the merge-eligibility sentence; 4
+for the ledger bar. Two assertions changed subject and each says so where it
+lives: `cluster-v11-s3.test.ts`'s sharpness list gains `auto` in front of the
+three, which are still held to exactly what stage 3 said they mean; and
+`owner-build-v11.test.ts`'s artifact-name assertion is pinned to the pattern
+`v11-s<n>` plus the current stage, because pinning it to `v11-s3` exactly made a
+correct change fail.
+
+**Three instrument faults, fixed and recorded rather than worked around.** The
+visibility check used a getter inside a `page.evaluate`, which `tsx` compiles
+into an `esbuild` `__name(...)` call that does not exist in the page — the trap
+the verifier already records once, met a second time. The dev menu grew tall
+enough to cover the mark that opens it, so both capture harnesses now close it
+by its own `Close` and address its rows by label, since `Auto` and `All` are no
+longer unique names in the panel. And Playwright's default 30-second action
+timeout is not enough at a device pixel ratio of 3 in software, where a single
+frame takes seconds: `measure:fps:v11` waits three minutes, because the renderer
+is the slow thing and not the interface.
+
+**One deviation from the instruction to run everything in the foreground.**
+`measure:fps:v11` at DPR 3 takes **11 m 19 s** — four sharpness settings and
+three levels, each with its own canvas rebuild — and exceeded the harness's
+ten-minute cap, which moved it to the background. It completed inside the same
+turn and its output is the table above. Every other command ran in the
+foreground.
+
+---
+
+### The artifact
+
+`docs/process/PHASE_1_owner-builds/v11/v11-s4-virgil-99614fa209.html`, sha256
+`85f02334db36b6b33a7682ed2c7add8adf7d864b275b3211e651cc85845c3d01`,
+**8,690,854 bytes** — 8,125 bytes (0.094 %) larger than the previous pass's
+8,682,729, against identical model payloads: the performance module, the four
+new entry points, the notice and its stylesheet, and the two content repairs.
+Its digest is
+`docs/process/PHASE_1_owner-builds/v11-s4-virgil-99614fa209.html.sha256`, at the
+top level so the one existing `sha256sum -c *.sha256` covers it and V10's
+reproducer still finds V10's own newest artifact.
+
+---
+
+## The closing summary the brief asks for
+
+### How to open each version
+
+| | How | What it is |
+|---|---|---|
+| **V11, stage 4** | open `docs/process/PHASE_1_owner-builds/v11/v11-s4-virgil-99614fa209.html` from the file system. It lands on `#/` | the phone-first composition, the in-world screens, the full-screen windows and the performance work |
+| **V10, unchanged, in the same file** | `#/v10` | V10's own `VirgilRoom`, with V10's own control bar, badge and provenance footer |
+| **V10, its own untouched artifact** | open `docs/process/PHASE_1_owner-builds/v10-s2-virgil-4ae03314d9.html` | byte for byte as it was before this branch existed; `reproduce:owner` rebuilds it from `4ae03314d9` and `cmp` finds no difference |
+| the rejected Phase 0 spikes | `#/s1`, `#/spike/foundry`, `#/spike/mind` | as in every build since S1 |
+
+Inside V11: tap a character, a console screen or one of Virgil's three slabs to
+open that window; keys 1–5 do the same; the window's back chevron returns to the
+station and `← Overview` returns to the overview; `0` or Escape goes straight
+back; `D` opens the hidden development menu, which holds Demo On/Off, the
+Scripted/Replay selector, the Tabletop/Room selector, the Look-at controls, the
+**Sharpness** row, the **Performance** row and the full provenance footer.
+
+### The screenshots
+
+- desktop, 1280 × 800: `docs/process/PHASE_1_owner-builds/v11/v11-s4-desktop-1280x800.png`
+- iPhone-sized, 390 × 844: `docs/process/PHASE_1_owner-builds/v11/v11-s4-iphone-390x844.png`
+- the twelve review states: `docs/process/PHASE_1_owner-builds/v11/v11-s4-twelve-review-states.png`
+
+All three are **simulated viewports in headless Chromium, rendered in software
+by SwiftShader**, taken from the committed artifact. **No iPhone and no GPU was
+used**, and none of them is evidence of how the world looks on real graphics
+hardware.
+
+### What changed, across all four stages
+
+171 files, +44,926 lines, −11. Almost all of it is new and V11's own; **six
+existing files were modified and one of them is shared world code.**
+
+**Modified:**
+
+- `apps/mission-control/src/world/room/Tabletop.tsx` — the only shared world
+  file touched in the whole branch: two optional parameters for the backdrop
+  planes' placement, defaulting to the values the old code read inline. **77
+  bytes** in V10's build, isolated by a diff of two builds and explained at
+  stage 1;
+- `package.json`, `apps/mission-control/package.json`, `turbo.json`,
+  `.github/workflows/checks.yml` — V11's build, verify, reproduce, capture and
+  measure scripts, and `verify:owner:v11` added to `pnpm check`;
+- `.gitignore`, `docs/process/PHASE_1_BACKLOG.md`.
+
+**Added, by area:**
+
+- **the entry**: `owner-v11.html`, `src/owner/main-owner-v11.tsx`,
+  `src/owner/owner-v11.css`, `vite.owner.v11.config.ts`,
+  `owner-build/inline-v11.mjs`, `owner-build/reproduce-v11.mjs`;
+- **the phone composition** (stage 1): `src/world/mobile/MobileRoom.tsx`,
+  `composition.ts`, `TouchTargets.tsx`, `safeArea.ts`, `mobile.css`;
+- **the in-world screens** (stage 2): `src/world/screens/v11/` — eleven files:
+  `ConsoleScreenV11.tsx`, `ScreenBankV11.tsx`, `screens.ts`, `chrome.ts`,
+  `system.ts`, `content.ts`, `motifs.ts`, `marks.ts`, `bank.ts`, `bezel.ts`,
+  `resolution.ts`;
+- **the windows** (stage 3): `src/world/window/` — `AgentWindow.tsx`,
+  `Blocks.tsx`, `blocks.ts`, `windowContent.ts`, `windowStore.ts`,
+  `capabilities.ts`, `session.ts`, `window.css`;
+- **the station close-ups** (between 3 and 4): `src/world/mobile/stationCloseUp.ts`;
+- **performance** (stage 4): `src/world/mobile/performance.ts`,
+  `src/world/mobile/pixelRatio.ts`;
+- **the harnesses**, all committed: `e2e/verify-owner-build-v11.ts`,
+  `capture-v11.ts`, `capture-v11-screens.ts`, `capture-v11-windows.ts`,
+  `capture-v11-states.ts`, `measure-fps-v11.ts`,
+  `asset-pipeline/assess-compression.mjs`, and `study/` — the screen study, the
+  window study, the projection measurement and the cluster sweep;
+- **the tests**: fourteen files, 592 assertions added over the branch;
+- **the records**: `docs/process/V11_BRIEF.md`, this file,
+  `docs/process/V11_KEEPER_REVIEW.md`,
+  `docs/process/OWNER_GRANT_2026-09-09-overnight.md`,
+  `docs/process/OVERNIGHT_PLAN_2026-09-09.md`;
+- **five V11 artifacts with their digests, and stage 4's three frames**, under
+  `docs/process/PHASE_1_owner-builds/` — thirteen files, every one an addition;
+  nothing under that directory was modified or deleted.
+
+### Test results
+
+`mission-control` 861 in 31 files, `@virgil/domain` 104, `@virgil/agent-contracts`
+70, `@virgil/knowledge-graph` 24, `@virgil/gate-engine` 19,
+`@virgil/visual-language` 18 — **1,096 in all, all passing.** The app's suite
+went from 269 at the branch point to 861. Lint clean over 278 files, typecheck
+clean over 8 packages, Mind Scan no findings, 19 committed artifacts verified by
+digest, and both reproducers byte-identical.
+
+### What V11 changes, and what it preserves
+
+**Preserved, and this is the point of the branch.** V10 is openable, unchanged,
+at `#/v10` inside V11's own file and at its own untouched artifact. Its entry,
+its component, its four routes, its build config, its inliner, its reproducer,
+its three scripts and every committed artifact are byte for byte as V10 left
+them; a SHA-256 tripwire over the five protected sources is in
+`test/owner-build-v11.test.ts`, and the independent Keeper review proved the
+contract on its own evidence rather than accepting this record's word for it.
+The living 3D celestial command centre, Virgil and the three specialists, their
+individual workstations, the animated in-world screens, character selection, the
+scripted demonstration and the governance information are all still there. **The
+default approved version has not changed.**
+
+**Changed:**
+
+| | V10 | V11 |
+|---|---|---|
+| the portrait camera | the desktop camera widened until the outer consoles fall off the frame — a required field of 1.015 of the lens it has | a frame **solved** for the viewport: 47 critical points held with 11 % of air, 58° at 15.26 m, at the elevation the owner set from his own phone |
+| landscape | the same camera | an intentional secondary with its own parameters; the consoles' displays recovered from 23.4 to 45.2 / 35.8 / 40.6 CSS px |
+| reaching things | mouse-first, a 12-button control bar across the picture | 13 touch targets, none under 48 × 48; tap distinguished from gesture by the owner's own guard; the chrome behind one discreet mark |
+| the in-world screens | one flat treatment, a fixed 1024 texture, no mip chain | a thin ivory-and-gold faceplate fitted to each console's measured opening, deep sapphire glass, bloom under arithmetic control, 1024–2048 by tier with mipmaps and anisotropy, per-agent art direction |
+| Virgil's slabs | 120 mm bezels, a 396 mm shell, 1.04 m² of glass, one row | 32 mm bezels, a 150 mm case, 1.44 m² of glass, a shallow triangle at one size, at the height the owner set |
+| opening an agent | a side panel with a table | a full-screen window that leads with what happened, what it means, what happens next and what the owner can do, evidence on demand behind five disclosures |
+| the conversation | none | a real composer that keeps what is typed and says plainly that nothing is sent, with the iPhone keyboard handled |
+| session controls | none | five, declared, disabled, each carrying its reason; merge not offered at all |
+| performance | one pixel ratio for every phone, no adaptation, no window or visibility handling | a ratio derived from the tier's pixel budget, a three-rung reduced-performance mode that gives up invisible work first, 15 fps under an open window, stopped when hidden |
+| demonstration marking | a paragraph of orange and a band on every screen | one `Demo data` chip, on the owner's instruction |
+| build identity | a provenance footer across the foot | the footer in the hidden menu, one discreet `V11 · stage 4 · <sha>` marker left in the open |
+
+### Known limitations, carried forward and not solved
+
+1. **The slab cluster's lower edge is in the top of all three portrait station
+   close-ups** — a strip from the top of the frame down to 78 px on the
+   Fabricator, 64 on the Prover and **142 on the Keeper** at 390 × 844. Reduced
+   from 12/10/17 sample points in frame to 6/6/12 of 294, **not cured**:
+   clearing it takes a tilt of 0.8 m on the Fabricator and 1.0 m on the Prover,
+   and **no tilt clears it at all on the Keeper**, whose candidate slab reaches
+   x = +0.07 while his camera stands at x ≈ +1.2. Moving the cluster is the only
+   remedy and the owner has declined it. In landscape it is out of shot
+   entirely — 0 of 294 points.
+2. **11 px of clearance above the three consoles' screens** at 390 × 844 (12.3
+   at 430 × 932). The owner chose it, from a photograph of his own phone, and it
+   is bounded by his own first priority: no slab may stand over a console's
+   picture.
+3. **The CRT collapse nobody has ever seen in a frame.** V9 opened it; every
+   pass since has looked and not found it. It is still open because it has never
+   been reproduced, not because it has been fixed.
+4. **The portrait hierarchy in which the verdict slab out-weighs Virgil.** The
+   owner has seen it and approved it.
+5. **In portrait, an open window carries no demonstration marking** (the
+   Keeper's K11-03). Stage 3's `ILLUSTRATIVE · NOT REAL STATE` band justified
+   itself by exactly this case, and the owner then instructed that it be
+   removed; the `Demo data` chip is underneath the full-screen sheet, and the
+   `has-window` rule that relocates it exists in landscape only. What remains on
+   screen is the composer's *"Nothing is sent: there is no session behind this
+   build"* and `Session controls — none is connected`. **The review's finding
+   was that the stylesheet named this cost and the run record did not.** It does
+   now. The substantive question — whether portrait should carry a marking — is
+   the owner's, because the removal was his instruction and a session may not
+   overrule authority layer 1.
+6. **No level-of-detail system**, and the compressed-format options measured and
+   not adopted (above). The artifact is 8.29 MB against a 6 MB mobile transfer
+   budget, and the only measured route under it is Draco plus gzip, at about
+   6.17 MB.
+7. **27 MB of scratch output tracked in `HEAD`** from earlier passes (the
+   Keeper's K11-05), to which this stage adds 4.0 MB of deliverable frames.
+   Named, not slipped in; removing it from `HEAD` would not shrink the history
+   and it is the owner's call.
+8. **`verify:owner:v11` still contains fixed timeouts** (K11-04), reduced but
+   not eliminated: the stage-4 checks poll conditions and count frames, and
+   nine `timeout: 10_000` sites remain.
+
+### What this stage does not claim
+
+- **No visual-quality judgment has been made on real graphics hardware by
+  anybody.** Every frame in this record was rendered in software by SwiftShader.
+  OD-0005 defers the two graphics-hardware checks and requires them recorded as
+  **not performed, never as met**, and they are.
+- **Every iPhone check here is a simulated viewport in headless Chromium.**
+  390 × 844, 430 × 932 and 844 × 390 are CSS pixel sizes given to a browser, not
+  devices. **No real device has been used by this session and no real-device
+  check has been performed.** `viewport-fit=cover`, `100dvh`, the four
+  `env(safe-area-inset-*)` values, the Dynamic Island and the home indicator are
+  written and exercised at zero inset, with a 59 px inset simulated and looked
+  at. Whether the chrome sits correctly around a real Dynamic Island is **not
+  performed**.
+- **The onscreen keyboard is simulated** by substituting `visualViewport`.
+  Whether a real iOS keyboard leaves the composer where this record says it does
+  is **not performed**.
+- **No screen reader has been run**; what is verified is the attributes, the
+  labels and the focus order in the DOM. A real assistive-technology pass is
+  **not performed**.
+- **No performance figure for any device has been taken.** Every frame rate here
+  describes SwiftShader on a CPU and is a direction, not a budget. The
+  reduced-performance mode's step-down has **never been observed engaging on a
+  real device**, and the finding that its first rung buys nothing measurable is
+  a property of this container, not of a phone.
+- **The KTX2 transcoded texture size was not measured**, because no encoder for
+  it exists here and none may be installed. What is measured is the transcoder's
+  own size against the whole texture payload, which settles the question in this
+  document's constraint and is not dressed up as more.
+- **There is no session behind this build and nothing here fakes one.**
+- **A pass here is a builder's claim.** The deterministic checks are the
+  evidence. The independent Keeper review covers `de3c7d8b2a` and **not this
+  stage**; everything after that SHA is unreviewed.
