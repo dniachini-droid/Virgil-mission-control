@@ -2387,6 +2387,196 @@ default approved version has not changed.**
 
 ---
 
+## The repair pass after the review — K11-01 and K11-04 at their cause
+
+**Scope.** One pass, three commits, no source in `src/` touched. It repairs the
+two findings of the six that were objectively decidable and still open, records
+what was already fixed, and assembles the decisions that are the owner's into
+the section below. **The candidate this pass builds on is `62c4b81`**; the
+Keeper's review covers `de3c7d8` and covers none of it.
+
+**What was already repaired before this pass, and was not touched again.**
+**K11-02** — the ledger bar that was a length measuring nothing — was repaired
+at its cause in `99614fa`: the bar is each hop's real elapsed seconds against
+the longest hop in the scripted demonstration, and **no bar is drawn in the
+replay**, where no per-hop duration exists. Verified by reading the source
+before starting, and left alone.
+
+### K11-01 — the record contradicted the commit it shipped in, and the script nothing ran
+
+Two halves, and stage 4 had already closed most of the first.
+
+**The record.** At candidate `de3c7d8` the words *"Stage 4 is not started"* were
+the **last line of the whole file**, in the commit titled *"V11 stage 4, first
+part"*. Stage 4's own section has since landed and supersedes them. What was
+left was the shape of the fault rather than the fault: a sentence with no date
+on it, in a document whose sections each speak for a different SHA. Every such
+sentence now **names the pass it speaks for** — five of them, across stages 1,
+2, 3 and the pass between 3 and 4 — and a note at the top of this record says
+plainly how the file is to be read. **The stale lines are not deleted.** They are
+the evidence of what each pass found, and deleting them would be the other
+failure this project keeps having.
+
+**The script.** `asset-pipeline/assess-compression.mjs` was wired into no
+`package.json` script, no test and no CI step, so the numbers the brief's second
+caution requires to be recorded lived only in one session's stdout. It is
+**`pnpm measure:compression:v11`** now, at the root and in the app, and
+`test/required-checks-v11.test.ts` fails if either goes away. It is deliberately
+**not** in `pnpm check`: it asserts nothing and can fail nothing, and a step that
+cannot fail does not belong in a gate.
+
+**The numbers were re-derived by the new command and came back identical to the
+record's, to the byte** — Draco 553,957, Meshopt 1,494,910, gzip 1,316,316 saved
+for no decoder at all, KTX2 still +34,398 bytes at best with its texture size
+still `NOT MEASURED`. Stage 4's table above is reproducible by one command by
+anyone who doubts it.
+
+### K11-04 — a check that failed on a slow machine rather than on a defect
+
+The review ran a single-viewport copy of `verify:owner:v11` at the candidate in
+a container three to four times slower than the builders' and got five failures,
+**every one of them false**: *"the window has no back chevron"* about a chevron
+that `AgentWindow.tsx:225` renders and a committed frame shows. Nine
+`boundingBox({ timeout: 10_000 })` waits had expired.
+
+**Repaired at the cause, not with a bigger number.** Every wait that has a frame
+to count is now spent in **rendered frames**: `boxOf` for an element's box,
+`until` for a page condition, both bounded at **90 frames**. Nothing in the DOM
+can change between two frames, so a frame budget is the only renderer-
+independent clock this interface has, and a machine ten times slower takes ten
+times longer to spend the same budget instead of failing. **Nothing asserted was
+relaxed** — the chevron still has to exist, be visible and measure 44 × 44 — and
+the budget is still finite, so a genuinely absent element still fails.
+
+The size of the fault, measured rather than asserted: the script now prints
+**"a frame takes 1,851 ms here, so a wait of 90 frames is 167s"**. The old
+10,000 ms bought **under fourteen frames** in this container.
+
+Also converted: the three `waitForFunction({ timeout: 20_000, polling: 120 })`
+waits, and the reduced-motion timer's budget. That timer still **measures** in
+milliseconds, because the gap between the camera moving and the record appearing
+is what it is for and the renderer's latency cancels out of it; only its deadline
+became frames. What remains in milliseconds is **five document-load waits**,
+before any frame exists to count, and a test asserts those five are the only
+ones left.
+
+**Two faults this uncovered, both the same class.**
+
+1. **Playwright's own 30-second default action timeout.** `locator.click()` on
+   the composer **threw out of the whole script** — worse than a false failure,
+   because a crash prints nothing and a reader cannot tell a broken product from
+   a slow machine. The default is now this machine's own measured frame period
+   times the same 90-frame budget, never below Playwright's 30 s, and a missing
+   composer is a recorded failure rather than an exception. The sheet's computed
+   style is read null-safely for the same reason: `getComputedStyle(null)`
+   crashed it once.
+2. **A press that misses a moving target.** The world's touch targets are
+   projections placed from the camera every frame, so a press aimed at where one
+   was a frame ago can land on nothing while the camera is still easing — and the
+   miss had been **hidden by whatever latency the wait before it happened to
+   add**, which is the same accident K11-04 is about, in the other direction.
+   `pressUntil` re-measures and presses again, up to four honest attempts, until
+   the thing it should cause holds. This was found because removing the accidental
+   latency broke the check, and the old script was re-run at this same artifact to
+   prove the product had not changed: it passed, with the same numbers.
+
+**The script also prints its progress**, with elapsed seconds, on stderr — so a
+run killed by a ten-minute cap says where it was instead of nothing at all. That
+is how the two faults above were located.
+
+### The other findings, and their disposition
+
+- **K11-03** — in portrait an open window carries no demonstration marking. **Not
+  repaired, and deliberately not repaired.** It follows directly from the owner's
+  own instruction to remove the signage, and a session may not overrule authority
+  layer 1. The review's actual finding — that the stylesheet named the cost and
+  the record did not — was closed by stage 4, which carries it as known limitation
+  5. This pass verified that text is there and put the **substantive question** in
+  front of the owner as item 1 of the section below. **No signage was re-added.**
+- **K11-05** — 27 MB of tracked scratch. The owner's call, already made
+  (*"leave them and stop the bleeding"*), and it is item 4 below so he sees the
+  weight rather than forgets it. Confirmed unchanged: **86 files, 27 MB**, last
+  added to at `512fd5c`, before his decision.
+- **K11-06** — `NO VERDICT` as an allow-list term. The reviewer judged it
+  correct and recorded it only so the exception is visible. Nothing to repair,
+  and it is not the owner's to decide either. Left exactly as it is.
+
+### The preservation contract
+
+**V10 built from a clean tree at this pass's HEAD is 8,528,318 bytes — the sixth
+consecutive pass at that exact number**, and the pass changed no file V10's entry
+can reach: the three files edited are an e2e harness, a test and two
+`package.json` script blocks, none of which is in any build. `src/` is untouched.
+V10's entry, routes, build config, inliner, reproducer, scripts and every
+committed artifact are as they were; `sha256sum -c` over the whole directory
+passes on **20** artifacts now, and both reproducers rebuild their committed
+artifacts byte for byte.
+
+### The checks, as printed
+
+`pnpm check` was **split into its parts** again, because this harness caps a
+foreground command at ten minutes. Every part below ran in the **foreground**, at
+this pass's own commit `27f5874d9c`, and they are the same commands in the same
+order `pnpm check` runs. **A partial `verify:owner:v11` run may never print
+`PASS`** — each printed `PASS (partial: …)` and named what it ran.
+
+| Check | Result |
+|---|---|
+| `pnpm lint` | `Checked 278 files in 197ms. No fixes applied.` |
+| `pnpm typecheck` | `Tasks: 8 successful, 8 total` |
+| `pnpm test` | agent-contracts 70, visual-language 18, gate-engine 19, domain 104, knowledge-graph 24, **mission-control 863 in 31 files** — 1,098 in all |
+| `pnpm verify:owner` | `PASS — opens from file://, no console errors, no off-document requests`; `console errors 0`; `requests 1, off-document 0` |
+| `verify:owner:v11`, portrait 390 | `PASS (partial)`; 13 targets, smallest 48 px; 17 window controls, smallest 44; `scrollWidth 390/390`, 0 past the edge; 5 session controls, 0 enabled; 0 demo words, 0 bands; composer clear of a simulated 336 px keyboard by 48 px |
+| `verify:owner:v11`, portrait 430 | `PASS (partial)`; the same, 32 px of keyboard clearance |
+| `verify:owner:v11`, landscape 844 | `PASS (partial)`; 15 window controls; 29 px of clearance at a 180 px keyboard |
+| `verify:owner:v11`, motion and performance | `PASS (partial)`; reduced-motion gap **0 ms** and default gap **0 ms**; loop always / demand / never / always; levels at DPR 3 **full 2, reduced 2, minimal 1.25**; window text **1,287 DOM characters, 0 canvases** |
+| Mind Scan | `82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `mind scan: no findings` |
+| `pnpm measure:compression:v11` | every figure identical to stage 4's table |
+| `build:owner` from a clean tree | `v10-s2-virgil-27f5874d9c.html`, **8,528,318 bytes** |
+| `build:owner:v11` from a clean tree | `v11-s4-virgil-27f5874d9c.html`, **8,690,854 bytes** |
+| `sha256sum -c *.sha256` | **20 committed artifacts, all `OK`** |
+| `pnpm reproduce:owner` | `identical — rebuilt from 4ae03314d93ed6e26982f3691034974ff5b3887b`; `PASS` |
+| `pnpm reproduce:owner:v11` | `identical — rebuilt from 99614fa2091eddfa8f5a2f4191684cce62f2a751`; `PASS` |
+
+**Tests added this pass: 2**, both about wiring rather than behaviour — that the
+compression assessment is a named command, and that no wait in the verifier is
+written in milliseconds where a frame exists to count. **None was changed to
+pass, and none was skipped or weakened.** The app's suite goes from 861 to 863.
+
+**One deviation from the instruction's letter, recorded rather than smoothed
+over.** The old verifier was temporarily restored over the new one and run
+against the same artifact, to establish that the window-opening failure the new
+waits exposed was **caused by this pass and not present before**. It was: the old
+script passed, the new one failed, and `pressUntil` closed the gap. The file was
+restored from a copy immediately afterwards and nothing of that experiment is in
+any commit.
+
+### The artifact
+
+`docs/process/PHASE_1_owner-builds/v11/v11-s4-virgil-27f5874d9c.html`, sha256
+`c95120b4d82f9baf63afc2d06dfeb4113b778ff4262b46be28f89e0c48b59755`,
+**8,690,854 bytes** — **byte-count identical to stage 4's artifact**, which is
+the expected result of a pass that changed no file any build reads. Its digest is
+`docs/process/PHASE_1_owner-builds/v11-s4-virgil-27f5874d9c.html.sha256`, at the
+top level so the one existing `sha256sum -c *.sha256` covers it.
+
+### What this pass does not claim
+
+- **It is a builder's claim.** The deterministic checks above are the evidence.
+  The independent Keeper review covers `de3c7d8b2a` and **nothing in this
+  section**; this pass repaired that review's findings and was not reviewed by
+  anybody.
+- **No visual-quality judgment on real graphics hardware, by anybody.** OD-0005's
+  two checks remain **not performed**, and nothing here changes that.
+- **The repaired verify was not run as a single whole run.** Its four parts each
+  printed `PASS (partial: …)` and together cover every assertion it makes, but a
+  single uninterrupted run still exceeds this harness's cap and **was not
+  performed**.
+- **Nothing was decided for the owner.** The section below is a list of
+  questions, not a set of answers, and no code anticipates any of them.
+
+---
+
 ## The decisions waiting on the owner
 
 **Read this section first in the morning.** It is the whole of what V11 needs
