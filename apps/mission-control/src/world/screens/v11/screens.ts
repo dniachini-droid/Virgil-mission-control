@@ -1,5 +1,11 @@
 import type { Role } from '../../room/cast.js';
-import type { Outcome, Report, ScreenContent, StationState } from '../../room/demo.js';
+import {
+  BEATS,
+  type Outcome,
+  type Report,
+  type ScreenContent,
+  type StationState,
+} from '../../room/demo.js';
 import { CANDIDATE_ID } from '../candidate.js';
 import { bandLines } from '../draw.js';
 import {
@@ -423,7 +429,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
     // texture coordinate is in without measuring any text — so the split
     // is a constant and the hero is bounded to fit above it.
     void used;
-    runLedger(ctx, m, ledgerRect(m), content, seconds, t);
+    runLedger(ctx, m, ledgerRect(m), content, seconds, t, showBand);
     microRail(ctx, m, [
       {
         label: 'hops',
@@ -517,6 +523,48 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
  * it; a refusal colours the hop that returned it and leaves the hops after
  * it `ahead`, because that is what happened.
  */
+/**
+ * **Each hop's own window in the scripted demonstration**, quoted from
+ * `world/room/demo.ts`'s `BEATS` rather than restated, so a change to the
+ * script moves the bars with it: the Fabricator receives at 2 and reports at
+ * 14, the Prover receives at 17 and reports at 29, the Keeper receives at 32
+ * and reports at 44. In the order `hopNodes` lists them.
+ */
+const SCRIPTED_HOP_WINDOW: readonly (readonly [number, number])[] = [
+  [BEATS.handoffToFabricator, BEATS.fabricatorReported],
+  [BEATS.handoffToProver, BEATS.proverReported],
+  [BEATS.handoffToKeeper, BEATS.keeperReported],
+];
+
+/** The longest of them, so the three lengths are comparable — `ledger.ts`'s own rule. */
+export const LONGEST_SCRIPTED_HOP = SCRIPTED_HOP_WINDOW.reduce(
+  (worst, [from, to]) => Math.max(worst, to - from),
+  0,
+);
+
+/**
+ * How much of a ledger row's track is filled, as a fraction of the longest hop
+ * in the script. Pure, and exported, because the Keeper's K11-02 found the old
+ * expression drawing a length that measured nothing and recorded that **no test
+ * asserted the bar's semantics** — `test/screen-content-v11.test.ts` asserts
+ * them here rather than trying to read a `fillRect` out of a canvas.
+ *
+ * `replay` returns 0 for every row: the replay hands this slab no per-hop
+ * duration, and a bar is a length and a length is a claim.
+ */
+export function ledgerBarFill(
+  state: 'done' | 'active' | 'ahead',
+  index: number,
+  seconds: number,
+  replay: boolean,
+): number {
+  const window_ = SCRIPTED_HOP_WINDOW[index];
+  if (replay || !window_) return 0;
+  if (state === 'done') return clamp01((window_[1] - window_[0]) / LONGEST_SCRIPTED_HOP);
+  if (state === 'active') return clamp01((seconds - window_[0]) / LONGEST_SCRIPTED_HOP);
+  return 0;
+}
+
 function hopNodes(content: ScreenContent) {
   const order = ['Fabricator', 'Prover', 'Keeper'];
   const activeAt = content.active ? order.indexOf(content.active) : -1;
@@ -579,6 +627,8 @@ function runLedger(
   content: ScreenContent,
   seconds: number,
   t: number,
+  /** True in the replay, where this slab is handed no per-hop duration. */
+  showBand: boolean,
 ) {
   const nodes = hopNodes(content);
   const { u, hair } = m;
@@ -644,14 +694,37 @@ function runLedger(
     ctx.textAlign = 'left';
     ctx.fillText(node.label, labelX, y);
     spaced(ctx, '0em');
-    // The elapsed bar, and its own end mark.
+    /**
+     * **The elapsed bar, and the repair the Keeper's K11-02 asked for at its
+     * cause.**
+     *
+     * It used to be `done ? 1 : active ? clamp01((seconds % 6) / 6) : 0` —
+     * a six-second sawtooth of the **global** clock for whichever hop was
+     * running, identical for every hop and resetting every six seconds, and a
+     * full bar for every returned hop whatever its length. It read as *how far
+     * through this hop is* and it measured nothing. That is this project's own
+     * named failure class: *a duration or bar drawn where no duration was
+     * recorded*, and `screens/ledger.ts` states the rule it broke —
+     * *"a bar is a length and a length is a claim"*, with `maxElapsed` there
+     * precisely so lengths are comparable between rows.
+     *
+     * So a length is now drawn only where a duration exists:
+     *
+     *  - in the **scripted demonstration** each hop's window is a constant of
+     *    the script (`demo.ts`'s own `BEATS`), so the bar is that hop's real
+     *    elapsed seconds against the longest hop in the script — a returned
+     *    hop keeps its own length rather than being rounded up to full, and a
+     *    running one grows from its own start, not from a global sawtooth;
+     *  - in the **replay** this slab is handed no per-hop duration at all, so
+     *    **no bar is drawn**, exactly as `ledger.ts` requires. The track stays
+     *    so the row keeps its shape; what is removed is the claim.
+     */
     const barX = r.x + r.w * 0.46;
     const barW = r.w * 0.4;
     ctx.save();
     ctx.fillStyle = dim(0.07);
     ctx.fillRect(barX, y - 0.4 * u, barW, 0.8 * u);
-    const fill =
-      node.state === 'done' ? 1 : node.state === 'active' ? clamp01((seconds % 6) / 6) : 0;
+    const fill = ledgerBarFill(node.state, i, seconds, showBand);
     if (fill > 0) {
       ctx.fillStyle = node.colour;
       ctx.globalAlpha = 0.85;

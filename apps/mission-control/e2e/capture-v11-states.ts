@@ -231,6 +231,40 @@ const SHOTS: Shot[] = [
   },
 ];
 
+/**
+ * **The two frames the brief's closing summary asks for by name**: *"desktop
+ * and iPhone screenshots of V11"*. The iPhone one is a simulated 390 × 844
+ * viewport and the desktop one is 1280 × 800 — both in the same headless
+ * Chromium, both in software. Neither is a photograph of a device.
+ */
+if (process.argv[2] === 'summary') {
+  const preinstalledSummary =
+    process.env.CHROMIUM_EXECUTABLE ??
+    (existsSync('/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
+      ? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+      : '/opt/pw-browsers/chromium');
+  const summaryBrowser: Browser = await chromium.launch(
+    existsSync(preinstalledSummary) ? { executablePath: preinstalledSummary } : {},
+  );
+  for (const [name, width, height] of [
+    ['desktop-1280x800', 1280, 800],
+    ['iphone-390x844', 390, 844],
+  ] as [string, number, number][]) {
+    const summaryPage = await summaryBrowser.newPage({ viewport: { width, height } });
+    await summaryPage.goto(`${fileUrl}#/?demo=11&loop=0&hold=1`, { waitUntil: 'load' });
+    await summaryPage.locator('canvas').waitFor({ timeout: 60_000 });
+    await summaryPage.waitForFunction(() => '__virgilRoomReady' in window, undefined, {
+      timeout: 420_000,
+    });
+    await summaryPage.waitForTimeout(6000);
+    await summaryPage.screenshot({ path: resolve(shots, `v11-${name}.png`) });
+    console.log(`capture v11 states: summary frame v11-${name}.png`);
+    await summaryPage.close();
+  }
+  await summaryBrowser.close();
+  process.exit(0);
+}
+
 // -------------------------------------------------------------- contact sheet
 
 if (process.argv[2] === 'sheet') {

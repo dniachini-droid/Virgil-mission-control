@@ -5,7 +5,13 @@ import { ROLES, type Role } from '../src/world/room/cast.js';
 import { BEATS, demoAt, loopLength, type Outcome } from '../src/world/room/demo.js';
 import { splitHero } from '../src/world/screens/v11/chrome.js';
 import { primaryFor, verdictPrimary } from '../src/world/screens/v11/content.js';
-import { drawConsoleScreen, drawSlab, type SlabKind } from '../src/world/screens/v11/screens.js';
+import {
+  drawConsoleScreen,
+  drawSlab,
+  LONGEST_SCRIPTED_HOP,
+  ledgerBarFill,
+  type SlabKind,
+} from '../src/world/screens/v11/screens.js';
 import { ARRIVE_SECONDS, SETTLED_SINCE, sinceFor } from '../src/world/screens/v11/system.js';
 
 /**
@@ -249,6 +255,47 @@ describe('no display names a verdict before its review has reported', () => {
  * with it. The remedy is the project's own rule — arrive, never hide — and
  * `sinceFor` is where it now lives.
  */
+/**
+ * **The Keeper's K11-02, repaired at its cause and held here.**
+ *
+ * The ledger's bar was `done ? 1 : active ? clamp01((seconds % 6) / 6) : 0` —
+ * a six-second sawtooth of the global clock, the same for whichever hop was
+ * running, and a full bar for every returned hop whatever its length. The
+ * review recorded that **no test asserted the bar's semantics**, and that a
+ * grep for `elapsed` across the V11 screen tests returned nothing. This is
+ * that test.
+ */
+describe('a bar is a length and a length is a claim', () => {
+  it('is a real fraction of the hop\u2019s own window, against the longest hop', () => {
+    // The script's hops are 12 seconds each (2 to 14, 17 to 29, 32 to 44), so
+    // each returned hop draws a full bar because it genuinely is the longest.
+    expect(LONGEST_SCRIPTED_HOP).toBe(BEATS.fabricatorReported - BEATS.handoffToFabricator);
+    expect(BEATS.proverReported - BEATS.handoffToProver).toBe(LONGEST_SCRIPTED_HOP);
+    expect(BEATS.keeperReported - BEATS.handoffToKeeper).toBe(LONGEST_SCRIPTED_HOP);
+    for (const i of [0, 1, 2]) expect(ledgerBarFill('done', i, 40, false)).toBe(1);
+  });
+
+  it('grows from the hop\u2019s own start, not from a sawtooth of the global clock', () => {
+    expect(ledgerBarFill('active', 0, BEATS.handoffToFabricator, false)).toBe(0);
+    expect(ledgerBarFill('active', 0, 8, false)).toBeCloseTo(0.5, 6);
+    expect(ledgerBarFill('active', 0, BEATS.fabricatorReported, false)).toBe(1);
+    // The Prover's hop opens at 17, so at 8 s nothing of it has run — where the
+    // old expression drew a sawtooth for whichever hop happened to be active.
+    expect(ledgerBarFill('active', 1, 8, false)).toBe(0);
+    expect(ledgerBarFill('active', 1, 23, false)).toBeCloseTo(0.5, 6);
+  });
+
+  it('draws nothing at all for a hop that has not started', () => {
+    for (const i of [0, 1, 2]) expect(ledgerBarFill('ahead', i, 40, false)).toBe(0);
+  });
+
+  it('and nothing at all in the replay, which hands this slab no duration', () => {
+    for (const state of ['done', 'active', 'ahead'] as const) {
+      for (const i of [0, 1, 2]) expect(ledgerBarFill(state, i, 40, true)).toBe(0);
+    }
+  });
+});
+
 describe('reduced motion arrives; it does not hide', () => {
   const state = demoAt(30, 0, true);
 
