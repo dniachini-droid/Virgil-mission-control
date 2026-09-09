@@ -1,5 +1,5 @@
 import type { Role } from '../../room/cast.js';
-import type { Outcome, Report, StationState } from '../../room/demo.js';
+import type { Report, StationState } from '../../room/demo.js';
 import type { MarkKind } from './marks.js';
 import { ACCENT, STATUS, type StatusKey } from './system.js';
 
@@ -63,23 +63,33 @@ export function primaryFor(role: Role, state: StationState, report: Report): Pri
   if (state === 'REPORTED') {
     switch (report) {
       case 'COMPLETE':
+        // Not a verdict at all, and deliberately not worded like one: the
+        // candidate's state here is `BUILDER_REPORTED_COMPLETE`, which
+        // `authority.json` lists among the candidate states and not among
+        // the verdicts.
         return {
-          word: 'REPORTED',
-          lead: 'BUILDER REPORTED COMPLETE. A CLAIM, NOT EVIDENCE.',
+          word: 'REPORTED COMPLETE',
+          lead: 'A CLAIM BY THE BUILDER, NOT EVIDENCE',
           mark: 'reported',
           status: 'cyan',
         };
+      // **The exact verdict, never a tense variant and never a shorter one
+      // of the four.** These read `PASSED` until the audit that removed
+      // `IN FLIGHT` from the verdict slab: `PASSED` is not one of
+      // `constitution/authority.json`'s four `reviewVerdicts`, and using
+      // `PASS` for a candidate whose verdict is
+      // `PASS_WITH_NON_BLOCKING_FINDINGS` names a different one of them.
       case 'PASS':
         return {
-          word: 'PASSED',
+          word: 'PASS',
           lead: 'EVERY REQUIRED CHECK RAN AND PASSED',
           mark: 'passed',
           status: 'green',
         };
       case 'PASS_WITH_NON_BLOCKING_FINDINGS':
         return {
-          word: 'PASSED',
-          lead: 'WITH NON-BLOCKING FINDINGS, ALL RECORDED',
+          word: 'PASS WITH NON-BLOCKING FINDINGS',
+          lead: 'EVERY FINDING RECORDED AND CARRIED FORWARD',
           mark: 'passed',
           status: 'green',
         };
@@ -119,8 +129,12 @@ export function accentOf(who: string): { key: string; second: string } {
   return ACCENT[who] ?? { key: STATUS.cyan, second: STATUS.cyan };
 }
 
-/** The verdict of a loop, as a primary for Virgil's centre slab. */
-export function verdictPrimary(verdict: string, outcome: Outcome): Primary {
+/**
+ * The verdict on Virgil's centre slab. **It takes who holds the hop, not
+ * how the loop ends**: see the `default` branch below for why the scripted
+ * outcome may not reach this display before the review has reported.
+ */
+export function verdictPrimary(verdict: string, active: string | null): Primary {
   switch (verdict) {
     case 'PASS':
       return {
@@ -131,8 +145,8 @@ export function verdictPrimary(verdict: string, outcome: Outcome): Primary {
       };
     case 'PASS_WITH_NON_BLOCKING_FINDINGS':
       return {
-        word: 'PASS WITH FINDINGS',
-        lead: 'NON-BLOCKING FINDINGS, ALL RECORDED',
+        word: 'PASS WITH NON-BLOCKING FINDINGS',
+        lead: 'EVERY FINDING RECORDED AND CARRIED FORWARD',
         mark: 'passed',
         status: 'green',
       };
@@ -152,9 +166,44 @@ export function verdictPrimary(verdict: string, outcome: Outcome): Primary {
         status: 'amber',
       };
     default:
+      /**
+       * **No verdict has returned, and the display says only that.**
+       *
+       * Two faults were found here and both are recorded because they are
+       * the kind that come back.
+       *
+       * The first: this branch read `IN FLIGHT`, which is **not one of the
+       * four verdicts** in `constitution/authority.json`'s
+       * `reviewVerdicts`. Under a heading that reads `VERDICT`, a large
+       * word that is not a verdict presents a non-verdict as one, and the
+       * big word is what reads from across the room while the small line
+       * under it does not. V8's own coherence audit removed invented phase
+       * words from the candidate slab for exactly this reason.
+       * `NO VERDICT` is truthful and is already part of the vocabulary.
+       *
+       * The second, and the serious one: the lead read
+       * `HEADING FOR ${'$'}{outcome}`. The scripted demonstration knows how
+       * its loop ends before the review reports, and that line **leaked
+       * the verdict in prose** — `HEADING FOR BLOCKED` while the Prover
+       * was still working. Nothing in this architecture can know a verdict
+       * before a review returns one, so a display that implies it teaches
+       * the owner something untrue about his own system; it is the same
+       * family as the V7 defect the owner caught, when a slab read
+       * "awaiting review" during a build. V10's test for *no verdict
+       * before its review reported* looked only at the rendered verdict
+       * word and could not see prose.
+       *
+       * The `outcome` parameter is therefore **deliberately unused** in
+       * this branch, and `test/screen-content-v11.test.ts` asserts over
+       * the whole of every screen's text, at every beat of every loop,
+       * that the outcome's own word never appears before that outcome's
+       * review has reported.
+       */
       return {
-        word: 'IN FLIGHT',
-        lead: `NO VERDICT YET. HEADING FOR ${outcome.replace(/_/g, ' ')}.`,
+        word: 'NO VERDICT',
+        lead: active
+          ? `NO VERDICT HAS RETURNED. ${active.toUpperCase()} HOLDS THE HOP.`
+          : 'NO VERDICT HAS RETURNED FOR THIS CANDIDATE.',
         mark: 'working',
         status: 'cyan',
       };

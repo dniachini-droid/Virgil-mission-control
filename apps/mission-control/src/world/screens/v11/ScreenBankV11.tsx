@@ -64,12 +64,49 @@ export const V11_SLAB = {
   /** How deep the front plate is, and how far the display sits behind its front face. */
   plate: 0.03,
   recess: 0.009,
+  /**
+   * The plate's bevel. **`bevelSize` narrows the opening's own front edge**,
+   * so it is small and is stated here rather than derived from the bezel:
+   * at 0.36 of the bezel it took 11.5 mm off each side of the visible
+   * opening and swallowed the gold lip whole.
+   */
+  bevelThickness: 0.01,
+  bevelSize: 0.006,
   /** How far the glass rises at its centre. */
   bulge: 0.018,
   /** How far the display plane stands outside the opening, so its cut edge hides. */
   overhang: 0.005,
-  /** The shallow case behind the plate. */
+  /** The shallow case behind the plate, and its own chamfer. */
   shellDepth: 0.15,
+  shellBevel: 0.012,
+  /**
+   * **Where every layer sits along the slab's own z, front to back.**
+   *
+   * These five numbers are one table because the first version of this
+   * component placed the shell at `-plate - shellDepth + 0.004` with a
+   * 35 mm bevel — and an `ExtrudeGeometry`'s bevel reaches *past* both
+   * ends of its depth, so the shell's front came out at z = +0.009,
+   * **in front of the display plane at −0.009**. The built artifact showed
+   * three blank cream rectangles where Virgil's three screens should be,
+   * with no console error and nothing thrown: a solid mesh in front of a
+   * live one. Found by looking at the first frame of the built artifact.
+   *
+   * `test/screen-bank-v11.test.ts` now builds all five geometries under
+   * node and asserts their measured z extents stack in this order, which
+   * costs nothing and would have caught it before the build.
+   */
+  z: {
+    /** The plate's front face, at the group's own origin. */
+    plate: 0,
+    /** The gold lip, just in front of the display. */
+    lip: -0.007,
+    /** The display plane. */
+    display: -0.009,
+    /** The glass's rim; it bulges forward from here. */
+    glass: -0.003,
+    /** The shell's **front face, bevel included**. */
+    shellFront: -0.02,
+  },
 } as const;
 
 export interface V11SlabPlan {
@@ -101,6 +138,89 @@ export function v11SlabPlan(canvasWidth: number): V11SlabPlan {
     canvasHeight: Math.max(64, Math.round((canvasWidth * displayHeight) / displayWidth)),
     cornerPixels: ((openingRadius + V11_SLAB.overhang) / displayWidth) * canvasWidth,
     glassArea: openingWidth * openingHeight,
+  };
+}
+
+/**
+ * **The slab's five parts, built once and testable without a renderer.**
+ *
+ * Extracted from the component precisely so `test/screen-bank-v11.test.ts`
+ * can build them under node and assert their z extents stack front to
+ * back. Each mesh's position is derived from `V11_SLAB.z` and the
+ * geometry's own **measured** front extent, so a change to a bevel cannot
+ * silently move a layer in front of the display again.
+ */
+export function buildV11Slab(plan: V11SlabPlan): {
+  front: THREE.ExtrudeGeometry;
+  lip: THREE.ExtrudeGeometry;
+  shell: THREE.ExtrudeGeometry;
+  glass: THREE.BufferGeometry;
+  plateAt: number;
+  lipAt: number;
+  shellAt: number;
+} {
+  const { outerWidth, outerHeight, outerRadius, bezel, plate, bulge } = V11_SLAB;
+  const outer = roundedRect(outerWidth, outerHeight, outerRadius);
+  outer.holes.push(roundedRectPath(plan.openingWidth, plan.openingHeight, plan.openingRadius));
+  const front = new THREE.ExtrudeGeometry(outer, {
+    depth: plate,
+    bevelEnabled: true,
+    bevelThickness: V11_SLAB.bevelThickness,
+    bevelSize: V11_SLAB.bevelSize,
+    bevelSegments: 3,
+    curveSegments: 16,
+  });
+  // The gold inner lip: a narrow ring **inside** the opening's visible
+  // front edge, so it overlaps the picture's outermost few millimetres and
+  // hides the display plane's cut edge, instead of hiding behind the plate.
+  const lipOuterWidth = plan.openingWidth - 2 * V11_SLAB.bevelSize + 0.002;
+  const lipOuterHeight = plan.openingHeight - 2 * V11_SLAB.bevelSize + 0.002;
+  const lipRadius = Math.max(0.004, plan.openingRadius - V11_SLAB.bevelSize);
+  const lipShape = roundedRect(lipOuterWidth, lipOuterHeight, lipRadius);
+  lipShape.holes.push(
+    roundedRectPath(
+      lipOuterWidth - 2 * V11_SLAB.lip,
+      lipOuterHeight - 2 * V11_SLAB.lip,
+      Math.max(0.002, lipRadius - V11_SLAB.lip),
+    ),
+  );
+  const lip = new THREE.ExtrudeGeometry(lipShape, {
+    depth: 0.003,
+    bevelEnabled: true,
+    bevelThickness: 0.0012,
+    bevelSize: 0.0009,
+    bevelSegments: 2,
+    curveSegments: 16,
+  });
+  // A shallow case, chamfered: a box, not a bulge.
+  const shellShape = roundedRect(outerWidth - bezel * 0.5, outerHeight - bezel * 0.5, outerRadius);
+  const shell = new THREE.ExtrudeGeometry(shellShape, {
+    depth: V11_SLAB.shellDepth,
+    bevelEnabled: true,
+    bevelThickness: V11_SLAB.shellBevel,
+    bevelSize: V11_SLAB.shellBevel * 0.85,
+    bevelSegments: 2,
+    curveSegments: 14,
+  });
+  const glass = createRoundedConvexGlassGeometry(
+    plan.openingWidth + 2 * V11_SLAB.overhang,
+    plan.openingHeight + 2 * V11_SLAB.overhang,
+    plan.openingRadius + V11_SLAB.overhang,
+    bulge + 0.003,
+    160,
+  );
+  const frontOf = (geometry: THREE.BufferGeometry) => {
+    geometry.computeBoundingBox();
+    return (geometry.boundingBox as THREE.Box3).max.z;
+  };
+  return {
+    front,
+    lip,
+    shell,
+    glass,
+    plateAt: V11_SLAB.z.plate - frontOf(front),
+    lipAt: V11_SLAB.z.lip - frontOf(lip),
+    shellAt: V11_SLAB.z.shellFront - frontOf(shell),
   };
 }
 
@@ -193,61 +313,8 @@ function Slab({
   }, [plan, tier, maxAnisotropy]);
   useEffect(() => () => texture.dispose(), [texture]);
 
-  const { front, lip, shell, glass } = useMemo(() => {
-    const { outerWidth, outerHeight, outerRadius, bezel, plate, bulge } = V11_SLAB;
-    const outer = roundedRect(outerWidth, outerHeight, outerRadius);
-    outer.holes.push(roundedRectPath(plan.openingWidth, plan.openingHeight, plan.openingRadius));
-    // A **thin, carefully bevelled** plate: the bevel is 40 % of the
-    // bezel's own width rather than V10's 30 mm on a 120 mm frame, so the
-    // whole of the visible face is chamfer and highlight — which is what
-    // reads as machined ivory instead of moulded cream.
-    const front = new THREE.ExtrudeGeometry(outer, {
-      depth: plate,
-      bevelEnabled: true,
-      bevelThickness: bezel * 0.42,
-      bevelSize: bezel * 0.36,
-      bevelSegments: 3,
-      curveSegments: 16,
-    });
-    // The gold inner lip: a narrow ring inside the opening's edge, stood a
-    // half-millimetre proud of the plate so it catches the key light.
-    const lipShape = roundedRect(
-      plan.openingWidth + 2 * V11_SLAB.lip,
-      plan.openingHeight + 2 * V11_SLAB.lip,
-      plan.openingRadius + V11_SLAB.lip,
-    );
-    lipShape.holes.push(roundedRectPath(plan.openingWidth, plan.openingHeight, plan.openingRadius));
-    const lip = new THREE.ExtrudeGeometry(lipShape, {
-      depth: 0.004,
-      bevelEnabled: true,
-      bevelThickness: 0.002,
-      bevelSize: 0.0015,
-      bevelSegments: 2,
-      curveSegments: 16,
-    });
-    // A shallow case, chamfered at the back: a box, not a bulge.
-    const shellShape = roundedRect(
-      outerWidth - bezel * 0.5,
-      outerHeight - bezel * 0.5,
-      outerRadius,
-    );
-    const shell = new THREE.ExtrudeGeometry(shellShape, {
-      depth: V11_SLAB.shellDepth,
-      bevelEnabled: true,
-      bevelThickness: 0.035,
-      bevelSize: 0.03,
-      bevelSegments: 2,
-      curveSegments: 14,
-    });
-    const glass = createRoundedConvexGlassGeometry(
-      plan.openingWidth + 2 * V11_SLAB.overhang,
-      plan.openingHeight + 2 * V11_SLAB.overhang,
-      plan.openingRadius + V11_SLAB.overhang,
-      bulge + 0.003,
-      160,
-    );
-    return { front, lip, shell, glass };
-  }, [plan]);
+  const parts = useMemo(() => buildV11Slab(plan), [plan]);
+  const { front, lip, shell, glass } = parts;
   useEffect(
     () => () => {
       front.dispose();
@@ -285,17 +352,13 @@ function Slab({
 
   return (
     <group position={position} rotation={rotation}>
-      <mesh geometry={front} position={[0, 0, -V11_SLAB.plate]} castShadow receiveShadow>
+      <mesh geometry={front} position={[0, 0, parts.plateAt]} castShadow receiveShadow>
         <meshStandardMaterial color={room.surface.ivory} roughness={0.42} metalness={0.04} />
       </mesh>
-      <mesh geometry={lip} position={[0, 0, -0.0025]}>
+      <mesh geometry={lip} position={[0, 0, parts.lipAt]}>
         <meshStandardMaterial color={room.surface.gold} roughness={0.3} metalness={0.62} />
       </mesh>
-      <mesh
-        geometry={shell}
-        position={[0, 0, -V11_SLAB.plate - V11_SLAB.shellDepth + 0.004]}
-        castShadow
-      >
+      <mesh geometry={shell} position={[0, 0, parts.shellAt]} castShadow>
         <meshStandardMaterial
           color={room.surface.castCreamShadow}
           roughness={0.55}
@@ -303,7 +366,7 @@ function Slab({
         />
       </mesh>
       <mesh
-        position={[0, 0, -V11_SLAB.recess]}
+        position={[0, 0, V11_SLAB.z.display]}
         onClick={(event) => {
           event.stopPropagation();
           if (!wasTap()) return;
@@ -318,7 +381,12 @@ function Slab({
         <planeGeometry args={[plan.displayWidth, plan.displayHeight]} />
         <meshBasicMaterial map={texture} toneMapped={false} />
       </mesh>
-      <mesh geometry={glass} material={glassMaterial} position={[0, 0, -0.003]} renderOrder={1} />
+      <mesh
+        geometry={glass}
+        material={glassMaterial}
+        position={[0, 0, V11_SLAB.z.glass]}
+        renderOrder={1}
+      />
     </group>
   );
 }

@@ -22,7 +22,7 @@ const outDir = join(appRoot, 'dist', 'owner-build-v11');
 
 // The viewing point at the FRONT of the name, as V7 established, so a folder of
 // downloads sorts and reads unambiguously.
-const stageSlug = process.env.VIRGIL_OWNER_V11_STAGE_SLUG ?? 'v11-s1';
+const stageSlug = process.env.VIRGIL_OWNER_V11_STAGE_SLUG ?? 'v11-s2';
 const shortSha = (
   process.env.VIRGIL_OWNER_SHA ??
   execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()

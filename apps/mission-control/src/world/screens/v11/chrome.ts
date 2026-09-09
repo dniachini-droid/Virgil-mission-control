@@ -397,12 +397,27 @@ export function heroBlock(
   const cx = r.x + radius + 0.6 * u;
   const cy = r.y + radius + 1.2 * u;
   mark(ctx, cx, cy, radius, colour, k);
-  // The word. Up to two lines, both locked to the smaller of the two
-  // fitted sizes so a term that has to break still reads as one word.
+  // The word, on one, two or three lines — whichever gives the largest
+  // type inside the column's own width **and** the height the column has
+  // left below the mark. Both bounds matter: a long term broken in two is
+  // narrower per line but each line is half as tall.
   const top = cy + radius + 2.2 * u;
   spaced(ctx, '0.015em');
-  const parts = splitHero(word);
-  const size = Math.min(...parts.map((part) => fit(ctx, display, m.type.hero, part, r.w)));
+  const roomBelow = r.y + r.h - top;
+  let parts = [word];
+  let chosen = 0;
+  for (let lines = 1; lines <= 3; lines += 1) {
+    const attempt = splitHero(word, lines);
+    if (lines > 1 && attempt.length !== lines) continue;
+    const byWidth = Math.min(...attempt.map((part) => fit(ctx, display, m.type.hero, part, r.w)));
+    const byHeight = roomBelow / (1.06 * attempt.length + 0.55);
+    const candidate = Math.min(byWidth, byHeight);
+    if (candidate > chosen) {
+      chosen = candidate;
+      parts = attempt;
+    }
+  }
+  const size = Math.max(8, Math.floor(chosen));
   ctx.font = display(size);
   ctx.save();
   ctx.globalAlpha = k;
@@ -445,17 +460,70 @@ export function heroBlock(
 }
 
 /**
- * A hero term on one line where it fits the vocabulary's short states, and
- * on two at the one space in the long ones — `INSUFFICIENT EVIDENCE`,
- * `PASS WITH FINDINGS`. Never three: a third line would push the
- * conclusion off the column, and the terms that need one do not exist.
+ * **A hero term, broken over as many lines as it needs and no more.**
+ *
+ * The vocabulary is closed: `constitution/authority.json` names four
+ * `reviewVerdicts` and fifteen `candidateStates`, and exactly one of the
+ * nineteen — `PASS_WITH_NON_BLOCKING_FINDINGS`, 31 characters — is long
+ * enough to need three lines in a console's hero column, which is 40 % of
+ * a 1024-pixel canvas.
+ *
+ * It gets three, and the reason is worth stating because the alternative
+ * was tried and rejected: the term had been abbreviated to `PASS WITH
+ * FINDINGS`, which drops the one word the verdict exists to carry —
+ * *non-blocking* — and shortening it to `PASS` names a **different one of
+ * the four**. Neither is acceptable on a display whose whole job is to say
+ * which verdict returned. So the term is set in full, at whatever size the
+ * column allows, and the status mark beside it does the work at distance.
+ *
+ * The split is balanced rather than greedy — it minimises the longest
+ * line — because the longest line is what bounds the type size.
  */
-export function splitHero(word: string): string[] {
+export function splitHero(word: string, maxLines = 3): string[] {
   const words = word.split(' ');
   if (words.length <= 1) return words;
-  if (words.length === 2) return words;
-  // Three words: break after the first, which is the state itself.
-  return [words[0] as string, words.slice(1).join(' ')];
+  let best: string[] = [word];
+  let bestLongest = word.length;
+  for (let lines = 2; lines <= Math.min(maxLines, words.length); lines += 1) {
+    const attempt = balance(words, lines);
+    const longest = Math.max(...attempt.map((line) => line.length));
+    if (longest < bestLongest) {
+      best = attempt;
+      bestLongest = longest;
+    }
+  }
+  return best;
+}
+
+/**
+ * Splits `words` into exactly `lines` runs, minimising the longest run's
+ * character count. Exhaustive over the break points, which is trivial: no
+ * term in either vocabulary has more than five words.
+ */
+export function balance(words: readonly string[], lines: number): string[] {
+  const n = words.length;
+  let best: string[] | null = null;
+  let bestLongest = Number.POSITIVE_INFINITY;
+  const cuts = (start: number, left: number, acc: number[]) => {
+    if (left === 0) {
+      const parts: string[] = [];
+      let from = 0;
+      for (const cut of [...acc, n]) {
+        parts.push(words.slice(from, cut).join(' '));
+        from = cut;
+      }
+      if (parts.some((part) => part.length === 0)) return;
+      const longest = Math.max(...parts.map((part) => part.length));
+      if (longest < bestLongest) {
+        bestLongest = longest;
+        best = parts;
+      }
+      return;
+    }
+    for (let cut = start + 1; cut <= n - left; cut += 1) cuts(cut, left - 1, [...acc, cut]);
+  };
+  cuts(0, lines - 1, []);
+  return best ?? [words.join(' ')];
 }
 
 /**
@@ -513,8 +581,10 @@ export function heroBand(
   const budget = r.h * maxFraction;
   const leadPitch = m.type.lead * 1.3;
   const candidates: string[][] = [[word]];
-  const split = splitHero(word);
-  if (split.length > 1) candidates.push(split);
+  for (const lines of [2, 3]) {
+    const split = splitHero(word, lines);
+    if (split.length === lines) candidates.push(split);
+  }
   let best = { parts: [word], size: 0 };
   for (const parts of candidates) {
     const byWidth = Math.min(...parts.map((part) => fit(ctx, display, h * 0.3, part, width)));

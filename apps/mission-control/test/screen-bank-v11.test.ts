@@ -1,8 +1,9 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { layout } from '../src/world/room/palette.js';
 import { slabPlan } from '../src/world/screens/ScreenBank.js';
 import { TEXTURE_WIDTH } from '../src/world/screens/v11/resolution.js';
-import { V11_SLAB, v11SlabPlan } from '../src/world/screens/v11/ScreenBankV11.js';
+import { buildV11Slab, V11_SLAB, v11SlabPlan } from '../src/world/screens/v11/ScreenBankV11.js';
 import { LEDGER_SHARE, ledgerRect, ledgerRowAtUv } from '../src/world/screens/v11/screens.js';
 import { metrics } from '../src/world/screens/v11/system.js';
 
@@ -121,5 +122,69 @@ describe('the run ledger’s rows, which a tap has to reach', () => {
         expect(ledgerRowAtUv(uv, p.canvasWidth, p.canvasHeight), `${width} ${fraction}`).toBe(want);
       }
     }
+  });
+});
+
+describe('the slab’s five layers, stacked front to back', () => {
+  /**
+   * **The check that would have caught the blank slabs.**
+   *
+   * The first version of `ScreenBankV11` put the shell's front bevel at
+   * z = +0.009, in front of the display plane at −0.009, and the built
+   * artifact rendered three blank cream rectangles where Virgil's screens
+   * should be — with no console error and nothing thrown, because a solid
+   * mesh in front of a live one is not an error. It was found by looking
+   * at a frame, which is the only way it could have been found, and it
+   * cost a full owner build to find.
+   *
+   * These assertions cost 30 ms and are exact: `ExtrudeGeometry`'s bevel
+   * reaches past both ends of its depth, so the only safe way to place
+   * these layers is by their **measured** extents, which is what
+   * `buildV11Slab` now does and what this holds it to.
+   */
+  const plan = v11SlabPlan(1024);
+  const parts = buildV11Slab(plan);
+  const extent = (geometry: THREE.BufferGeometry, at: number) => {
+    geometry.computeBoundingBox();
+    const box = geometry.boundingBox as THREE.Box3;
+    return { front: box.max.z + at, back: box.min.z + at };
+  };
+
+  it('puts the plate’s front face at the group’s origin', () => {
+    expect(extent(parts.front, parts.plateAt).front).toBeCloseTo(V11_SLAB.z.plate, 9);
+  });
+
+  it('keeps the shell — bevel included — behind the display plane', () => {
+    const shell = extent(parts.shell, parts.shellAt);
+    expect(shell.front).toBeCloseTo(V11_SLAB.z.shellFront, 9);
+    expect(shell.front).toBeLessThan(V11_SLAB.z.display - 0.005);
+  });
+
+  it('keeps the gold lip in front of the display and behind the plate', () => {
+    const lip = extent(parts.lip, parts.lipAt);
+    expect(lip.front).toBeGreaterThan(V11_SLAB.z.display);
+    expect(lip.front).toBeLessThan(V11_SLAB.z.plate);
+    // And behind the glass, so the lip is seen through it.
+    expect(lip.front).toBeLessThan(V11_SLAB.z.glass);
+  });
+
+  it('keeps the glass in front of everything the picture is seen through', () => {
+    const glass = extent(parts.glass, V11_SLAB.z.glass);
+    expect(glass.front).toBeGreaterThan(V11_SLAB.z.plate);
+    expect(V11_SLAB.z.glass).toBeGreaterThan(V11_SLAB.z.display);
+  });
+
+  it('leaves the gold lip visible inside the plate’s own bevelled opening', () => {
+    // The plate's front opening is the opening less the bevel on each
+    // side; a lip outside that is a lip nobody sees.
+    const visibleOpening = plan.openingWidth - 2 * V11_SLAB.bevelSize;
+    const lipOuter = plan.openingWidth - 2 * V11_SLAB.bevelSize + 0.002;
+    expect(lipOuter - visibleOpening).toBeLessThan(0.004);
+    expect(V11_SLAB.bevelSize).toBeLessThan(plan.openingRadius);
+  });
+
+  it('covers the whole opening with the display plane', () => {
+    expect(plan.displayWidth).toBeGreaterThan(plan.openingWidth);
+    expect(plan.displayHeight).toBeGreaterThan(plan.openingHeight);
   });
 });

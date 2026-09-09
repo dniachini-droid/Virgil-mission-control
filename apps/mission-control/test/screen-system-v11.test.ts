@@ -173,23 +173,38 @@ describe('the spacing and type system', () => {
     expect(type.label).toBeGreaterThan(type.micro);
   });
 
-  it('never breaks a hero term onto three lines', () => {
-    for (const word of [
+  it('never breaks a hero term onto more lines than it needs, and never loses a word', () => {
+    // Two lines is enough for every term in either vocabulary except
+    // `PASS_WITH_NON_BLOCKING_FINDINGS`, which gets three rather than
+    // being abbreviated (`chrome.ts`'s `splitHero`).
+    const twoIsEnough = [
       'STANDBY',
       'INBOUND',
       'BUILDING',
       'VERIFYING',
       'REVIEWING',
       'REPORTED',
-      'PASSED',
       'BLOCKED',
+      'PASS',
       'INSUFFICIENT EVIDENCE',
-      'PASS WITH FINDINGS',
       'SAFE TO MERGE',
-      'BUILDER REPORTED COMPLETE',
-    ]) {
-      expect(splitHero(word).length).toBeLessThanOrEqual(2);
+      'NO VERDICT',
+    ];
+    for (const word of twoIsEnough) {
+      // Asked for two, they fit in two and lose nothing. `splitHero`'s own
+      // default is three because the caller tries every line count and
+      // keeps whichever yields the largest type — the longest line bounds
+      // the width, the line count bounds the height, and which of the two
+      // binds depends on the column.
+      expect(splitHero(word, 2).length, word).toBeLessThanOrEqual(2);
+      expect(splitHero(word, 2).join(' ')).toBe(word);
+    }
+    for (const word of [...twoIsEnough, 'PASS WITH NON-BLOCKING FINDINGS']) {
+      expect(splitHero(word).length, word).toBeLessThanOrEqual(3);
       expect(splitHero(word).join(' ')).toBe(word);
+      // Every line non-empty, and the split balanced: the longest line is
+      // no longer than it has to be, because it bounds the type size.
+      for (const line of splitHero(word)) expect(line.length).toBeGreaterThan(0);
     }
   });
 });

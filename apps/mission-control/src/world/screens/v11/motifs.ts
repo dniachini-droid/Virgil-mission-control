@@ -1,4 +1,3 @@
-import type { Outcome } from '../../room/demo.js';
 import type { Check, Finding } from '../tally.js';
 import { type Ctx, fit, hairline, litDot, mono, type Rect, roundRect, spaced } from './chrome.js';
 import { strokePath } from './marks.js';
@@ -380,7 +379,6 @@ export function scanning(
   since: number,
   checks: readonly { state: string; progress: number }[],
   names: readonly string[],
-  outcome: Outcome,
   key: string,
   pass: string,
 ) {
@@ -556,8 +554,14 @@ export function scanning(
     ctx.textBaseline = 'top';
     spaced(ctx, '0em');
   }
-  // The three gates the evidence travels through, along the foot.
-  gates(ctx, m, r, t, outcome, key, pass);
+  // The three gates the evidence travels through, along the foot. **Their
+  // state comes from the checks that have resolved, not from the loop's
+  // scripted outcome**: the first version closed the last gate in red as
+  // soon as the loop was one that would end in a refusal, which showed
+  // the Prover's conclusion while the Prover was still working.
+  const failed = checks.some((c) => c.state === 'failed');
+  const stalled = checks.some((c) => c.state === 'skipped');
+  gates(ctx, m, r, t, failed, stalled, key, pass);
 }
 
 /** Evidence travelling left to right through three verification gates. */
@@ -566,7 +570,8 @@ function gates(
   m: Metrics,
   r: Rect,
   t: number,
-  outcome: Outcome,
+  failed: boolean,
+  stalled: boolean,
   key: string,
   pass: string,
 ) {
@@ -578,9 +583,9 @@ function gates(
   const labels = ['CHECKS', 'EVIDENCE', 'GATE'];
   labels.forEach((label, i) => {
     const x = x0 + ((i + 1) / (labels.length + 1)) * (x1 - x0);
-    const open = outcome === 'PASS' || i < 2;
+    const open = i < 2 || !(failed || stalled);
     ctx.save();
-    ctx.strokeStyle = open ? key : STATUS.red;
+    ctx.strokeStyle = open ? key : failed ? STATUS.red : STATUS.amber;
     ctx.globalAlpha = 0.75;
     ctx.lineWidth = hair * 1.4;
     ctx.beginPath();
@@ -602,7 +607,7 @@ function gates(
   for (let i = 0; i < 3; i += 1) {
     const k = (t * 0.14 + i / 3) % 1;
     const x = x0 + k * (x1 - x0);
-    if (outcome !== 'PASS' && k > 0.75) continue;
+    if ((failed || stalled) && k > 0.75) continue;
     litDot(ctx, x, y, hair, k > 0.75 ? pass : key, Math.sin(Math.PI * Math.min(1, k * 1.2)));
   }
 }

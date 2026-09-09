@@ -311,7 +311,7 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
             onToggle={() => setBadgeOpen((value) => !value)}
           />
           <TalkBar
-            marker={`V11 · stage 1 · ${build.shortSha}`}
+            marker={`V11 · stage 2 · ${build.shortSha}`}
             onTalk={() =>
               select('virgil', 'virgil', {
                 kind: 'slab',

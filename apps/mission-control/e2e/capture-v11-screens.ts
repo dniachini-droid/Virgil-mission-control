@@ -18,7 +18,8 @@
  * OD-0005 defers those two checks and requires them recorded as not
  * performed, never as met.
  *
- * Usage: pnpm --filter mission-control capture:v11:screens
+ * Usage: pnpm --filter mission-control capture:v11:screens -- p390
+ *        VIRGIL_V11_ROUTE=#/v10 pnpm --filter mission-control capture:v11:screens -- p390
  */
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -46,29 +47,46 @@ const browser: Browser = await chromium.launch(
 const errors: string[] = [];
 
 /**
- * Opens a route and waits for the world, then for the demonstration clock
- * to reach `seconds` of the loop **by seeking on `window.__virgilDemo`**
- * rather than by sleeping a guessed interval: this renderer's wall clock is
- * SwiftShader's and a fixed wait lands on a different beat every run. The
- * key is only read after it exists.
+ * **The focus is changed through the interface, not by navigating.**
+ *
+ * The first version of this script called `page.goto(url + '#/?cam=keeper')`
+ * on an already-loaded page. A hash-only navigation does not reload, and
+ * `initialFocus()` is read once at mount — so every close-up came out as
+ * the overview and the first pass of frames was worthless. Reloading for
+ * each shot costs about a hundred seconds of SwiftShader warm-up each
+ * time, so instead the shot is taken by pressing the same **Look at**
+ * button in the hidden development menu that the owner has, which is
+ * better evidence anyway: it is the interface being driven.
  */
-async function open(page: Page, hash: string, seconds?: number) {
-  await page.goto(`${fileUrl}${hash}`, { waitUntil: 'load' });
-  await page.locator('canvas').waitFor({ timeout: 30_000 });
-  await page.waitForFunction(() => '__virgilRoomReady' in window, undefined, { timeout: 240_000 });
-  if (seconds === undefined) {
-    await page.waitForTimeout(3500);
-    return;
-  }
+async function lookAt(page: Page, label: string) {
+  await page.locator('[data-touch-target="dev"]').click();
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: label, exact: true }).click();
+  await page.waitForTimeout(300);
+  await page.locator('[data-touch-target="dev"]').click();
+  // The camera flies for 0.9 s and the display warms up over 1.5 s.
+  await page.waitForTimeout(3200);
+}
+
+/** Waits until the demonstration's own clock passes `seconds` of its loop. */
+async function seek(page: Page, seconds: number) {
   await page.waitForFunction(() => '__virgilDemo' in window, undefined, { timeout: 120_000 });
   await page.waitForFunction(
-    (want) =>
-      (window as Window & { __virgilDemo?: { seconds: number } }).__virgilDemo!.seconds >= want,
+    (want) => {
+      const demo = (window as Window & { __virgilDemo?: { seconds: number } }).__virgilDemo;
+      return demo !== undefined && demo.seconds >= want;
+    },
     seconds,
-    { timeout: 240_000, polling: 100 },
+    { timeout: 300_000, polling: 120 },
   );
-  // One more beat of frames so the picture the clock reached is drawn.
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(700);
+}
+/** Loads the world once, at the overview, and waits for it. */
+async function boot(page: Page, hash: string) {
+  await page.goto(`${fileUrl}${hash}`, { waitUntil: 'load' });
+  await page.locator('canvas').waitFor({ timeout: 30_000 });
+  await page.waitForFunction(() => '__virgilRoomReady' in window, undefined, { timeout: 300_000 });
+  await page.waitForTimeout(2500);
 }
 
 /**
@@ -80,70 +98,73 @@ async function open(page: Page, hash: string, seconds?: number) {
  * standby, which is the state the black-screen defect was hiding.
  */
 const CLOSE_UPS: [string, string, number][] = [
-  ['fabricator-working', 'fabricator', 11],
-  ['prover-working', 'prover', 26],
-  ['keeper-working', 'keeper', 41],
-  ['fabricator-standby', 'fabricator', 3],
-  ['keeper-standby', 'keeper', 3],
+  ['fabricator-working', 'Fabricator', 11],
+  ['prover-working', 'Prover', 26],
+  ['keeper-working', 'Keeper', 41],
+  ['keeper-standby', 'Keeper', 8],
 ];
 
-const VIEWPORTS: [string, number, number][] = [
-  ['p390', 390, 844],
-  ['p430', 430, 932],
-  ['l844', 844, 390],
-];
+/**
+ * Which viewport this run takes. One viewport per invocation, so a run
+ * finishes inside a foreground timeout instead of being pushed into the
+ * background — where, as this project has learnt five times, it dies with
+ * the turn.
+ */
+const VIEWPORTS: Record<string, [number, number]> = {
+  p390: [390, 844],
+  p430: [430, 932],
+  l844: [844, 390],
+};
+const which = process.argv[2] ?? 'p390';
+const size = VIEWPORTS[which];
+if (!size)
+  throw new Error(`unknown viewport ${which}; one of ${Object.keys(VIEWPORTS).join(', ')}`);
+const [width, height] = size;
 
-for (const [name, width, height] of VIEWPORTS) {
-  const page = await browser.newPage({ viewport: { width, height } });
-  page.on('console', (m) => {
-    if (m.type() === 'error') errors.push(`${name}: ${m.text()}`);
-  });
-  page.on('pageerror', (e) => errors.push(`${name} uncaught: ${e}`));
-
-  // The overview, at three moments of the loop, so the displays are seen
-  // lit and dark from the distance they are actually seen from.
-  for (const seconds of [11, 26, 45]) {
-    await open(page, '#/', seconds);
-    await page.screenshot({ path: `${shots}/${name}-overview-${seconds}s.png` });
-  }
-
-  for (const [label, role, seconds] of CLOSE_UPS) {
-    await open(page, `#/?cam=${role}`, seconds);
-    await page.screenshot({ path: `${shots}/${name}-${label}.png` });
-  }
-
-  // Virgil's three slabs, close.
-  await open(page, '#/?cam=board', 45);
-  await page.screenshot({ path: `${shots}/${name}-board.png` });
-  await open(page, '#/?cam=board&state=blocked');
-  await page.screenshot({ path: `${shots}/${name}-board-blocked.png` });
-  await open(page, '#/?cam=virgil', 50);
-  await page.screenshot({ path: `${shots}/${name}-virgil.png` });
-  await page.close();
+if (which === 'v10') {
+  // Not reached: `v10` is handled below as its own argument.
 }
 
-// V10, unchanged, at its own route in the same file: the same two close-ups
-// the stage-1 record describes as black, for the comparison.
-{
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-  page.on('console', (m) => {
-    if (m.type() === 'error') errors.push(`v10: ${m.text()}`);
-  });
-  for (const role of ['fabricator', 'keeper', 'prover']) {
-    await open(page, `#/v10?cam=${role}`, 3);
-    await page.screenshot({ path: `${shots}/v10-${role}-standby.png` });
-  }
-  await open(page, '#/v10?cam=keeper', 41);
-  await page.screenshot({ path: `${shots}/v10-keeper-working.png` });
-  await open(page, '#/v10', 26);
-  await page.screenshot({ path: `${shots}/v10-overview-26s.png` });
-  await page.close();
+const page = await browser.newPage({ viewport: { width, height } });
+page.on('console', (m) => {
+  if (m.type() === 'error') errors.push(`${which}: ${m.text()}`);
+});
+page.on('pageerror', (e) => errors.push(`${which} uncaught: ${e}`));
+
+const route = process.env.VIRGIL_V11_ROUTE ?? '#/';
+const prefix = route === '#/v10' ? `v10-${which}` : which;
+await boot(page, route);
+
+// The overview, at three moments, from the distance the displays are
+// actually seen from.
+for (const seconds of [11, 26, 45]) {
+  await seek(page, seconds);
+  await page.screenshot({ path: `${shots}/${prefix}-overview-${seconds}s.png` });
 }
+
+// Each console, close, at the second its own agent is working — and two of
+// them again while idle, which is the state the black screen was hiding.
+for (const [label, look, seconds] of CLOSE_UPS) {
+  await seek(page, seconds);
+  await lookAt(page, look);
+  await page.screenshot({ path: `${shots}/${prefix}-${label}.png` });
+  await lookAt(page, 'All');
+}
+
+// Virgil's three slabs, and Virgil.
+await seek(page, 45);
+await lookAt(page, 'Board');
+await page.screenshot({ path: `${shots}/${prefix}-board.png` });
+await lookAt(page, 'All');
+await seek(page, 50);
+await lookAt(page, 'Virgil');
+await page.screenshot({ path: `${shots}/${prefix}-virgil.png` });
+await page.close();
 
 await browser.close();
-console.log(`capture v11 screens: frames in ${shots}`);
+console.log(`capture v11 screens: ${which} frames in ${shots}`);
 console.log(`capture v11 screens: console errors ${errors.length}`);
 for (const error of errors) console.log(`capture v11 screens: ${error}`);
 console.log(
-  'capture v11 screens: SIMULATED viewports, software rendering. Not evidence of how this looks on real graphics hardware; those checks are NOT PERFORMED.',
+  'capture v11 screens: SIMULATED viewport, software rendering. Not evidence of how this looks on real graphics hardware; those checks are NOT PERFORMED.',
 );

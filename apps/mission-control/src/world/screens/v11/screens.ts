@@ -89,7 +89,7 @@ export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScree
     m,
     label,
     accent.key,
-    chipsFor(role, state, outcome),
+    chipsFor(role, state),
     agentMark[role] ?? agentMark.virgil!,
   );
   heroBlock(
@@ -160,8 +160,7 @@ export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScree
         t,
         state === 'WORKING' ? since : 0,
         tally.checks,
-        failureLabel(outcome, tally.checks),
-        outcome,
+        failureLabel(tally.checks),
         accent.key,
         accent.second,
       );
@@ -207,20 +206,32 @@ export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScree
   honestyBand(ctx, m, bandLines());
 }
 
-function chipsFor(role: Role, state: StationState, outcome: Outcome): string[] {
+/**
+ * The header's chips. **The scripted outcome is not one of them.** The
+ * first version passed it in and then chose between two identical strings,
+ * which was harmless but is the exact shape of a leak, and the audit that
+ * removed `HEADING FOR <outcome>` from the verdict slab took this
+ * parameter with it.
+ */
+function chipsFor(role: Role, state: StationState): string[] {
   const hop = role === 'fabricator' ? '1' : role === 'prover' ? '2' : '3';
-  return [`HOP ${hop}/3`, state, outcome === 'PASS' ? 'TIER 2' : 'TIER 2'];
+  return [`HOP ${hop}/3`, state, 'TIER 2'];
 }
 
-/** The name of the check that failed or could not run, for the isolated node. */
-function failureLabel(outcome: Outcome, checks: readonly { state: string }[]): string[] {
+/**
+ * The name of the check that failed or could not run, for the isolated
+ * node. **Worded from the check's own resolved state, not from the loop's
+ * scripted outcome**: a check that has not resolved contributes nothing
+ * here, so this string cannot exist before the thing it describes.
+ */
+function failureLabel(checks: readonly { state: string }[]): string[] {
   const index = checks.findIndex((c) => c.state === 'failed' || c.state === 'skipped');
   if (index < 0) return [];
   const names = checkNames(
     new Array(checks.length).fill({ start: 0, seconds: 0, result: 'passed' }),
   );
   const which = names[index] ?? 'REQUIRED CHECK';
-  return [outcome === 'BLOCKED' ? `${which} FAILED` : `${which} COULD NOT RUN`];
+  return [checks[index]?.state === 'failed' ? `${which} FAILED` : `${which} COULD NOT RUN`];
 }
 
 // ------------------------------------------------------------- the slabs
@@ -299,7 +310,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
     // brief's *"layered graphics with depth"* is a picture behind the type,
     // not a picture beside it, and this is the one display large enough on
     // a phone to be read that way.
-    const primary = verdictPrimary(content.verdict, outcome);
+    const primary = verdictPrimary(content.verdict, content.active);
     const colour = colourOf(primary.status);
     glassField(ctx, m, primary.status);
     const body = bodyRect(m);
@@ -314,7 +325,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
     );
     const active =
       content.active === null ? -1 : ['Fabricator', 'Prover', 'Keeper'].indexOf(content.active);
-    orbits(ctx, m, body, t, active, finishedHops(content, outcome), colour);
+    orbits(ctx, m, body, t, active, finishedHops(content), colour);
     scrim(ctx, body);
     // The overlay layout is not competing with a picture beneath it for
     // height — the orrery is *behind* the type — so the verdict gets three
@@ -330,17 +341,34 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
       statusMark(primary.mark, t),
       0.76,
     );
-    const lines = content.evidence ? [...content.evidence] : evidenceLines(outcome);
+    // **The evidence appears with the verdict, never before it.** The
+    // first version drew `evidenceLines(outcome)` unconditionally, so on a
+    // loop scripted to end BLOCKED the rail read `301 PASSED · 1 FAILED`
+    // while the Prover was still working — the scripted outcome leaking
+    // into the rail exactly as it had leaked into the lead. Until a verdict
+    // has returned the rail says what is true instead: who holds the hop,
+    // which candidate, under what authority, and that no evidence has come
+    // back yet.
+    const returned = content.verdict !== '—';
     microRail(
       ctx,
       m,
-      lines
-        .slice(0, 3)
-        .map((line) => {
-          const at = line.indexOf(' ');
-          return { label: line.slice(0, at), value: line.slice(at + 1) };
-        })
-        .concat([{ label: 'candidate', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) }]),
+      returned
+        ? (content.evidence ? [...content.evidence] : evidenceLines(outcome))
+            .slice(0, 3)
+            .map((line) => {
+              const at = line.indexOf(' ');
+              return { label: line.slice(0, at), value: line.slice(at + 1) };
+            })
+            .concat([
+              { label: 'candidate', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) },
+            ])
+        : [
+            { label: 'holder', value: content.active ? content.active.toUpperCase() : 'VIRGIL' },
+            { label: 'candidate', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) },
+            { label: 'authority', value: 'TIER 2' },
+            { label: 'evidence', value: 'NONE RETURNED YET' },
+          ],
     );
     edgeLight(ctx, m, colour, t);
     joins(ctx, m);
@@ -384,11 +412,11 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
     // texture coordinate is in without measuring any text — so the split
     // is a constant and the hero is bounded to fit above it.
     void used;
-    runLedger(ctx, m, ledgerRect(m), content, outcome, seconds, t);
+    runLedger(ctx, m, ledgerRect(m), content, seconds, t);
     microRail(ctx, m, [
       {
         label: 'hops',
-        value: `${hopNodes(content, outcome).filter((n) => n.state === 'done').length} / 3 returned`,
+        value: `${hopNodes(content).filter((n) => n.state === 'done').length} / 3 returned`,
       },
       { label: 'candidate', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) },
       { label: 'authority', value: 'TIER 2 · TIER 1' },
@@ -429,9 +457,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
     m,
     body,
     state.replace(/_/g, ' '),
-    gate
-      ? 'EVERY GATE PASSES. ELIGIBLE, NOT MERGED.'
-      : 'ITS STATE IN THE CONSTITUTION’S WORDS',
+    gate ? 'EVERY GATE PASSES. ELIGIBLE, NOT MERGED.' : 'ITS STATE IN THE CONSTITUTION’S WORDS',
     colour,
     clamp01(since / ARRIVE_SECONDS),
     statusMark(
@@ -466,34 +492,54 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
   honestyBand(ctx, m, bandLines());
 }
 
-/** The three hops, as the dependency constellation's nodes. */
-function hopNodes(content: ScreenContent, outcome: Outcome) {
+/**
+ * The three hops, as the ledger's rows and the dependency chain's nodes.
+ *
+ * **Derived from the content alone, never from the loop's outcome.** Two
+ * faults were fixed here at once. A returned hop's colour used to be
+ * chosen by `outcome === 'BLOCKED' && i === 1`, which is the scripted
+ * ending reaching a display; and when a loop ended in a refusal all three
+ * hops were marked returned and green, though the Keeper never ran at all
+ * on that loop — a hop that did not happen, shown as a hop that passed.
+ *
+ * Now a hop is `done` only while a later hop holds the run, or once a
+ * verdict has returned and this hop is at or before the one that returned
+ * it; a refusal colours the hop that returned it and leaves the hops after
+ * it `ahead`, because that is what happened.
+ */
+function hopNodes(content: ScreenContent) {
   const order = ['Fabricator', 'Prover', 'Keeper'];
   const activeAt = content.active ? order.indexOf(content.active) : -1;
+  const refused = content.verdict === 'BLOCKED' || content.verdict === 'INSUFFICIENT_EVIDENCE';
+  // Who returned the verdict: the Prover on a refusal or a gap, the Keeper
+  // on a pass. Nothing after that ran.
+  const lastRan = content.verdict === '—' ? -1 : refused ? 1 : 2;
   return order.map((label, i) => {
     const state: 'done' | 'active' | 'ahead' =
-      activeAt < 0
-        ? content.verdict === '—'
-          ? 'ahead'
-          : 'done'
-        : i < activeAt
+      activeAt >= 0
+        ? i < activeAt
           ? 'done'
           : i === activeAt
             ? 'active'
-            : 'ahead';
+            : 'ahead'
+        : i <= lastRan
+          ? 'done'
+          : 'ahead';
     const colour =
-      state === 'done'
-        ? outcome === 'BLOCKED' && i === 1
+      state === 'done' && refused && i === lastRan
+        ? content.verdict === 'BLOCKED'
           ? STATUS.red
-          : STATUS.green
-        : STATUS.cyan;
+          : STATUS.amber
+        : state === 'done'
+          ? STATUS.green
+          : STATUS.cyan;
     return { label: label.toUpperCase().slice(0, 10), state, colour };
   });
 }
 
 /** Where the finished hops rest on the outer orbital track. */
-function finishedHops(content: ScreenContent, outcome: Outcome) {
-  return hopNodes(content, outcome)
+function finishedHops(content: ScreenContent) {
+  return hopNodes(content)
     .map((node, i) => ({ node, i }))
     .filter(({ node }) => node.state === 'done')
     .map(({ node, i }) => ({ at: 2.4 + i * 1.9, colour: node.colour }));
@@ -521,11 +567,10 @@ function runLedger(
   m: Metrics_,
   r: { x: number; y: number; w: number; h: number },
   content: ScreenContent,
-  outcome: Outcome,
   seconds: number,
   t: number,
 ) {
-  const nodes = hopNodes(content, outcome);
+  const nodes = hopNodes(content);
   const { u, hair } = m;
   const pitch = r.h / nodes.length;
   const nodeX = r.x + 2.4 * u;
