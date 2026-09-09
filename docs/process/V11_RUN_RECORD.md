@@ -742,3 +742,615 @@ one existing `sha256sum -c *.sha256` covers it.
   review has not happened.
 - Stages 3 and 4 of the brief are not started: the full-screen windows, the twelve review states and
   the KTX2/Draco/Meshopt assessment the brief's second caution requires are all still ahead.
+
+---
+
+## Stage 3 — the windows
+
+**Scope, and what was deliberately not done.** Stage 3 is the full-screen agent
+and Virgil views, the composer, and the architecture underneath them. **No
+performance work was done beyond the pixel-ratio question the owner asked**
+(stage 4), **the twelve review states are not started** (stage 4), and **the
+KTX2 / Draco / Meshopt assessment the brief's second caution requires is still
+ahead**. Three things outside that scope were done because the owner asked for
+them from his own device, and they are recorded in their own section below: the
+slab cluster's position and size, the default camera angle, and the landscape
+regression this project introduced at stage 2.
+
+**No comparison stage and no variants.** The owner has ruled those out twice.
+What was kept is **render → look → refine → look**, which is what has caught
+every real defect in this project, and it caught eleven more here.
+
+### How a window opens, and how the reader gets back
+
+**One tap does both, concurrently** — and this reverses a stage-1 decision on
+the owner's own instruction rather than by preference.
+`docs/process/PHASE_1_CONVERSATION_INTERFACE.md` §5b records his decision,
+taken against this session's recommendation: *"tapping a screen opens the panel
+straight away and takes you there — but the panel opens up so you can see it
+instantly, while you are being taken there. So you arent waiting to be taken
+there first."* Stage 1 had built the V11 brief's stage-1 line instead — *"tapping
+triggers a deliberate camera transition before the interface opens"* — as a
+1.02 s delay. His decision governs. `MobileRoom.select` now sets the window and
+the camera focus in the same event, and the window renders from data with no
+reference to the camera, the controls or the flight, so there is nothing that
+could make it wait.
+
+**Driven, not asserted.** `verify:owner:v11` presses the target through the
+browser's own mouse and samples immediately: at all three viewports the window
+is **already open at the press** with the focus already moved — `windows 1,
+focus virgil at the press`. Stage 1's assertion that the record had *not* opened
+at the press is inverted in the same file, with the reason written where the
+change is; nothing was relaxed, and a regression that reintroduced a delay fails
+the same check.
+
+**The way back is a standard back chevron, never `ESC`, and it is one step per
+level.** The window's own header carries it; pressing it leaves the reader at
+the station the tap flew to, and the station's own `← Overview` control is the
+next step. Measured in the built artifact at all three viewports: *window →
+station → overview*, with the chevron 72 × 48 px and the overview control
+117 × 48. **This closes the compromise stage 1 recorded**: *"The way back is
+hidden while a record is open… Two taps from an open record, one from anywhere
+else. Stage 3 redesigns the panel and should fold 'home' into it."* There is now
+a visible way back at every level, and the frame
+`scratchpad/v11-s3-frames/p390-station-after-back.png` shows the reader at the
+Prover's station with the overview control on screen.
+
+**It expands from the display that was tapped.** The window's
+`transform-origin` is the anchor's own projected point at the moment of the
+press, and the entry animates `transform` and `opacity` only — no width, height,
+top, left, margin or padding, in the component or in any `@keyframes`, which
+`test/window-v11.test.ts` asserts by parsing the stylesheet. It plays over the
+camera flight, which is why that rule is not tidiness.
+
+**Reduced motion is honoured by arriving.** The window is rendered open on the
+first frame and no animation runs; KR-55 is the history — a reduced-motion
+branch once deleted both of Virgil's faces. Measured on the artifact: the gap
+between the camera moving and the window appearing is **0 ms at the default
+setting and 0 ms under `prefers-reduced-motion: reduce`**, at 40 ms of polling
+resolution. The check that used to require the reduced gap to be *smaller* than
+the default's is now stricter: neither may wait at all.
+
+### The conclusion-first hierarchy, in a frame that was looked at
+
+The brief: *"lead with meaning, never with a table. In this order: what
+happened; what it means; what happens next; what the owner can do; detailed
+evidence on demand."*
+
+`scratchpad/study-v11-windows/p390-prover-expanded.png`, at 390 × 844, reads
+top to bottom:
+
+> **All 14 required checks passed**
+> No verification failures were found.
+> The candidate is ready for review. Review is independent of verification, and
+> it has not happened yet.
+> `[ View all checks ]  [ Go to the review ]`
+
+— then the conversation, then five collapsed disclosures (`The 14 required
+checks`, `Verified facts, and claims`, `May the candidate progress?`, `Where
+these numbers come from`, and on a refusal `The failure, and its evidence`),
+then the composer. The first two lines are the owner's own example of the tone,
+almost verbatim, because they are what the state actually is at that beat.
+
+The order is not left to layout: `verify:owner:v11` reads the document and fails
+if the first child of the body is not the conclusion, if a `<table>` appears
+before the headline, or if the composer comes before the suggested actions. It
+is checked with the evidence closed **and** expanded, at every viewport.
+
+**Per agent, what leads.** The Fabricator: the objective, working status, files
+changed, commands and tool activity, implementation decisions, the completion
+report — *"a claim, not evidence"* — and the hand-off. The Prover: the
+verification conclusion, then checks passed / failed / missing / skipped, and
+**verified facts against claims** as its own section, where every row carries
+`VERIFIED`, `CLAIM` or `NOT KNOWN` as a mark rather than a tone of voice. The
+Keeper: findings with identities and severities, evidence and provenance,
+**refusals with their exact reasons** taken from `authority.json`'s own
+`protectedBoundaries` and `ownerOnlyActions`, decisions and authority, and the
+historical record. Virgil: current project truth, what every agent is doing,
+dependencies and sequencing, **the owner's next decision**, the whole
+conversation, and the orchestration controls — none of them connected.
+
+**Virgil summarises the specialists**, which is the owner's constraint from §4:
+*"the user must not have to manage four separate chats."* On the refusing loop
+his message reads *"The Fabricator completed the implementation. The Prover
+found 1 failed check. I have stopped the candidate before review. Would you like
+to inspect the failure, or is this where we stop?"* with `[ Show me the
+failure ]` going to the Prover's own failure evidence. **`Authorise repair` is
+not offered as an action**, and that is deliberate: it is
+`authority.json`'s `additional_repair_or_rereview_round`, which is owner-only in
+every phase. It appears in the controls section, disabled, with its reason.
+
+**The three slabs open Virgil's window** at the section each of them summarises
+— the verdict slab at *current project truth*, the run ledger at *dependencies
+and sequencing*, the candidate slab at *your next decision* — because his is the
+central interface and a ledger row opens that hop's own agent, which is his
+decision of 8 September.
+
+### The composer, and how it tells the truth about having no session
+
+It is always present, always beneath the suggested actions, and typeable. What
+is typed is **kept**: it becomes a turn in that window's thread, labelled
+`You`, and it survives the window closing. Under it, at all times, one sentence:
+
+> Kept on this page. Nothing is sent: there is no session behind this build.
+
+That sentence is the **transport's own** (`session.ts`), not a string written in
+the component, so there is exactly one statement about having no session and it
+cannot drift. `session.ts` is the seam a live transport would attach to and it
+has one implementation: a refusal that says why. `NO_SESSION.send` never returns
+`sent: true`; `NO_SESSION.act` never returns `performed: true` and answers
+`approve` with *"merge is the owner's alone in every phase."*
+
+**The five session controls are declared and not one is usable.** Approve,
+reject, pause, stop and resume are rendered `disabled` with `aria-disabled`,
+a `not-allowed` cursor, no press state, and each carries its reason as a title —
+buttons that quietly did nothing would be worse. **Merge is not among them at
+all.** `verify:owner:v11` counts them at every viewport: `5 session controls, 0
+enabled`, and the test fails if one is ever enabled. Nothing in the window
+makes a request of any kind: no `fetch`, no `XMLHttpRequest`, no `WebSocket`, no
+storage API, asserted over every file in the directory, and the build's own
+off-document request count is 0.
+
+**Where the absence is stated, and where it is not hidden.** Every window
+carries `ILLUSTRATIVE · NOT REAL STATE` at full width directly under its header
+with the whole sentence, which is §5b's requirement that the marking be
+prominent in the panel rather than a footnote. In portrait the sheet covers the
+world's own `Demo data` badge; the band carries the same claim in the same
+place, so the claim is never off screen. In landscape the badge moves into the
+visible strip rather than being hidden, because stage 1's rule is that it never
+is.
+
+### Architecture capable of carrying a real session
+
+The window renders **a list of blocks**, one renderer per kind, not authored
+HTML per agent. `capabilities.ts` names the sixteen things the brief lists and
+what carries each, and `test/window-content-v11.test.ts` requires every one to
+appear in a real window document at some beat of the demonstration — a
+capability that is only a sentence in a run record fails that test:
+
+| The brief's words | Carried by |
+|---|---|
+| complete persistent conversation history | the thread, and `windowStore.ts` |
+| streaming responses | the arriving turn and its caret |
+| rich Markdown | `markdown` (bold, code, bullets, quotes) |
+| code blocks | `code` |
+| terminal output | `terminal`, with its exit code |
+| plans and task progress | `plan` |
+| file references and attachments | `files`, `attachment` |
+| image and screenshot previews | `image` |
+| commits and branches | `commits`, `branch` |
+| diffs | `diff` |
+| pull-request summaries | `pr` |
+| expandable tool activity | `tools`, inside a disclosure |
+| verification evidence | `checks`, `evidence`, `facts`, `findings` |
+| owner decisions | `decision` |
+| approve/reject/pause/stop/resume | the disabled control row |
+| a full composer | the composer |
+
+**`live` is `false` for all sixteen**, and the type will not let it say
+otherwise. A real transcript later builds the same blocks from a different
+source and the renderers do not change.
+
+**One source, two levels.** Every state word and every number comes from the
+function the in-world screen draws from — `screens/v11/content.ts` for a
+station's state and conclusion, `screens/tally.ts` for the counts,
+`screens/ledger.ts` for the hops, `stationScreen.ts`'s `countsFor` for the lines
+under a report. The test drives all three loops and asserts that each
+specialist's status word **is** the screen's own word, in ordinary case. The
+prose is authored only in the window, because the screens carry none.
+
+**No verdict is named before its review has returned.** Asserted over every
+string in all four windows, at every half-second of all three loops, matched
+case-insensitively so a sentence-case leak is caught as surely as a shouted one.
+V10's own test looked only at a rendered verdict word and could not see prose.
+
+**The functional interface text is DOM text and never enters the canvas.**
+Asserted by refusing the whole window directory any `three` or `@react-three`
+import, any `getContext('2d')` and any `CanvasTexture`. It cannot draw into the
+scene even by accident.
+
+### The phone requirements, measured in the built artifact
+
+Simulated viewports in headless Chromium. **No real device has been used by
+this session**; the only real-device evidence in this stage is the owner's own
+screenshot, and it is his.
+
+| | 390 × 844 | 430 × 932 | 844 × 390 |
+|---|---|---|---|
+| world touch targets | 13, smallest **48 × 48** | 13, smallest 48 × 48 | 13, smallest 48 × 48 |
+| window controls, evidence closed | 17, smallest **44 px** | 17, smallest 44 | 15, smallest 44 |
+| window controls, evidence expanded | 17, smallest **44 px** | 17, smallest 44 | 15, smallest 44 |
+| document `scrollWidth` / `clientWidth` | 390 / 390 | 430 / 430 | 844 / 844 |
+| elements outside the viewport | **0** | 0 | 0 |
+| sections open by default / total | 1 of 5 | 1 of 5 | 0 of 4 |
+| session controls / enabled | 5 / **0** | 5 / 0 | 5 / 0 |
+
+**The sticky composer, above a simulated keyboard.** `useKeyboardInset` reads
+`visualViewport` and pads the sheet by exactly what it reports missing, because
+on iOS the layout viewport does not shrink when the keyboard appears. The check
+substitutes a `visualViewport` short by a keyboard's height and dispatches its
+`resize`, so the product's own code path runs:
+
+| | keyboard | composer's bottom edge | keyboard starts at | clear |
+|---|---|---|---|---|
+| 390 × 844 | 336 px | 460 | 508 | **48 px** |
+| 430 × 932 | 336 px | 564 | 596 | **32 px** |
+| 844 × 390 | 180 px | 205 | 210 | **5 px** |
+
+The landscape figure uses 180 px because a 336 px keyboard in a 390 px-tall
+viewport leaves 54 px for a whole interface and is not a state any device
+produces; asserting it would be asserting a fiction. **Whether a real iOS
+keyboard leaves the composer where this says it does is NOT PERFORMED.**
+
+**Scroll is preserved per window** and restored on the layout pass, so a window
+reopened is where it was left. **Safe-area insets**: the window reads the same
+four `--v11-safe-*` variables `mobile.css` defines from `env(safe-area-inset-*)`,
+and they are **exercised at zero inset**, because that is what this environment
+returns; a simulated 59 px inset was also rendered and looked at
+(`p390-island-inset.png`). **Portrait and landscape** both have authored
+furniture, and landscape's is its own — found by looking, below.
+
+**Accessibility.** The window is `role="dialog"` with `aria-modal`, labelled by
+the agent's name and described by its own honesty marking; focus lands on the
+sheet as a container on open, so the next Tab is the back chevron and the
+reading order is back, actions, conversation, evidence, composer; every
+disclosure carries `aria-expanded`; the disabled controls carry `aria-disabled`;
+the composer has a full visually-hidden label; `:focus-visible` draws a 2 px
+cyan ring for keyboard use. **No screen reader has been run.** These are the
+attributes and the focus order, verified in the DOM; a real assistive-technology
+pass is **not performed**.
+
+### Voice, which is a deliberate change
+
+Conversation text is the reader's own proportional system type in ordinary
+sentence case. Monospace is reserved for what is literally a token: a path, a
+SHA, a command, a candidate state, a verdict, terminal output, code. There are
+**no giant uppercase headings for ordinary content**, and the test enumerates
+every `text-transform: uppercase` in the stylesheet and fails on any selector
+outside a small allow-list of labels, tags, standings and column heads. That is
+a real departure from the in-world screens' voice, and it is deliberate: the
+screens shout because they are read across a room, and the window is read in the
+hand.
+
+### The composition the owner corrected from his own phone
+
+He photographed his own iPhone with the camera at its lowest position and named
+four things. **This is the only real-device evidence in the stage** and it is
+better than anything this container renders.
+
+**1. The cluster comes down, and the top screen is not clipped.** *"you can
+actually see on the phone that the screens are still too high up. And they
+actually get cut off a little bit… the three big screens can move a lot further
+down. And that way, you can stay kinda zoomed in a little bit."* `lift` goes
+from 3.2 m to **2.6 m**, which closes the empty band from 42 px of clearance
+above the consoles to **11.0 px** at 390 × 844 and 12.3 px at 430 × 932. What
+stops it going further is his own first priority — **no slab may stand over a
+console's picture** — and that is asserted per console against every slab at
+every viewport, as an intersection in projected pixels, not assumed.
+
+**And it is not paid for with a wider lens**, which is the prize he named: the
+frame is still 58.0° at **15.26 m**, stage 2's own figures. Lowering the cluster
+frees vertical field, but portrait's frame is bound by the three consoles' own
+**horizontal** footprint, so the camera cannot come nearer whatever the cluster
+does. That is worth stating plainly: the hope that lowering the screens would
+let the view zoom in is not what happened, because the camera was already as
+near as the consoles allow.
+
+**2. All three slabs are the same size.** *"I actually think that all three
+screens should be the same size as the top screen, and it would still fit."* It
+does. One `scale`, **1.9**, which is the largest that costs the consoles
+nothing — at 2.0 the solver begins retreating and they shrink.
+
+**3. One thin gap, used twice, and even in pixels.** *"just even spacing between
+them, very thin… that same thin space between the top screen and the two bottom
+screens."* The spread and the drop are both derived from a single `gap` of
+0.14 m, with a measured vertical correction of 1.3 because the lower pair stands
+slightly nearer the camera and perspective is not obliged to agree with
+arithmetic. What he can see is equal.
+
+| Measured at the overview | 390 × 844 | 430 × 932 |
+|---|---|---|
+| each slab's display | **160.5 × 109.3 px** | 176.9 × 120.4 |
+| the three within | **2.2 %** of each other | 2.2 % |
+| gap between the lower pair | **9.6 px** | 10.5 |
+| gap under the primary | **9.7 px** | 10.7 |
+| margin outside the pair, each side | **26.3 px** | 29.1 |
+| clearance above the primary's top edge | **133.4 px** | 147.9 |
+| clearance above the consoles' screens | **11.0 px** | 12.3 |
+| the three consoles | 43.1 / 36.1 / 39.1 | 47.5 / 39.9 / 43.1 |
+
+The primary was 172.3 px and the pair 131.5 at stage 2; all three are 160.5 now.
+The owner's own arithmetic put the side margins at about 9 px; they are 26.3,
+because the solver holds 11 % of air around every critical point and the pair is
+inside that rule.
+
+**4. The default camera stands where he put it.** He photographed the lowest
+position *"which he says is how he wants it to start by default."* That position
+was not a number anybody chose: it is 22° minus the 0.18 rad of downward travel
+the old orbit limits allowed, which is 10.31°, so the default is **11.7°** — the
+camera 4.39 m up at 12.59 m, looking at 0.00, 1.30, −2.35. It costs the three
+consoles **0.2 of a pixel** (43.3 → 43.1), because portrait is bound
+horizontally.
+
+**And the clipping had a second cause, which measurement found and reasoning had
+missed.** Rotating to the old lower limit moves the primary's top edge by less
+than half a pixel — the slabs sit near the target's own depth, so the angle
+barely changes their vertical offset. Pulling in to `0.68 ×` magnifies by 1.47
+about the frame's centre and takes that edge **off the top of the screen**. So
+the overview's downward travel is now 0.06 rad and its nearest stand `0.84 ×`,
+and the clearance is asserted at that extreme pose rather than only at the
+default. The camera stays movable, as he asked.
+
+**What the lower cluster gave back.** Stage 1 recorded that a 1 : 2.16 portrait
+frame leaves the top third as sky and stage 2 filled that band with the raised
+cluster. Lowering it re-opens it: there are now 133 px of star field and the two
+depth planes above the primary. It reads as sky rather than as emptiness, and it
+is the honest cost of the move he asked for. **Judged from the frames** at
+390 × 844 and 430 × 932: all three slabs are large and their words legible —
+`PASS`, `VIRGIL`, `READY FOR REVIEW` — the three consoles read as consoles under
+them with their own screens visible, and Virgil is unobscured and central.
+
+### Landscape: the regression's real cause, and its recovery
+
+Stage 2 recorded that *"landscape pays for the cluster… the three consoles'
+displays there fall from 40.7 to 23.4 CSS px"* and attributed it to the cluster
+being large. **That was half the truth.** `slabCorners()` took no orientation
+and defaulted to the **portrait** cluster, so a landscape frame was solved to
+hold a 2.93 m primary hanging 2.6 m up — geometry that is not on screen in
+landscape at all. The solver did exactly as it was told, retreated to 13.89 m
+and opened its lens to its 50° ceiling, and the consoles paid for it. Proof that
+the cluster was not the cause: with the landscape cluster shrunk to a 0.7 scale
+the consoles still measured 25.8 px, unchanged, because the frame was still
+being solved against the portrait one.
+
+Landscape has its own parameters now, and the orientation is threaded through
+`slabCorners`, `compositionPoints`, `anchors`, the board camera and
+`ScreenBankV11`.
+
+| At 844 × 390 | stage 1 | stage 2 | **stage 3** |
+|---|---|---|---|
+| Fabricator's screen | 40.7 px | 23.4 | **45.2** |
+| Prover's screen | 34.2 | 19.6 | **35.8** |
+| Keeper's screen | 36.9 | 21.2 | **40.6** |
+| lens | 33.5° | 50.0° (its ceiling) | **38.6°** |
+| distance | 10.50 m | 13.89 | **10.50 m** (its nearest) |
+| the slabs' displays | — | 89.2 | **85.3** |
+
+The consoles are **above stage 1's figures**, which were measured before any
+cluster existed, and the slabs stay over the 64 px width at which this project
+has measured screen text to collapse. **Portrait is untouched by the fix**: the
+two parameter sets are independent objects and the test asserts it.
+
+### Crispness: the canvas, not the textures
+
+*"the text isn't as crisp as I would like… if it's something that's gonna take a
+long time to do or investigate, don't worry about it. And it is still nice text.
+I'm just wondering if you can get a bit crisper. If we can't, it's no
+problems."*
+
+**The cause was found by arithmetic and it is the canvas's pixel ratio.** Every
+version to date — V10's room and V11 stages 1 and 2 — wrote
+`dpr={coarse ? [1, 1.25] : [1, 1.75]}`, and `coarse` is true for the `mobile`
+and `constrained` tiers, which is every phone. An iPhone reports
+`devicePixelRatio` 3, so the world was rasterised at **1.25 × and upscaled to
+3 × by the display: 42 % of the device's own resolution**, on every edge in the
+picture. Text has the finest edges, so text looks softest, which is exactly the
+symptom he described.
+
+**The textures were never the limit.** A slab's display is 160.5 CSS px wide,
+which is 482 device pixels at DPR 3, and it is drawn from a 1024 px texture on
+the mobile tier — **2.1 × more texture than there are device pixels to put it
+in**. Raising texture resolution could not have fixed this and would have cost
+memory for nothing. At the old 1.25 the headroom was over five.
+
+**What changed.** `src/world/mobile/pixelRatio.ts` makes the ratio explicit per
+tier and adds a **Sharpness** row to the hidden development menu: `Low` (1.25 on
+a phone, what every earlier version drew), `Standard` (**2**, the new default)
+and `Native` (the device's own ratio, capped at 3). The floor is 1 everywhere, so
+nothing draws below one device pixel per CSS pixel — `constrained`'s old 0.75
+was a blur nobody asked for.
+
+**What it costs, measured — and why the measurement is nearly worthless as a
+prediction.** `pnpm --filter mission-control measure:fps:v11`, at 390 × 844 with
+the page told to report a device pixel ratio of 3:
+
+| Sharpness | canvas | this container |
+|---|---|---|
+| Low | 487 device px for 390 CSS px | **1.18 fps** |
+| Standard | 780 | **0.77 fps** |
+| Native | 1170 | **0.48 fps** |
+
+This container rasterises in **software, on the CPU**, where every extra
+fragment is paid at full price and the displays' mip chains are off entirely; a
+GPU pays a small fraction of it, and the phone tiers skip the whole
+post-processing chain, which this machine does not. **So no performance figure
+for any device has been taken and none is implied.** The first run of this
+script measured nothing at all and said so: a headless page defaults to a device
+pixel ratio of 1, `dpr=[1, ceiling]` clamps to the device's own ratio, all three
+settings drew 390 device pixels, and the figures — 1.51 / 1.46 / 1.54 fps — were
+noise. That is why the setting is in the owner's own menu: he can answer on his
+device the question this one cannot, and `Low` is one tap away if `Standard`
+costs him frames.
+
+### What looking found, and what each fix cost
+
+Eleven defects, each found in a frame or in a printed number, each fixed at its
+cause:
+
+1. **the failure card and the conclusion disagreed** — the conclusion said
+   `unit mission-control returned a failure` while the terminal under it printed
+   `@virgil/visual-language`, because the card was authored by hand and the
+   conclusion derived from `tally.ts`'s failing index. Two texts written apart,
+   disagreeing on screen: the exact defect the owner caught in V7. The card is
+   derived from the check's own name now;
+2. **`sentence()` raised only character zero** — *"A required check failed. the
+   candidate is refused."*;
+3. **the progression pips read *nothing in flight* after a verdict** and *not
+   started* at the owner gate, because the demonstration deliberately returns
+   every station to `READY` at the gate, so a station's current state cannot
+   answer *did this hop happen*. They read the run ledger now, whose whole rule
+   is that a row is appended and never rewritten;
+4. **Virgil's status read *At rest*** while he was holding a returned candidate
+   between hops. Holding work is not resting;
+5. **his headline shouted a verdict** — *"The review returned PASS WITH
+   NON-BLOCKING FINDINGS"* in three lines of 22 px capitals, which is the giant
+   uppercase heading the brief forbids, and the verdict cannot be shortened
+   because `PASS` names a different one of the four. The headline is prose and
+   the verdict is a token in the monospace face; a test forbids any of the four
+   words in any headline;
+6. **a stacked two-column table repeated its own column heads** above every
+   cell — `WHAT / Candidate`, `STATE / SAFE_TO_MERGE`;
+7. **the composer's placeholder wrapped to two lines** inside a one-line box and
+   was clipped at 390 px;
+8. **the session controls' disclosure came out as `Session controls— none is
+   connected`** — a whitespace-only text node between flex items is not
+   rendered at all;
+9. **landscape gave the conversation about forty of its 390 px** and the rest to
+   chrome. It has its own compressed furniture now, with the honesty marking
+   reduced in leading and **not** in words;
+10. **the dock and the badge ran under the landscape sheet**, leaving a
+    half-covered `TALK` in the one strip of world still visible. The dock goes
+    while a window is open; the badge moves into the strip rather than being
+    hidden;
+11. **the small character portrait read as a dark disc with a dash in it.** It
+    has a helmet lighter than the ground, a shoulder line and its accent at full
+    strength, and it reacts — the visor breathes while work proceeds and flinches
+    on a refusal, on the compositor only, stopped under reduced motion.
+
+And two in the instruments, worth recording because both produced a **picture
+that lied while the numbers were right**, which is the worse way round:
+
+- **the window study's own expand ran on every frame.** React 19 commits
+  asynchronously, so the second pass still saw `aria-expanded="false"` and
+  clicked every section shut again. A whole set of "expanded" frames showed only
+  the sections that open by default. It clicks once now;
+- **the store subscribed in a `useEffect`**, so a change made between React's
+  commit and its passive effects notified nobody: the store updated, no
+  re-render was scheduled, and the same frames stayed closed. `useSyncExternalStore`
+  is the fix rather than a workaround, because it re-checks the snapshot after
+  subscribing. `panelStore.ts` uses the same idiom for the same class of reason.
+
+Three more in `verify:owner:v11` itself, found by running it: a `goto` that
+changes only the hash does not reload, so the window's memory crossed between
+viewports; a 336 px keyboard does not fit a 390 px-tall viewport; and the check
+assumed a tap near the Prover's screen focuses the Prover, when two world
+targets can overlap and the hit test takes the nearer centre.
+
+### The study, committed
+
+`study/windows-v11.{html,tsx}` renders the **same component the world renders**,
+with the same stylesheet, against the demonstration's own state at a chosen
+second, at phone size, with no 3D — so *render → look → refine → look* costs a
+second instead of a build. `study/capture-windows-v11.mjs` photographs every
+window at every viewport, closed and expanded, with a simulated keyboard, under
+reduced motion, and at a simulated 59 px Dynamic Island inset, and prints every
+pressable box and every overflow check. `study/measureDisplays.ts` holds the one
+projection measurement now used by the tests, the parameter sweep and any later
+question; `study/sweep-cluster.ts` is the sweep that chose the cluster's
+numbers. All of it is committed, for the reason V10 recorded: V9's measuring
+script was thrown away, could not be reproduced when the owner asked a follow-up
+question, and a defect was left unfixed because of it.
+
+### The preservation contract
+
+None of the files the brief names was edited. **V10 built from a clean tree at
+this branch's HEAD is 8,528,318 bytes — byte-count identical to stages 1 and 2**,
+so stage 3 adds nothing at all to V10's build: the window lives entirely in
+`src/world/window/`, and the shared world files V10 renders are untouched. The
+77-byte difference stage 1 isolated and explained is unchanged and no new one was
+added. V9's panel and its stylesheet are untouched and still dress V10's own
+record at `#/v10`, which was driven in the browser inside this build: 1 control
+bar, 12 buttons, 1 demonstration badge, 1 provenance footer, 0 V11 nodes.
+
+### The checks, as printed
+
+| Check | Result |
+|---|---|
+| `pnpm check` — biome | `Checked 272 files in 192ms. No fixes applied.` |
+| `pnpm check` — typecheck | `Tasks: 8 successful, 8 total` |
+| `pnpm check` — tests | agent-contracts 70, visual-language 18, knowledge-graph 24, gate-engine 19, domain 104, **mission-control 816 in 29 files** |
+| `pnpm check` — `verify:owner` | `PASS — opens from file://, no console errors, no off-document requests`; `console errors 0`; `requests 1, off-document 0` |
+| `pnpm check` — `verify:owner:v11` | `PASS — … no horizontal overflow with the window open or closed, every touch target and every window control at least 44 x 44, one tap opens the window and moves the camera together, back is one step per level, the composer stays above a simulated keyboard and claims nothing was sent, no session control is enabled, the gesture guard holds, V10 still loads at #/v10`; `console errors 0`; `requests 4, off-document 0` |
+| Mind Scan | `82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `mind scan: no findings` |
+| `build:owner` from a clean tree | `v10-s2-virgil-0101bddce1.html`, **8,528,318 bytes** — identical to stages 1 and 2 |
+| `build:owner:v11` from a clean tree | `v11-s3-virgil-0101bddce1.html`, **8,680,573 bytes** |
+| `sha256sum -c *.sha256` | **17 committed artifacts, all `OK`** |
+| `pnpm reproduce:owner` | `identical — rebuilt from 4ae03314d93ed6e26982f3691034974ff5b3887b`; `PASS` |
+| `pnpm reproduce:owner:v11` | `identical — rebuilt from 0101bddce107c627f144a69f2039af7467303615`; `PASS` |
+
+**One deviation in how `pnpm check` was run, recorded rather than smoothed
+over.** Its five steps were run as three foreground commands — `pnpm lint`,
+`pnpm typecheck`, `pnpm test`; then `pnpm verify:owner`; then
+`pnpm verify:owner:v11` — because this harness caps a single command at ten
+minutes and the two verifies take about thirteen between them in a software
+renderer. They are the same commands in the same order that `pnpm check` runs,
+and every one of them passed.
+
+**Tests added this stage: 76, none changed to pass and none skipped or
+weakened.** The app's suite goes from 740 to 816: 30 for the window's content
+and the sixteen capabilities, 24 for the component and its stylesheet, 21 for
+the owner's four stage-3 instructions and the pixel ratio, and 1 for the
+concurrent open.
+
+**Four assertions were replaced rather than deleted, and each says why where it
+lives.** Stage 1's *"the record waits out the flight"* becomes *"the window is
+open at the press"*; stage 1's *"reduced motion opens sooner than the default"*
+becomes *"neither waits at all"*, which is stricter; stage 2's *"the primary is
+25–35 % larger than the pair"* becomes *"all three are the same size"*, which is
+harder to hold; and stage 2's *"the supporting screens are 125–140 px"* becomes
+the equality above. In all four cases the owner replaced the instruction behind
+the assertion, and in none of them was a failing check made to pass.
+
+### The artifact
+
+`docs/process/PHASE_1_owner-builds/v11/v11-s3-virgil-0101bddce1.html`, sha256
+`062b3dac70953832a10f4713d8ab9a06538e1f9a3e4e061a78e3e68f999a6a43`,
+**8,680,573 bytes** — 0.87 % larger than stage 2's 8,605,472 against identical
+model payloads, which is the whole window: its content model, its four
+documents, its block renderers and its stylesheet. Its digest is
+`docs/process/PHASE_1_owner-builds/v11-s3-virgil-0101bddce1.html.sha256`, at the
+top level so the one existing `sha256sum -c *.sha256` covers it and V10's
+reproducer still finds V10's own newest artifact.
+
+**How to open each version.** `#/` is V11 stage 3; `#/v10` is V10, unchanged, in
+the same file; `#/s1`, `#/spike/foundry` and `#/spike/mind` are the rejected
+Phase 0 spikes, as in every build since S1. The world's panel opens by tapping a
+character, a console screen or one of Virgil's slabs, or with keys 1–5; `0` or
+Escape returns to the overview; `D` opens the development menu, where the
+Sharpness selector lives.
+
+### What this stage does not claim
+
+- **No visual-quality judgment has been made on real graphics hardware by this
+  session.** Every frame here was rendered in software by SwiftShader. OD-0005
+  defers the two graphics-hardware checks and requires them recorded as not
+  performed, never as met.
+- **Every iPhone check here is a simulated viewport in headless Chromium.**
+  390 × 844, 430 × 932 and 844 × 390 are CSS pixel sizes given to a browser, not
+  devices. **No real device has been used by this session.** The owner's own
+  screenshot is real-device evidence and it is his, not this session's; three of
+  the four composition changes above exist because of it.
+- **`viewport-fit=cover`, `100dvh`, the four `env(safe-area-inset-*)` values, the
+  Dynamic Island and the home indicator are written and exercised at zero
+  inset**, because that is what this environment returns. A 59 px inset was
+  simulated and looked at. Whether the chrome sits correctly around a real
+  Dynamic Island is **not performed**, not met.
+- **The onscreen keyboard is simulated** by substituting `visualViewport`.
+  Whether a real iOS keyboard leaves the composer where this record says it does
+  is **not performed**.
+- **No screen reader has been run** and no assistive-technology pass has been
+  performed. What is verified is the attributes, the labels and the focus order
+  in the DOM.
+- **No performance figure for any device has been taken.** The three sharpness
+  figures describe SwiftShader on a CPU and are a direction, not a budget.
+  `PERFORMANCE_STRATEGY.md`'s measurement section still reads "None has been
+  performed on any branch."
+- **There is no session behind this build and nothing here fakes one.** The
+  composer keeps what is typed and says so; the five session controls are
+  disabled with their reasons; merge is not offered at all and remains the
+  owner's alone in every phase.
+- **A pass here is a builder's claim.** The deterministic checks are the
+  evidence; independent review has not happened.
+- Stage 4 of the brief is not started: performance, the twelve review states and
+  the KTX2 / Draco / Meshopt assessment the brief's second caution requires are
+  all still ahead.
