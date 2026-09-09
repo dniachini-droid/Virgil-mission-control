@@ -1060,6 +1060,8 @@ function Cast({
               quiet={state.content.ownerGate ? 0.75 : 0}
               attention={focus === role}
               showBand={state.mode === 'replay'}
+              candidateId={state.content.candidateId}
+              branch={state.content.branch}
               onOpen={() => onSelect(`${role}-screen`)}
             />
             <StationLight role={role} activity={member.activity} report={member.report} />

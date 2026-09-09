@@ -788,3 +788,82 @@ describe('playback time is not the recorded run’s elapsed time', () => {
     ).toBe(filled);
   });
 });
+
+/**
+ * **The Keeper's KS4-04: a fabricated commit inside the replay.**
+ *
+ * The Fabricator's console rail was two constants —
+ * `{ label: 'branch', value: 'claude/…-v11' }` and
+ * `{ label: 'head', value: CANDIDATE_ID.slice(0, 7) }` — with no mode branch,
+ * where every other surface reads `content.candidateId ?? CANDIDATE_ID`. The
+ * replay is a replay of recorded history and is the one place where every
+ * value on the glass is supposed to be real; it showed `HEAD 9ABCDEF` and a
+ * branch that is not the run's, beside three slabs carrying the real candidate
+ * and the band `RECORDED RUN · REPLAYED`.
+ *
+ * The demonstration's identity is data-shaped on purpose and stays, so this
+ * asserts the mode split rather than banning the string.
+ */
+describe('the replay prints no invented identity', () => {
+  function consoleText(
+    role: Role,
+    member: { station: string; report: string },
+    content: { candidateId?: string | undefined; branch?: string | undefined },
+  ) {
+    const [w, h] = CONSOLE_SIZE[role];
+    return drawnText(
+      (canvas) =>
+        drawConsoleScreen(canvas, {
+          role,
+          label: role,
+          state: member.station as Parameters<typeof drawConsoleScreen>[1]['state'],
+          report: member.report as Parameters<typeof drawConsoleScreen>[1]['report'],
+          outcome: 'PASS',
+          quiet: 0,
+          corner: 80,
+          t: 3,
+          since: 1.2,
+          showBand: true,
+          candidateId: content.candidateId,
+          branch: content.branch,
+        }),
+      w,
+      h,
+    );
+  }
+
+  it('shows the recorded run’s own candidate and branch on every beat', () => {
+    for (const { beat, at } of playbackSchedule('fast')) {
+      if (!beat.role) continue;
+      const state = replayAt(at + 0.05, 'fast', true);
+      const member = state.cast[beat.role];
+      const drawn = consoleText(beat.role, member, state.content).join(' | ');
+      const where = `beat ${beat.id}`;
+      // Neither the demonstration's data-shaped commit nor its branch.
+      expect(drawn, where).not.toContain('9abcdef');
+      expect(drawn.toLowerCase(), where).not.toContain('-v11');
+      if (beat.role === 'fabricator') {
+        expect(drawn, where).toContain((state.content.candidateId as string).slice(0, 7));
+        expect(drawn, where).toContain(state.content.branch as string);
+      }
+    }
+  });
+
+  it('the two candidates of the recorded run are both reached, and they differ', () => {
+    const shown = new Set(
+      playbackSchedule('fast').map(
+        ({ at }) => replayAt(at + 0.05, 'fast', true).content.candidateId,
+      ),
+    );
+    expect(shown.has('956be26064')).toBe(true);
+    expect(shown.has('3b9a964e7d')).toBe(true);
+    expect(shown.has('9abcdef012')).toBe(false);
+  });
+
+  it('leaves the scripted demonstration’s data-shaped identity exactly as it was', () => {
+    const state = demoAt(10, 0, true);
+    const drawn = consoleText('fabricator', state.cast.fabricator, state.content).join(' | ');
+    expect(drawn).toContain('9abcdef');
+    expect(drawn).toContain('claude/…-v11');
+  });
+});

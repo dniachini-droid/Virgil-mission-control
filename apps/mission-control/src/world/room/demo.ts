@@ -115,6 +115,19 @@ export interface ScreenContent {
    * slab prints `NOT RECORDED`, which is the house rule and not a fallback.
    */
   recordedElapsed?: string;
+  /**
+   * The branch the candidate is on, as a console shows it. The
+   * demonstration leaves it unset and the Fabricator's console falls back
+   * to its own data-shaped string; the replay sets the recorded run's.
+   *
+   * It exists because of the Keeper's **KS4-04**: the Fabricator's rail
+   * printed `BRANCH claude/…-v11` and `HEAD 9abcdef` as constants with no
+   * mode branch, so the replay — which is recorded history and the one
+   * place where every value on screen is supposed to be real — carried a
+   * fabricated commit and the wrong branch beside three slabs showing the
+   * real candidate.
+   */
+  branch?: string;
 }
 
 /**

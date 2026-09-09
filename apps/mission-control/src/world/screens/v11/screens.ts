@@ -83,12 +83,45 @@ export interface ConsoleScreenInput {
    * real.
    */
   showBand: boolean;
+  /**
+   * **The candidate this station is working on, and the branch it is on.**
+   *
+   * The Keeper's **KS4-04**: the Fabricator's rail read
+   * `{ label: 'branch', value: 'claude/…-v11' }` and
+   * `{ label: 'head', value: CANDIDATE_ID.slice(0, 7) }` — two constants
+   * with no mode branch, where every other surface reads
+   * `content.candidateId ?? CANDIDATE_ID`. So in the replay, whose slabs
+   * carry the real candidate `956be26064` and the band
+   * `RECORDED RUN · REPLAYED`, this console printed `HEAD 9ABCDEF` and the
+   * wrong branch: a fabricated commit inside a frame that says it is
+   * showing recorded history.
+   *
+   * Unset is the scripted demonstration, and the fallbacks are its own
+   * data-shaped identity from `screens/candidate.ts`, which is deliberately
+   * not a commit of this repository.
+   */
+  candidateId?: string | undefined;
+  branch?: string | undefined;
 }
 
 export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScreenInput) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  const { role, label, state, report, outcome, quiet, corner, work, t, since, showBand } = input;
+  const {
+    role,
+    label,
+    state,
+    report,
+    outcome,
+    quiet,
+    corner,
+    work,
+    t,
+    since,
+    showBand,
+    candidateId,
+    branch,
+  } = input;
   const m = metrics(canvas.width, canvas.height, corner, showBand);
   const accent = accentOf(role);
   const primary = primaryFor(role, state, report);
@@ -139,8 +172,8 @@ export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScree
     rail = [
       { label: 'files changed', value: `${tally.files} / ${files.length}` },
       { label: 'commits', value: `${tally.commits} / ${commits.length}` },
-      { label: 'branch', value: 'claude/…-v11' },
-      { label: 'head', value: CANDIDATE_ID.slice(0, 7) },
+      { label: 'branch', value: branch ?? 'claude/…-v11' },
+      { label: 'head', value: (candidateId ?? CANDIDATE_ID).slice(0, 7) },
     ];
     picture = () =>
       assembly(ctx, m, well, t, progress, tally.files, files.length, accent.key, accent.second);

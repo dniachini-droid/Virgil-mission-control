@@ -74,6 +74,8 @@ export function ConsoleScreenV11({
   work,
   attention = false,
   showBand = false,
+  candidateId,
+  branch,
   onOpen,
 }: {
   role: Role;
@@ -92,6 +94,14 @@ export function ConsoleScreenV11({
    * claim about content that is real.
    */
   showBand?: boolean;
+  /**
+   * The candidate this station is working on and the branch it is on, from
+   * the run's own content. Unset in the scripted demonstration, which has
+   * its own data-shaped identity. See `ConsoleScreenInput` for the Keeper's
+   * KS4-04, which is why these are parameters and not constants.
+   */
+  candidateId?: string | undefined;
+  branch?: string | undefined;
   onOpen: () => void;
 }) {
   use(loadScreenFonts());
@@ -226,6 +236,8 @@ export function ConsoleScreenV11({
       t: c.t,
       since: sinceFor(reducedMotion, c.t - c.stateAt),
       showBand,
+      candidateId,
+      branch,
     });
     texture.needsUpdate = true;
   });
