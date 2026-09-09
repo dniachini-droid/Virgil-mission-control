@@ -10,10 +10,10 @@ import {
 } from '../src/world/props/v6Assets.js';
 import { CAST, ROLES, type Role } from '../src/world/room/cast.js';
 import { layout } from '../src/world/room/palette.js';
-import { slabPlan } from '../src/world/screens/ScreenBank.js';
 import { screenPlan } from '../src/world/screens/screenPlane.js';
 import { bezelPlan } from '../src/world/screens/v11/bezel.js';
 import { TEXTURE_WIDTH, textureBytes } from '../src/world/screens/v11/resolution.js';
+import { v11SlabPlan } from '../src/world/screens/v11/ScreenBankV11.js';
 
 /**
  * **How large each display actually is, in CSS pixels, on the viewports the
@@ -123,7 +123,7 @@ function displays() {
     };
   }
   const { y, z, spread, splay } = layout.screenBank;
-  const plan = slabPlan(1.3, 0.8);
+  const plan = v11SlabPlan(1024);
   const slabs: [string, [number, number, number], [number, number, number]][] = [
     ['slab-roles', [-spread, y - 0.08, z + 0.35], [-0.1, splay, 0]],
     ['slab-verdict', [0, y, z], [-0.1, 0, 0]],
@@ -205,9 +205,9 @@ describe('how large each display is on a 390 x 844 portrait viewport', () => {
     fabricator: [43.4, 25.0],
     prover: [36.6, 19.4],
     keeper: [39.7, 25.8],
-    'slab-roles': [75.3, 44.1],
-    'slab-verdict': [73.5, 43.5],
-    'slab-candidate': [75.3, 44.1],
+    'slab-roles': [85.2, 53.6],
+    'slab-verdict': [83.2, 52.8],
+    'slab-candidate': [85.2, 53.6],
   };
 
   it.each(Object.keys(OVERVIEW))('%s is the size it was measured at', (id) => {
@@ -297,7 +297,7 @@ describe('the other two viewports, recorded so a change is noticed', () => {
         fabricator: [47.9, 27.6],
         prover: [40.3, 21.3],
         keeper: [43.8, 28.4],
-        'slab-verdict': [81.0, 47.9],
+        'slab-verdict': [91.7, 58.2],
       },
     ],
     [
@@ -307,7 +307,7 @@ describe('the other two viewports, recorded so a change is noticed', () => {
         fabricator: [52.5, 30.2],
         prover: [41.6, 22.3],
         keeper: [47.2, 30.7],
-        'slab-verdict': [92.7, 58.1],
+        'slab-verdict': [105.0, 70.6],
       },
     ],
   ];
@@ -343,11 +343,11 @@ describe('the texture memory the six displays add', () => {
     }
     // Recorded to a tenth of a megabyte, so the run record's figures and
     // the code cannot drift apart.
-    expect(totals.mobile).toBeCloseTo(19.43, 1);
-    expect(totals.constrained).toBeCloseTo(19.43, 1);
-    expect(totals.laptop).toBeCloseTo(43.7, 1);
-    expect(totals.desktop).toBeCloseTo(77.7, 1);
-    expect(totals.ultra).toBeCloseTo(77.7, 1);
+    expect(totals.mobile).toBeCloseTo(20.13, 1);
+    expect(totals.constrained).toBeCloseTo(20.13, 1);
+    expect(totals.laptop).toBeCloseTo(45.29, 1);
+    expect(totals.desktop).toBeCloseTo(80.52, 1);
+    expect(totals.ultra).toBeCloseTo(80.52, 1);
   });
 });
 

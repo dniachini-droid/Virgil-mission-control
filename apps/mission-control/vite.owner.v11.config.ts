@@ -26,7 +26,7 @@ const sha = process.env.VIRGIL_OWNER_SHA ?? git(['rev-parse', 'HEAD']);
 const worktreeDirty = git(['status', '--porcelain']) !== '';
 const stage =
   process.env.VIRGIL_OWNER_V11_STAGE ??
-  'V11 stage 1 — a portrait-iPhone composition, an intentional landscape, 44 px touch targets, the development chrome behind a hidden menu';
+  'V11 stage 2 — the in-world screens: one shared display system, thin ivory-and-gold bezels over the owner’s own consoles, Virgil’s slabs rebuilt, tier-scaled textures with mipmaps and anisotropy';
 // Overridable for the same reason as V10's: the embedded minute is the only
 // part of the output the commit does not determine, so a reviewer needs to be
 // able to feed it back in and get the same bytes.

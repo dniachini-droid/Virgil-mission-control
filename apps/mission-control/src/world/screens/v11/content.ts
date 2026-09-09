@@ -125,7 +125,7 @@ export function verdictPrimary(verdict: string, outcome: Outcome): Primary {
     case 'PASS':
       return {
         word: 'PASS',
-        lead: 'EVERY MERGE GATE PASSES. ELIGIBLE. NOT MERGED.',
+        lead: 'EVERY GATE PASSES. ELIGIBLE, NOT MERGED.',
         mark: 'passed',
         status: 'green',
       };
@@ -139,7 +139,7 @@ export function verdictPrimary(verdict: string, outcome: Outcome): Primary {
     case 'BLOCKED':
       return {
         word: 'BLOCKED',
-        lead: 'VIRGIL REFUSES. THE CANDIDATE DOES NOT PROCEED.',
+        lead: 'VIRGIL REFUSES. IT DOES NOT PROCEED.',
         mark: 'blocked',
         status: 'red',
       };

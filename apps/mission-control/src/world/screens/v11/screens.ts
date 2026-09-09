@@ -227,6 +227,35 @@ function failureLabel(outcome: Outcome, checks: readonly { state: string }[]): s
 
 export type SlabKind = 'roles' | 'verdict' | 'candidate';
 
+/** What share of the body the run ledger takes on the roles slab. */
+export const LEDGER_SHARE = 0.48;
+
+/** Where the run ledger's three rows are, from the canvas alone. */
+export function ledgerRect(m: Metrics_): { x: number; y: number; w: number; h: number } {
+  const body = bodyRect(m);
+  return { ...body, y: body.y + body.h * (1 - LEDGER_SHARE), h: body.h * LEDGER_SHARE };
+}
+
+/**
+ * Which of the run ledger's three rows a texture coordinate falls in, or
+ * `null` if it is not in the ledger at all. Pure, and computed from the
+ * same rectangle the drawing uses, so a tap and a picture cannot disagree
+ * about which hop a row is (V9's requirement, kept).
+ */
+export function ledgerRowAtUv(
+  uvY: number,
+  canvasWidth: number,
+  canvasHeight: number,
+): number | null {
+  const m = metrics(canvasWidth, canvasHeight);
+  const r = ledgerRect(m);
+  // The texture's v runs up; the canvas's y runs down.
+  const y = (1 - uvY) * canvasHeight;
+  if (y < r.y || y > r.y + r.h) return null;
+  const row = Math.floor(((y - r.y) / r.h) * 3);
+  return Math.max(0, Math.min(2, row));
+}
+
 export interface SlabInput {
   kind: SlabKind;
   content: ScreenContent;
@@ -343,14 +372,19 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
       holder.toUpperCase(),
       content.active
         ? 'HOLDS THE HOP UNDER AN AUTHORITY GRANT'
-        : 'NO HOP IN FLIGHT. VIRGIL HOLDS THE RUN.',
+        : 'NO HOP IN FLIGHT. VIRGIL HOLDS IT.',
       content.active ? STATUS.cyan : STATUS.gold,
       clamp01(since / ARRIVE_SECONDS),
       statusMark(content.active ? 'working' : 'standby', t),
-      0.5,
+      1 - LEDGER_SHARE - 0.06,
     );
-    const rest = { ...body, y: body.y + used, h: body.h - used };
-    runLedger(ctx, m, rest, content, outcome, seconds, t);
+    // **The ledger's region is a fixed share of the body, not whatever the
+    // hero left over.** The owner's V9 decision is that a tap on a row
+    // opens that hop, and `ledgerRowAtUv` has to answer which row a
+    // texture coordinate is in without measuring any text — so the split
+    // is a constant and the hero is bounded to fit above it.
+    void used;
+    runLedger(ctx, m, ledgerRect(m), content, outcome, seconds, t);
     microRail(ctx, m, [
       {
         label: 'hops',
@@ -396,8 +430,8 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
     body,
     state.replace(/_/g, ' '),
     gate
-      ? 'EVERY MERGE GATE PASSES. ELIGIBLE. NOT MERGED.'
-      : 'ITS STATE IN THE CONSTITUTION’S OWN WORDS',
+      ? 'EVERY GATE PASSES. ELIGIBLE, NOT MERGED.'
+      : 'ITS STATE IN THE CONSTITUTION’S WORDS',
     colour,
     clamp01(since / ARRIVE_SECONDS),
     statusMark(

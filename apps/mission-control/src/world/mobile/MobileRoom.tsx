@@ -43,9 +43,9 @@ import { type CameraPose, room } from '../room/palette.js';
 import { RoomShell } from '../room/RoomShell.js';
 import { Tabletop } from '../room/Tabletop.js';
 import { WindowView } from '../room/WindowView.js';
-import { ConsoleScreen } from '../screens/ConsoleScreen.js';
 import { setBandOnTwoLines, setBandReplay } from '../screens/draw.js';
-import { ScreenBank } from '../screens/ScreenBank.js';
+import { ConsoleScreenV11 } from '../screens/v11/ConsoleScreenV11.js';
+import { ScreenBankV11 } from '../screens/v11/ScreenBankV11.js';
 import {
   type Anchor,
   backdropFor,
@@ -284,7 +284,7 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
               </>
             )}
             <Orrery />
-            <Cast demo={demo} mode={mode} speed={speed} onSelect={selectAnchor} />
+            <Cast demo={demo} mode={mode} speed={speed} focus={focus} onSelect={selectAnchor} />
             <Ready />
           </Suspense>
           <Rig focus={focus} aspect={aspect} />
@@ -659,11 +659,18 @@ function Cast({
   demo,
   mode,
   speed,
+  focus,
   onSelect,
 }: {
   demo: boolean;
   mode: RunMode;
   speed: ReplaySpeed;
+  /**
+   * What the camera is looking at. A console's display powers on while it
+   * is the focus, which is the fix for the close-up black screen stage 1
+   * found (`screens/v11/ConsoleScreenV11.tsx`).
+   */
+  focus: MobileFocus;
   onSelect: (id: string) => void;
 }) {
   const forced = forcedFace();
@@ -677,7 +684,7 @@ function Cast({
     <>
       <VirgilConsole active={virgilBusy && !state.content.ownerGate} />
       <VirgilRigged pose={state.pose} face={state.virgilFace} onSelect={() => onSelect('virgil')} />
-      <ScreenBank
+      <ScreenBankV11
         content={state.content}
         outcome={state.outcome}
         seconds={state.seconds}
@@ -696,13 +703,14 @@ function Cast({
               activity={member.activity}
               onSelect={() => onSelect(role)}
             />
-            <ConsoleScreen
+            <ConsoleScreenV11
               role={role}
               state={member.station}
               report={member.report}
               outcome={state.outcome}
               work={member.work}
               quiet={state.content.ownerGate ? 0.75 : 0}
+              attention={focus === role}
               onOpen={() => onSelect(`${role}-screen`)}
             />
             <StationLight role={role} activity={member.activity} report={member.report} />

@@ -1,0 +1,351 @@
+import { useFrame, useThree } from '@react-three/fiber';
+import { use, useEffect, useMemo, useRef } from 'react';
+import * as THREE from 'three';
+import { useSettings } from '../../../ui/settings.js';
+import { createGlassMaterial, createRoundedConvexGlassGeometry } from '../../glass.js';
+import type { SlabName } from '../../panel/panelContent.js';
+import type { ReplaySpeed } from '../../replay/replayTimeline.js';
+import type { Outcome, RunMode, ScreenContent } from '../../room/demo.js';
+import { wasTap } from '../../room/gesture.js';
+import { layout, room } from '../../room/palette.js';
+import { loadScreenFonts } from '../fonts.js';
+import { ANISOTROPY, REDRAW_FPS, TEXTURE_WIDTH } from './resolution.js';
+import { drawSlab, ledgerRowAtUv, type SlabKind } from './screens.js';
+
+/**
+ * **Virgil's three slabs, rebuilt.**
+ *
+ * The owner's decision: *"Virgil: rebuild the authored slabs directly in the
+ * same premium design language. They are ours, so there is no constraint to
+ * work around — they should be the clearest statement of the system."*
+ *
+ * So this is not the V10 slab restyled; it is a new object, and the numbers
+ * below are the whole of what changed. **The overall extent is exactly
+ * V10's**, 1.540 × 1.040 m, because `mobile/composition.ts` solves the
+ * portrait frame against `1.3 / 2 + 0.12` and `0.8 / 2 + 0.12` as the
+ * slab's half extents, and stage 1's composition is delivered and is not
+ * this stage's to move. Everything inside that extent is redistributed
+ * from frame to glass:
+ *
+ * | | V10 | V11 | |
+ * |---|---|---|---|
+ * | bezel, each side | 120 mm | **32 mm** | −73 % |
+ * | opening | 1.300 × 0.800 m | **1.476 × 0.976 m** | |
+ * | glass area | 1.040 m² | **1.440 m²** | **+38 %** |
+ * | shell depth behind the plate | 396 mm | **150 mm** | −62 % |
+ * | plate depth | 50 mm | 30 mm | −40 % |
+ * | glass bulge | 30 mm | 18 mm | −40 % |
+ *
+ * That is the *"more display glass and less bulky beige framing"* of the
+ * brief, as arithmetic: the same object in the frame, 38 % more black
+ * glass in it, and a bezel a third of the thickness carrying a **gold
+ * inner lip** where V10 had a plain cream lip — the *"thinner carefully
+ * bevelled ivory-and-gold bezels"* and the *"restrained illuminated edge
+ * details"*. `test/screen-bank-v11.test.ts` computes every figure in that
+ * table from the code rather than trusting it.
+ *
+ * The swollen half-ellipsoid shell that made the V10 slab read as an old
+ * Mac is gone. In its place is a shallow box with a chamfered back — the
+ * brief asks for *"refined celestial instrumentation"* and against that,
+ * the bulge was the single most retro thing in the set.
+ */
+
+/** V11's slab, in metres. One place, because the plate, the glass and the canvas must agree. */
+export const V11_SLAB = {
+  /** The overall extent, unchanged from V10 so the composition does not move. */
+  outerWidth: 1.54,
+  outerHeight: 1.04,
+  /** The bezel, each side. */
+  bezel: 0.032,
+  /** The gold inner lip's width, inside the bezel. */
+  lip: 0.005,
+  /** The outer and inner corner radii. */
+  outerRadius: 0.052,
+  /** How deep the front plate is, and how far the display sits behind its front face. */
+  plate: 0.03,
+  recess: 0.009,
+  /** How far the glass rises at its centre. */
+  bulge: 0.018,
+  /** How far the display plane stands outside the opening, so its cut edge hides. */
+  overhang: 0.005,
+  /** The shallow case behind the plate. */
+  shellDepth: 0.15,
+} as const;
+
+export interface V11SlabPlan {
+  openingWidth: number;
+  openingHeight: number;
+  openingRadius: number;
+  displayWidth: number;
+  displayHeight: number;
+  canvasWidth: number;
+  canvasHeight: number;
+  /** The corner radius the picture is laid out inside, in canvas pixels. */
+  cornerPixels: number;
+  glassArea: number;
+}
+
+export function v11SlabPlan(canvasWidth: number): V11SlabPlan {
+  const openingWidth = V11_SLAB.outerWidth - 2 * V11_SLAB.bezel;
+  const openingHeight = V11_SLAB.outerHeight - 2 * V11_SLAB.bezel;
+  const openingRadius = Math.max(0.012, V11_SLAB.outerRadius - V11_SLAB.bezel);
+  const displayWidth = openingWidth + 2 * V11_SLAB.overhang;
+  const displayHeight = openingHeight + 2 * V11_SLAB.overhang;
+  return {
+    openingWidth,
+    openingHeight,
+    openingRadius,
+    displayWidth,
+    displayHeight,
+    canvasWidth,
+    canvasHeight: Math.max(64, Math.round((canvasWidth * displayHeight) / displayWidth)),
+    cornerPixels: ((openingRadius + V11_SLAB.overhang) / displayWidth) * canvasWidth,
+    glassArea: openingWidth * openingHeight,
+  };
+}
+
+export function ScreenBankV11({
+  content,
+  outcome,
+  seconds,
+  mode,
+  speed,
+  onOpen,
+}: {
+  content: ScreenContent;
+  outcome: Outcome;
+  seconds: number;
+  mode: RunMode;
+  speed: ReplaySpeed;
+  onOpen: (slab: SlabName, row?: number) => void;
+}) {
+  const { y, z, spread, splay } = layout.screenBank;
+  void mode;
+  void speed;
+  return (
+    <group>
+      <Slab
+        kind="roles"
+        position={[-spread, y - 0.08, z + 0.35]}
+        rotation={[-0.1, splay, 0]}
+        content={content}
+        outcome={outcome}
+        seconds={seconds}
+        onOpen={() => onOpen('roles')}
+        onOpenRow={(row) => onOpen('roles', row)}
+      />
+      <Slab
+        kind="verdict"
+        position={[0, y, z]}
+        rotation={[-0.1, 0, 0]}
+        content={content}
+        outcome={outcome}
+        seconds={seconds}
+        onOpen={() => onOpen('verdict')}
+      />
+      <Slab
+        kind="candidate"
+        position={[spread, y - 0.08, z + 0.35]}
+        rotation={[-0.1, -splay, 0]}
+        content={content}
+        outcome={outcome}
+        seconds={seconds}
+        onOpen={() => onOpen('candidate')}
+      />
+    </group>
+  );
+}
+
+function Slab({
+  kind,
+  position,
+  rotation,
+  content,
+  outcome,
+  seconds,
+  onOpen,
+  onOpenRow,
+}: {
+  kind: SlabKind;
+  position: [number, number, number];
+  rotation: [number, number, number];
+  content: ScreenContent;
+  outcome: Outcome;
+  seconds: number;
+  onOpen: () => void;
+  onOpenRow?: ((row: number) => void) | undefined;
+}) {
+  use(loadScreenFonts());
+  const { reducedMotion, tier } = useSettings();
+  const maxAnisotropy = useThree((s) => s.gl.capabilities.getMaxAnisotropy());
+  const plan = useMemo(() => v11SlabPlan(TEXTURE_WIDTH[tier]), [tier]);
+  const { canvas, texture } = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = plan.canvasWidth;
+    canvas.height = plan.canvasHeight;
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.generateMipmaps = true;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.anisotropy = Math.min(ANISOTROPY[tier], Math.max(1, maxAnisotropy));
+    return { canvas, texture };
+  }, [plan, tier, maxAnisotropy]);
+  useEffect(() => () => texture.dispose(), [texture]);
+
+  const { front, lip, shell, glass } = useMemo(() => {
+    const { outerWidth, outerHeight, outerRadius, bezel, plate, bulge } = V11_SLAB;
+    const outer = roundedRect(outerWidth, outerHeight, outerRadius);
+    outer.holes.push(roundedRectPath(plan.openingWidth, plan.openingHeight, plan.openingRadius));
+    // A **thin, carefully bevelled** plate: the bevel is 40 % of the
+    // bezel's own width rather than V10's 30 mm on a 120 mm frame, so the
+    // whole of the visible face is chamfer and highlight — which is what
+    // reads as machined ivory instead of moulded cream.
+    const front = new THREE.ExtrudeGeometry(outer, {
+      depth: plate,
+      bevelEnabled: true,
+      bevelThickness: bezel * 0.42,
+      bevelSize: bezel * 0.36,
+      bevelSegments: 3,
+      curveSegments: 16,
+    });
+    // The gold inner lip: a narrow ring inside the opening's edge, stood a
+    // half-millimetre proud of the plate so it catches the key light.
+    const lipShape = roundedRect(
+      plan.openingWidth + 2 * V11_SLAB.lip,
+      plan.openingHeight + 2 * V11_SLAB.lip,
+      plan.openingRadius + V11_SLAB.lip,
+    );
+    lipShape.holes.push(roundedRectPath(plan.openingWidth, plan.openingHeight, plan.openingRadius));
+    const lip = new THREE.ExtrudeGeometry(lipShape, {
+      depth: 0.004,
+      bevelEnabled: true,
+      bevelThickness: 0.002,
+      bevelSize: 0.0015,
+      bevelSegments: 2,
+      curveSegments: 16,
+    });
+    // A shallow case, chamfered at the back: a box, not a bulge.
+    const shellShape = roundedRect(
+      outerWidth - bezel * 0.5,
+      outerHeight - bezel * 0.5,
+      outerRadius,
+    );
+    const shell = new THREE.ExtrudeGeometry(shellShape, {
+      depth: V11_SLAB.shellDepth,
+      bevelEnabled: true,
+      bevelThickness: 0.035,
+      bevelSize: 0.03,
+      bevelSegments: 2,
+      curveSegments: 14,
+    });
+    const glass = createRoundedConvexGlassGeometry(
+      plan.openingWidth + 2 * V11_SLAB.overhang,
+      plan.openingHeight + 2 * V11_SLAB.overhang,
+      plan.openingRadius + V11_SLAB.overhang,
+      bulge + 0.003,
+      160,
+    );
+    return { front, lip, shell, glass };
+  }, [plan]);
+  useEffect(
+    () => () => {
+      front.dispose();
+      lip.dispose();
+      shell.dispose();
+      glass.dispose();
+    },
+    [front, lip, shell, glass],
+  );
+  const glassMaterial = useMemo(() => createGlassMaterial(), []);
+  const clock = useRef({ t: 0, last: -1, key: '', at: 0 });
+  const fps = REDRAW_FPS[tier];
+
+  useFrame((_, delta) => {
+    const c = clock.current;
+    if (!reducedMotion) c.t += Math.min(delta, 0.1);
+    const key = `${content.verdict}|${content.active}|${content.candidate}|${content.ownerGate}`;
+    if (c.key !== key) {
+      c.key = key;
+      c.at = c.t;
+    }
+    if (c.last >= 0 && c.t - c.last < 1 / fps) return;
+    c.last = c.t;
+    drawSlab(canvas, {
+      kind,
+      content,
+      outcome,
+      seconds,
+      corner: plan.cornerPixels,
+      t: c.t,
+      since: c.t - c.at,
+    });
+    texture.needsUpdate = true;
+  });
+
+  return (
+    <group position={position} rotation={rotation}>
+      <mesh geometry={front} position={[0, 0, -V11_SLAB.plate]} castShadow receiveShadow>
+        <meshStandardMaterial color={room.surface.ivory} roughness={0.42} metalness={0.04} />
+      </mesh>
+      <mesh geometry={lip} position={[0, 0, -0.0025]}>
+        <meshStandardMaterial color={room.surface.gold} roughness={0.3} metalness={0.62} />
+      </mesh>
+      <mesh
+        geometry={shell}
+        position={[0, 0, -V11_SLAB.plate - V11_SLAB.shellDepth + 0.004]}
+        castShadow
+      >
+        <meshStandardMaterial
+          color={room.surface.castCreamShadow}
+          roughness={0.55}
+          metalness={0.03}
+        />
+      </mesh>
+      <mesh
+        position={[0, 0, -V11_SLAB.recess]}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (!wasTap()) return;
+          const row =
+            onOpenRow && event.uv
+              ? ledgerRowAtUv(event.uv.y, plan.canvasWidth, plan.canvasHeight)
+              : null;
+          if (onOpenRow && row !== null) onOpenRow(row);
+          else onOpen();
+        }}
+      >
+        <planeGeometry args={[plan.displayWidth, plan.displayHeight]} />
+        <meshBasicMaterial map={texture} toneMapped={false} />
+      </mesh>
+      <mesh geometry={glass} material={glassMaterial} position={[0, 0, -0.003]} renderOrder={1} />
+    </group>
+  );
+}
+
+function roundedRectPath(w: number, h: number, r: number): THREE.Path {
+  const path = new THREE.Path();
+  tracePath(path, w, h, r);
+  return path;
+}
+
+function roundedRect(w: number, h: number, r: number): THREE.Shape {
+  const shape = new THREE.Shape();
+  tracePath(shape, w, h, r);
+  return shape;
+}
+
+function tracePath(path: THREE.Path, w: number, h: number, r: number) {
+  const x = -w / 2;
+  const y = -h / 2;
+  const rr = Math.max(0.001, Math.min(r, w / 2, h / 2));
+  path.moveTo(x + rr, y);
+  path.lineTo(x + w - rr, y);
+  path.absarc(x + w - rr, y + rr, rr, -Math.PI / 2, 0, false);
+  path.lineTo(x + w, y + h - rr);
+  path.absarc(x + w - rr, y + h - rr, rr, 0, Math.PI / 2, false);
+  path.lineTo(x + rr, y + h);
+  path.absarc(x + rr, y + h - rr, rr, Math.PI / 2, Math.PI, false);
+  path.lineTo(x, y + rr);
+  path.absarc(x + rr, y + rr, rr, Math.PI, Math.PI * 1.5, false);
+}
