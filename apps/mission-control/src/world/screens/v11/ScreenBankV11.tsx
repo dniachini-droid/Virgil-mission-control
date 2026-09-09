@@ -251,6 +251,12 @@ export function ScreenBankV11({
 }) {
   // The honesty band is drawn in the replay and nowhere else (`system.ts`).
   const showBand = mode === 'replay';
+  // **A second boolean, deliberately, and the Keeper's KS4-07 is why.**
+  // `showBand` answers "is the honesty band painted"; `replay` answers "does
+  // the repository have a duration for this slab to draw". They have the
+  // same value today and they are not the same question, so the ledger asks
+  // its own rather than borrowing the band's.
+  const replay = mode === 'replay';
   void speed;
   return (
     <group>
@@ -259,6 +265,7 @@ export function ScreenBankV11({
           key={placement.kind}
           kind={placement.kind}
           showBand={showBand}
+          replay={replay}
           position={placement.position}
           rotation={placement.rotation}
           scale={placement.scale}
@@ -276,6 +283,7 @@ export function ScreenBankV11({
 function Slab({
   kind,
   showBand,
+  replay,
   position,
   rotation,
   scale,
@@ -287,6 +295,8 @@ function Slab({
 }: {
   kind: SlabKind;
   showBand: boolean;
+  /** Whether the recorded run is playing: see the two booleans above. */
+  replay: boolean;
   position: [number, number, number];
   rotation: [number, number, number];
   /**
@@ -391,6 +401,7 @@ function Slab({
       t: c.t,
       since: sinceFor(reducedMotion, c.t - c.at),
       showBand,
+      replay,
     });
     texture.needsUpdate = true;
   });

@@ -203,6 +203,7 @@ describe('no display names a verdict before its review has reported', () => {
               t: seconds,
               since: 1.2,
               showBand: false,
+              replay: false,
             }),
           SLAB_SIZE[0],
           SLAB_SIZE[1],
@@ -331,6 +332,7 @@ describe('reduced motion arrives; it does not hide', () => {
       t: 0,
       since,
       showBand: false,
+      replay: false,
     });
     void text;
     const hero = seen.find((entry) => entry.value === 'PASS');
@@ -571,6 +573,7 @@ describe('no row claims a hop that has not run', () => {
           t: seconds,
           since: 1.2,
           showBand: false,
+          replay: false,
         }),
       SLAB_SIZE[0],
       SLAB_SIZE[1],
@@ -674,5 +677,114 @@ describe('no row claims a hop that has not run', () => {
         expect(ledgerBarFill(node.state, i, at, true), `${where} row ${i}`).toBe(0);
       }
     }
+  });
+});
+
+/**
+ * **The Keeper's KS4-02 and KS4-07, which are one repair seen twice.**
+ *
+ * KS4-02: `useReplay.ts` states its own invariant in its header — *"`seconds`
+ * here is **playback** time and nothing else. **It never appears as a duration
+ * of the recorded work**"* — and the run slab's micro-rail printed
+ * `{ label: 'elapsed', value: seconds.toFixed(0) + 's' }` in both modes. So the
+ * slab that carries `PHASE 0 CONSOLIDATION · RECORDED RUN · REPLAYED` and the
+ * real candidate `956be26064` counted `0s`, `2s`, `4s` up the wall clock for a
+ * run that took an hour and a half. K11-02 had already removed the *bar* from
+ * the replay for that reason and left the number beside it.
+ *
+ * KS4-07: the parameter deciding whether a duration exists to draw was the same
+ * one deciding whether an honesty band is painted. Correct today by coincidence
+ * between two unrelated booleans. They are two parameters now, and these
+ * assertions hold the band still while moving the other.
+ */
+describe('playback time is not the recorded run’s elapsed time', () => {
+  /** A recorder that also counts filled rectangles, which is what a bar is. */
+  function rectRecorder(width: number, height: number) {
+    const base = recorder(width, height);
+    let rects = 0;
+    const ctx = base.ctx as unknown as { fillRect: () => void };
+    ctx.fillRect = () => {
+      rects += 1;
+    };
+    return {
+      canvas: { width, height, getContext: () => base.ctx } as unknown as HTMLCanvasElement,
+      text: base.text,
+      count: () => rects,
+    };
+  }
+
+  function rolesSlab(
+    content: Parameters<typeof hopNodes>[0],
+    seconds: number,
+    showBand: boolean,
+    replay: boolean,
+  ) {
+    const rec = rectRecorder(SLAB_SIZE[0], SLAB_SIZE[1]);
+    drawSlab(rec.canvas, {
+      kind: 'roles',
+      content,
+      outcome: 'PASS',
+      seconds,
+      corner: 20,
+      t: seconds,
+      since: 1.2,
+      showBand,
+      replay,
+    });
+    return rec;
+  }
+
+  const replayed = replayAt(playbackSchedule('fast')[0]?.at ?? 0, 'fast', true);
+
+  it('prints the record’s own duration in the replay, never the playback clock', () => {
+    const drawn = rolesSlab(replayed.content, 137, true, true).text;
+    // The record's `startedAt` to `completedAt`, which the panel and V10's own
+    // page already print, and which is what this column now names.
+    expect(replayed.content.recordedElapsed).toBe('1 H 30 M');
+    expect(drawn).toContain('RECORDED');
+    expect(drawn).toContain('1 H 30 M');
+    // The playback clock appears nowhere on the slab, in any column.
+    expect(drawn).not.toContain('137s');
+    expect(drawn.some((line) => /^\d+s$/.test(line))).toBe(false);
+    expect(drawn).not.toContain('ELAPSED');
+  });
+
+  it('says NOT RECORDED rather than inventing one, where the record has none', () => {
+    const { recordedElapsed: _drop, ...bare } = replayed.content;
+    const drawn = rolesSlab(bare, 137, true, true).text;
+    expect(drawn).toContain('NOT RECORDED');
+    expect(drawn).not.toContain('137s');
+  });
+
+  it('still prints the demonstration’s own clock, which is the thing it demonstrates', () => {
+    const { content } = demoAt(31, 0, true);
+    const drawn = rolesSlab(content, 31, false, false).text;
+    expect(drawn).toContain('ELAPSED');
+    expect(drawn).toContain('31s');
+    expect(drawn).not.toContain('NOT RECORDED');
+  });
+
+  /**
+   * KS4-07, measured: the honesty band is held **off** in both runs, so the
+   * only thing that changes is `replay` — and the bars go with it. Before the
+   * split this state could not be constructed at all, because one boolean was
+   * both answers.
+   */
+  it('lets the band and the duration claim move independently', () => {
+    const { content } = demoAt(40, 0, true);
+    const solid = rolesSlab(content, 40, false, false);
+    const empty = rolesSlab(content, 40, false, true);
+    const filled = hopNodes(content).filter(
+      (node, i) => ledgerBarFill(node.state, i, 40, false) > 0,
+    ).length;
+    expect(filled).toBeGreaterThan(0);
+    expect(solid.count() - empty.count()).toBe(filled);
+    // And the reverse: with `replay` held false, painting the band adds a band
+    // and takes away no bar.
+    const banded = rolesSlab(content, 40, true, false);
+    expect(banded.text).toContain('ELAPSED');
+    expect(
+      hopNodes(content).filter((node, i) => ledgerBarFill(node.state, i, 40, false) > 0).length,
+    ).toBe(filled);
   });
 });

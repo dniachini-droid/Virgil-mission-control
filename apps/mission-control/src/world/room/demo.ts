@@ -103,6 +103,18 @@ export interface ScreenContent {
    * used; the replay sets the run's own counts.
    */
   evidence?: readonly string[];
+  /**
+   * **How long the run this content describes actually took, as a string
+   * the record can answer for** — never a clock the page has been running.
+   *
+   * The scripted demonstration leaves it unset, because its own `seconds`
+   * *is* the elapsed time of the thing it demonstrates. The replay sets it
+   * from the run record's `startedAt` and `completedAt`, because there
+   * `seconds` is playback time and printing that as a duration of the
+   * recorded work is the Keeper's KS4-02. Unset in the replay means the
+   * slab prints `NOT RECORDED`, which is the house rule and not a fallback.
+   */
+  recordedElapsed?: string;
 }
 
 /**

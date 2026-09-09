@@ -292,6 +292,19 @@ export interface SlabInput {
   since: number;
   /** Whether the honesty band is drawn: `mode === 'replay'` and nothing else. */
   showBand: boolean;
+  /**
+   * **Whether this is the replay** — which is a different question from
+   * whether the band is painted, and the Keeper's **KS4-07** is that the
+   * ledger was asking the second one to answer the first.
+   *
+   * `showBand` decides whether three lines of honesty text are drawn.
+   * `replay` decides whether the repository has a per-hop duration for
+   * this slab to draw a length from, and whether the run's elapsed figure
+   * is a recorded one. Both happen to be `mode === 'replay'` today; they
+   * are not the same fact, and the day one of them moves the other must
+   * not follow it silently.
+   */
+  replay: boolean;
 }
 
 /**
@@ -315,7 +328,7 @@ export interface SlabInput {
 export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  const { kind, content, outcome, seconds, corner, t, since, showBand } = input;
+  const { kind, content, outcome, seconds, corner, t, since, showBand, replay } = input;
   const m = metrics(canvas.width, canvas.height, corner, showBand);
   const accent = accentOf('virgil');
   const gate = content.ownerGate;
@@ -430,7 +443,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
     // texture coordinate is in without measuring any text — so the split
     // is a constant and the hero is bounded to fit above it.
     void used;
-    runLedger(ctx, m, ledgerRect(m), content, seconds, t, showBand);
+    runLedger(ctx, m, ledgerRect(m), content, seconds, t, replay);
     microRail(ctx, m, [
       // **One derivation, printed and drawn.** The rail used to count the
       // rows' own `done` states, which is the same answer by luck rather
@@ -438,7 +451,27 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
       { label: 'hops', value: `${hopsReturned(content)} / ${HOP_ORDER.length} returned` },
       { label: 'candidate', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) },
       { label: 'authority', value: 'TIER 2 · TIER 1' },
-      { label: 'elapsed', value: `${seconds.toFixed(0)}s` },
+      /**
+       * **The Keeper's KS4-02.** This column printed `seconds` in both
+       * modes. In the scripted demonstration `seconds` is the script's own
+       * clock and the hops' windows are measured on it, so `ELAPSED 31S` is
+       * true of the thing being demonstrated. In the **replay** `seconds` is
+       * playback time — `useReplay.ts` says so in its own header: *"it never
+       * appears as a duration of the recorded work"* — and it appeared as
+       * one, climbing from `0s` beside a slab labelled `RECORDED RUN ·
+       * REPLAYED` and a real candidate. The run it names took an hour and a
+       * half; this number was the seconds since the page loaded.
+       *
+       * K11-02 removed the **bar** from the replay for exactly this reason
+       * and left the number beside it, which makes the same kind of claim
+       * about the whole run. So in the replay the column now reads the
+       * record's own `startedAt` to `completedAt`, and where the caller
+       * hands over no recorded figure it says `NOT RECORDED` rather than
+       * a number.
+       */
+      replay
+        ? { label: 'recorded', value: content.recordedElapsed ?? 'NOT RECORDED' }
+        : { label: 'elapsed', value: `${seconds.toFixed(0)}s` },
     ]);
     edgeLight(ctx, m, content.active ? STATUS.cyan : STATUS.gold, t);
     joins(ctx, m);
@@ -728,8 +761,13 @@ function runLedger(
   content: ScreenContent,
   seconds: number,
   t: number,
-  /** True in the replay, where this slab is handed no per-hop duration. */
-  showBand: boolean,
+  /**
+   * True in the replay, where this slab is handed no per-hop duration.
+   * **Its own parameter, not the band's** (KS4-07): whether a length may be
+   * drawn is not the same question as whether an honesty band is painted,
+   * and the two were one boolean.
+   */
+  replay: boolean,
 ) {
   const nodes = hopNodes(content);
   const { u, hair } = m;
@@ -825,7 +863,7 @@ function runLedger(
     ctx.save();
     ctx.fillStyle = dim(0.07);
     ctx.fillRect(barX, y - 0.4 * u, barW, 0.8 * u);
-    const fill = ledgerBarFill(node.state, i, seconds, showBand);
+    const fill = ledgerBarFill(node.state, i, seconds, replay);
     if (fill > 0) {
       ctx.fillStyle = node.colour;
       ctx.globalAlpha = 0.85;

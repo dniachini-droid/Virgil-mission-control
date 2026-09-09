@@ -730,6 +730,10 @@ export function replayAt(seconds: number, speed: ReplaySpeed, running: boolean):
       ownerGate: beat.ownerGate,
       candidateId: candidate.short,
       evidence: evidenceFor(beat),
+      // The run's own duration, from the record's `startedAt` and
+      // `completedAt` — not the playback clock, which is what the run
+      // slab used to print here (KS4-02).
+      recordedElapsed: recordedDuration(RUN_SECONDS),
     },
   };
 }
