@@ -9,8 +9,8 @@ import type { Outcome, RunMode, ScreenContent } from '../../room/demo.js';
 import { wasTap } from '../../room/gesture.js';
 import { room } from '../../room/palette.js';
 import { loadScreenFonts } from '../fonts.js';
-import { v11Bank } from './bank.js';
-import { ANISOTROPY, REDRAW_FPS, TEXTURE_WIDTH } from './resolution.js';
+import { v11Cluster } from './bank.js';
+import { ANISOTROPY, REDRAW_FPS, SOFTWARE_REDRAW_FPS, TEXTURE_WIDTH } from './resolution.js';
 import { drawSlab, ledgerRowAtUv, type SlabKind } from './screens.js';
 
 /**
@@ -240,43 +240,26 @@ export function ScreenBankV11({
   speed: ReplaySpeed;
   onOpen: (slab: SlabName, row?: number) => void;
 }) {
-  const { y, z, spread, splay } = v11Bank();
   // The honesty band is drawn in the replay and nowhere else (`system.ts`).
   const showBand = mode === 'replay';
   void speed;
   return (
     <group>
-      <Slab
-        kind="roles"
-        showBand={showBand}
-        position={[-spread, y - 0.08, z + 0.35]}
-        rotation={[-0.1, splay, 0]}
-        content={content}
-        outcome={outcome}
-        seconds={seconds}
-        onOpen={() => onOpen('roles')}
-        onOpenRow={(row) => onOpen('roles', row)}
-      />
-      <Slab
-        kind="verdict"
-        showBand={showBand}
-        position={[0, y, z]}
-        rotation={[-0.1, 0, 0]}
-        content={content}
-        outcome={outcome}
-        seconds={seconds}
-        onOpen={() => onOpen('verdict')}
-      />
-      <Slab
-        kind="candidate"
-        showBand={showBand}
-        position={[spread, y - 0.08, z + 0.35]}
-        rotation={[-0.1, -splay, 0]}
-        content={content}
-        outcome={outcome}
-        seconds={seconds}
-        onOpen={() => onOpen('candidate')}
-      />
+      {v11Cluster().map((placement) => (
+        <Slab
+          key={placement.kind}
+          kind={placement.kind}
+          showBand={showBand}
+          position={placement.position}
+          rotation={placement.rotation}
+          scale={placement.scale}
+          content={content}
+          outcome={outcome}
+          seconds={seconds}
+          onOpen={() => onOpen(placement.kind)}
+          onOpenRow={placement.kind === 'roles' ? (row) => onOpen('roles', row) : undefined}
+        />
+      ))}
     </group>
   );
 }
@@ -286,6 +269,7 @@ function Slab({
   showBand,
   position,
   rotation,
+  scale,
   content,
   outcome,
   seconds,
@@ -296,6 +280,14 @@ function Slab({
   showBand: boolean;
   position: [number, number, number];
   rotation: [number, number, number];
+  /**
+   * The whole group's scale. The slab is the same object at every scale —
+   * the same geometry, the same canvas, the same layout and the same
+   * animations — so a larger slab is this design seen larger and not a
+   * different one, which is what the owner's *"preserve their existing
+   * visual design, content and animations, but enlarge them"* asks for.
+   */
+  scale: number;
   content: ScreenContent;
   outcome: Outcome;
   seconds: number;
@@ -303,7 +295,7 @@ function Slab({
   onOpenRow?: ((row: number) => void) | undefined;
 }) {
   use(loadScreenFonts());
-  const { reducedMotion, tier } = useSettings();
+  const { reducedMotion, tier, softwareRenderer } = useSettings();
   const maxAnisotropy = useThree((s) => s.gl.capabilities.getMaxAnisotropy());
   const plan = useMemo(() => v11SlabPlan(TEXTURE_WIDTH[tier]), [tier]);
   const { canvas, texture } = useMemo(() => {
@@ -312,12 +304,21 @@ function Slab({
     canvas.height = plan.canvasHeight;
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
-    texture.generateMipmaps = true;
-    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    // Mipmaps and anisotropy, which is the whole point of this stage's
+    // resolution work: at the overview a console's display is minified
+    // about 24 : 1, and without a mip chain that samples one texel in
+    // twenty-four and turns the microtext into flicker. **Off on a
+    // software renderer**, where regenerating six mip chains a frame was
+    // measured to cost 29 % of the frame rate and where minification
+    // quality is not something a frame from this container can speak to.
+    texture.generateMipmaps = !softwareRenderer;
+    texture.minFilter = softwareRenderer ? THREE.LinearFilter : THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
-    texture.anisotropy = Math.min(ANISOTROPY[tier], Math.max(1, maxAnisotropy));
+    texture.anisotropy = softwareRenderer
+      ? 1
+      : Math.min(ANISOTROPY[tier], Math.max(1, maxAnisotropy));
     return { canvas, texture };
-  }, [plan, tier, maxAnisotropy]);
+  }, [plan, tier, maxAnisotropy, softwareRenderer]);
   useEffect(() => () => texture.dispose(), [texture]);
 
   const parts = useMemo(() => buildV11Slab(plan), [plan]);
@@ -333,7 +334,8 @@ function Slab({
   );
   const glassMaterial = useMemo(() => createGlassMaterial(), []);
   const clock = useRef({ t: 0, last: -1, key: '', at: 0 });
-  const fps = REDRAW_FPS[tier];
+  const fps = softwareRenderer ? SOFTWARE_REDRAW_FPS : REDRAW_FPS[tier];
+  const group = useRef<THREE.Group>(null);
 
   useFrame((_, delta) => {
     const c = clock.current;
@@ -342,6 +344,20 @@ function Slab({
     if (c.key !== key) {
       c.key = key;
       c.at = c.t;
+    }
+    // **The hover, and the nudge on a state change.** The owner, of the
+    // cluster: *"The gentle hover continues. When the principal state
+    // changes, the main screen may move forward slightly while the
+    // supporting screens shift outward subtly."* Both are position only —
+    // the same object, the same picture, moved — and both are held under a
+    // centimetre or two so nothing the composition solves against leaves
+    // the frame. Reduced motion holds `c.t` still, so both stop.
+    if (group.current) {
+      const hover = Math.sin((c.t / 14) * Math.PI * 2 + (kind === 'verdict' ? 0 : 1.7)) * 0.02;
+      const settle = 1 - easeOutCubic(Math.min(1, (c.t - c.at) / 1.1));
+      const forward = kind === 'verdict' ? 0.06 * settle : 0;
+      const outward = kind === 'verdict' ? 0 : 0.05 * settle * Math.sign(position[0]);
+      group.current.position.set(position[0] + outward, position[1] + hover, position[2] + forward);
     }
     if (c.last >= 0 && c.t - c.last < 1 / fps) return;
     c.last = c.t;
@@ -359,7 +375,7 @@ function Slab({
   });
 
   return (
-    <group position={position} rotation={rotation}>
+    <group ref={group} position={position} rotation={rotation} scale={scale}>
       <mesh geometry={front} position={[0, 0, parts.plateAt]} castShadow receiveShadow>
         <meshStandardMaterial color={room.surface.ivory} roughness={0.42} metalness={0.04} />
       </mesh>
@@ -398,6 +414,8 @@ function Slab({
     </group>
   );
 }
+
+const easeOutCubic = (x: number) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 3;
 
 function roundedRectPath(w: number, h: number, r: number): THREE.Path {
   const path = new THREE.Path();

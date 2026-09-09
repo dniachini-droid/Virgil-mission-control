@@ -46,19 +46,62 @@ export const TEXTURE_WIDTH: Record<Tier, number> = {
 };
 
 /**
- * How often a display's canvas is redrawn, by tier. This is the *invisible*
- * work the brief asks to reduce: a console screen at 24 fps and a slab at
- * 24 fps on a phone is six 2D canvases a frame, and the pictures are slow
- * enough that 15 is indistinguishable from 24 on the astronomical motion
- * the brief asked for. Nothing about the picture's resolution changes.
+ * **How often a display's canvas is redrawn, by tier — and what it cost to
+ * get this wrong.**
+ *
+ * This is the *invisible* work the brief asks to reduce rather than
+ * reducing resolution: six 2D canvases, each 1024 × 600 or larger, each
+ * drawn with a dozen gradients and then uploaded as a texture whose whole
+ * mip chain is regenerated.
+ *
+ * The first version of this table ran at 18 fps on the mobile tier and it
+ * was measured, not guessed, to be too much: **V11's route rendered at
+ * 1.23 frames a second against V10's 1.74 in this container**, a 29 %
+ * regression, and the V11 Owner Build's own verify failed on it — its
+ * 1,200 ms wait after dismissing a record is fewer than two frames at that
+ * rate, so the panel had not closed by the time the check looked. The
+ * check was right and the product was wrong; the waits were not touched.
+ *
+ * The rates below are roughly two thirds of the first version's. The
+ * pictures are slow by design — the brief asks Virgil's for *"slow,
+ * graceful astronomical motion"* and his orrery turns once in ninety
+ * seconds — so 12 fps on a phone is indistinguishable from 18, and nothing
+ * about any picture's resolution changes.
+ *
+ * `SOFTWARE_REDRAW_FPS` is the renderer adaptation
+ * `docs/architecture/PERFORMANCE_STRATEGY.md` describes ("software
+ * renderers force `constrained`"), applied to this one cost. **It is
+ * recorded rather than hidden: in this container the displays redraw four
+ * times a second and their textures carry no mip chain, so the container
+ * does not exercise the mipmap path at all** — the mipmap and anisotropy
+ * settings for real renderers are held by
+ * `test/screen-system-v11.test.ts` instead, and no frame taken here is
+ * evidence about minification quality on a GPU.
  */
 export const REDRAW_FPS: Record<Tier, number> = {
-  ultra: 30,
-  desktop: 30,
-  laptop: 24,
-  mobile: 18,
-  constrained: 12,
+  ultra: 24,
+  desktop: 24,
+  laptop: 18,
+  mobile: 12,
+  constrained: 8,
 };
+
+/**
+ * The redraw rate when the renderer is software, whatever the tier says.
+ *
+ * **One and a half, and the arithmetic is worth writing down.** The screen's
+ * own clock advances by at most 0.1 s a frame (the cap every animated thing
+ * in this set shares, so a slow frame cannot skip a beat), so on a renderer
+ * running at 1.4 frames a second the clock runs about seven times slower
+ * than the wall — and a cap expressed in *clock* seconds therefore throttles
+ * to about a seventh of its nominal rate in wall time. At 4 the six displays
+ * still redrew every third frame and cost about 456 ms of a 700 ms frame; at
+ * 1.5 they redraw about every seventh, which is what brings V11's rate back
+ * beside V10's here. Nothing about the product's own rate changes: this
+ * value is only ever read when the renderer string says SwiftShader,
+ * llvmpipe or software.
+ */
+export const SOFTWARE_REDRAW_FPS = 1.5;
 
 /** The anisotropy a display asks for, capped by the renderer's own maximum. */
 export const ANISOTROPY: Record<Tier, number> = {

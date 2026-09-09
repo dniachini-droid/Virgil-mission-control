@@ -11,7 +11,7 @@ import {
 import { CAST, ROLES, type Role } from '../src/world/room/cast.js';
 import { layout } from '../src/world/room/palette.js';
 import { screenPlan } from '../src/world/screens/screenPlane.js';
-import { V11_BANK_LIFT, v11Bank } from '../src/world/screens/v11/bank.js';
+import { V11_CLUSTER, v11Cluster } from '../src/world/screens/v11/bank.js';
 import { bezelPlan } from '../src/world/screens/v11/bezel.js';
 import { TEXTURE_WIDTH, textureBytes } from '../src/world/screens/v11/resolution.js';
 import { v11SlabPlan } from '../src/world/screens/v11/ScreenBankV11.js';
@@ -123,17 +123,13 @@ function displays() {
       openingMm: [2 * d.halfWidth * 1000, 2 * d.halfHeight * 1000],
     };
   }
-  const { y, z, spread, splay } = v11Bank();
   const plan = v11SlabPlan(1024);
-  const slabs: [string, [number, number, number], [number, number, number]][] = [
-    ['slab-roles', [-spread, y - 0.08, z + 0.35], [-0.1, splay, 0]],
-    ['slab-verdict', [0, y, z], [-0.1, 0, 0]],
-    ['slab-candidate', [spread, y - 0.08, z + 0.35], [-0.1, -splay, 0]],
-  ];
-  for (const [id, position, rotation] of slabs) {
+  for (const placement of v11Cluster()) {
+    const id = `slab-${placement.kind}`;
     const group = new THREE.Group();
-    group.position.set(position[0], position[1], position[2]);
-    group.rotation.set(rotation[0], rotation[1], rotation[2]);
+    group.position.set(...placement.position);
+    group.rotation.set(...placement.rotation);
+    group.scale.setScalar(placement.scale);
     group.updateMatrixWorld(true);
     const hw = plan.displayWidth / 2;
     const hh = plan.displayHeight / 2;
@@ -145,7 +141,10 @@ function displays() {
         new THREE.Vector3(-hw, -hh, 0).applyMatrix4(group.matrixWorld),
       ],
       aspect: plan.displayWidth / plan.displayHeight,
-      openingMm: [plan.displayWidth * 1000, plan.displayHeight * 1000],
+      openingMm: [
+        plan.displayWidth * placement.scale * 1000,
+        plan.displayHeight * placement.scale * 1000,
+      ],
     };
   }
   return out;
@@ -206,9 +205,9 @@ describe('how large each display is on a 390 x 844 portrait viewport', () => {
     fabricator: [43.3, 25.4],
     prover: [36.4, 19.5],
     keeper: [39.5, 26.0],
-    'slab-roles': [87.6, 58.3],
-    'slab-verdict': [85.4, 57.2],
-    'slab-candidate': [87.6, 58.3],
+    'slab-roles': [131.5, 88.6],
+    'slab-verdict': [172.3, 120.6],
+    'slab-candidate': [131.5, 88.6],
   };
 
   it.each(Object.keys(OVERVIEW))('%s is the size it was measured at', (id) => {
@@ -298,17 +297,24 @@ describe('the other two viewports, recorded so a change is noticed', () => {
         fabricator: [47.8, 28.0],
         prover: [40.2, 21.5],
         keeper: [43.5, 28.7],
-        'slab-verdict': [94.1, 63.0],
+        'slab-verdict': [189.8, 132.9],
       },
     ],
     [
       844,
       390,
+      // **Landscape pays for the cluster**, and the number is recorded
+      // rather than smoothed: holding a primary slab 2.93 m wide inside a
+      // 844 x 390 frame pushes the solver to its widest lens and its
+      // furthest distance, so the three consoles' displays fall from 40.7
+      // to 23.4 CSS px there. Portrait is the composition the owner names
+      // as primary and the one the targets are set at; landscape is the
+      // intentional secondary and is now a wide establishing view.
       {
-        fabricator: [40.7, 23.4],
-        prover: [32.3, 17.3],
-        keeper: [36.6, 23.8],
-        'slab-verdict': [84.1, 57.8],
+        fabricator: [23.4, 13.8],
+        prover: [19.6, 10.5],
+        keeper: [21.2, 14.1],
+        'slab-verdict': [89.2, 61.7],
       },
     ],
   ];
@@ -424,10 +430,29 @@ describe('the two composition edits the owner asked for after seeing stage 2', (
     expect(pose.position[1]).toBeGreaterThan(6.2);
   });
 
-  it('lifts the slabs without changing their size', () => {
-    expect(V11_BANK_LIFT).toBeGreaterThan(0.9);
-    expect(v11Bank().y).toBeCloseTo(layout.screenBank.y + V11_BANK_LIFT, 9);
-    // Only the position moved: the slab is the same object it was.
+  it('arranges the three slabs as a shallow triangle above Virgil', () => {
+    const cluster = v11Cluster();
+    const verdict = cluster.find((p) => p.kind === 'verdict');
+    const roles = cluster.find((p) => p.kind === 'roles');
+    const candidate = cluster.find((p) => p.kind === 'candidate');
+    if (!verdict || !roles || !candidate) throw new Error('cluster');
+    // The verdict is the apex, and 25-35 % larger than the pair.
+    expect(verdict.position[1]).toBeGreaterThan(roles.position[1]);
+    expect(verdict.position[0]).toBe(0);
+    const ratio = verdict.scale / roles.scale;
+    expect(ratio).toBeGreaterThanOrEqual(1.25);
+    expect(ratio).toBeLessThanOrEqual(1.35);
+    // The pair is offset left and right, and turned inward toward Virgil.
+    expect(roles.position[0]).toBeLessThan(0);
+    expect(candidate.position[0]).toBeGreaterThan(0);
+    expect(roles.rotation[1]).toBeGreaterThan(0);
+    expect(candidate.rotation[1]).toBeLessThan(0);
+    // Shallow and wide: wider than it is tall.
+    const width = 2 * V11_CLUSTER.spread + 2 * (0.77 * V11_CLUSTER.supportScale);
+    const height = V11_CLUSTER.drop + 0.52 * (V11_CLUSTER.primaryScale + V11_CLUSTER.supportScale);
+    expect(width).toBeGreaterThan(height);
+    // Only the position and the scale moved: the slab is the object
+    // `ScreenBankV11` built, at every scale.
     expect(v11SlabPlan(1024).openingWidth).toBeCloseTo(1.476, 6);
     expect(v11SlabPlan(1024).openingHeight).toBeCloseTo(0.976, 6);
   });
@@ -439,7 +464,7 @@ describe('the two composition edits the owner asked for after seeing stage 2', (
     ] as [number, number][]) {
       const camera = cameraFor(overviewPose(w / h), w, h);
       const slabBottom = Math.max(
-        ...['slab-roles', 'slab-verdict', 'slab-candidate'].map((id) => {
+        ...['slab-roles', 'slab-candidate'].map((id) => {
           const display = DISPLAYS[id];
           if (!display) throw new Error(id);
           return Math.max(
@@ -458,6 +483,7 @@ describe('the two composition edits the owner asked for after seeing stage 2', (
       );
       // The slabs' lowest edge sits clear above the consoles' highest
       // screen edge, in screen pixels, at both portrait viewports.
+      // 42 px at 390 x 844 and 46 at 430 x 932. The owner's first priority.
       expect(consoleTop - slabBottom, `${w}x${h}`).toBeGreaterThan(20);
     }
   });
@@ -481,6 +507,74 @@ describe('the two composition edits the owner asked for after seeing stage 2', (
       // Portrait leaves hundreds of pixels; landscape is the tight one, at
       // about 18 px, and it is recorded rather than asserted loosely.
       expect(top, `${w}x${h}`).toBeGreaterThan(12);
+    }
+  });
+});
+
+describe('the owner’s numeric targets for the slab cluster', () => {
+  /**
+   * *"primary screen 155–175 CSS px wide; supporting screens 125–140 CSS px
+   * each; gap between the supporting screens 10–16 CSS px"*, at a 390 px
+   * portrait viewport, under his priority order: the consoles stay
+   * readable, the primary clears the safe area and the `⋯` control, then
+   * the targets.
+   */
+  const W = 390;
+  const H = 844;
+  const box = (id: string) => {
+    const display = DISPLAYS[id];
+    if (!display) throw new Error(id);
+    const camera = cameraFor(overviewPose(W / H), W, H);
+    const points = display.quad.map((corner) => {
+      const p = corner.clone().project(camera);
+      return [((p.x + 1) / 2) * W, ((1 - p.y) / 2) * H] as [number, number];
+    });
+    const { widthPx, heightPx } = projected(display.quad, camera, W, H);
+    return {
+      widthPx,
+      heightPx,
+      left: Math.min(...points.map((p) => p[0])),
+      right: Math.max(...points.map((p) => p[0])),
+      top: Math.min(...points.map((p) => p[1])),
+    };
+  };
+
+  it('meets the primary’s width target', () => {
+    const primary = box('slab-verdict');
+    expect(primary.widthPx).toBeGreaterThanOrEqual(155);
+    expect(primary.widthPx).toBeLessThanOrEqual(175);
+  });
+
+  it('meets both supporting screens’ width target', () => {
+    for (const id of ['slab-roles', 'slab-candidate']) {
+      expect(box(id).widthPx, id).toBeGreaterThanOrEqual(125);
+      expect(box(id).widthPx, id).toBeLessThanOrEqual(140);
+    }
+  });
+
+  it('meets the gap target between the supporting pair', () => {
+    const gap = box('slab-candidate').left - box('slab-roles').right;
+    expect(gap).toBeGreaterThanOrEqual(10);
+    expect(gap).toBeLessThanOrEqual(16);
+  });
+
+  it('clears the safe area and the ⋯ control above the primary', () => {
+    // The control is 48 px at a 16 px inset, so it occupies y 16..64 at the
+    // right edge. The primary's top is well below it and its own span does
+    // not reach the control's column either.
+    for (const [w, h] of [
+      [390, 844],
+      [430, 932],
+    ] as [number, number][]) {
+      const display = DISPLAYS['slab-verdict'];
+      if (!display) throw new Error('slab-verdict');
+      const camera = cameraFor(overviewPose(w / h), w, h);
+      const points = display.quad.map((corner) => {
+        const p = corner.clone().project(camera);
+        return [((p.x + 1) / 2) * w, ((1 - p.y) / 2) * h] as [number, number];
+      });
+      expect(Math.min(...points.map((p) => p[1])), `${w}x${h}`).toBeGreaterThan(80);
+      expect(Math.max(...points.map((p) => p[0])), `${w}x${h}`).toBeLessThan(w - 48);
     }
   });
 });

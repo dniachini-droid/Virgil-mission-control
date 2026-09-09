@@ -11,7 +11,7 @@ import { loadScreenFonts } from '../fonts.js';
 import { screenPlan } from '../screenPlane.js';
 import type { HopWork } from '../work.js';
 import { bezelPlan, buildBezelMeshes } from './bezel.js';
-import { ANISOTROPY, REDRAW_FPS, TEXTURE_WIDTH } from './resolution.js';
+import { ANISOTROPY, REDRAW_FPS, SOFTWARE_REDRAW_FPS, TEXTURE_WIDTH } from './resolution.js';
 import { drawConsoleScreen } from './screens.js';
 
 /**
@@ -95,7 +95,7 @@ export function ConsoleScreenV11({
   use(loadScreenFonts());
   const member = CAST[role];
   const asset = use(member.station.load());
-  const { reducedMotion, tier } = useSettings();
+  const { reducedMotion, tier, softwareRenderer } = useSettings();
   const maxAnisotropy = useThree((s) => s.gl.capabilities.getMaxAnisotropy());
   const mask = member.station.screen;
   const plan = useMemo(
@@ -118,12 +118,21 @@ export function ConsoleScreenV11({
     texture.colorSpace = THREE.SRGBColorSpace;
     // Mipmaps and anisotropy, which is the whole point of this stage's
     // resolution work: at the overview the display is minified 24 : 1.
-    texture.generateMipmaps = true;
-    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    // Mipmaps and anisotropy, which is the whole point of this stage's
+    // resolution work: at the overview a console's display is minified
+    // about 24 : 1, and without a mip chain that samples one texel in
+    // twenty-four and turns the microtext into flicker. **Off on a
+    // software renderer**, where regenerating six mip chains a frame was
+    // measured to cost 29 % of the frame rate and where minification
+    // quality is not something a frame from this container can speak to.
+    texture.generateMipmaps = !softwareRenderer;
+    texture.minFilter = softwareRenderer ? THREE.LinearFilter : THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
-    texture.anisotropy = Math.min(ANISOTROPY[tier], Math.max(1, maxAnisotropy));
+    texture.anisotropy = softwareRenderer
+      ? 1
+      : Math.min(ANISOTROPY[tier], Math.max(1, maxAnisotropy));
     return { canvas, texture, corner };
-  }, [aspect, plan, width, tier, maxAnisotropy]);
+  }, [aspect, plan, width, tier, maxAnisotropy, softwareRenderer]);
   useEffect(() => () => texture.dispose(), [texture]);
 
   const screen = useMemo(() => {
@@ -164,7 +173,7 @@ export function ConsoleScreenV11({
     on: false,
     powerAt: -POWER_OFF_SECONDS,
   });
-  const fps = REDRAW_FPS[tier];
+  const fps = softwareRenderer ? SOFTWARE_REDRAW_FPS : REDRAW_FPS[tier];
 
   useFrame((_, delta) => {
     const c = clock.current;

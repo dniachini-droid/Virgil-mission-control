@@ -13,11 +13,11 @@ import {
 } from '../tally.js';
 import type { HopWork } from '../work.js';
 import {
+  backdrop,
   bodyRect,
   type Ctx,
   edgeLight,
   fit,
-  glassField,
   headerRail,
   heroBand,
   heroBlock,
@@ -32,7 +32,6 @@ import {
   scrim,
   spaced,
   sweep,
-  wellRecess,
   wellRect,
 } from './chrome.js';
 import { accentOf, colourOf, primaryFor, verdictPrimary } from './content.js';
@@ -89,9 +88,8 @@ export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScree
   const colour = colourOf(primary.status);
   const arrive = clamp01(since / ARRIVE_SECONDS);
 
-  glassField(ctx, m, primary.status);
   const well = wellRect(m);
-  wellRecess(ctx, m, well);
+  backdrop(ctx, m, primary.status, well);
   headerRail(
     ctx,
     m,
@@ -323,9 +321,8 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
     // a phone to be read that way.
     const primary = verdictPrimary(content.verdict, content.active);
     const colour = colourOf(primary.status);
-    glassField(ctx, m, primary.status);
     const body = bodyRect(m);
-    wellRecess(ctx, m, body);
+    backdrop(ctx, m, primary.status, body);
     headerRail(
       ctx,
       m,
@@ -392,9 +389,8 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
 
   if (kind === 'roles') {
     const status = content.active ? 'cyan' : 'gold';
-    glassField(ctx, m, status);
     const body = bodyRect(m);
-    wellRecess(ctx, m, body);
+    backdrop(ctx, m, status, body);
     headerRail(
       ctx,
       m,
@@ -452,9 +448,8 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
         ? 'cyan'
         : 'gold';
   const colour = STATUS[status];
-  glassField(ctx, m, status, gate ? 0.12 : 0.085);
   const body = bodyRect(m);
-  wellRecess(ctx, m, body);
+  backdrop(ctx, m, status, body, gate ? 0.12 : 0.085);
   headerRail(
     ctx,
     m,

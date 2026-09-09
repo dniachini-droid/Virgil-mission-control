@@ -2,7 +2,7 @@ import type { PanelTarget, SlabName } from '../panel/panelContent.js';
 import { CAST, eyeHeight, figurePlacement, ROLES, type Role, screenCentre } from '../room/cast.js';
 import { closeUpPose, fovFor, screenCorners } from '../room/closeUp.js';
 import { type CameraPose, layout } from '../room/palette.js';
-import { v11Bank } from '../screens/v11/bank.js';
+import { v11Cluster, v11ClusterCentre, v11SlabAt } from '../screens/v11/bank.js';
 
 /**
  * **V11 stage 1: a composition authored for a phone held upright, and a
@@ -122,6 +122,32 @@ export function frameFor(orientation: Orientation): Frame {
 /** How tall a character's head stands above the centre of their painted visor. */
 const HEAD_ABOVE_EYES = 0.3;
 
+/** A slab's own overall half extents, before its scale. */
+const SLAB_HALF_WIDTH = 1.3 / 2 + 0.12;
+const SLAB_HALF_HEIGHT = 0.8 / 2 + 0.12;
+
+/**
+ * The twelve corners of Virgil's three slabs, in the room, at the scale
+ * and the yaw `screens/v11/bank.ts` gives each. The composition is solved
+ * against these, so enlarging a slab or moving the cluster automatically
+ * re-frames the overview rather than silently pushing a corner off screen.
+ */
+export function slabCorners(): Vec3[] {
+  const corners: Vec3[] = [];
+  for (const placement of v11Cluster()) {
+    const [px, py, pz] = placement.position;
+    const yaw = placement.rotation[1];
+    const hw = SLAB_HALF_WIDTH * placement.scale;
+    const hh = SLAB_HALF_HEIGHT * placement.scale;
+    for (const dx of [-hw, hw]) {
+      for (const dy of [-hh, hh]) {
+        corners.push([px + dx * Math.cos(yaw), py + dy, pz - dx * Math.sin(yaw)]);
+      }
+    }
+  }
+  return corners;
+}
+
 /**
  * The points the overview may not lose. Virgil, his console and his three
  * slabs; each specialist's head; each console's own measured screen box. If
@@ -138,18 +164,9 @@ export function compositionPoints(): Vec3[] {
     for (const dz of [-1.15, 1.15]) points.push([vx + dx, vy, vz + dz]);
   }
   // His three slabs, as boxes: the board has to be legible from the overview.
-  const { y, z, spread } = v11Bank();
-  const slabHalfWidth = 1.3 / 2 + 0.12;
-  const slabHalfHeight = 0.8 / 2 + 0.12;
-  for (const [sx, sy, sz] of [
-    [-spread, y - 0.08, z + 0.35],
-    [0, y, z],
-    [spread, y - 0.08, z + 0.35],
-  ] as Vec3[]) {
-    for (const dx of [-slabHalfWidth, slabHalfWidth]) {
-      for (const dy of [-slabHalfHeight, slabHalfHeight]) points.push([sx + dx, sy + dy, sz]);
-    }
-  }
+  // Virgil's cluster: each slab's four corners, at its own scale and yaw
+  // (`screens/v11/bank.ts`). The overview may not lose one of them.
+  for (const corner of slabCorners()) points.push(corner);
   for (const role of ROLES) {
     const stand = figurePlacement(role).at;
     points.push([stand[0], eyeHeight(role) + HEAD_ABOVE_EYES, stand[2]]);
@@ -325,7 +342,6 @@ function slabAnchor(id: string, label: string, point: Vec3, slab: SlabName): Anc
  */
 export function anchors(): Anchor[] {
   const [vx, vy, vz] = layout.virgilAt;
-  const { y, z, spread } = v11Bank();
   const list: Anchor[] = [
     {
       id: 'virgil',
@@ -335,9 +351,14 @@ export function anchors(): Anchor[] {
       focus: 'virgil',
       panel: { kind: 'slab', slab: 'verdict' },
     },
-    slabAnchor('board-roles', 'The run ledger', [-spread, y - 0.08, z + 0.35], 'roles'),
-    slabAnchor('board-verdict', 'The verdict board', [0, y, z], 'verdict'),
-    slabAnchor('board-candidate', 'The candidate board', [spread, y - 0.08, z + 0.35], 'candidate'),
+    slabAnchor('board-roles', 'The run ledger', v11SlabAt('roles').position, 'roles'),
+    slabAnchor('board-verdict', 'The verdict board', v11SlabAt('verdict').position, 'verdict'),
+    slabAnchor(
+      'board-candidate',
+      'The candidate board',
+      v11SlabAt('candidate').position,
+      'candidate',
+    ),
   ];
   for (const role of ROLES) {
     const stand = figurePlacement(role).at;
@@ -383,11 +404,10 @@ export function mobilePose(focus: MobileFocus, aspect: number): CameraPose {
     };
   }
   if (focus === 'board') {
-    const { y, z, spread } = v11Bank();
+    const { y, z, halfWidth } = v11ClusterCentre();
     const fov = orientationFor(aspect) === 'portrait' ? 52 : 44;
-    const halfWidth = spread + 0.85;
     const distance = Math.max(5, halfWidth / (Math.tan((fov / 2) * (Math.PI / 180)) * aspect));
-    return { position: [0, y - 0.1, z + distance], target: [0, y - 0.15, z], fov };
+    return { position: [0, y, z + distance], target: [0, y - 0.05, z], fov };
   }
   return closeUpPose(focus, aspect);
 }

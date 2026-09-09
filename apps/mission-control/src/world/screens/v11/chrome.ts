@@ -143,6 +143,21 @@ export function litDot(ctx: Ctx, x: number, y: number, r: number, colour: string
  * entire screens"* the brief forbids.
  */
 export function glassField(ctx: Ctx, m: Metrics, status: StatusKey, wash = 0.085) {
+  glassGradients(ctx, m);
+  ctx.save();
+  ctx.globalAlpha = wash;
+  ctx.fillStyle = STATUS[status];
+  ctx.fillRect(0, 0, m.w, m.h);
+  ctx.restore();
+}
+
+/**
+ * The status-independent part of the field: three full-canvas composites.
+ * Split out from the wash so that `backdrop` can cache it once per display
+ * and the status can still change every beat for the price of one
+ * `fillRect`.
+ */
+function glassGradients(ctx: Ctx, m: Metrics) {
   const { w, h } = m;
   const vertical = ctx.createLinearGradient(0, 0, 0, h);
   vertical.addColorStop(0, GLASS.lift);
@@ -156,11 +171,89 @@ export function glassField(ctx: Ctx, m: Metrics, status: StatusKey, wash = 0.085
   bloom.addColorStop(1, `${GLASS.sapphire}00`);
   ctx.fillStyle = bloom;
   ctx.fillRect(0, 0, w, h);
+}
+
+/**
+ * **The static layers of the glass, drawn once per display and blitted.**
+ *
+ * The field's three full-canvas gradient composites, the well's recess and
+ * its graticule are the same picture on every frame: they depend only on
+ * the canvas's size, the outline's corner and the well's rectangle, none of
+ * which change while the world runs. Redrawing them at the redraw rate was
+ * measured to be the largest single per-frame cost this stage added —
+ * V11's route rendered at **1.37 frames a second against V10's 1.81** in
+ * this container even after the redraw rate was cut, and the V11 Owner
+ * Build's own verify failed on it, because a 1,200 ms wait is under two
+ * frames at that rate.
+ *
+ * So they are drawn once into a cache and copied in with one `drawImage`.
+ * **What that costs, stated:** one backing canvas per display, `w × h × 4`
+ * bytes on the CPU — 2.4 MB each at the mobile tier's 1024 px and 9.4 MB
+ * at 2048, so **14.5 MB for the six displays on a phone and 57 MB on the
+ * desktop tier**. The cache is hard-capped at six entries, one per
+ * display, and evicts the least recently used, so it cannot grow with the
+ * number of states. `test/screen-system-v11.test.ts` holds the cap.
+ */
+const BACKDROP_CACHE = new Map<string, HTMLCanvasElement>();
+export const BACKDROP_CACHE_LIMIT = 6;
+
+export function backdrop(ctx: Ctx, m: Metrics, status: StatusKey, well: Rect, wash = 0.085) {
+  const key = [
+    m.w,
+    m.h,
+    Math.round(m.corner),
+    m.band,
+    Math.round(well.x),
+    Math.round(well.y),
+    Math.round(well.w),
+    Math.round(well.h),
+  ].join(':');
+  // No document: the content tests draw these functions under node with a
+  // recording context and no DOM. Drawing straight through is the same
+  // picture; only the caching is skipped.
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+    glassGradients(ctx, m);
+    wellRecess(ctx, m, well);
+    keyLight(ctx, m);
+    ctx.save();
+    ctx.globalAlpha = wash;
+    ctx.fillStyle = STATUS[status];
+    ctx.fillRect(0, 0, m.w, m.h);
+    ctx.restore();
+    return;
+  }
+  let cached = BACKDROP_CACHE.get(key);
+  if (cached) {
+    // Touch it, so the least recently used is the one evicted.
+    BACKDROP_CACHE.delete(key);
+  } else {
+    cached = document.createElement('canvas');
+    cached.width = m.w;
+    cached.height = m.h;
+    const into = cached.getContext('2d');
+    if (into) {
+      glassGradients(into, m);
+      wellRecess(into, m, well);
+      keyLight(into, m);
+    }
+    while (BACKDROP_CACHE.size >= BACKDROP_CACHE_LIMIT) {
+      const oldest = BACKDROP_CACHE.keys().next().value;
+      if (oldest === undefined) break;
+      BACKDROP_CACHE.delete(oldest);
+    }
+  }
+  BACKDROP_CACHE.set(key, cached);
+  ctx.drawImage(cached, 0, 0);
   ctx.save();
   ctx.globalAlpha = wash;
   ctx.fillStyle = STATUS[status];
-  ctx.fillRect(0, 0, w, h);
+  ctx.fillRect(0, 0, m.w, m.h);
   ctx.restore();
+}
+
+/** How many backdrops are cached right now. For the test, and for nothing else. */
+export function backdropCacheSize(): number {
+  return BACKDROP_CACHE.size;
 }
 
 /**
@@ -815,14 +908,21 @@ export function reflections(ctx: Ctx, m: Metrics, t: number) {
   sheen.addColorStop(1, 'rgba(205,218,240,0)');
   ctx.fillStyle = sheen;
   ctx.fillRect(0, 0, w, h);
-  // The key light's highlight, fixed.
+  ctx.restore();
+}
+
+/**
+ * The key light's own highlight on the glass: fixed, so it is part of the
+ * cached backdrop rather than a full-canvas composite on every frame.
+ */
+function keyLight(ctx: Ctx, m: Metrics) {
+  const { w, h } = m;
   const key = ctx.createRadialGradient(w * 0.2, h * 0.1, 0, w * 0.2, h * 0.1, h * 0.85);
   key.addColorStop(0, 'rgba(230,240,255,0.075)');
   key.addColorStop(0.6, 'rgba(230,240,255,0.018)');
   key.addColorStop(1, 'rgba(230,240,255,0)');
   ctx.fillStyle = key;
   ctx.fillRect(0, 0, w, h);
-  ctx.restore();
 }
 
 /**

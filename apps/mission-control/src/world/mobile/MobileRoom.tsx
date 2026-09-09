@@ -111,7 +111,16 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
   const [panel, setPanel] = useState<PanelTarget | null>(null);
   const [dev, setDev] = useState(false);
   const [badgeOpen, setBadgeOpen] = useState(false);
-  const [settings] = useState(() => ({
+  /**
+   * **The software-renderer flag is now set, and it is load-bearing.**
+   * Stage 1 left it hard-coded `false`; stage 2's six live displays made it
+   * matter, because regenerating their mip chains every redraw took V11's
+   * frame rate in this container from 1.74 to 1.23 fps
+   * (`screens/v11/resolution.ts`). It is read once from the renderer
+   * string at the first frame, which is one re-render at start-up and none
+   * after.
+   */
+  const [settings, setSettings] = useState(() => ({
     reducedMotion: prefersReducedMotion(),
     tier: detectTier(),
     autoTravel: false,
@@ -264,7 +273,8 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
           }}
           camera={{ position: start.position, fov: start.fov, near: 0.2, far: 400 }}
           onCreated={({ gl }) => {
-            registerRenderer(gl);
+            const software = registerRenderer(gl);
+            if (software) setSettings((previous) => ({ ...previous, softwareRenderer: true }));
           }}
           onPointerMissed={() => undefined}
         >
@@ -945,7 +955,7 @@ function viewportAspect(): number {
   return window.innerWidth / Math.max(1, window.innerHeight);
 }
 
-function registerRenderer(gl: THREE.WebGLRenderer) {
+function registerRenderer(gl: THREE.WebGLRenderer): boolean {
   const context = gl.getContext();
   const debug = context.getExtension('WEBGL_debug_renderer_info');
   const renderer = debug
@@ -953,5 +963,7 @@ function registerRenderer(gl: THREE.WebGLRenderer) {
     : 'unknown renderer';
   const w = window as Window & { __virgilRenderer?: string; __virgilSoftware?: boolean };
   w.__virgilRenderer = renderer;
-  w.__virgilSoftware = /swiftshader|llvmpipe|software/i.test(renderer);
+  const software = /swiftshader|llvmpipe|software/i.test(renderer);
+  w.__virgilSoftware = software;
+  return software;
 }

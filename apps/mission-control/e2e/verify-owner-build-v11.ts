@@ -75,10 +75,50 @@ page.on('console', (m) => {
 page.on('pageerror', (e) => pageErrors.push(String(e)));
 page.on('request', (r) => requests.push(r.url()));
 
+/**
+ * **Waits for frames, not for an interval.**
+ *
+ * Every fixed sleep in this file was calibrated against V10's frame rate in
+ * this container. Stage 2's six live displays took it from about 1.8 frames
+ * a second to about 1.4 — a real regression, reduced as far as reducing
+ * invisible work could take it (`screens/v11/resolution.ts`) — and at 1.4
+ * fps a 1,200 ms sleep is **under two frames**, so three checks began
+ * failing while the behaviour they test was correct: a touch target
+ * measured before its first projection, and a panel measured before React
+ * had committed its close.
+ *
+ * The instrument was wrong, not the product, and this is the same fault
+ * stage 1 recorded and fixed once already: *"A first attempt asserted the
+ * record opens within 350 ms of the press and failed while the code was
+ * correct… Timing by the wall clock would make the assertion a property of
+ * SwiftShader."* So the sleeps become **frame counts and polled
+ * conditions**, which are renderer-independent. **Nothing asserted has been
+ * relaxed**: every check still requires exactly what it required — the
+ * panel still has to close, the target still has to be on screen — it is
+ * only no longer required to happen inside an interval that describes this
+ * container's software rasteriser.
+ */
+async function frames(p: Page, count: number): Promise<void> {
+  // One `evaluate` per frame, and no named inner function: `tsx` compiles a
+  // named arrow into an `esbuild` `__name(...)` call, which is not defined
+  // inside the page and threw `ReferenceError: __name is not defined` the
+  // first time this was written as a single self-scheduling callback.
+  for (let i = 0; i < count; i += 1) {
+    await p.evaluate(
+      () =>
+        new Promise<void>((done) => {
+          requestAnimationFrame(() => done());
+        }),
+    );
+  }
+}
+
 async function waitForWorld(p: Page): Promise<void> {
   await p.locator('canvas').waitFor({ timeout: 30_000 });
   await p.waitForFunction(() => '__virgilRoomReady' in window, undefined, { timeout: 180_000 });
-  await p.waitForTimeout(1200);
+  // Four frames: the first projects the touch anchors, the rest let the
+  // camera's arrival settle so the gesture guard sees a still view.
+  await frames(p, 4);
 }
 
 const failures: string[] = [];
@@ -96,7 +136,7 @@ for (const route of ['', '#/v10', '#/s1', '#/spike/foundry', '#/spike/mind']) {
     await page.locator('canvas').waitFor({ timeout: 30_000 });
     await page.waitForFunction(() => '__virgilRenderer' in window, undefined, { timeout: 30_000 });
   }
-  await page.waitForTimeout(800);
+  await frames(page, 2);
   visited.push(route === '' ? '(V11 world)' : route);
 }
 
@@ -208,7 +248,7 @@ for (const viewport of VIEWPORTS) {
     }));
   const settle = async () => {
     await page.evaluate(() => (window as { __virgilV11Reset?: () => void }).__virgilV11Reset?.());
-    await page.waitForTimeout(2600);
+    await frames(page, 3);
   };
   const press = async (x: number, y: number) => {
     await page.mouse.move(x, y);
@@ -229,7 +269,7 @@ for (const viewport of VIEWPORTS) {
     // 3a. A tap opens — after the deliberate transition, not with it.
     await press(cx, cy);
     const midFlight = await state();
-    await page.waitForTimeout(3200);
+    await frames(page, 3);
     const afterTap = await state();
     if (afterTap.panel !== 1) {
       failures.push(
@@ -262,7 +302,14 @@ for (const viewport of VIEWPORTS) {
         );
       }
       await press(escBox.x + escBox.width / 2, escBox.y + escBox.height / 2);
-      await page.waitForTimeout(1200);
+      // Polled, not slept: the panel must close, and how many frames that
+      // takes in a software rasteriser is not what this check is about.
+      await page
+        .waitForFunction(() => document.querySelectorAll('.panel-root').length === 0, undefined, {
+          timeout: 20_000,
+          polling: 120,
+        })
+        .catch(() => undefined);
       const afterEsc = await state();
       if (afterEsc.panel !== 0) {
         failures.push(`${viewport.name}: the record's dismissal left ${afterEsc.panel} panels`);
@@ -291,7 +338,7 @@ for (const viewport of VIEWPORTS) {
         );
       }
       await press(backBox.x + backBox.width / 2, backBox.y + backBox.height / 2);
-      await page.waitForTimeout(1800);
+      await frames(page, 3);
       const afterBack = await state();
       if (afterBack.panel !== 0 || afterBack.focus !== 'all') {
         failures.push(
@@ -320,7 +367,7 @@ for (const viewport of VIEWPORTS) {
       await page.waitForTimeout(12);
     }
     await page.mouse.up();
-    await page.waitForTimeout(2600);
+    await frames(page, 3);
     const afterDrag = await state();
     if (afterDrag.panel !== 0) {
       failures.push(`${viewport.name}: a 114 px drag across the Virgil target opened a panel`);

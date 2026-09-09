@@ -7,6 +7,7 @@ import { primaryFor } from '../src/world/screens/v11/content.js';
 import {
   ANISOTROPY,
   REDRAW_FPS,
+  SOFTWARE_REDRAW_FPS,
   TEXTURE_WIDTH,
   textureBytes,
 } from '../src/world/screens/v11/resolution.js';
@@ -305,6 +306,11 @@ describe('the texture budget', () => {
     expect(REDRAW_FPS.constrained).toBeLessThan(REDRAW_FPS.mobile);
     expect(REDRAW_FPS.mobile).toBeLessThan(REDRAW_FPS.desktop);
     expect(ANISOTROPY.mobile).toBeGreaterThanOrEqual(2);
+    // Slow enough that six live canvases and their mip chains are not the
+    // frame's largest cost, which is what the first version of this table
+    // measured as a 29 % regression against V10.
+    expect(REDRAW_FPS.mobile).toBeLessThanOrEqual(12);
+    expect(SOFTWARE_REDRAW_FPS).toBeLessThan(REDRAW_FPS.constrained);
   });
 
   it('counts mipmaps in the figure it reports', () => {
