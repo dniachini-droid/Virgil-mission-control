@@ -157,7 +157,11 @@ export function verdictPrimary(verdict: string, active: string | null, eligible 
         word: 'PASS',
         lead: eligible
           ? 'EVERY GATE PASSES. ELIGIBLE, NOT MERGED.'
-          : 'VERIFICATION PASSED. REVIEW HAS NOT HAPPENED.',
+          : // Shortened after looking at the slab: the lead is elided to the
+            // width it has, and "VERIFICATION PASSED. REVIEW HAS NOT …" can be
+            // read as "review has not passed". This one elides to
+            // "VERIFICATION PASSED. NOT YET …", which cannot.
+            'VERIFICATION PASSED. NOT YET REVIEWED.',
         mark: 'passed',
         status: 'green',
       };

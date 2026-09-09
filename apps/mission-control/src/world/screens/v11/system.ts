@@ -266,6 +266,35 @@ export function metrics(w: number, h: number, corner = 0, showBand = false): Met
 export const ARRIVE_SECONDS = 0.62;
 export const SWEEP_SECONDS = 0.46;
 
+/**
+ * **Reduced motion is honoured by arriving, never by hiding — and stage 4
+ * found a frame where it was hiding.**
+ *
+ * Both display components hold their own clock still under
+ * `prefers-reduced-motion`, which is right for the hover and the sweep and
+ * wrong for everything measured from it: `since` stayed at 0, so
+ * `clamp01(since / ARRIVE_SECONDS)` stayed at 0 and **every hero word on all
+ * six displays was never drawn at all.** `NO VERDICT`, `FABRICATOR`,
+ * `BUILDING`, the status marks: gone. A reader with reduced motion set saw six
+ * screens of rails and no state.
+ *
+ * It had been in the build since stage 2 and no frame of it had ever been
+ * looked at until the twelve review states were captured. It is the same fault
+ * as KR-55, where a reduced-motion branch deleted both of Virgil's faces, and
+ * the remedy is the project's own established one: show the transition at its
+ * **end**, not at its beginning.
+ *
+ * So a display under reduced motion reports its transitions as long finished.
+ * Every one-shot in `screens.ts` is a `clamp01(since / n)` with `n` under two
+ * seconds, so any value comfortably past them reads as complete.
+ */
+export const SETTLED_SINCE = 99;
+
+/** Seconds since the last state change, as the display should draw it. */
+export function sinceFor(reducedMotion: boolean, elapsed: number): number {
+  return reducedMotion ? SETTLED_SINCE : elapsed;
+}
+
 export const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 export const easeOut = (x: number) => 1 - (1 - clamp01(x)) ** 3;
 export const easeInOut = (x: number) =>

@@ -14,6 +14,7 @@ import type { HopWork } from '../work.js';
 import { bezelPlan, buildBezelMeshes } from './bezel.js';
 import { ANISOTROPY, REDRAW_FPS, SOFTWARE_REDRAW_FPS, TEXTURE_WIDTH } from './resolution.js';
 import { drawConsoleScreen } from './screens.js';
+import { sinceFor } from './system.js';
 
 /**
  * **A role console's display, V11.**
@@ -223,7 +224,7 @@ export function ConsoleScreenV11({
       corner,
       work,
       t: c.t,
-      since: c.t - c.stateAt,
+      since: sinceFor(reducedMotion, c.t - c.stateAt),
       showBand,
     });
     texture.needsUpdate = true;

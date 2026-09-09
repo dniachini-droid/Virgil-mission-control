@@ -80,6 +80,23 @@ interface Shot {
   after?: (page: Page) => Promise<void>;
   /** Reduced motion is a media preference as well as a URL parameter. */
   reducedMotion?: boolean;
+  /**
+   * Where the window's own scroller stands when the frame is taken.
+   * **Deterministic either way**: `top` is 0, and `evidence` is the top of the
+   * first disclosure, computed from the layout rather than left wherever
+   * clicking a section happened to scroll to.
+   */
+  scroll?: 'top' | 'evidence';
+  /**
+   * How long to let the six in-world displays settle before the frame is
+   * taken. Four seconds is enough at the full level; the reduced level needs
+   * far longer **in this container and only in this container**, because
+   * choosing it steps the tier down, which rebuilds each display's canvas and
+   * restarts its arrival — and a software renderer redraws them at 1.5 fps
+   * scaled by 0.5, so the arrival takes about ten wall-clock seconds here
+   * against well under one on a device at 12 fps.
+   */
+  settleMs?: number;
   note: string;
 }
 
@@ -145,18 +162,21 @@ const SHOTS: Shot[] = [
     title: 'Virgil’s full conversation',
     entry: 'demo=50&loop=0&hold=1&win=virgil',
     after: expandEvidence,
+    scroll: 'top',
     note: 'His window at the owner gate with every disclosure opened: current project truth, what each agent is doing, the next decision, the whole conversation, the controls.',
   },
   {
     id: '07',
     title: 'The Fabricator window',
     entry: 'demo=11&loop=0&hold=1&win=fabricator',
+    scroll: 'top',
     note: 'Opened while he is building. His completion report is a claim, not evidence, and the window says so.',
   },
   {
     id: '08',
     title: 'The Prover window, collapsed',
     entry: 'demo=30&loop=0&hold=1&win=prover',
+    scroll: 'top',
     note: 'The conclusion first, the suggested actions, then five collapsed disclosures. One of five open by default.',
   },
   {
@@ -164,6 +184,7 @@ const SHOTS: Shot[] = [
     title: 'The Prover window, expanded',
     entry: 'demo=30&loop=0&hold=1&win=prover',
     after: expandEvidence,
+    scroll: 'evidence',
     note: 'The same window with every disclosure opened: the checks, the verified facts against claims, the gates, and where the numbers come from.',
   },
   {
@@ -171,6 +192,7 @@ const SHOTS: Shot[] = [
     title: 'The Keeper window',
     entry: 'demo=42&loop=0&hold=1&win=keeper',
     after: expandEvidence,
+    scroll: 'top',
     note: 'Opened while he is reviewing. Findings with identities and severities, refusals with their exact reasons from authority.json.',
   },
   {
@@ -204,6 +226,7 @@ const SHOTS: Shot[] = [
     id: '13',
     title: 'Reduced-performance presentation',
     entry: 'demo=11&loop=0&hold=1&perf=reduced',
+    settleMs: 24_000,
     note: 'The graceful mode forced. Fewer stars, no post-processing, no shadows, the screens redrawing half as often — and nothing drawn smaller or softer.',
   },
 ];
@@ -294,8 +317,21 @@ for (const shot of slice) {
   await page.goto(`${fileUrl}#/?${shot.entry}`, { waitUntil: 'load' });
   await page.locator('canvas').waitFor({ timeout: 60_000 });
   await page.waitForFunction(() => '__virgilRoomReady' in window, undefined, { timeout: 420_000 });
-  await page.waitForTimeout(4000);
+  await page.waitForTimeout(shot.settleMs ?? 4000);
   if (shot.after) await shot.after(page);
+  if (shot.scroll) {
+    await page.evaluate((where: string) => {
+      const body = document.querySelector<HTMLElement>('.v11w-body');
+      if (!body) return;
+      if (where === 'top') {
+        body.scrollTop = 0;
+        return;
+      }
+      const first = document.querySelector<HTMLElement>('.v11w-disclose');
+      body.scrollTop = first ? Math.max(0, first.offsetTop - 8) : 0;
+    }, shot.scroll);
+    await page.waitForTimeout(600);
+  }
   const state = await page.evaluate(
     () => (window as { __virgilV11?: Record<string, unknown> }).__virgilV11 ?? {},
   );

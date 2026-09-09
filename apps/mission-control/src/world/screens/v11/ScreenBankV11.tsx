@@ -13,6 +13,7 @@ import { loadScreenFonts } from '../fonts.js';
 import { type ClusterOrientation, v11Cluster } from './bank.js';
 import { ANISOTROPY, REDRAW_FPS, SOFTWARE_REDRAW_FPS, TEXTURE_WIDTH } from './resolution.js';
 import { drawSlab, ledgerRowAtUv, type SlabKind } from './screens.js';
+import { sinceFor } from './system.js';
 
 /**
  * **Virgil's three slabs, rebuilt.**
@@ -388,7 +389,7 @@ function Slab({
       seconds,
       corner: plan.cornerPixels,
       t: c.t,
-      since: c.t - c.at,
+      since: sinceFor(reducedMotion, c.t - c.at),
       showBand,
     });
     texture.needsUpdate = true;

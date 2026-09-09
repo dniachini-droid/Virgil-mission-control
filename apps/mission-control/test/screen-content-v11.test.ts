@@ -6,6 +6,7 @@ import { BEATS, demoAt, loopLength, type Outcome } from '../src/world/room/demo.
 import { splitHero } from '../src/world/screens/v11/chrome.js';
 import { primaryFor, verdictPrimary } from '../src/world/screens/v11/content.js';
 import { drawConsoleScreen, drawSlab, type SlabKind } from '../src/world/screens/v11/screens.js';
+import { ARRIVE_SECONDS, SETTLED_SINCE, sinceFor } from '../src/world/screens/v11/system.js';
 
 /**
  * **Nothing on any display may name a verdict before the review that
@@ -235,6 +236,99 @@ describe('no display names a verdict before its review has reported', () => {
  * Stage 2's audit could not see it: it looked for a **verdict word** appearing
  * early, and the verdict word here was honest. This looks for the sentence.
  */
+/**
+ * **Reduced motion may not delete the words.** Stage 4 captured the twelve
+ * review states and the reduced-motion frame showed six displays with rails,
+ * an orrery and **no hero word anywhere** — no `NO VERDICT`, no `FABRICATOR`,
+ * no `BUILDING`, no status marks. It had been in the build since stage 2 and
+ * no frame of it had ever been looked at.
+ *
+ * The cause is one line each in `ConsoleScreenV11` and `ScreenBankV11`: the
+ * display's clock is held still under reduced motion, which is right for the
+ * hover and the sweep, so `since` stayed at 0 and every `clamp01(since / n)`
+ * with it. The remedy is the project's own rule — arrive, never hide — and
+ * `sinceFor` is where it now lives.
+ */
+describe('reduced motion arrives; it does not hide', () => {
+  const state = demoAt(30, 0, true);
+
+  /**
+   * The hero's opacity is `ctx.globalAlpha = easeOut(arrive)`
+   * (`chrome.ts`, `heroBand`), so what the frame showed — words present in the
+   * draw calls and invisible on the glass — is measured here as the alpha the
+   * hero was drawn at, not as its absence.
+   */
+  function heroAlpha(since: number): number {
+    const { ctx, text } = recorder(...SLAB_SIZE);
+    const seen: { value: string; alpha: number }[] = [];
+    const fill = ctx.fillText;
+    ctx.fillText = (value: string) => {
+      seen.push({ value, alpha: ctx.globalAlpha });
+      fill(value);
+    };
+    const canvas = {
+      width: SLAB_SIZE[0],
+      height: SLAB_SIZE[1],
+      getContext: () => ctx,
+    } as unknown as HTMLCanvasElement;
+    drawSlab(canvas, {
+      kind: 'verdict',
+      content: state.content,
+      outcome: state.outcome,
+      seconds: 30,
+      corner: 18,
+      t: 0,
+      since,
+      showBand: false,
+    });
+    void text;
+    const hero = seen.find((entry) => entry.value === 'PASS');
+    if (!hero) throw new Error(`no hero drawn: ${seen.map((e) => e.value).join(' | ')}`);
+    return hero.alpha;
+  }
+
+  it('drew the verdict at zero opacity at the instant of a change, which is what the frame showed', () => {
+    expect(heroAlpha(0)).toBe(0);
+  });
+
+  it('and draws it fully the moment the preference is set', () => {
+    expect(heroAlpha(sinceFor(true, 0))).toBe(1);
+  });
+
+  it('for every console as well as every slab, at every beat of every loop', () => {
+    for (const { seconds, loop } of beats()) {
+      const beat = demoAt(seconds, loop, true);
+      for (const role of ROLES) {
+        const member = beat.cast[role];
+        const drawn = drawnText(
+          (canvas) =>
+            drawConsoleScreen(canvas, {
+              role,
+              label: role,
+              state: member.station,
+              report: member.report,
+              outcome: beat.outcome,
+              quiet: 0,
+              corner: 18,
+              t: 0,
+              since: sinceFor(true, 0),
+              showBand: false,
+            }),
+          ...CONSOLE_SIZE[role],
+        );
+        expect(drawn.length, `${role} loop ${loop} at ${seconds}s drew nothing`).toBeGreaterThan(4);
+      }
+    }
+  });
+
+  it('leaves the ordinary path exactly as it was', () => {
+    expect(sinceFor(false, 0.41)).toBe(0.41);
+    expect(sinceFor(true, 0.41)).toBe(SETTLED_SINCE);
+    // Every one-shot in `screens.ts` divides `since` by less than two seconds.
+    expect(SETTLED_SINCE).toBeGreaterThan(ARRIVE_SECONDS * 10);
+  });
+});
+
 describe('the merge-eligibility sentence appears only in the state it names', () => {
   const ELIGIBLE = 'ELIGIBLE, NOT MERGED';
 
@@ -257,9 +351,7 @@ describe('the merge-eligibility sentence appears only in the state it names', ()
   });
 
   it('and a returned PASS that is only a verification says exactly that', () => {
-    expect(verdictPrimary('PASS', null, false).lead).toBe(
-      'VERIFICATION PASSED. REVIEW HAS NOT HAPPENED.',
-    );
+    expect(verdictPrimary('PASS', null, false).lead).toBe('VERIFICATION PASSED. NOT YET REVIEWED.');
     expect(verdictPrimary('PASS', null, true).lead).toContain(ELIGIBLE);
   });
 });
