@@ -23,9 +23,45 @@
 # `pnpm check` at the repository root runs `verify:owner` through the turbo
 # graph, and `apps/mission-control/test/required-checks.test.ts` fails if that
 # wiring, or this file's steps, are removed. Deleting this workflow therefore
-# breaks `pnpm test`. Steps 4 and 5 below are run twice on purpose — once
-# inside `pnpm check` and once explicitly — so that removing either path does
-# not remove the guard.
+# breaks `pnpm test`. The owner builds and verifies below are run twice on
+# purpose — once inside `pnpm check` and once explicitly — so that removing
+# either path does not remove the guard.
+#
+# ---------------------------------------------------------------------------
+# **Why this file has four jobs and not two: the Keeper's KS4-05 and KS4-06.**
+#
+# The stage-4 review read the Actions API and found that this branch's own gate
+# had never passed: 45 runs, and the `lint, typecheck, tests, owner build,
+# owner verify` job had never concluded `success`. Three of them exited 1 at
+# `pnpm run verify:owner:v11`; at the reviewed candidate the job hit
+# `timeout-minutes: 30` **inside `pnpm check`**, with the Mind Scan, both owner
+# builds, both verifies and the digest check all skipped behind it.
+#
+# The arithmetic is the plain part. Run 41, at the branch point `c2f9651`,
+# passed with `pnpm check` taking **2 m 23 s** — and at that commit `pnpm
+# check` did not yet run `verify:owner:v11`. That check drives a WebGL scene in
+# a software rasteriser across three simulated viewports plus a motion and
+# performance tail, and takes about **fifteen minutes** on this class of
+# machine. A single sequential job holding lint, typecheck, 1,452 tests, two
+# owner builds and two browser verifies inside a thirty-minute cap has almost
+# no margin, and run 85 proved it by running out of it at 30 m 17 s.
+#
+# So: the cap is raised where the work genuinely takes that long and the reason
+# is stated rather than assumed, and the job is split the same way the check
+# itself was split, into parts that run at the same time. The whole check still
+# runs whole, once, inside `pnpm check` — because "it has never run whole,
+# anywhere" is the second half of what the review found, and four partial runs
+# are four partial runs however sufficient their coverage.
+#
+# What this does **not** fix, stated so nobody reads a green tick as more than
+# it is: whether `verify:owner:v11` passes on the browser the lockfile pins was
+# unknown when this was written. `cdn.playwright.dev` is blocked by the build
+# environment's egress policy, so every local run anywhere in the record —
+# every builder's, both reviewers' — substituted the preinstalled
+# `chromium-1194`. CI is the only place the pinned browser is ever used. If a
+# part below fails, it fails for a reason that is now readable in its own job's
+# log rather than buried in a twenty-five-minute step.
+# ---------------------------------------------------------------------------
 
 name: checks
 
@@ -38,15 +74,24 @@ on:
 permissions:
   contents: read
 
+# **A note on this rule, because it is part of why the branch was never green.**
+# A push cancels the run in flight. That is right for cost, and it means a
+# branch pushed to every few minutes can never finish a thirty-minute run: runs
+# 82, 83 and 84 were each cancelled within three minutes of starting. Nothing
+# here can fix that except shorter jobs, which is what the split below is for.
 concurrency:
   group: checks-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # 1. The whole gate, in one command, exactly as a session runs it — and the
+  #    only place `verify:owner:v11` runs **whole** rather than in parts.
+  #    Sixty minutes because the measured work is about thirty and a cap has to
+  #    have margin over the measurement, not equal it.
   checks:
     name: lint, typecheck, tests, owner build, owner verify
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
 
@@ -69,11 +114,37 @@ jobs:
         run: pnpm --filter mission-control run install:browser
 
       # 2 + 4 + 5. `pnpm check` is biome, turbo typecheck, every workspace test,
-      # and then `verify:owner` — which the turbo graph makes depend on
-      # `build:owner`, so the Owner Build is built and opened from `file://`
-      # before this step can pass.
+      # and then `verify:owner` and `verify:owner:v11` — which the turbo graph
+      # makes depend on their builds, so both Owner Builds are built and opened
+      # from `file://` before this step can pass. Neither verify is given
+      # `VIRGIL_V11_VIEWPORTS` or `VIRGIL_V11_TAIL`, so the V11 one runs every
+      # viewport and the tail and prints a bare `PASS`.
       - name: pnpm check
         run: pnpm check
+
+  # 2. Everything that used to sit behind `pnpm check` in the same job and was
+  #    therefore reported as `skipped` whenever it ran long. None of it needs
+  #    the V11 verify to have finished, and a Mind Scan that never runs because
+  #    a browser check timed out is a check nobody has.
+  artifacts:
+    name: Mind Scan, V10 owner build and verify, committed digests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install the Chromium the lockfile pins
+        run: pnpm --filter mission-control run install:browser
 
       # 3. The Mind Scan over knowledge/.
       - name: Mind Scan
@@ -89,18 +160,6 @@ jobs:
       - name: Verify the Owner Build opens with no network
         run: pnpm --filter mission-control run verify:owner
 
-      # 5b. The same for V11, which additionally measures the simulated iPhone
-      # viewports: no horizontal overflow, every touch target at least 44 x 44
-      # CSS px, the gesture guard refusing a drag and accepting a tap, and V10's
-      # world still loading at V11's own `#/v10` route. Simulated viewports in
-      # headless Chromium; no iPhone exists in CI either, and the script prints
-      # that in its own output.
-      - name: Owner Build V11
-        run: pnpm --filter mission-control run build:owner:v11
-
-      - name: Verify the V11 Owner Build opens with no network
-        run: pnpm --filter mission-control run verify:owner:v11
-
       # 6. Every committed artifact still hashes to its recorded digest. The
       # V11 artifacts live in the `v11/` subdirectory but their `.sha256` files
       # stay here and name the relative path, so this one glob still covers
@@ -109,6 +168,67 @@ jobs:
       - name: Committed Owner Build digests
         working-directory: docs/process/PHASE_1_owner-builds
         run: sha256sum -c *.sha256
+
+  # 3. 5b. The V11 verify, in the four parts the script itself supports, run at
+  #    the same time instead of one after another. Each part sets up its own
+  #    artifact and drives it; the script prints `PASS (partial: …)` and names
+  #    exactly what it did, so no part can be mistaken for the whole check. The
+  #    whole check is the `checks` job above; these exist so that a failure has
+  #    a job of its own, a log of its own and about eight minutes rather than
+  #    twenty-five of context in front of it.
+  #
+  #    `fail-fast: false` so one part failing still reports the other three.
+  #    That suppresses nothing: every part's own exit code is the job's.
+  verify-v11:
+    name: V11 owner build and verify (${{ matrix.part.name }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        part:
+          - name: portrait-390
+            viewports: portrait-390
+            tail: skip
+          - name: portrait-430
+            viewports: portrait-430
+            tail: skip
+          - name: landscape-844
+            viewports: landscape-844
+            tail: skip
+          - name: motion and performance
+            viewports: none
+            tail: run
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install the Chromium the lockfile pins
+        run: pnpm --filter mission-control run install:browser
+
+      - name: Owner Build V11
+        run: pnpm --filter mission-control run build:owner:v11
+
+      # The same for V11, which additionally measures the simulated iPhone
+      # viewports: no horizontal overflow, every touch target at least 44 x 44
+      # CSS px, the gesture guard refusing a drag and accepting a tap, and V10's
+      # world still loading at V11's own `#/v10` route. Simulated viewports in
+      # headless Chromium; no iPhone exists in CI either, and the script prints
+      # that in its own output.
+      - name: Verify the V11 Owner Build opens with no network
+        env:
+          VIRGIL_V11_VIEWPORTS: ${{ matrix.part.viewports }}
+          VIRGIL_V11_TAIL: ${{ matrix.part.tail }}
+        run: pnpm --filter mission-control run verify:owner:v11
 
   reproducibility:
     name: newest Owner Build rebuilds byte for byte

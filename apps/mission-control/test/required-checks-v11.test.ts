@@ -200,3 +200,97 @@ describe('the V11 verify is a measurement, not a reading', () => {
     expect(verify).toContain('.owner-footer');
   });
 });
+
+/**
+ * **The Keeper's KS4-05, as much of it as a test can hold.**
+ *
+ * The review read the Actions API and found that this branch's gate had never
+ * passed: 45 runs, no `success` on the checks job. Three exited 1 inside
+ * `verify:owner:v11`; at the reviewed candidate the job hit `timeout-minutes:
+ * 30` inside `pnpm check`, and the Mind Scan, both owner builds, both verifies
+ * and the digest check were all reported `skipped` behind it. At the branch
+ * point, before `pnpm check` ran the V11 verify at all, the same job took four
+ * and a half minutes and passed.
+ *
+ * The workflow now runs the V11 verify's four parts as a matrix, at the same
+ * time, each with its own log — and still runs the check **whole** once, in
+ * `pnpm check`, because four partial runs are four partial runs. What a test
+ * can hold is that the split stays complete: that every viewport the script
+ * defines is covered by exactly one part, that exactly one part runs the tail,
+ * and that the whole run has not quietly been replaced by the parts.
+ *
+ * And the disclaimer this file already carries applies twice over here. These
+ * assertions read a file. They do not prove GitHub Actions ran anything, and
+ * the evidence that CI is green is a run's own conclusion.
+ */
+describe('the V11 verify’s CI split covers the whole check', () => {
+  const verify = readFileSync(
+    resolve(repoRoot, 'apps/mission-control/e2e/verify-owner-build-v11.ts'),
+    'utf8',
+  );
+  /** The viewport names the script itself defines, read from `ALL_VIEWPORTS`. */
+  const viewports = [...verify.matchAll(/\{ name: '([a-z0-9-]+)', width: \d+/g)].map((m) => m[1]);
+  const parts = [
+    ...workflow.matchAll(/- name: [^\n]*\n\s+viewports: ([^\n]+)\n\s+tail: ([^\n]+)/g),
+  ];
+
+  it('reads three viewports out of the script, so this test cannot go stale', () => {
+    expect(viewports).toEqual(['portrait-390', 'portrait-430', 'landscape-844']);
+  });
+
+  it('covers every viewport exactly once across the matrix', () => {
+    const covered = parts.flatMap((m) => (m[1] === 'none' ? [] : (m[1] as string).split(',')));
+    expect([...covered].sort()).toEqual([...viewports].sort());
+  });
+
+  it('runs the motion and performance tail in exactly one part', () => {
+    const running = parts.filter((m) => m[2] !== 'skip');
+    expect(running).toHaveLength(1);
+    // And that part takes no viewport, so nothing is measured twice.
+    expect(running[0]?.[1]).toBe('none');
+  });
+
+  it('still runs the check whole, once, and not only in parts', () => {
+    // `pnpm check` sets neither variable, which is the only arrangement in
+    // which the script prints a bare `PASS` (`verify-owner-build-v11.ts`).
+    expect(workflow).toContain('run: pnpm check');
+    const checkJob = workflow.slice(
+      workflow.indexOf('  checks:'),
+      workflow.indexOf('  artifacts:'),
+    );
+    expect(checkJob).toContain('run: pnpm check');
+    // No `env:` sets either variable in this job — the prose above the step
+    // names them, and naming is not setting.
+    expect(checkJob).not.toMatch(/^\s+VIRGIL_V11_VIEWPORTS:/m);
+    expect(checkJob).not.toMatch(/^\s+VIRGIL_V11_TAIL:/m);
+  });
+
+  it('gives the whole run a cap with margin over the work it is measured at', () => {
+    const checkJob = workflow.slice(
+      workflow.indexOf('  checks:'),
+      workflow.indexOf('  artifacts:'),
+    );
+    const cap = Number(/timeout-minutes: (\d+)/.exec(checkJob)?.[1]);
+    // The V11 verify alone is about fifteen minutes on this class of machine,
+    // and the reviewed candidate's run was cancelled at 30 m 17 s against a cap
+    // of 30. A cap has to be more than the measurement, not equal to it.
+    expect(cap).toBeGreaterThanOrEqual(45);
+  });
+
+  it('does not let the Mind Scan or the digests queue behind a browser check', () => {
+    const artifacts = workflow.slice(
+      workflow.indexOf('  artifacts:'),
+      workflow.indexOf('  verify-v11:'),
+    );
+    for (const command of [
+      'pnpm --filter @virgil/knowledge-lint run lint',
+      'pnpm --filter mission-control run build:owner',
+      'pnpm --filter mission-control run verify:owner',
+      'sha256sum -c *.sha256',
+    ]) {
+      expect(artifacts).toContain(command);
+    }
+    // No `needs:` anywhere: the four jobs do not queue behind one another.
+    expect(workflow).not.toContain('needs:');
+  });
+});
