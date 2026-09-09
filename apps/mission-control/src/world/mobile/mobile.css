@@ -513,3 +513,45 @@
 .v11-stage.has-window[data-orientation="landscape"] .v11-badge {
   padding-right: 4px;
 }
+
+/*
+ * **The reduced-performance notice.** `PERFORMANCE_STRATEGY.md`: a tier change
+ * is never silent. One discreet line at the top left, present only while the
+ * world is doing less than it was authored to do, in the world's own ice
+ * rather than in a warning colour — because nothing is wrong, the picture is
+ * being protected.
+ *
+ * It carries no action, so it is not a touch target and is not held to 44 px;
+ * it carries no demonstration vocabulary, so the one `Demo data` chip stays
+ * the only thing here that speaks about the demonstration.
+ */
+.v11-perf {
+  position: absolute;
+  left: var(--v11-left);
+  top: calc(var(--v11-top) + 56px);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: calc(100% - var(--v11-left) - var(--v11-right) - 56px);
+  padding: 5px 10px;
+  border: 1px solid rgba(126, 200, 227, 0.42);
+  border-radius: 999px;
+  background: rgba(6, 14, 30, 0.86);
+  font: 500 11px / 1.25 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(196, 226, 240, 0.9);
+  pointer-events: none;
+}
+
+.v11-perf-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(126, 200, 227, 0.9);
+  flex: none;
+}
+
+.v11-stage.has-window .v11-perf {
+  display: none;
+}

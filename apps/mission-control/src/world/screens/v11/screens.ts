@@ -319,7 +319,11 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
     // brief's *"layered graphics with depth"* is a picture behind the type,
     // not a picture beside it, and this is the one display large enough on
     // a phone to be read that way.
-    const primary = verdictPrimary(content.verdict, content.active);
+    const primary = verdictPrimary(
+      content.verdict,
+      content.active,
+      content.candidate === 'SAFE_TO_MERGE',
+    );
     const colour = colourOf(primary.status);
     const body = bodyRect(m);
     backdrop(ctx, m, primary.status, body);

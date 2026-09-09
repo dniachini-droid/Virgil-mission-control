@@ -30,7 +30,7 @@ const worktreeDirty = git(['status', '--porcelain']) !== '';
 // pass rather than still naming stage 3 alone.
 const stage =
   process.env.VIRGIL_OWNER_V11_STAGE ??
-  'V11 stage 3, and the pass after it — the windows: full-screen agent and Virgil views that lead with the conclusion, a back chevron, a real composer that says it is not connected, evidence on demand, the cluster and the default camera moved on the owner’s own real-device evidence, and landscape’s consoles recovered; then the station close-ups re-framed so each character is in their own, and every sign of Demo removed but one chip';
+  'V11 stage 4, the last — performance: a graceful reduced-performance mode that gives up invisible work before sharpness, a pixel ratio derived from the tier’s own pixel budget rather than assumed, the world slowed under an open window and stopped when the page is hidden, the cast loaded before the backdrop; the compressed-format question answered with an encoder rather than an opinion; and the twelve review states each reachable from a URL and looked at';
 // Overridable for the same reason as V10's: the embedded minute is the only
 // part of the output the commit does not determine, so a reviewer needs to be
 // able to feed it back in and get the same bytes.

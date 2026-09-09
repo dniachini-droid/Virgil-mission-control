@@ -133,20 +133,40 @@ export function accentOf(who: string): { key: string; second: string } {
  * The verdict on Virgil's centre slab. **It takes who holds the hop, not
  * how the loop ends**: see the `default` branch below for why the scripted
  * outcome may not reach this display before the review has reported.
+ *
+ * **`eligible` is stage 4's third parameter and it exists because of a defect
+ * found by looking at a frame.** `EVERY GATE PASSES. ELIGIBLE, NOT MERGED.` is
+ * `constitution/STATE_LANGUAGE.md`'s sentence for **`SAFE_TO_MERGE`**, and it
+ * was printed under the word `PASS` unconditionally — so at the passing loop's
+ * thirtieth second, where the Prover has returned PASS and the candidate is
+ * `READY_FOR_REVIEW`, the slab told the reader the candidate was eligible to
+ * merge. No merge gate had been evaluated and the Keeper had not reviewed.
+ *
+ * That is the same family as the two faults stage 2 found and one the audit
+ * missed, because the audit looked for verdict *words* appearing early and
+ * this is a **state sentence** appearing early. The word `PASS` was never
+ * wrong here — the Prover really had returned it. The line under it was. So
+ * the caller now says whether the candidate is actually in the state that
+ * sentence describes, and `test/screen-content-v11.test.ts` holds the sentence
+ * to that state.
  */
-export function verdictPrimary(verdict: string, active: string | null): Primary {
+export function verdictPrimary(verdict: string, active: string | null, eligible = false): Primary {
   switch (verdict) {
     case 'PASS':
       return {
         word: 'PASS',
-        lead: 'EVERY GATE PASSES. ELIGIBLE, NOT MERGED.',
+        lead: eligible
+          ? 'EVERY GATE PASSES. ELIGIBLE, NOT MERGED.'
+          : 'VERIFICATION PASSED. REVIEW HAS NOT HAPPENED.',
         mark: 'passed',
         status: 'green',
       };
     case 'PASS_WITH_NON_BLOCKING_FINDINGS':
       return {
         word: 'PASS WITH NON-BLOCKING FINDINGS',
-        lead: 'EVERY FINDING RECORDED AND CARRIED FORWARD',
+        lead: eligible
+          ? 'EVERY GATE PASSES. ELIGIBLE, NOT MERGED.'
+          : 'EVERY FINDING RECORDED AND CARRIED FORWARD',
         mark: 'passed',
         status: 'green',
       };

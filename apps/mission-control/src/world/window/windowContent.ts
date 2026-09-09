@@ -1218,7 +1218,11 @@ function keeperDoc(state: DemoState): WindowDoc {
  * each specialist did in one paragraph, with view actions under it.
  */
 function virgilDoc(state: DemoState, at?: string): WindowDoc {
-  const verdict = verdictPrimary(state.content.verdict, state.content.active);
+  const verdict = verdictPrimary(
+    state.content.verdict,
+    state.content.active,
+    state.content.candidate === 'SAFE_TO_MERGE',
+  );
   const holder = state.content.active;
   const gate = state.content.ownerGate;
   const verdictWord = state.content.verdict === '—' ? null : verdict.word;

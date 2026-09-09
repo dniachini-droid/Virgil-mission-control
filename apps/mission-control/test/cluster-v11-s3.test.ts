@@ -347,7 +347,17 @@ describe('the crispness question: the canvas, not the textures', () => {
     expect(dprFor('mobile', 'native', 3)).toEqual([1, 3]);
     expect(dprFor('mobile', 'native', 4)).toEqual([1, NATIVE_CAP]);
     expect(dprFor('mobile', 'low')).toEqual([1, 1.25]);
-    expect(SHARPNESS.map((option) => option.id)).toEqual(['low', 'standard', 'native']);
+    /**
+     * **Stage 4 put `auto` in front of the three, and left the three
+     * untouched.** Stage 3's assertion read exactly `['low', 'standard',
+     * 'native']`; it is widened here rather than deleted, because the three
+     * explicit settings still have to mean what stage 3 said they mean — which
+     * the four expectations above still hold — and what changed is only that
+     * the default is now derived from the tier's pixel budget instead of being
+     * a flat 2 everywhere (`world/mobile/performance.ts`,
+     * `test/performance-v11.test.ts`).
+     */
+    expect(SHARPNESS.map((option) => option.id)).toEqual(['auto', 'low', 'standard', 'native']);
   });
 
   it('never draws below one device pixel per CSS pixel', () => {

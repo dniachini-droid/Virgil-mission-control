@@ -111,7 +111,11 @@ describe('the V11 inliner enforces the same rules as V10’s', () => {
   });
 
   it('names the artifact with the viewing point at the front, as V7 established', () => {
-    expect(inline).toContain("VIRGIL_OWNER_V11_STAGE_SLUG ?? 'v11-s3'");
+    // The stage moves each pass; what may not move is the shape of the name.
+    // Stage 3's assertion pinned `v11-s3` exactly, which made a correct change
+    // fail; it is pinned to the pattern now, and the current stage beside it.
+    expect(inline).toMatch(/VIRGIL_OWNER_V11_STAGE_SLUG \?\? 'v11-s\d'/);
+    expect(inline).toContain("VIRGIL_OWNER_V11_STAGE_SLUG ?? 'v11-s4'");
     expect(inline).toContain('${stageSlug}-virgil-${shortSha}.html');
   });
 

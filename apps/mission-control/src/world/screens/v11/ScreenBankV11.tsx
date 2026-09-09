@@ -3,6 +3,7 @@ import { use, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../../ui/settings.js';
 import { createGlassMaterial, createRoundedConvexGlassGeometry } from '../../glass.js';
+import { sceneLoad } from '../../mobile/performance.js';
 import type { SlabName } from '../../panel/panelContent.js';
 import type { ReplaySpeed } from '../../replay/replayTimeline.js';
 import type { Outcome, RunMode, ScreenContent } from '../../room/demo.js';
@@ -341,7 +342,17 @@ function Slab({
   );
   const glassMaterial = useMemo(() => createGlassMaterial(), []);
   const clock = useRef({ t: 0, last: -1, key: '', at: 0 });
-  const fps = softwareRenderer ? SOFTWARE_REDRAW_FPS : REDRAW_FPS[tier];
+  /**
+   * **The redraw rate, and the one lever the reduced-performance mode pulls
+   * first.** The tier's rate, scaled by whatever the world is currently doing
+   * (`world/mobile/performance.ts`). Read inside `useFrame` rather than
+   * through context on purpose: six displays must not re-render when the level
+   * changes, and this is invisible work — the pictures are slow by design, so
+   * halving the rate at which they are redrawn costs nothing anybody can see,
+   * which is exactly what the brief means by reducing invisible work instead
+   * of making visible screens blurry.
+   */
+  const baseFps = softwareRenderer ? SOFTWARE_REDRAW_FPS : REDRAW_FPS[tier];
   const group = useRef<THREE.Group>(null);
 
   useFrame((_, delta) => {
@@ -366,6 +377,8 @@ function Slab({
       const outward = kind === 'verdict' ? 0 : 0.05 * settle * Math.sign(position[0]);
       group.current.position.set(position[0] + outward, position[1] + hover, position[2] + forward);
     }
+    const fps = baseFps * sceneLoad().redrawScale;
+    if (fps <= 0) return;
     if (c.last >= 0 && c.t - c.last < 1 / fps) return;
     c.last = c.t;
     drawSlab(canvas, {

@@ -221,6 +221,49 @@ describe('no display names a verdict before its review has reported', () => {
   });
 });
 
+/**
+ * **A state sentence may not appear before its state, and this is stage 4's
+ * addition after a frame showed one that did.**
+ *
+ * `EVERY GATE PASSES. ELIGIBLE, NOT MERGED.` is `STATE_LANGUAGE.md`'s sentence
+ * for `SAFE_TO_MERGE` and for nothing else. It was printed under the word
+ * `PASS` unconditionally, so at the passing loop's thirtieth second — where
+ * the Prover has returned PASS and the candidate is `READY_FOR_REVIEW` — the
+ * verdict slab told the reader the candidate was eligible to merge before any
+ * merge gate had been evaluated and before the Keeper had reviewed anything.
+ *
+ * Stage 2's audit could not see it: it looked for a **verdict word** appearing
+ * early, and the verdict word here was honest. This looks for the sentence.
+ */
+describe('the merge-eligibility sentence appears only in the state it names', () => {
+  const ELIGIBLE = 'ELIGIBLE, NOT MERGED';
+
+  it('at every half-second of all three loops', () => {
+    for (let loop = 0; loop < 3; loop += 1) {
+      for (let seconds = 0; seconds <= loopLength(loop); seconds += 0.5) {
+        const state = demoAt(seconds, loop, true);
+        const primary = verdictPrimary(
+          state.content.verdict,
+          state.content.active,
+          state.content.candidate === 'SAFE_TO_MERGE',
+        );
+        const claims = primary.lead.includes(ELIGIBLE);
+        expect(
+          claims,
+          `loop ${loop} at ${seconds}s: candidate ${state.content.candidate}, lead "${primary.lead}"`,
+        ).toBe(state.content.candidate === 'SAFE_TO_MERGE');
+      }
+    }
+  });
+
+  it('and a returned PASS that is only a verification says exactly that', () => {
+    expect(verdictPrimary('PASS', null, false).lead).toBe(
+      'VERIFICATION PASSED. REVIEW HAS NOT HAPPENED.',
+    );
+    expect(verdictPrimary('PASS', null, true).lead).toContain(ELIGIBLE);
+  });
+});
+
 describe('every word in a verdict position is one of the four, or none', () => {
   const allowed = new Set([...authority.reviewVerdicts.map(spaced), 'NO VERDICT']);
 

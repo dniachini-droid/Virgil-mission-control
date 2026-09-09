@@ -1,4 +1,5 @@
 import type { Tier } from '../../ui/settings.js';
+import { autoPixelRatio, MIN_PIXEL_RATIO, type Viewport } from './performance.js';
 
 /**
  * **How many device pixels the world is drawn at, and why stage 3 raised it.**
@@ -40,9 +41,14 @@ import type { Tier } from '../../ui/settings.js';
  * the rest of the development chrome.
  */
 
-export type Sharpness = 'low' | 'standard' | 'native';
+export type Sharpness = 'auto' | 'low' | 'standard' | 'native';
 
 export const SHARPNESS: readonly { id: Sharpness; label: string; note: string }[] = [
+  {
+    id: 'auto',
+    label: 'Auto',
+    note: 'Stage 4’s default: the smallest of the device’s own ratio, the tier’s ceiling and the tier’s pixel budget — so a big screen is not asked for the same ratio as a small one.',
+  },
   {
     id: 'low',
     label: 'Low',
@@ -51,7 +57,7 @@ export const SHARPNESS: readonly { id: Sharpness; label: string; note: string }[
   {
     id: 'standard',
     label: 'Standard',
-    note: 'Stage 3’s default: 2× on a phone, 2× on a desktop.',
+    note: 'Stage 3’s default, kept as an explicit choice: 2× on a phone, 2× on a desktop.',
   },
   {
     id: 'native',
@@ -91,12 +97,39 @@ export function dprFor(
   tier: Tier,
   sharpness: Sharpness,
   devicePixelRatio = typeof window === 'undefined' ? 1 : window.devicePixelRatio,
+  viewport?: Viewport,
+  pixelScale = 1,
 ): [number, number] {
-  if (sharpness === 'native') {
-    return [1, Math.max(1, Math.min(NATIVE_CAP, devicePixelRatio || 1))];
-  }
-  const ceiling = sharpness === 'low' ? LOW_CEILING[tier] : STANDARD_CEILING[tier];
-  return [1, ceiling];
+  const ceiling = ceilingFor(tier, sharpness, devicePixelRatio, viewport);
+  return [MIN_PIXEL_RATIO, Math.max(MIN_PIXEL_RATIO, Math.round(ceiling * pixelScale * 100) / 100)];
+}
+
+/**
+ * The ceiling before the reduced-performance mode has had its say.
+ *
+ * **`auto` is the default and it is a decision, not the old assumption.**
+ * Stage 3 shipped a flat 2× on every phone; `performance.ts`'s `autoPixelRatio`
+ * bounds that by the tier's own pixel budget as well, so a 390-point iPhone and
+ * a 1024-point tablet no longer get the same answer to a question whose cost
+ * differs by a factor of seven between them. The three explicit settings are
+ * left exactly as stage 3 left them, because an override that quietly refuses
+ * to do what it says is worse than no override at all.
+ */
+export function ceilingFor(
+  tier: Tier,
+  sharpness: Sharpness,
+  devicePixelRatio = typeof window === 'undefined' ? 1 : window.devicePixelRatio,
+  viewport?: Viewport,
+): number {
+  if (sharpness === 'native') return Math.max(1, Math.min(NATIVE_CAP, devicePixelRatio || 1));
+  if (sharpness === 'low') return LOW_CEILING[tier];
+  if (sharpness === 'standard') return STANDARD_CEILING[tier];
+  const seen: Viewport = viewport ?? {
+    cssWidth: typeof window === 'undefined' ? 1280 : window.innerWidth,
+    cssHeight: typeof window === 'undefined' ? 800 : window.innerHeight,
+    devicePixelRatio: devicePixelRatio || 1,
+  };
+  return autoPixelRatio(tier, seen, STANDARD_CEILING[tier]);
 }
 
 /**

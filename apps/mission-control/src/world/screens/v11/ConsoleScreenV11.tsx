@@ -3,6 +3,7 @@ import { use, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../../ui/settings.js';
 import { buildVisorMeshes, placedPositions } from '../../characters/visorFit.js';
+import { sceneLoad } from '../../mobile/performance.js';
 import { CAST, type Role } from '../../room/cast.js';
 import type { Outcome, Report, StationState } from '../../room/demo.js';
 import { wasTap } from '../../room/gesture.js';
@@ -173,7 +174,17 @@ export function ConsoleScreenV11({
     on: false,
     powerAt: -POWER_OFF_SECONDS,
   });
-  const fps = softwareRenderer ? SOFTWARE_REDRAW_FPS : REDRAW_FPS[tier];
+  /**
+   * **The redraw rate, and the one lever the reduced-performance mode pulls
+   * first.** The tier's rate, scaled by whatever the world is currently doing
+   * (`world/mobile/performance.ts`). Read inside `useFrame` rather than
+   * through context on purpose: six displays must not re-render when the level
+   * changes, and this is invisible work — the pictures are slow by design, so
+   * halving the rate at which they are redrawn costs nothing anybody can see,
+   * which is exactly what the brief means by reducing invisible work instead
+   * of making visible screens blurry.
+   */
+  const baseFps = softwareRenderer ? SOFTWARE_REDRAW_FPS : REDRAW_FPS[tier];
 
   useFrame((_, delta) => {
     const c = clock.current;
@@ -198,6 +209,8 @@ export function ConsoleScreenV11({
     if (material.uniforms.uGlow) material.uniforms.uGlow.value = crt.glow;
     const dark = !on && crt.settled;
     if (dark) return;
+    const fps = baseFps * sceneLoad().redrawScale;
+    if (fps <= 0) return;
     if (c.last >= 0 && c.t - c.last < 1 / fps) return;
     c.last = c.t;
     drawConsoleScreen(canvas, {
