@@ -39,6 +39,7 @@ import { CAST, ROLES, type Role } from './cast.js';
 import { closeUpPose } from './closeUp.js';
 import { forcedState, type RunMode, useDemo } from './demo.js';
 import { FloorSheen } from './FloorSheen.js';
+import { reportCamera, watchGestures } from './gesture.js';
 import { LightingRig } from './LightingRig.js';
 import { PortholeFrame, Station, StationLight, VirgilConsole } from './Models.js';
 import { Orrery } from './Orrery.js';
@@ -129,6 +130,9 @@ export function VirgilRoom() {
   // the same reason: every screen in the set shares one answer to it.
   setBandReplay(mode === 'replay');
 
+  // The press record the world's click handlers ask (V10, defect A).
+  useEffect(() => watchGestures(), []);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -193,7 +197,15 @@ export function VirgilRoom() {
           <Rig view={view} focus={focus} />
           {coarse ? null : <Post view={view} />}
         </Canvas>
-        <div className="room-controls">
+        {/* The controls are not part of the world either: the same
+            `.room-stage` event source would otherwise raycast every press
+            on a button into the scene and re-frame the camera behind it
+            (V10, defect B). */}
+        <div
+          className="room-controls"
+          onPointerDown={(event) => event.stopPropagation()}
+          onPointerUp={(event) => event.stopPropagation()}
+        >
           <span className="room-controls-group">
             <span className="room-controls-label">Demo</span>
             <button type="button" className={demo ? 'is-active' : ''} onClick={() => setDemo(true)}>
@@ -622,6 +634,17 @@ function Rig({ view, focus }: { view: View; focus: Focus }) {
     }
     applyLimits(c, limits.current);
     c.update();
+    // Publish the view, so a press can be told from a gesture that moved
+    // it (V10, defect A). Six numbers, after `update()` and therefore
+    // after damping: what the eye is actually looking at this frame.
+    reportCamera([
+      camera.position.x,
+      camera.position.y,
+      camera.position.z,
+      c.target.x,
+      c.target.y,
+      c.target.z,
+    ]);
   });
 
   // No limit props: they are written on the object above, in the frame

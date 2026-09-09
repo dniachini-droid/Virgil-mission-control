@@ -3,6 +3,7 @@ import { use, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
 import { CAST, figurePlacement, ROLES, type Role, workingPlacement } from '../room/cast.js';
+import { wasTap } from '../room/gesture.js';
 import { breathe } from './breathing.js';
 import { createLocomotion, type Pose } from './locomotion.js';
 import { type FaceState, FLARE_SECONDS, Visor, type VisorAnchor } from './Visor.js';
@@ -116,6 +117,9 @@ export function Figure({
       rotation={[0, front.rotationY, 0]}
       onClick={(event) => {
         event.stopPropagation();
+        // A drag across a character is the camera being moved, not a
+        // choice to go to them (V10, defect A).
+        if (!wasTap()) return;
         onSelect?.(role);
       }}
     >

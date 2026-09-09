@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber';
 import { use, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
+import { wasTap } from '../room/gesture.js';
 import { layout } from '../room/palette.js';
 import { loadRiggedVirgil, virgilVisorMask } from '../virgil/virgilRigged.js';
 import { breathe } from './breathing.js';
@@ -199,6 +200,8 @@ export function VirgilRigged({
         position={layout.virgilAt}
         onClick={(event) => {
           event.stopPropagation();
+          // As `Figure`: a drag across him is navigation (V10, defect A).
+          if (!wasTap()) return;
           onSelect?.();
         }}
       >

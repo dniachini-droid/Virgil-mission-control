@@ -5,6 +5,7 @@ import { useSettings } from '../../ui/settings.js';
 import { buildVisorMeshes, placedPositions } from '../characters/visorFit.js';
 import { CAST, type Role } from '../room/cast.js';
 import type { Outcome, Report, StationState } from '../room/demo.js';
+import { wasTap } from '../room/gesture.js';
 import { crtFrame, POWER_OFF_SECONDS } from './crt.js';
 import { loadScreenFonts } from './fonts.js';
 import { SCREEN_CANVAS_PIXELS, screenPlan } from './screenPlane.js';
@@ -177,6 +178,8 @@ export function ConsoleScreen({
         object={screen.face}
         onClick={(event: { stopPropagation: () => void }) => {
           event.stopPropagation();
+          // Navigation is not a press (V10, defect A); see `gesture.ts`.
+          if (!wasTap()) return;
           onOpen();
         }}
       />

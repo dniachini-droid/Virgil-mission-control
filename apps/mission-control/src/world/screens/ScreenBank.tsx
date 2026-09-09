@@ -8,6 +8,7 @@ import type { SlabName } from '../panel/panelContent.js';
 import type { ReplaySpeed } from '../replay/replayTimeline.js';
 import { LONGEST_RECORDED_HOP, replayLedgerAt } from '../replay/replayTimeline.js';
 import type { Outcome, RunMode, ScreenContent } from '../room/demo.js';
+import { wasTap } from '../room/gesture.js';
 import { layout, room } from '../room/palette.js';
 import { RETURNING, SLAB_ARRIVAL } from './arrival.js';
 import { CANDIDATE_ID } from './candidate.js';
@@ -327,6 +328,11 @@ function Slab({
         position={[0, 0, -recess]}
         onClick={(event) => {
           event.stopPropagation();
+          // A drag, a pinch or a wheel is navigation, not a press on this
+          // screen (V10, defect A). React Three Fiber's click fires on any
+          // pointer-up that began on the same object, however far it
+          // travelled, so orbiting the camera opened a window every time.
+          if (!wasTap()) return;
           // A ledger row, if the point is in one: the owner's *"clicking a
           // row opens that hop"*. The row is derived from the texture
           // coordinate the raycast returned, through the same layout the
