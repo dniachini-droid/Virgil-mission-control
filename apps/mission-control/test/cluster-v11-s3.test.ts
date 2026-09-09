@@ -292,8 +292,14 @@ describe('landscape has its own cluster, and its consoles are back', () => {
     expect(widths[0]).toBeCloseTo(45.2, 0);
     expect(widths[1]).toBeCloseTo(35.8, 0);
     expect(widths[2]).toBeCloseTo(40.6, 0);
-    // Better than stage 1's 40.7 / 34.2 / 36.9, which was measured before any
-    // cluster existed at all.
+    /**
+     * **Better than the one stage-1 figure either record carries**, 40.7 px for
+     * the Fabricator's screen — quoted, not re-derived: projecting through the
+     * pose stage 1's own table gives 52.5 with today's geometry, so that
+     * number could not be reproduced and is not claimed. The comparison that is
+     * measured end to end is against stage 2's 23.4 / 19.6 / 21.2, taken with
+     * this same code.
+     */
     expect(widths[0]).toBeGreaterThan(40.7);
   });
 

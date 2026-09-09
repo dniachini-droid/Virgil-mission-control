@@ -148,7 +148,9 @@ export const V11_CLUSTER: ClusterParams = {
  * there fall from 40.7 to 23.4 CSS px."* That is a regression this project
  * introduced, so it is this project's to fix, and the fix is not a compromise
  * in portrait: landscape gets a cluster scaled for a wide, shallow frame
- * instead of inheriting the one solved for a tall one.
+ * instead of inheriting the one solved for a tall one — and the real cause was
+ * smaller than that and worse: `slabCorners()` took no orientation, so the
+ * landscape frame was solved against the **portrait** cluster's corners.
  */
 export const V11_CLUSTER_LANDSCAPE: ClusterParams = {
   lift: 0.9,

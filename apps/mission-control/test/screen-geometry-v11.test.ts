@@ -228,8 +228,10 @@ describe('the other two viewports, recorded so a change is noticed', () => {
        * own cluster now and the solver is back at its nearest stand, 10.50 m,
        * at 38.6° instead of 50°.
        *
-       * 45.2 / 35.8 / 40.6 — above stage 1's 40.7 / 34.2 / 36.9, which was
-       * measured before any cluster existed.
+       * 45.2 / 35.8 / 40.6. Above the one stage-1 figure either record carries
+       * — 40.7 for the Fabricator's — which is quoted rather than re-derived:
+       * stage 1's own stated pose projects to 52.5 with today's geometry, so
+       * that number could not be reproduced here and is not claimed.
        */
       {
         fabricator: [45.2, 26.0],

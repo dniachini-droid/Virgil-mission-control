@@ -1107,19 +1107,27 @@ Landscape has its own parameters now, and the orientation is threaded through
 `slabCorners`, `compositionPoints`, `anchors`, the board camera and
 `ScreenBankV11`.
 
-| At 844 × 390 | stage 1 | stage 2 | **stage 3** |
+| At 844 × 390 | stage 1, as recorded | stage 2, measured | **stage 3, measured** |
 |---|---|---|---|
 | Fabricator's screen | 40.7 px | 23.4 | **45.2** |
-| Prover's screen | 34.2 | 19.6 | **35.8** |
-| Keeper's screen | 36.9 | 21.2 | **40.6** |
+| Prover's screen | not recorded | 19.6 | **35.8** |
+| Keeper's screen | not recorded | 21.2 | **40.6** |
 | lens | 33.5° | 50.0° (its ceiling) | **38.6°** |
 | distance | 10.50 m | 13.89 | **10.50 m** (its nearest) |
 | the slabs' displays | — | 89.2 | **85.3** |
 
-The consoles are **above stage 1's figures**, which were measured before any
-cluster existed, and the slabs stay over the 64 px width at which this project
-has measured screen text to collapse. **Portrait is untouched by the fix**: the
-two parameter sets are independent objects and the test asserts it.
+**One figure in that table is quoted and not re-derived, and it matters enough
+to say so.** Stage 2's record states the consoles fell *"from 40.7 to 23.4"*,
+and 40.7 is the only stage-1 landscape console figure either record carries.
+Projecting the three consoles through the pose stage 1's own table gives —
+`0.00, 3.97, 7.89` at 33.5° — produces **52.5 / 41.7 / 47.3** with today's
+geometry, not 40.7, so this session **could not reproduce that number** and does
+not claim it. The comparison that is measured end to end is stage 2's
+23.4 / 19.6 / 21.2 against stage 3's 45.2 / 35.8 / 40.6, both taken with the
+same code in `study/measureDisplays.ts`. The slabs stay over the 64 px width at
+which this project has measured screen text to collapse. **Portrait is untouched
+by the fix**: the two parameter sets are independent objects and the test asserts
+it.
 
 ### Crispness: the canvas, not the textures
 
@@ -1260,7 +1268,8 @@ so stage 3 adds nothing at all to V10's build: the window lives entirely in
 77-byte difference stage 1 isolated and explained is unchanged and no new one was
 added. V9's panel and its stylesheet are untouched and still dress V10's own
 record at `#/v10`, which was driven in the browser inside this build: 1 control
-bar, 12 buttons, 1 demonstration badge, 1 provenance footer, 0 V11 nodes.
+bar, 1 demonstration badge, 1 provenance footer and 0 V11 nodes, each of them a
+condition `verify:owner:v11` fails on rather than a note.
 
 ### The checks, as printed
 
