@@ -1572,7 +1572,7 @@ foreground cap. Every part ran in the foreground.
 | `build:owner:v11` from a clean tree | `v11-s3-virgil-5d16cbc3ab.html`, **8,682,729 bytes** |
 | `sha256sum -c *.sha256` | **18 committed artifacts, all `OK`** |
 | `pnpm reproduce:owner` | `identical — rebuilt from 4ae03314d93ed6e26982f3691034974ff5b3887b`; `PASS` |
-| `pnpm reproduce:owner:v11` | `identical — rebuilt from 5d16cbc3abd0e6da3c9ba0ba58b53f36f75db6c0`; `PASS` |
+| `pnpm reproduce:owner:v11` | `identical — rebuilt from 5d16cbc3ab2a6e10889f88520fff98ec0160a1ce`; `PASS` |
 
 **The preservation contract, and the strongest single number in this record.**
 Building V10's entry from a clean tree at this pass's own HEAD gives
