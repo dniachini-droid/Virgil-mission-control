@@ -57,7 +57,15 @@ describe('the overview holds the whole composition at every viewport', () => {
       const pose = overviewPose(aspect);
       // A ratio of 1 means a point sits exactly on the frame's edge. Every
       // critical point must be strictly inside, with air.
-      expect(fits(pose, compositionPoints(), aspect)).toBeLessThan(0.95);
+      // **The cluster the frame is judged against is this orientation's own.**
+      // Portrait and landscape hang the three slabs differently
+      // (`screens/v11/bank.ts`), and judging a landscape frame against the
+      // portrait cluster is precisely the fault that cost landscape its
+      // consoles at stage 2.
+      expect(
+        fits(pose, compositionPoints(orientationFor(aspect)), aspect),
+        `${name}: a critical point is on or outside the frame`,
+      ).toBeLessThan(0.95);
     });
 
     it(`${name} contains the consoles' own measured boxes`, () => {
@@ -161,6 +169,7 @@ describe('the depth layers', () => {
 
 describe('what a tap can reach', () => {
   const list = anchors();
+  const listFor = (aspect: number) => anchors(orientationFor(aspect));
 
   it('covers every character and every important screen, once each', () => {
     const ids = list.map((anchor) => anchor.id).sort();
@@ -213,7 +222,7 @@ describe('what a tap can reach', () => {
     for (const [name, width, height] of VIEWPORTS) {
       const aspect = width / height;
       const pose = overviewPose(aspect);
-      const points = list.map((anchor) => anchor.point);
+      const points = listFor(aspect).map((anchor) => anchor.point);
       expect(fits(pose, points, aspect), `${name}: an anchor is outside the frame`).toBeLessThan(1);
     }
   });

@@ -9,7 +9,7 @@ import type { Outcome, RunMode, ScreenContent } from '../../room/demo.js';
 import { wasTap } from '../../room/gesture.js';
 import { room } from '../../room/palette.js';
 import { loadScreenFonts } from '../fonts.js';
-import { v11Cluster } from './bank.js';
+import { type ClusterOrientation, v11Cluster } from './bank.js';
 import { ANISOTROPY, REDRAW_FPS, SOFTWARE_REDRAW_FPS, TEXTURE_WIDTH } from './resolution.js';
 import { drawSlab, ledgerRowAtUv, type SlabKind } from './screens.js';
 
@@ -226,6 +226,7 @@ export function buildV11Slab(plan: V11SlabPlan): {
 }
 
 export function ScreenBankV11({
+  orientation,
   content,
   outcome,
   seconds,
@@ -233,6 +234,12 @@ export function ScreenBankV11({
   speed,
   onOpen,
 }: {
+  /**
+   * Which cluster to hang the three slabs in. Portrait and landscape have their
+   * own, because one composition cannot serve a frame that is 1 : 2.16 and one
+   * that is 2.16 : 1 (`bank.ts`).
+   */
+  orientation: ClusterOrientation;
   content: ScreenContent;
   outcome: Outcome;
   seconds: number;
@@ -245,7 +252,7 @@ export function ScreenBankV11({
   void speed;
   return (
     <group>
-      {v11Cluster().map((placement) => (
+      {v11Cluster(orientation).map((placement) => (
         <Slab
           key={placement.kind}
           kind={placement.kind}

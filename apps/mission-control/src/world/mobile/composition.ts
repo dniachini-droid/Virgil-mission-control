@@ -1,7 +1,12 @@
 import { CAST, eyeHeight, figurePlacement, ROLES, type Role, screenCentre } from '../room/cast.js';
 import { closeUpPose, fovFor, screenCorners } from '../room/closeUp.js';
 import { type CameraPose, layout } from '../room/palette.js';
-import { v11Cluster, v11ClusterCentre, v11SlabAt } from '../screens/v11/bank.js';
+import {
+  type ClusterOrientation,
+  v11Cluster,
+  v11ClusterCentre,
+  v11SlabAt,
+} from '../screens/v11/bank.js';
 import type { WindowTarget } from '../window/windowContent.js';
 
 /**
@@ -82,7 +87,7 @@ export interface Frame {
  * standing 2–3.5 m behind it, and low enough that the set reads as a place
  * seen from within rather than a map.
  *
- * **Stage 2 brings it down from 28° to 22°**, on the owner's instruction
+ * **Stage 2 brought it down from 28° to 22°**, on the owner's instruction
  * after seeing the stage-2 overview: *"the default camera angle is too high
  * up… bring the camera down a little bit more level so it's not looking on
  * top of the tabletop."* At 28° the camera stood 8.48 m up and the disc's
@@ -91,9 +96,30 @@ export interface Frame {
  * tabletop and standing at it. The camera stays movable — he raised
  * locking it and deferred it: *"we could potentially even, like, lock that
  * in place, but we can do that later. Still make it movable."*
+ *
+ * **Stage 3 brings it down again, to 11.7°, because that is where the owner
+ * put it himself.** He photographed his own iPhone *"with the camera at its
+ * lowest position — which he says is how he wants it to start by default."*
+ * The lowest position was not a number anybody chose: it was 22° minus the
+ * 0.18 rad of downward travel `mobileLimits` allows the overview, which is
+ * 10.31°, so the pose he was looking at is **11.69°** and that is now the
+ * default. Nothing else about the frame is touched.
+ *
+ * What it costs, measured rather than described: the three consoles go from
+ * 43.3 / 36.4 / 39.5 CSS px to 43.1 / 36.1 / 39.1 at 390 × 844 — four
+ * hundredths of a pixel per degree, because portrait's frame is bound by the
+ * consoles' own horizontal footprint and not by the elevation. The slabs come
+ * down with it, which is the other half of what he asked for.
+ *
+ * **And the downward travel is tightened from 0.18 rad to 0.06.** That is not
+ * a tidy-up: his screenshot at the old limit showed the top screen **clipped**,
+ * and a composition that is only correct at its default pose is not correct.
+ * `mobileLimits` keeps the upward travel and the pan-free orbit he asked to
+ * keep, and `test/cluster-v11-s3.test.ts` measures the clearance at the lowest
+ * pose the camera can now reach rather than only at the default.
  */
 export const PORTRAIT_FRAME: Frame = {
-  elevation: 22,
+  elevation: 11.7,
   target: [0, 1.3, -2.35],
   minDistance: 11.5,
   maxDistance: 19,
@@ -132,9 +158,9 @@ const SLAB_HALF_HEIGHT = 0.8 / 2 + 0.12;
  * against these, so enlarging a slab or moving the cluster automatically
  * re-frames the overview rather than silently pushing a corner off screen.
  */
-export function slabCorners(): Vec3[] {
+export function slabCorners(orientation: ClusterOrientation = 'portrait'): Vec3[] {
   const corners: Vec3[] = [];
-  for (const placement of v11Cluster()) {
+  for (const placement of v11Cluster(orientation)) {
     const [px, py, pz] = placement.position;
     const yaw = placement.rotation[1];
     const hw = SLAB_HALF_WIDTH * placement.scale;
@@ -154,7 +180,7 @@ export function slabCorners(): Vec3[] {
  * one of these leaves the frame the composition has failed, and the solver
  * below is what stops it happening at a viewport nobody tried.
  */
-export function compositionPoints(): Vec3[] {
+export function compositionPoints(orientation: ClusterOrientation = 'portrait'): Vec3[] {
   const points: Vec3[] = [];
   const [vx, vy, vz] = layout.virgilAt;
   // Virgil: the top of his head, and the four corners of his console deck.
@@ -166,7 +192,7 @@ export function compositionPoints(): Vec3[] {
   // His three slabs, as boxes: the board has to be legible from the overview.
   // Virgil's cluster: each slab's four corners, at its own scale and yaw
   // (`screens/v11/bank.ts`). The overview may not lose one of them.
-  for (const corner of slabCorners()) points.push(corner);
+  for (const corner of slabCorners(orientation)) points.push(corner);
   for (const role of ROLES) {
     const stand = figurePlacement(role).at;
     points.push([stand[0], eyeHeight(role) + HEAD_ABOVE_EYES, stand[2]]);
@@ -253,8 +279,21 @@ export function neededFov(
  * decreasing function, so the answer is the same on every machine.
  */
 export function overviewPose(aspect: number): CameraPose {
-  const frame = frameFor(orientationFor(aspect));
-  const points = compositionPoints();
+  const orientation = orientationFor(aspect);
+  const frame = frameFor(orientation);
+  /**
+   * **The cluster the frame is solved against is this orientation's own**, and
+   * that one missing argument is the whole of stage 2's landscape regression.
+   *
+   * `slabCorners()` defaulted to the portrait cluster, so a landscape frame was
+   * solved to hold a 2.93 m primary hanging 2.6 m up — geometry that is not on
+   * screen in landscape at all. The solver did exactly as it was told and
+   * retreated to 13.89 m at its widest lens, and the three consoles fell from
+   * 40.7 to 23.4 CSS px. Stage 2's run record attributed that to the cluster
+   * being large, which was half the truth: landscape was paying for a cluster
+   * it was not showing.
+   */
+  const points = compositionPoints(orientation);
   const enclosure = enclosurePoints();
   const at = (distance: number) => neededFov(frame, distance, aspect, points, enclosure);
   const near = at(frame.minDistance);
@@ -350,7 +389,7 @@ function slabAnchor(id: string, label: string, point: Vec3, at: string): Anchor 
  * hit test is nearest-centre, so where two overlap the nearer one wins and
  * both open the same agent's record anyway.
  */
-export function anchors(): Anchor[] {
+export function anchors(orientation: ClusterOrientation = 'portrait'): Anchor[] {
   const [vx, vy, vz] = layout.virgilAt;
   const list: Anchor[] = [
     {
@@ -361,9 +400,24 @@ export function anchors(): Anchor[] {
       focus: 'virgil',
       window: { agent: 'virgil' },
     },
-    slabAnchor('board-roles', 'The run ledger', v11SlabAt('roles').position, 'sequence'),
-    slabAnchor('board-verdict', 'The verdict board', v11SlabAt('verdict').position, 'truth'),
-    slabAnchor('board-candidate', 'The candidate board', v11SlabAt('candidate').position, 'next'),
+    slabAnchor(
+      'board-roles',
+      'The run ledger',
+      v11SlabAt('roles', orientation).position,
+      'sequence',
+    ),
+    slabAnchor(
+      'board-verdict',
+      'The verdict board',
+      v11SlabAt('verdict', orientation).position,
+      'truth',
+    ),
+    slabAnchor(
+      'board-candidate',
+      'The candidate board',
+      v11SlabAt('candidate', orientation).position,
+      'next',
+    ),
   ];
   for (const role of ROLES) {
     const stand = figurePlacement(role).at;
@@ -409,8 +463,9 @@ export function mobilePose(focus: MobileFocus, aspect: number): CameraPose {
     };
   }
   if (focus === 'board') {
-    const { y, z, halfWidth } = v11ClusterCentre();
-    const fov = orientationFor(aspect) === 'portrait' ? 52 : 44;
+    const orientation = orientationFor(aspect);
+    const { y, z, halfWidth } = v11ClusterCentre(orientation);
+    const fov = orientation === 'portrait' ? 52 : 44;
     const distance = Math.max(5, halfWidth / (Math.tan((fov / 2) * (Math.PI / 180)) * aspect));
     return { position: [0, y, z + distance], target: [0, y - 0.05, z], fov };
   }

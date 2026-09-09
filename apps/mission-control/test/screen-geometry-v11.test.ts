@@ -15,6 +15,7 @@ import { V11_CLUSTER, v11Cluster } from '../src/world/screens/v11/bank.js';
 import { bezelPlan } from '../src/world/screens/v11/bezel.js';
 import { TEXTURE_WIDTH, textureBytes } from '../src/world/screens/v11/resolution.js';
 import { v11SlabPlan } from '../src/world/screens/v11/ScreenBankV11.js';
+import { cameraFor, displays, projected, slabOutlines } from '../study/measureDisplays.js';
 
 /**
  * **How large each display actually is, in CSS pixels, on the viewports the
@@ -52,105 +53,14 @@ export const TEXT_COLLAPSE_PX = 64;
 
 type Quad = [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3];
 
-function cameraFor(
-  pose: { position: readonly number[]; target: readonly number[]; fov: number },
-  w: number,
-  h: number,
-) {
-  const camera = new THREE.PerspectiveCamera(pose.fov, w / h, 0.1, 200);
-  camera.position.set(
-    pose.position[0] as number,
-    pose.position[1] as number,
-    pose.position[2] as number,
-  );
-  camera.lookAt(pose.target[0] as number, pose.target[1] as number, pose.target[2] as number);
-  camera.updateMatrixWorld(true);
-  camera.updateProjectionMatrix();
-  return camera;
-}
-
-/** A world-space quad's mean width and height on screen, in CSS pixels. */
-function projected(quad: Quad, camera: THREE.PerspectiveCamera, w: number, h: number) {
-  const pts = quad.map((corner) => {
-    const p = corner.clone().project(camera);
-    return [((p.x + 1) / 2) * w, ((1 - p.y) / 2) * h] as [number, number];
-  });
-  const edge = (a: number, b: number) => {
-    const p = pts[a] as [number, number];
-    const q = pts[b] as [number, number];
-    return Math.hypot(p[0] - q[0], p[1] - q[1]);
-  };
-  return {
-    widthPx: (edge(0, 1) + edge(3, 2)) / 2,
-    heightPx: (edge(0, 3) + edge(1, 2)) / 2,
-  };
-}
-
-/** Every display's drawn outline, as a quad in the room, with its own aspect. */
-function displays() {
-  const out: Record<string, { quad: Quad; aspect: number; openingMm: [number, number] }> = {};
-  for (const role of ROLES) {
-    const { metadata, screen } = CAST[role].station;
-    const geometry = buildGeometry(metadata, decodeMeshyPayload(metadata, PAYLOADS[role]));
-    const mesh = new THREE.Mesh(geometry);
-    const { scale, positionScale, baseOffsetY } = metadata.runtime;
-    mesh.scale.setScalar(scale * positionScale);
-    mesh.position.y = baseOffsetY;
-    const positions = placedPositions(mesh);
-    const plan = screenPlan(screen, positions, (geometry.index as THREE.BufferAttribute).array);
-    const d = plan.outline.drawn;
-    const origin = plan.plane.centre
-      .clone()
-      .add(plan.plane.right.clone().multiplyScalar(d.centreU))
-      .add(plan.plane.up.clone().multiplyScalar(d.centreV))
-      .add(plan.plane.normal.clone().multiplyScalar(plan.lift));
-    const right = plan.plane.right.clone().multiplyScalar(d.halfWidth);
-    const up = plan.plane.up.clone().multiplyScalar(d.halfHeight);
-    const member = CAST[role];
-    const group = new THREE.Group();
-    group.position.set(member.at[0], member.at[1], member.at[2]);
-    group.rotation.y = member.rotationY;
-    group.updateMatrixWorld(true);
-    const world = (p: THREE.Vector3) => p.clone().applyMatrix4(group.matrixWorld);
-    out[role] = {
-      quad: [
-        world(origin.clone().sub(right).add(up)),
-        world(origin.clone().add(right).add(up)),
-        world(origin.clone().add(right).sub(up)),
-        world(origin.clone().sub(right).sub(up)),
-      ],
-      aspect: plan.aspect,
-      openingMm: [2 * d.halfWidth * 1000, 2 * d.halfHeight * 1000],
-    };
-  }
-  const plan = v11SlabPlan(1024);
-  for (const placement of v11Cluster()) {
-    const id = `slab-${placement.kind}`;
-    const group = new THREE.Group();
-    group.position.set(...placement.position);
-    group.rotation.set(...placement.rotation);
-    group.scale.setScalar(placement.scale);
-    group.updateMatrixWorld(true);
-    const hw = plan.displayWidth / 2;
-    const hh = plan.displayHeight / 2;
-    out[id] = {
-      quad: [
-        new THREE.Vector3(-hw, hh, 0).applyMatrix4(group.matrixWorld),
-        new THREE.Vector3(hw, hh, 0).applyMatrix4(group.matrixWorld),
-        new THREE.Vector3(hw, -hh, 0).applyMatrix4(group.matrixWorld),
-        new THREE.Vector3(-hw, -hh, 0).applyMatrix4(group.matrixWorld),
-      ],
-      aspect: plan.displayWidth / plan.displayHeight,
-      openingMm: [
-        plan.displayWidth * placement.scale * 1000,
-        plan.displayHeight * placement.scale * 1000,
-      ],
-    };
-  }
-  return out;
-}
-
-const DISPLAYS = displays();
+/**
+ * **The measurement itself lives in `study/measureDisplays.ts`**, so that this
+ * test, the parameter sweep that chose the cluster's numbers and any later
+ * question all measure with one piece of code. It used to be duplicated here,
+ * and the copy took no orientation — which is how a landscape frame came to be
+ * judged against the portrait cluster.
+ */
+const DISPLAYS = displays('portrait');
 
 describe('the models’ own openings, as measured', () => {
   /**
@@ -202,12 +112,16 @@ describe('how large each display is on a 390 x 844 portrait viewport', () => {
    * its own width and height rather than by a bounding box.
    */
   const OVERVIEW: Record<string, [number, number]> = {
-    fabricator: [43.3, 25.4],
-    prover: [36.4, 19.5],
-    keeper: [39.5, 26.0],
-    'slab-roles': [131.5, 88.6],
-    'slab-verdict': [172.3, 120.6],
-    'slab-candidate': [131.5, 88.6],
+    fabricator: [43.1, 25.4],
+    prover: [36.1, 19.3],
+    keeper: [39.1, 25.9],
+    // **All three slabs the same size**, which is the owner's stage-3
+    // instruction from his own phone. The pair comes out 2.2 % narrower than
+    // the primary because it is turned inward toward Virgil, which is also his
+    // instruction; nothing is scaled differently.
+    'slab-roles': [156.9, 104.5],
+    'slab-verdict': [160.5, 109.3],
+    'slab-candidate': [156.9, 104.5],
   };
 
   it.each(Object.keys(OVERVIEW))('%s is the size it was measured at', (id) => {
@@ -294,34 +208,45 @@ describe('the other two viewports, recorded so a change is noticed', () => {
       430,
       932,
       {
-        fabricator: [47.8, 28.0],
-        prover: [40.2, 21.5],
-        keeper: [43.5, 28.7],
-        'slab-verdict': [189.8, 132.9],
+        fabricator: [47.5, 28.0],
+        prover: [39.9, 21.3],
+        keeper: [43.1, 28.6],
+        'slab-verdict': [176.9, 120.4],
       },
     ],
     [
       844,
       390,
-      // **Landscape pays for the cluster**, and the number is recorded
-      // rather than smoothed: holding a primary slab 2.93 m wide inside a
-      // 844 x 390 frame pushes the solver to its widest lens and its
-      // furthest distance, so the three consoles' displays fall from 40.7
-      // to 23.4 CSS px there. Portrait is the composition the owner names
-      // as primary and the one the targets are set at; landscape is the
-      // intentional secondary and is now a wide establishing view.
+      /**
+       * **Landscape's consoles are recovered, and this is the number.**
+       *
+       * Stage 2 recorded them at 23.4 / 19.6 / 21.2 CSS px and attributed the
+       * fall to the enlarged cluster. That was half the truth: `slabCorners()`
+       * defaulted to the **portrait** cluster, so the landscape frame was
+       * solved to hold geometry that is not on screen in landscape at all, and
+       * the solver retreated to 13.89 m at its widest lens. Landscape has its
+       * own cluster now and the solver is back at its nearest stand, 10.50 m,
+       * at 38.6° instead of 50°.
+       *
+       * 45.2 / 35.8 / 40.6 — above stage 1's 40.7 / 34.2 / 36.9, which was
+       * measured before any cluster existed.
+       */
       {
-        fabricator: [23.4, 13.8],
-        prover: [19.6, 10.5],
-        keeper: [21.2, 14.1],
-        'slab-verdict': [89.2, 61.7],
+        fabricator: [45.2, 26.0],
+        prover: [35.8, 19.2],
+        keeper: [40.6, 26.4],
+        'slab-verdict': [85.3, 58.3],
       },
     ],
   ];
 
   it.each(CASES)('at %i x %i', (w, h, expected) => {
+    // The cluster is this viewport's own: landscape hangs the three slabs
+    // differently, and measuring one against the other is the fault that cost
+    // landscape its consoles at stage 2.
+    const set = displays(w > h ? 'landscape' : 'portrait');
     for (const [id, want] of Object.entries(expected)) {
-      const display = DISPLAYS[id];
+      const display = set[id];
       if (!display) throw new Error(`no display ${id}`);
       const { widthPx, heightPx } = projected(
         display.quad,
@@ -422,35 +347,58 @@ describe('the two composition edits the owner asked for after seeing stage 2', (
    * lower camera raises everything in frame and raising the slabs raises
    * them again, so the two together could push the slabs off the top edge.
    */
-  it('stands the portrait camera lower than stage 1’s 28°', () => {
-    expect(PORTRAIT_FRAME.elevation).toBeLessThan(28);
+  it('stands the portrait camera where the owner put it himself at stage 3', () => {
+    // Stage 1: 28°, 8.48 m up. Stage 2: 22°, 7.02 m. Stage 3: 11.7 °, which is
+    // the lowest position his own orbit allowed at 22° and the one he
+    // photographed — *"which he says is how he wants it to start by default."*
+    expect(PORTRAIT_FRAME.elevation).toBeLessThan(22);
+    expect(PORTRAIT_FRAME.elevation).toBeCloseTo(22 - 0.18 * (180 / Math.PI), 1);
     const pose = overviewPose(390 / 844);
-    // 7.02 m up against stage 1's 8.48.
-    expect(pose.position[1]).toBeLessThan(7.5);
-    expect(pose.position[1]).toBeGreaterThan(6.2);
+    expect(pose.position[1]).toBeLessThan(5.0);
+    expect(pose.position[1]).toBeGreaterThan(3.6);
   });
 
+  /**
+   * **The owner replaced two of stage 2's own targets at stage 3**, from a
+   * photograph of his own iPhone, and these assertions move with him rather
+   * than being deleted:
+   *
+   *  - *"I actually think that all three screens should be the same size as the
+   *    top screen, and it would still fit."* So the 25–35 % ratio stage 2
+   *    asserted here is gone and equality is asserted instead. It is not a
+   *    weakening: equality is the harder thing to hold, because two slabs at
+   *    the primary's size have to fit inside 390 px with a real margin, and
+   *    `test/cluster-v11-s3.test.ts` measures that margin.
+   *  - *"I want there to be just even spacing between them, very thin."* So the
+   *    spread and the drop are no longer free numbers; both are derived from
+   *    one gap, and the measured evenness is asserted in the same new file.
+   */
   it('arranges the three slabs as a shallow triangle above Virgil', () => {
     const cluster = v11Cluster();
     const verdict = cluster.find((p) => p.kind === 'verdict');
     const roles = cluster.find((p) => p.kind === 'roles');
     const candidate = cluster.find((p) => p.kind === 'candidate');
     if (!verdict || !roles || !candidate) throw new Error('cluster');
-    // The verdict is the apex, and 25-35 % larger than the pair.
+    // The verdict is the apex, and all three are the same size.
     expect(verdict.position[1]).toBeGreaterThan(roles.position[1]);
     expect(verdict.position[0]).toBe(0);
-    const ratio = verdict.scale / roles.scale;
-    expect(ratio).toBeGreaterThanOrEqual(1.25);
-    expect(ratio).toBeLessThanOrEqual(1.35);
+    expect(verdict.scale).toBe(roles.scale);
+    expect(verdict.scale).toBe(candidate.scale);
     // The pair is offset left and right, and turned inward toward Virgil.
     expect(roles.position[0]).toBeLessThan(0);
     expect(candidate.position[0]).toBeGreaterThan(0);
     expect(roles.rotation[1]).toBeGreaterThan(0);
     expect(candidate.rotation[1]).toBeLessThan(0);
     // Shallow and wide: wider than it is tall.
-    const width = 2 * V11_CLUSTER.spread + 2 * (0.77 * V11_CLUSTER.supportScale);
-    const height = V11_CLUSTER.drop + 0.52 * (V11_CLUSTER.primaryScale + V11_CLUSTER.supportScale);
+    const width = 2 * Math.abs(roles.position[0]) + 1.54 * V11_CLUSTER.scale;
+    const height = verdict.position[1] - roles.position[1] + 1.04 * V11_CLUSTER.scale;
     expect(width).toBeGreaterThan(height);
+    // One gap, used twice: the horizontal space between the pair and the
+    // vertical space under the primary are the same distance in the world.
+    const horizontal = 2 * Math.abs(roles.position[0]) - 1.54 * V11_CLUSTER.scale;
+    const vertical = verdict.position[1] - roles.position[1] - 1.04 * V11_CLUSTER.scale;
+    expect(horizontal).toBeCloseTo(V11_CLUSTER.gap, 6);
+    expect(vertical).toBeCloseTo(V11_CLUSTER.gap * V11_CLUSTER.verticalGapFactor, 6);
     // Only the position and the scale moved: the slab is the object
     // `ScreenBankV11` built, at every scale.
     expect(v11SlabPlan(1024).openingWidth).toBeCloseTo(1.476, 6);
@@ -481,10 +429,19 @@ describe('the two composition edits the owner asked for after seeing stage 2', (
           );
         }),
       );
-      // The slabs' lowest edge sits clear above the consoles' highest
-      // screen edge, in screen pixels, at both portrait viewports.
-      // 42 px at 390 x 844 and 46 at 430 x 932. The owner's first priority.
-      expect(consoleTop - slabBottom, `${w}x${h}`).toBeGreaterThan(20);
+      /**
+       * The slabs' lowest edge sits clear above the consoles' highest screen
+       * edge, in screen pixels, at both portrait viewports.
+       *
+       * **Stage 3 closes this gap deliberately**, from 42 px to 11.0 px at
+       * 390 × 844 (12.3 at 430 × 932), because the owner looked at his own
+       * phone and said so: *"there's still a lot of space between where the top
+       * of the consoles are and those screens are… the three big screens can
+       * move a lot further down."* It stays **positive**, which is his own
+       * first priority — no slab may stand over a console's picture — and that
+       * is what bounds how far down they could go.
+       */
+      expect(consoleTop - slabBottom, `${w}x${h}`).toBeGreaterThan(8);
     }
   });
 
@@ -494,18 +451,17 @@ describe('the two composition edits the owner asked for after seeing stage 2', (
       [430, 932],
       [844, 390],
     ] as [number, number][]) {
+      const set = displays(w > h ? 'landscape' : 'portrait');
       const camera = cameraFor(overviewPose(w / h), w, h);
       const top = Math.min(
         ...['slab-roles', 'slab-verdict', 'slab-candidate'].map((id) => {
-          const display = DISPLAYS[id];
+          const display = set[id];
           if (!display) throw new Error(id);
           return Math.min(
             ...display.quad.map((corner) => ((1 - corner.clone().project(camera).y) / 2) * h),
           );
         }),
       );
-      // Portrait leaves hundreds of pixels; landscape is the tight one, at
-      // about 18 px, and it is recorded rather than asserted loosely.
       expect(top, `${w}x${h}`).toBeGreaterThan(12);
     }
   });
@@ -545,17 +501,52 @@ describe('the owner’s numeric targets for the slab cluster', () => {
     expect(primary.widthPx).toBeLessThanOrEqual(175);
   });
 
-  it('meets both supporting screens’ width target', () => {
+  /**
+   * **The stage-3 instruction replaces the stage-2 range**: *"I actually think
+   * that all three screens should be the same size as the top screen, and it
+   * would still fit."* The 125–140 px range is therefore gone, and equality is
+   * asserted instead — the harder thing, because two slabs at the primary's
+   * size have to fit inside 390 px with a margin, which is measured in
+   * `test/cluster-v11-s3.test.ts`.
+   */
+  it('makes all three the same size, which is what he asked for', () => {
+    const primary = box('slab-verdict').widthPx;
     for (const id of ['slab-roles', 'slab-candidate']) {
-      expect(box(id).widthPx, id).toBeGreaterThanOrEqual(125);
-      expect(box(id).widthPx, id).toBeLessThanOrEqual(140);
+      // Within 3 %: the pair is turned inward toward Virgil, which
+      // foreshortens it very slightly, and that inward angle is his
+      // instruction too.
+      expect(Math.abs(box(id).widthPx - primary) / primary, id).toBeLessThan(0.03);
     }
   });
 
-  it('meets the gap target between the supporting pair', () => {
-    const gap = box('slab-candidate').left - box('slab-roles').right;
-    expect(gap).toBeGreaterThanOrEqual(10);
-    expect(gap).toBeLessThanOrEqual(16);
+  it('keeps one thin gap, used both between the pair and under the primary', () => {
+    /**
+     * Measured between the **slabs' own edges**, not between the pictures
+     * inside them: what the reader sees as the space between two screens is
+     * the space between their ivory bodies, and each body carries a 32 mm
+     * bezel that the picture does not.
+     */
+    const camera = cameraFor(overviewPose(W / H), W, H);
+    const edges = (id: string) => {
+      const quad = slabOutlines('portrait')[id];
+      if (!quad) throw new Error(id);
+      const points = quad.map((corner) => {
+        const p = corner.clone().project(camera);
+        return [((p.x + 1) / 2) * W, ((1 - p.y) / 2) * H] as [number, number];
+      });
+      return {
+        left: Math.min(...points.map((p) => p[0])),
+        right: Math.max(...points.map((p) => p[0])),
+        top: Math.min(...points.map((p) => p[1])),
+        bottom: Math.max(...points.map((p) => p[1])),
+      };
+    };
+    const horizontal = edges('slab-candidate').left - edges('slab-roles').right;
+    const vertical = edges('slab-roles').top - edges('slab-verdict').bottom;
+    // Thin, and the same both ways: 9.6 px and 9.7 px at 390 x 844.
+    expect(horizontal).toBeGreaterThanOrEqual(6);
+    expect(horizontal).toBeLessThanOrEqual(12);
+    expect(vertical).toBeCloseTo(horizontal, 0);
   });
 
   it('clears the safe area and the ⋯ control above the primary', () => {

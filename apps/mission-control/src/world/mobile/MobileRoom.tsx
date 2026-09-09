@@ -55,6 +55,7 @@ import {
   mobilePose,
   orientationFor,
 } from './composition.js';
+import { dprFor, SHARPNESS, type Sharpness } from './pixelRatio.js';
 import { type Insets, NO_INSETS, readInsets } from './safeArea.js';
 import { projections, setPressed, TouchProjector, TouchTargets, targetAt } from './TouchTargets.js';
 import './mobile.css';
@@ -121,6 +122,15 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
   const [dev, setDev] = useState(false);
   const [badgeOpen, setBadgeOpen] = useState(false);
   /**
+   * **How many device pixels the world is drawn at.** Stage 3's answer to the
+   * owner's crispness question, and the reasoning is in `pixelRatio.ts`: every
+   * version to date drew a phone at 1.25× and let the panel upscale it to 3×.
+   * `standard` is 2× and is the default; the hidden menu offers `native` and
+   * `low` so the owner can judge the trade on his own device, which this
+   * container cannot.
+   */
+  const [sharpness, setSharpness] = useState<Sharpness>('standard');
+  /**
    * **The software-renderer flag is now set, and it is load-bearing.**
    * Stage 1 left it hard-coded `false`; stage 2's six live displays made it
    * matter, because regenerating their mip chains every redraw took V11's
@@ -138,8 +148,13 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
   const [insets, setInsets] = useState<Insets>(NO_INSETS);
   const [aspect, setAspect] = useState(() => viewportAspect());
   const coarse = settings.tier === 'constrained' || settings.tier === 'mobile';
-  const anchors = useMemo(() => buildAnchors(), []);
   const orientation = orientationFor(aspect);
+  /**
+   * The anchors follow the orientation, because the three slabs are not in the
+   * same place in the two compositions (`screens/v11/bank.ts`). Rebuilt only
+   * when the orientation changes, which is twice in a session at most.
+   */
+  const anchors = useMemo(() => buildAnchors(orientation), [orientation]);
   const backdrop = backdropFor(orientation);
 
   setBandOnTwoLines(coarse);
@@ -305,7 +320,7 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
       >
         <Canvas
           shadows={!coarse}
-          dpr={coarse ? [1, 1.25] : [1, 1.75]}
+          dpr={dprFor(settings.tier, sharpness)}
           gl={{
             antialias: true,
             toneMapping: THREE.ACESFilmicToneMapping,
@@ -335,7 +350,14 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
               </>
             )}
             <Orrery />
-            <Cast demo={demo} mode={mode} speed={speed} focus={focus} onSelect={selectAnchor} />
+            <Cast
+              demo={demo}
+              mode={mode}
+              speed={speed}
+              focus={focus}
+              orientation={orientation}
+              onSelect={selectAnchor}
+            />
             <Ready />
           </Suspense>
           <Rig focus={focus} aspect={aspect} />
@@ -368,6 +390,8 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
           {dev ? (
             <DevPanel
               build={build}
+              sharpness={sharpness}
+              setSharpness={setSharpness}
               demo={demo}
               setDemo={setDemo}
               mode={mode}
@@ -542,6 +566,8 @@ function TalkBar({ marker, onTalk }: { marker: string; onTalk: () => void }) {
  */
 function DevPanel({
   build,
+  sharpness,
+  setSharpness,
   demo,
   setDemo,
   mode,
@@ -555,6 +581,8 @@ function DevPanel({
   onClose,
 }: {
   build: BuildIdentity;
+  sharpness: Sharpness;
+  setSharpness: (value: Sharpness) => void;
   demo: boolean;
   setDemo: (value: boolean) => void;
   mode: RunMode;
@@ -639,6 +667,24 @@ function DevPanel({
           Room (retired)
         </button>
       </div>
+      {/* The sharpness selector. A diagnostic, not a product feature: the
+          owner asked whether the text can be crisper, the cause is the canvas's
+          pixel ratio, and the cost of raising it cannot be measured in a
+          software renderer. So he can answer it on his own phone. */}
+      <div className="v11-dev-row">
+        <span className="v11-dev-label">Sharpness</span>
+        {SHARPNESS.map((option) => (
+          <button
+            type="button"
+            key={option.id}
+            className={sharpness === option.id ? 'is-active' : ''}
+            onClick={() => setSharpness(option.id)}
+            title={option.note}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
       <div className="v11-dev-row">
         <span className="v11-dev-label">Look at</span>
         {(['all', 'virgil', ...ROLES, 'board'] as MobileFocus[]).map((who) => (
@@ -708,6 +754,7 @@ function Cast({
   mode,
   speed,
   focus,
+  orientation,
   onSelect,
 }: {
   demo: boolean;
@@ -719,6 +766,8 @@ function Cast({
    * found (`screens/v11/ConsoleScreenV11.tsx`).
    */
   focus: MobileFocus;
+  /** Which cluster the slabs hang in: portrait's or landscape's. */
+  orientation: 'portrait' | 'landscape';
   onSelect: (id: string, row?: number) => void;
 }) {
   const forced = forcedFace();
@@ -733,6 +782,7 @@ function Cast({
       <VirgilConsole active={virgilBusy && !state.content.ownerGate} />
       <VirgilRigged pose={state.pose} face={state.virgilFace} onSelect={() => onSelect('virgil')} />
       <ScreenBankV11
+        orientation={orientation}
         content={state.content}
         outcome={state.outcome}
         seconds={state.seconds}
@@ -834,10 +884,38 @@ export function mobileLimits(pose: CameraPose, focus: MobileFocus): Limits {
   }
   return {
     minPolarAngle: polar - 0.32,
-    maxPolarAngle: polar + 0.18,
+    /**
+     * **The downward travel is 0.06 rad, and it was 0.18.**
+     *
+     * The owner photographed his own iPhone at the old limit and the top screen
+     * was **clipped**. Stage 3 answers that twice over: the old lowest position
+     * is the new default (`composition.ts`, `PORTRAIT_FRAME.elevation`), and
+     * the travel below it is now small enough that a nudge cannot put a slab
+     * back into the Dynamic Island's band. 0.06 rad is 3.44° of a 58° vertical
+     * lens, which lifts the picture by about 50 px of 844 — measured, and
+     * asserted at the extreme rather than only at the default, in
+     * `test/cluster-v11-s3.test.ts`.
+     *
+     * **And the zoom is the other half of it, which measurement found and
+     * reasoning had missed.** Rotating to the old lower limit moves the
+     * primary's top edge by less than half a pixel — the slabs sit near the
+     * target's own depth, so the angle barely changes their vertical offset.
+     * Pulling in to `0.68 ×`, though, magnifies by 1.47 about the frame's
+     * centre, and that takes the primary's top edge from 133 px **past the top
+     * of the screen**. That is what clipped it. So the overview's nearest stand
+     * is `0.84 ×`, which is the measured figure that leaves the primary's top
+     * edge clear of the island at the lowest angle **and** the nearest stand at
+     * once — the two together, because that is the pose a reader can actually
+     * reach.
+     *
+     * The camera stays movable, as the owner asked — *"we could potentially
+     * even, like, lock that in place, but we can do that later. Still make it
+     * movable"* — and a focused view keeps its own, wider limits below.
+     */
+    maxPolarAngle: polar + 0.06,
     minAzimuthAngle: azimuth - Math.PI / 5,
     maxAzimuthAngle: azimuth + Math.PI / 5,
-    minDistance: distance * 0.68,
+    minDistance: distance * 0.84,
     maxDistance: distance * 1.35,
   };
 }
