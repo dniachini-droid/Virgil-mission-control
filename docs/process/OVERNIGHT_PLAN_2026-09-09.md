@@ -21,6 +21,18 @@ It does not cover **the two things that are not quality questions**:
    V10 refused to draw eight duration bars. A rough edge is acceptable overnight; a screen that lies is
    not, because the owner cannot tell the difference by looking and would be misled by his own tool.
 
+## Narrowed by the owner before he slept
+
+He cut the queue: *"Review after stage 4 and fix and that's it."* Steps 3, 4 and 5 below — the dropped
+transcript, the real state snapshot and the Mind of Virgil — are **not** to be started tonight. They
+remain the recorded plan for whenever he says so.
+
+This also resolves the contradiction this session raised against its own plan: step 4 was Phase 2 work
+written into a Phase 1 night without noticing that Phase 2 is not authorised. It is not being done, so
+the question does not arise, and it stays open for him.
+
+**Tonight is: finish stage 4, review it, repair what the review finds, stop.**
+
 ## The queue, in order, one branch so it stays one openable file
 
 1. **V11 stage 4** — in flight. Performance, the twelve review states, the closing evidence.
