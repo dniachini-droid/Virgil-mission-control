@@ -12,6 +12,7 @@ import {
   overviewPose,
   PORTRAIT_MAX_ASPECT,
 } from '../src/world/mobile/composition.js';
+import { bustPoints, screenKept } from '../src/world/mobile/stationCloseUp.js';
 import { figurePlacement, ROLES } from '../src/world/room/cast.js';
 import { fovFor, screenCorners } from '../src/world/room/closeUp.js';
 import { layout, tabletopCamera } from '../src/world/room/palette.js';
@@ -247,11 +248,39 @@ describe('every focus has a pose, at every viewport', () => {
     }
   });
 
-  it('holds each specialist’s own screen in their close-up on a phone', () => {
-    const aspect = 390 / 844;
-    for (const role of ROLES) {
-      const pose = mobilePose(role, aspect);
-      expect(fits(pose, screenCorners(role), aspect), role).toBeLessThanOrEqual(1);
+  /**
+   * **This assertion was replaced, and the replacement is the stronger one.**
+   *
+   * It used to require the whole of `screenCorners(role)` — the axis-aligned
+   * box of the console's own screen triangles — inside the station close-up's
+   * frame, because until stage 3 that screen was the only place a reader could
+   * read what had happened. Stage 3's window carries that now, and the owner
+   * has asked for the frame the screen was winning at the character's expense
+   * (`mobile/stationCloseUp.ts`). So the requirement is no longer "the whole
+   * screen" and asserting it would be asserting a thing the product no longer
+   * does.
+   *
+   * What is required instead is **both** of the two things the old form did not
+   * hold together: the part of the screen the **primary state** is drawn on,
+   * and the **character**. `test/station-close-up-v11.test.ts` holds the whole
+   * of that contract, casts rays at it and measures what the frame gives up;
+   * this is the composition-level statement of it, in the file that owns
+   * `mobilePose`.
+   */
+  it('holds each specialist’s primary state and each specialist in their close-up', () => {
+    for (const [name, width, height] of VIEWPORTS) {
+      const aspect = width / height;
+      for (const role of ROLES) {
+        const pose = mobilePose(role, aspect);
+        expect(
+          fits(pose, screenKept(role), aspect),
+          `${name} ${role}: the screen's primary-state end is outside the frame`,
+        ).toBeLessThanOrEqual(1);
+        expect(
+          fits(pose, bustPoints(role), aspect),
+          `${name} ${role}: the character is outside the frame`,
+        ).toBeLessThanOrEqual(1);
+      }
     }
   });
 });

@@ -164,11 +164,30 @@ describe('how large each display is on a 390 x 844 portrait viewport', () => {
     }
   });
 
-  /** The close-ups, where the words are meant to be read. */
+  /**
+   * **The close-ups, where the words are meant to be read — re-measured
+   * after the station close-up was re-framed for the character.**
+   *
+   * These were 200.2 × 117.4, 174.4 × 93.3 and 177.2 × 117.1 at stage 2,
+   * from a camera 3 m off the glass on its own axis with a 67°–71° lens.
+   * The owner has since asked for the character to be in their own
+   * close-up, which is the oldest open visual defect in the project, and
+   * `mobile/stationCloseUp.ts` answers it by standing further back along
+   * the same axis with the lens held at 52° — stage 2's own named remedy.
+   * The displays are **24 % narrower** for it, and that is the price of
+   * the fix rather than a regression that crept in: it is recorded here,
+   * in `test/station-close-up-v11.test.ts`, and in the V11 run record.
+   *
+   * They are still **1.9× to 2.4×** this project's own measured 64 px
+   * text-collapse threshold, where they were 2.7× to 3.1×, so the primary
+   * state still reads and the four-column micro-rail still does not —
+   * which is what stage 2 says that rail is for. The floor asserted below
+   * is 1.8×, and it is a floor and not a target.
+   */
   const CLOSE_UP: Record<string, [number, number]> = {
-    fabricator: [200.2, 117.4],
-    prover: [174.4, 93.3],
-    keeper: [177.2, 117.1],
+    fabricator: [152.2, 89.3],
+    prover: [125.0, 66.9],
+    keeper: [123.9, 82.4],
   };
 
   it.each(ROLES)('%s’s close-up is the size it was measured at, and is legible there', (role) => {
@@ -183,8 +202,7 @@ describe('how large each display is on a 390 x 844 portrait viewport', () => {
     const want = CLOSE_UP[role] as [number, number];
     expect(widthPx).toBeCloseTo(want[0], 0);
     expect(heightPx).toBeCloseTo(want[1], 0);
-    // Comfortably over the threshold: 2.7x to 3.1x it.
-    expect(widthPx).toBeGreaterThan(TEXT_COLLAPSE_PX * 2.5);
+    expect(widthPx).toBeGreaterThan(TEXT_COLLAPSE_PX * 1.8);
   });
 
   it('shows the slabs well over the threshold when the camera goes to the board', () => {

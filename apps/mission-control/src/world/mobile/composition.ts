@@ -1,5 +1,5 @@
 import { CAST, eyeHeight, figurePlacement, ROLES, type Role, screenCentre } from '../room/cast.js';
-import { closeUpPose, fovFor, screenCorners } from '../room/closeUp.js';
+import { fovFor, screenCorners } from '../room/closeUp.js';
 import { type CameraPose, layout } from '../room/palette.js';
 import {
   type ClusterOrientation,
@@ -8,6 +8,7 @@ import {
   v11SlabAt,
 } from '../screens/v11/bank.js';
 import type { WindowTarget } from '../window/windowContent.js';
+import { stationCloseUpPose } from './stationCloseUp.js';
 
 /**
  * **V11 stage 1: a composition authored for a phone held upright, and a
@@ -442,10 +443,13 @@ export function anchors(orientation: ClusterOrientation = 'portrait'): Anchor[] 
 
 /**
  * The camera for a focus at this viewport. `all` is the authored overview
- * above; a specialist reuses `closeUpPose`, which is already derived from
- * their console's own screen and already answers the aspect, so a phone gets
- * the wider lens a phone needs by construction. Virgil and the board are
- * authored here for the phone rather than inherited from the desktop rig.
+ * above; a specialist gets `stationCloseUpPose`, which stands on the same
+ * measured screen axis `closeUpPose` does but **solves its distance so the
+ * character is in the shot with them** — the repair of the defect V8.1
+ * opened and V9 and V11 stage 2 each deferred (`mobile/stationCloseUp.ts`).
+ * V10's own close-ups still come from `closeUpPose`, unchanged. Virgil and
+ * the board are authored here for the phone rather than inherited from the
+ * desktop rig.
  */
 export function mobilePose(focus: MobileFocus, aspect: number): CameraPose {
   if (focus === 'all') return overviewPose(aspect);
@@ -469,5 +473,5 @@ export function mobilePose(focus: MobileFocus, aspect: number): CameraPose {
     const distance = Math.max(5, halfWidth / (Math.tan((fov / 2) * (Math.PI / 180)) * aspect));
     return { position: [0, y, z + distance], target: [0, y - 0.05, z], fov };
   }
-  return closeUpPose(focus, aspect);
+  return stationCloseUpPose(focus, aspect, orientationFor(aspect));
 }
