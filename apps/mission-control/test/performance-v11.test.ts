@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Tier } from '../src/ui/settings.js';
 import {
@@ -272,5 +274,51 @@ describe('the tier table this file quotes', () => {
     for (let i = 1; i < TIERS.length; i += 1) {
       expect(PIXEL_BUDGET[TIERS[i] as Tier]).toBeLessThan(PIXEL_BUDGET[TIERS[i - 1] as Tier]);
     }
+  });
+});
+
+/**
+ * **The Keeper's KS4-09: "Reduced to reduced".**
+ *
+ * The governed notice's two strings are
+ * `${plan.label} performance mode` when the reader chose the rung and
+ * `Reduced to ${plan.label.toLowerCase()}` when the governor did, and the
+ * second one reads *"Reduced to reduced"* at the middle rung. It is only
+ * reachable on hardware where the governor engages, which is nowhere this
+ * project has measured, so the review recorded it rather than demonstrating it.
+ *
+ * The notice is JSX with no seam to call, so this asserts the two templates
+ * against every rung the ladder actually has — which is the property that was
+ * wrong, and it fails again if a fourth rung is added whose label repeats its
+ * verb.
+ */
+describe('the governed performance notice reads as English at every rung', () => {
+  const forcedWord = (level: Level) => `${LEVEL_PLANS[level].label} performance mode`;
+  const steppedWord = (level: Level) => `Stepped down to ${LEVEL_PLANS[level].label.toLowerCase()}`;
+
+  it('never repeats the rung’s own name as its verb', () => {
+    for (const level of LEVELS) {
+      if (level === 'full') continue;
+      const stepped = steppedWord(level);
+      const label = LEVEL_PLANS[level].label.toLowerCase();
+      // "Reduced to reduced" was exactly this: the label appearing twice.
+      const occurrences = stepped.toLowerCase().split(label).length - 1;
+      expect(occurrences, stepped).toBe(1);
+      expect(stepped.toLowerCase()).not.toContain(`${label} to ${label}`);
+    }
+  });
+
+  it('is the string the source actually renders, in both branches', () => {
+    const room = readFileSync(
+      resolve(import.meta.dirname, '../src/world/mobile/MobileRoom.tsx'),
+      'utf8',
+    );
+    expect(room).toContain('`${plan.label} performance mode`');
+    expect(room).toContain('`Stepped down to ${plan.label.toLowerCase()}`');
+    // The forced string is the one in the deliverable frame and is unchanged.
+    expect(forcedWord('reduced')).toBe('Reduced performance mode');
+    expect(forcedWord('minimal')).toBe('Minimal performance mode');
+    expect(steppedWord('reduced')).toBe('Stepped down to reduced');
+    expect(steppedWord('minimal')).toBe('Stepped down to minimal');
   });
 });

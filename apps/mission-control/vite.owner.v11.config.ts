@@ -28,9 +28,16 @@ const worktreeDirty = git(['status', '--porcelain']) !== '';
 // about: it is what diagnosed the day the owner was served a stale build. It is
 // changed whenever what the file contains changes, which is why it names this
 // pass rather than still naming stage 3 alone.
+// **The Keeper's KS4-03.** This string claimed *"the cast loaded before the
+// backdrop"*, which is a property the same pass **measured and switched off**:
+// the split puts the cast eleven seconds *later* than the backdrop, so the
+// default is one boundary in V10's order and `#/?defer=1` keeps the experiment
+// reproducible. A build-identity signal that describes something the build does
+// not do is the one thing the brief's first caution is about, so the clause is
+// replaced by what the artifact actually contains.
 const stage =
   process.env.VIRGIL_OWNER_V11_STAGE ??
-  'V11 stage 4, the last — performance: a graceful reduced-performance mode that gives up invisible work before sharpness, a pixel ratio derived from the tier’s own pixel budget rather than assumed, the world slowed under an open window and stopped when the page is hidden, the cast loaded before the backdrop; the compressed-format question answered with an encoder rather than an opinion; and the twelve review states each reachable from a URL and looked at';
+  'V11 stage 4 and the KS4 repair pass — performance: a graceful reduced-performance mode that gives up invisible work before sharpness, a pixel ratio derived from the tier’s own pixel budget rather than assumed, the world slowed under an open window and stopped when the page is hidden, the load-order split measured and left OFF (the cast loads eleven seconds after the backdrop when it is on; #/?defer=1 re-runs it); the compressed-format question answered with an encoder rather than an opinion; the twelve review states each reachable from a URL and looked at; and the Keeper’s KS4-01 repaired at its cause, so no row claims a hop that has not run';
 // Overridable for the same reason as V10's: the embedded minute is the only
 // part of the output the commit does not determine, so a reviewer needs to be
 // able to feed it back in and get the same bytes.

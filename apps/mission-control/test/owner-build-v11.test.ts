@@ -231,3 +231,43 @@ describe('a fingerprint of V10’s protected files', () => {
     expect(actual).toEqual(digests);
   });
 });
+
+/**
+ * **The Keeper's KS4-03: a build stamp that described something the build does
+ * not do.**
+ *
+ * `__OWNER_BUILD_STAGE__` is the project's only build-identity signal — the
+ * V11 brief's first caution is about it, and it is what diagnosed the day the
+ * owner was served a stale build. It read, in part, *"the cast loaded before
+ * the backdrop"*. The cast is not loaded before the backdrop: `deferBackdrop()`
+ * returns false unless `#/?defer=1`, and the run record is unambiguous that
+ * this was deliberate, because the split was measured to put the cast eleven
+ * seconds **later** than the backdrop and to paint a command centre with nobody
+ * in it.
+ *
+ * A signal that must not lie cannot be held by prose, so the two halves of the
+ * claim are compared here: what the stamp says about the load order, and what
+ * the source actually does with it.
+ */
+describe('the build-identity stamp describes this build', () => {
+  const config = app('vite.owner.v11.config.ts');
+  const room = app('src/world/mobile/MobileRoom.tsx');
+  const stage = /VIRGIL_OWNER_V11_STAGE \?\?\s*\n?\s*'([^']*)'/.exec(config)?.[1] ?? '';
+
+  it('has a stage line at all, and it names this pass', () => {
+    expect(stage.length).toBeGreaterThan(80);
+    expect(stage).toContain('V11 stage 4');
+  });
+
+  it('does not claim a load order the default does not have', () => {
+    // The source of truth: the split is opt-in, and only opt-in.
+    expect(room).toContain("query().get('defer') === '1'");
+    expect(room).not.toMatch(/function deferBackdrop\(\): boolean \{\s*\n\s*return true;/);
+    // So the stamp may not assert the split as a property of the artifact.
+    expect(stage).not.toContain('the cast loaded before the backdrop');
+    expect(stage).not.toMatch(/cast (loaded|loads) before the backdrop/);
+    // And it says which way round the measurement actually came out.
+    expect(stage).toContain('left OFF');
+    expect(stage).toContain('#/?defer=1');
+  });
+});

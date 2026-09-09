@@ -1146,7 +1146,18 @@ function PerformanceNotice({ level, forced }: { level: Level; forced: boolean })
     <div className="v11-perf" role="status">
       <span className="v11-perf-dot" aria-hidden="true" />
       <span className="v11-perf-word">
-        {forced ? `${plan.label} performance mode` : `Reduced to ${plan.label.toLowerCase()}`}
+        {/*
+          **The Keeper's KS4-09.** The governor-chosen wording was
+          `Reduced to ${plan.label.toLowerCase()}`, which reads
+          "Reduced to reduced" at the middle rung. It says *who chose this*,
+          so the verb is now the governor's action rather than the rung's
+          own name: "Stepped down to reduced", "Stepped down to minimal".
+          Only reachable where the governor engages, which is no hardware
+          this project has measured on, so it is corrected and recorded and
+          not demonstrated. The forced string, which is the one in the
+          deliverable frame, is unchanged.
+        */}
+        {forced ? `${plan.label} performance mode` : `Stepped down to ${plan.label.toLowerCase()}`}
       </span>
     </div>
   );
