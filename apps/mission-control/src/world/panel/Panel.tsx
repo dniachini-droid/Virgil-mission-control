@@ -47,7 +47,27 @@ export function Panel({ target, onClose }: { target: PanelTarget | null; onClose
   const railThumb = useRef<HTMLElement>(null);
   const scrollRail = useRef<HTMLDivElement>(null);
   const staged = useRef<HTMLElement[]>([]);
+  /**
+   * **Two animation handles, not one** (V10, defect B).
+   *
+   * They were one, and it meant the close control did nothing at all. The
+   * exit is started inside `close()`, which in the same breath calls
+   * `onClose()`; the parent clears the target; the entry effect's
+   * dependency on `target` changes; React runs that effect's **cleanup**,
+   * which cancelled `raf.current` — the handle the exit had just been
+   * written into. So `setLeaving(null)` never ran, the panel stayed
+   * mounted with `target` null, and with it null the Escape listener is
+   * not attached either, so nothing could dismiss it. Sliding it down
+   * appeared to work only because the drag leaves the sheet translated
+   * off the foot of the screen at zero opacity: it looks dismissed and is
+   * not.
+   *
+   * Verified by clicking the control in a browser at 1280 x 800 and
+   * 390 x 664, before and after; `test/panel-pointer.test.ts` holds the
+   * two handles apart.
+   */
   const raf = useRef(0);
+  const exitRaf = useRef(0);
   const reduced = useRef(prefersReducedMotion());
   /** What the reader typed. Kept: the composer never pretends to have sent it. */
   const [typed, setTyped] = useState('');
@@ -119,8 +139,20 @@ export function Panel({ target, onClose }: { target: PanelTarget | null; onClose
       if (k < 1) raf.current = requestAnimationFrame(tick);
     };
     raf.current = requestAnimationFrame(tick);
+    // Only the entry's handle: cancelling the exit's here is the defect
+    // described above.
     return () => cancelAnimationFrame(raf.current);
   }, [target, frame, collect]);
+
+  // Both handles on unmount, so a panel that leaves with the page does not
+  // leave a frame callback behind.
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(raf.current);
+      cancelAnimationFrame(exitRaf.current);
+    },
+    [],
+  );
 
   // The exit: the mirror of the entry. The ground closes back to the line
   // and the line to a point, which is the collapse the consoles do.
@@ -133,14 +165,16 @@ export function Panel({ target, onClose }: { target: PanelTarget | null; onClose
     }
     setLeaving(target);
     onClose();
+    // The entry, if one is still running, is over.
+    cancelAnimationFrame(raf.current);
     const started = performance.now();
     const tick = () => {
       const k = Math.min(1, (performance.now() - started) / (CLOSE_SECONDS * 1000));
       frame(1 - k);
-      if (k < 1) raf.current = requestAnimationFrame(tick);
+      if (k < 1) exitRaf.current = requestAnimationFrame(tick);
       else setLeaving(null);
     };
-    raf.current = requestAnimationFrame(tick);
+    exitRaf.current = requestAnimationFrame(tick);
   }, [target, onClose, frame]);
 
   // Esc closes the panel and nothing else: back is one step per level, so
@@ -218,6 +252,25 @@ export function Panel({ target, onClose }: { target: PanelTarget | null; onClose
       className="panel-root"
       ref={root}
       style={{ '--panel-tint': doc.tint } as React.CSSProperties}
+      /*
+       * **The panel is not part of the world, and its presses must not
+       * reach it** (V10, defect B).
+       *
+       * `<Canvas>` connects its pointer events to the canvas's *parent*
+       * element, which is `.room-stage` — and this panel is inside it. So
+       * every press on the panel was also raycast into the scene: a press
+       * that hit nothing ran `onPointerMissed`, which re-frames the camera
+       * to the wide view, and a press over a screen behind the panel
+       * opened that screen's document. Pressing the panel's own close
+       * control started a 0.9 s camera flight, and the flight is why the
+       * panel looked as though it had not closed.
+       *
+       * Stopping the pointer events here — not the click, which React's
+       * own handlers need — keeps the world's raycaster out of the panel
+       * without touching how the canvas is wired.
+       */
+      onPointerDown={(event) => event.stopPropagation()}
+      onPointerUp={(event) => event.stopPropagation()}
     >
       <div className="panel-rail" ref={rail} />
       <section

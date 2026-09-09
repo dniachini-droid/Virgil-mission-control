@@ -184,13 +184,19 @@
 /* The one control the header carries. Back is one step per level — panel,
    station, wide view — so this closes the panel and leaves the reader at
    the station the camera flew to. */
+/*
+ * 44 px square, which is the smallest target a thumb hits reliably, and
+ * 42 until V10. The corner brackets that look like part of it are
+ * decorative and carry `pointer-events: none`; this button is the whole
+ * of the control.
+ */
 .panel-back {
   position: absolute;
   top: 16px;
   right: 16px;
   z-index: 4;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   font: 600 10px / 1 var(--panel-mono);
   letter-spacing: 0.1em;
   color: var(--panel-dim);
