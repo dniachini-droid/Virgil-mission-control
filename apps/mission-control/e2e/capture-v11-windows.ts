@@ -80,7 +80,18 @@ async function frames(page: Page, count: number): Promise<void> {
   }
 }
 
+/**
+ * **Reloaded, not navigated**, and the reason is a whole set of missing frames.
+ *
+ * A `goto` that changes only the hash does not reload the document, so
+ * `demoStart()` was never re-read and — worse — the window opened by the
+ * previous step was still up with the camera at that agent's station. The next
+ * agent's touch target was off screen, `display: none`, so `boundingBox()`
+ * returned null, the tap was skipped and **no frame was written at all**, with
+ * no error. Four frames were silently absent from the first run.
+ */
 async function ready(page: Page): Promise<void> {
+  await page.reload({ waitUntil: 'load' });
   await page.locator('canvas').waitFor({ timeout: 30_000 });
   await page.waitForFunction(() => '__virgilRoomReady' in window, undefined, { timeout: 180_000 });
   await frames(page, 6);
@@ -92,7 +103,10 @@ async function tap(page: Page, target: string): Promise<boolean> {
     .locator(`[data-touch-target="${target}"]`)
     .boundingBox({ timeout: 10_000 })
     .catch(() => null);
-  if (!box) return false;
+  if (!box) {
+    errors.push(`no target on screen: ${target}`);
+    return false;
+  }
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.up();
