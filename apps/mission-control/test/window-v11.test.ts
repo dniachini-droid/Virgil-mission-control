@@ -75,10 +75,11 @@ describe('the entry animates on the compositor only', () => {
   });
 
   it('animates only transform and opacity in the stylesheet', () => {
-    for (const [, body] of [...css.matchAll(/@keyframes[^{]+\{([\s\S]*?)\n\}/g)].map((m) => m)) {
-      const properties = [...body.matchAll(/^\s{4}([a-z-]+):/gm)].map((m) => m[1]);
-      for (const property of properties) {
-        expect(['transform', 'opacity'], `@keyframes uses ${property}`).toContain(property);
+    const frames = [...css.matchAll(/@keyframes[^{]+\{([\s\S]*?)\n\}/g)];
+    expect(frames.length).toBeGreaterThan(0);
+    for (const match of frames) {
+      for (const property of [...(match[1] ?? '').matchAll(/^\s{4}([a-z-]+):/gm)]) {
+        expect(['transform', 'opacity'], `@keyframes uses ${property[1]}`).toContain(property[1]);
       }
     }
   });

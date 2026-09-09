@@ -19,10 +19,8 @@ import {
 import { Figure } from '../characters/Figure.js';
 import { VirgilRigged } from '../characters/VirgilRigged.js';
 import type { FaceState } from '../characters/Visor.js';
-import { demoSnapshot, publishDemoState } from '../panel/panelStore.js';
 import type { SlabName } from '../panel/panelContent.js';
-import { AgentWindow, type WindowOrigin } from '../window/AgentWindow.jsx';
-import { type Agent, windowForLedgerRow, type WindowTarget } from '../window/windowContent.js';
+import { demoSnapshot, publishDemoState } from '../panel/panelStore.js';
 import { RUN, RUN_SECONDS, recordedClock, recordedDuration } from '../replay/recordedRun.js';
 import {
   compressionOf,
@@ -47,6 +45,8 @@ import { WindowView } from '../room/WindowView.js';
 import { setBandOnTwoLines, setBandReplay } from '../screens/draw.js';
 import { ConsoleScreenV11 } from '../screens/v11/ConsoleScreenV11.js';
 import { ScreenBankV11 } from '../screens/v11/ScreenBankV11.js';
+import { AgentWindow, type WindowOrigin } from '../window/AgentWindow.jsx';
+import { type Agent, type WindowTarget, windowForLedgerRow } from '../window/windowContent.js';
 import {
   type Anchor,
   backdropFor,
@@ -210,8 +210,7 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
     // A ledger row opens that hop's own agent, which is the owner's decision
     // of 8 September: the row carries shape and colour at distance and the
     // window carries the whole of it.
-    const target =
-      row === undefined ? anchor.window : windowForLedgerRow(demoSnapshot(), row);
+    const target = row === undefined ? anchor.window : windowForLedgerRow(demoSnapshot(), row);
     select(anchor.id, anchor.focus, target);
   };
   /** Another agent's window, without going back to the world first. */
@@ -390,12 +389,7 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
         {/* The window: DOM, outside the canvas, rendered from data. Its own
             chevron is one step back — to the station the tap took the reader
             to, never snapped back to the overview. */}
-        <AgentWindow
-          target={win}
-          origin={origin}
-          onClose={() => setWin(null)}
-          onGo={goToAgent}
-        />
+        <AgentWindow target={win} origin={origin} onClose={() => setWin(null)} onGo={goToAgent} />
       </div>
     </SettingsContext.Provider>
   );
