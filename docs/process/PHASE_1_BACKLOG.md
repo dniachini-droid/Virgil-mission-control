@@ -374,6 +374,49 @@ inside the owner-build constraint — one file, opened from `file://`, no networ
    depiction and starts being an instrument.
 4. **Live sessions** remain Phase 3 and remain owner-gated. Merge stays the owner's alone.
 
+## The owner's question of 9 September: could this interface serve another repository?
+
+Asked as a question for later, not a request to build: *"can I ask you to look at another repo, and ask
+— not for now; but for later, if we can adopt this similar interface for use with that repo and how it
+works?"* Recorded so it is not lost.
+
+**Reading another repository needs the owner's written authorisation, and does not have it.**
+`CLAUDE.md`'s hard limits say plainly: *"Work only inside this repository. Never read, clone or modify
+any other repository."* The owner may lift that — it is his rule — but it should be lifted in writing for
+a named session and named repository, and recorded as a decision rather than assumed from a
+conversation, because it is one of the standing limits that has kept this work bounded. Separately, this
+session's GitHub access is scoped to `dniachini-droid/virgil-mission-control`; another repository has to
+be attached deliberately.
+
+**The interface itself is more portable than it looks, for one specific reason: the world knows nothing
+about this project's subject matter.** It knows agents, hops, candidate states, the four verdicts,
+evidence and an owner gate — the governance model in `constitution/authority.json` and
+`packages/domain`, not this repository's content. So the honest framing is that **the interface reads a
+contract, not a repository**, and V10 already proved the method by replaying a real run out of git and
+the committed records rather than a script.
+
+**The limit is the one this project keeps re-learning: it can only show what a repository actually
+records.** Pointed at a project with no independent review and no run records, the truthful display is
+largely empty — and the failure mode is exactly the defect the owner caught in V7, a station claiming a
+hop that never happened. V10 refusing to draw eight duration bars because only one duration was recorded
+is the same principle applied honestly.
+
+Two tiers, when the owner wants this:
+
+1. **Works on any repository today** — commits, branches, pull requests and CI results. Every repository
+   has these and GitHub exposes them. A real, truthful, useful view, and the cheapest way to find out
+   whether the idea travels at all.
+2. **The full command centre** — the target project emits a small standard evidence format (run records,
+   check results, verdicts, decisions) and gets the whole interface. This is the multi-project universe
+   already reserved for Phase 5 in `docs/process/PHASE_1_BRIEF.md`.
+
+The sequence when he is ready: written authorisation naming the repository, the repository attached, then
+**an assessment before any building** — what it already records, what the interface could show truthfully
+today, and what it would have to start emitting for the rest.
+
+Recorded on branch `claude/virgil-mobile-v11`, which is where the active work is; neither this branch nor
+`claude/virgil-phase-1-slice` is merged, so a reader should expect to find it on one of the two.
+
 ## Waiting on the owner
 
 - **Delete the scratch branch `claude/ci-failure-demo`** — needs owner. One commit on top of `dd2c48f` carrying a deliberate external `fetch()`, pushed on 2026-09-08 to prove CI fails on a network escape (it did). The session cannot remove it: `git push origin --delete` returns 403 and the REST ref deletion is refused by the proxy. One `git push origin --delete claude/ci-failure-demo` from a machine that can. Nothing from it is merged.
