@@ -205,6 +205,52 @@ describe('the V11 document asks the browser to paint under the insets', () => {
   });
 });
 
+/**
+ * **V10's bytes, and the module that was moved to keep them.**
+ *
+ * The preservation contract names files that may not be edited, and this pass
+ * edited none of them — and still moved V10's clean-tree Owner Build from
+ * 8,528,318 bytes to 8,528,414, by adding two properties and a derived
+ * constant to `replayAt`. V10's world imports the replay, so a V11-only repair
+ * had grown V10's bundle by 96 bytes. Nothing in the contract's list catches
+ * that, because the contract lists **files** and this was a **graph**.
+ *
+ * The derivation now lives in `screens/v11/recorded.ts`, which only V11
+ * imports, and this is what stops it drifting back. It is not a byte count —
+ * only `pnpm build:owner` from a clean tree is that, and the run record carries
+ * the number. It is the structural reason the number holds.
+ */
+describe('V11 adds to V10’s graph, and does not add to V10’s bundle', () => {
+  const shared = ['src/world/replay/replayTimeline.ts', 'src/world/room/demo.ts'];
+
+  it('keeps the recorded-run identity out of the modules V10 imports', () => {
+    for (const path of shared) {
+      const source = app(path);
+      // The values themselves, and the constants they are built from, are not
+      // in any module V10's entry can reach.
+      expect(source, path).not.toContain('recordedElapsed:');
+      expect(source, path).not.toContain('RECORDED_BRANCH');
+      expect(source, path).not.toContain('RECORDED_ELAPSED');
+    }
+    // The optional fields on `ScreenContent` are declarations and are erased,
+    // so they cost V10 nothing and are allowed to stay where the type is.
+    expect(app('src/world/room/demo.ts')).toContain('recordedElapsed?: string;');
+    expect(app('src/world/room/demo.ts')).toContain('branch?: string;');
+  });
+
+  it('reads them from a module only V11 imports', () => {
+    const recorded = app('src/world/screens/v11/recorded.ts');
+    expect(recorded).toContain('export const RECORDED_ELAPSED');
+    expect(recorded).toContain('export const RECORDED_BRANCH');
+    expect(recorded).toContain('export function contentFor');
+    // And nothing V10 can reach imports it.
+    for (const path of [...shared, 'src/owner/main-owner.tsx', 'src/world/room/VirgilRoom.tsx']) {
+      expect(app(path), path).not.toContain('v11/recorded');
+    }
+    expect(app('src/world/mobile/MobileRoom.tsx')).toContain("from '../screens/v11/recorded.js'");
+  });
+});
+
 describe('a fingerprint of V10’s protected files', () => {
   /**
    * Not a security measure and not claimed as one: anyone editing these files

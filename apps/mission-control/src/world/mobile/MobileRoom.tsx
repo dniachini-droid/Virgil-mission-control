@@ -44,6 +44,7 @@ import { Tabletop } from '../room/Tabletop.js';
 import { WindowView } from '../room/WindowView.js';
 import { setBandOnTwoLines, setBandReplay } from '../screens/draw.js';
 import { ConsoleScreenV11 } from '../screens/v11/ConsoleScreenV11.js';
+import { contentFor } from '../screens/v11/recorded.js';
 import { ScreenBankV11 } from '../screens/v11/ScreenBankV11.js';
 import { AgentWindow, type WindowOrigin } from '../window/AgentWindow.jsx';
 import { type Agent, type WindowTarget, windowForLedgerRow } from '../window/windowContent.js';
@@ -1026,14 +1027,19 @@ function Cast({
   const frozen = useMemo(() => (held === null ? null : demoAt(held.t, held.loop, true)), [held]);
   const state = forced ? forcedState(forced) : (frozen ?? running);
   publishDemoState(state);
+  // The recorded run's real duration and real branch, for the two surfaces
+  // that were inventing them (KS4-02, KS4-04). Added here rather than in
+  // `replayAt` because V10's world imports the replay and V11 may not move
+  // V10's bytes — `screens/v11/recorded.ts` says it at length.
+  const content = contentFor(state.content, state.mode);
   const virgilBusy = state.pose !== 'rest' || state.virgilFace !== 'idle';
   return (
     <>
-      <VirgilConsole active={virgilBusy && !state.content.ownerGate} />
+      <VirgilConsole active={virgilBusy && !content.ownerGate} />
       <VirgilRigged pose={state.pose} face={state.virgilFace} onSelect={() => onSelect('virgil')} />
       <ScreenBankV11
         orientation={orientation}
-        content={state.content}
+        content={content}
         outcome={state.outcome}
         seconds={state.seconds}
         mode={state.mode}
@@ -1057,11 +1063,11 @@ function Cast({
               report={member.report}
               outcome={state.outcome}
               work={member.work}
-              quiet={state.content.ownerGate ? 0.75 : 0}
+              quiet={content.ownerGate ? 0.75 : 0}
               attention={focus === role}
               showBand={state.mode === 'replay'}
-              candidateId={state.content.candidateId}
-              branch={state.content.branch}
+              candidateId={content.candidateId}
+              branch={content.branch}
               onOpen={() => onSelect(`${role}-screen`)}
             />
             <StationLight role={role} activity={member.activity} report={member.report} />

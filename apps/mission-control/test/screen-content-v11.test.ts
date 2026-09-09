@@ -6,6 +6,7 @@ import { ROLES, type Role } from '../src/world/room/cast.js';
 import { BEATS, demoAt, loopLength, type Outcome } from '../src/world/room/demo.js';
 import { splitHero } from '../src/world/screens/v11/chrome.js';
 import { primaryFor, verdictPrimary } from '../src/world/screens/v11/content.js';
+import { contentFor } from '../src/world/screens/v11/recorded.js';
 import {
   drawConsoleScreen,
   drawSlab,
@@ -734,7 +735,13 @@ describe('playback time is not the recorded run’s elapsed time', () => {
     return rec;
   }
 
-  const replayed = replayAt(playbackSchedule('fast')[0]?.at ?? 0, 'fast', true);
+  const replayed = {
+    ...replayAt(playbackSchedule('fast')[0]?.at ?? 0, 'fast', true),
+    content: contentFor(
+      replayAt(playbackSchedule('fast')[0]?.at ?? 0, 'fast', true).content,
+      'replay',
+    ),
+  };
 
   it('prints the record’s own duration in the replay, never the playback clock', () => {
     const drawn = rolesSlab(replayed.content, 137, true, true).text;
@@ -837,14 +844,15 @@ describe('the replay prints no invented identity', () => {
       if (!beat.role) continue;
       const state = replayAt(at + 0.05, 'fast', true);
       const member = state.cast[beat.role];
-      const drawn = consoleText(beat.role, member, state.content).join(' | ');
+      const content = contentFor(state.content, 'replay');
+      const drawn = consoleText(beat.role, member, content).join(' | ');
       const where = `beat ${beat.id}`;
       // Neither the demonstration's data-shaped commit nor its branch.
       expect(drawn, where).not.toContain('9abcdef');
       expect(drawn.toLowerCase(), where).not.toContain('-v11');
       if (beat.role === 'fabricator') {
-        expect(drawn, where).toContain((state.content.candidateId as string).slice(0, 7));
-        expect(drawn, where).toContain(state.content.branch as string);
+        expect(drawn, where).toContain((content.candidateId as string).slice(0, 7));
+        expect(drawn, where).toContain(content.branch as string);
       }
     }
   });
@@ -862,7 +870,11 @@ describe('the replay prints no invented identity', () => {
 
   it('leaves the scripted demonstration’s data-shaped identity exactly as it was', () => {
     const state = demoAt(10, 0, true);
-    const drawn = consoleText('fabricator', state.cast.fabricator, state.content).join(' | ');
+    const drawn = consoleText(
+      'fabricator',
+      state.cast.fabricator,
+      contentFor(state.content, 'demo'),
+    ).join(' | ');
     expect(drawn).toContain('9abcdef');
     expect(drawn).toContain('claude/…-v11');
   });

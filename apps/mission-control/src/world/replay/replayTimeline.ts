@@ -693,13 +693,6 @@ export function evidenceFor(beat: ReplayBeat): string[] {
  * is driven by the one path through the code — the replay feeds them
  * different content and adds no second renderer.
  */
-/**
- * `claude/virgil-main-consolidation-6f5fuc` as a console rail can set it:
- * the leading segment, an ellipsis, and the six characters that make it
- * this branch and no other. Derived, never retyped.
- */
-const BRANCH_SHOWN = `${RUN.branch.split('/')[0]}/…-${RUN.branch.slice(-6)}`;
-
 export function replayAt(seconds: number, speed: ReplaySpeed, running: boolean): DemoState {
   const beat = REPLAY_BEATS[beatAt(seconds, speed).index] as ReplayBeat;
   const candidate = shaShownAt(beat);
@@ -737,14 +730,6 @@ export function replayAt(seconds: number, speed: ReplaySpeed, running: boolean):
       ownerGate: beat.ownerGate,
       candidateId: candidate.short,
       evidence: evidenceFor(beat),
-      // The run's own duration, from the record's `startedAt` and
-      // `completedAt` — not the playback clock, which is what the run
-      // slab used to print here (KS4-02).
-      recordedElapsed: recordedDuration(RUN_SECONDS),
-      // The run's real branch, abbreviated the way every identity on these
-      // rails is abbreviated and derived from `RUN.branch` so it cannot
-      // drift from it. The panel prints it whole (`replayContent.ts`).
-      branch: BRANCH_SHOWN,
     },
   };
 }
