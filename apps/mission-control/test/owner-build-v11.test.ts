@@ -111,7 +111,7 @@ describe('the V11 inliner enforces the same rules as V10’s', () => {
   });
 
   it('names the artifact with the viewing point at the front, as V7 established', () => {
-    expect(inline).toContain("VIRGIL_OWNER_V11_STAGE_SLUG ?? 'v11-s2'");
+    expect(inline).toContain("VIRGIL_OWNER_V11_STAGE_SLUG ?? 'v11-s3'");
     expect(inline).toContain('${stageSlug}-virgil-${shortSha}.html');
   });
 

@@ -97,7 +97,9 @@ for (const [name, width, height] of VIEWPORTS) {
     await page.screenshot({ path: `${shots}/${name}-keeper-transition.png` });
     await page.waitForTimeout(4000);
     await page.screenshot({ path: `${shots}/${name}-keeper-record.png` });
-    const back = page.locator('.panel-back');
+    // Stage 3 replaced the panel with the window, whose way back is a chevron.
+    // Both selectors are tried so this script still runs against either.
+    const back = page.locator('.v11w-back, .panel-back');
     if ((await back.count()) > 0) {
       await back.click();
       await page.waitForTimeout(1200);

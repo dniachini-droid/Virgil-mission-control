@@ -312,7 +312,7 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
   return (
     <SettingsContext.Provider value={settings}>
       <div
-        className={`v11-stage${focused ? ' is-focused' : ''}`}
+        className={`v11-stage${focused ? ' is-focused' : ''}${win ? ' has-window' : ''}`}
         data-orientation={orientation}
         onPointerDown={onStagePointerDown}
         onPointerUp={onStagePointerUp}

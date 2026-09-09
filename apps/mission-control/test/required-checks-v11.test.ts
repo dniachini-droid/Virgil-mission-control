@@ -118,6 +118,12 @@ describe('the V11 verify is a measurement, not a reading', () => {
   it('drives the gesture guard with a real drag and a real tap', () => {
     expect(verify).toContain('page.mouse.down()');
     expect(verify).toContain('drag across the Virgil target opened a panel');
+    // Stage 3's own surface, driven rather than read.
+    expect(verify).toContain('the window was not open at the press');
+    expect(verify).toContain('back is one step per level');
+    expect(verify).toContain('__raiseKeyboard');
+    expect(verify).toContain('session control(s) are enabled');
+    expect(verify).toContain('a table comes before the conclusion');
   });
 
   it('visits the two portrait widths the brief names, and a landscape one', () => {

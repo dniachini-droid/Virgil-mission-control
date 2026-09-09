@@ -68,6 +68,18 @@ export interface WindowTarget {
 export interface Conclusion {
   /** What happened. One line, and never a table. */
   headline: string;
+  /**
+   * The exact verdict, when one has returned, set as a **token** rather than
+   * inside the headline.
+   *
+   * Found by looking at a frame: *"The review returned PASS WITH NON-BLOCKING
+   * FINDINGS"* came out as three lines of 22 px capitals, which is precisely
+   * the giant uppercase heading the brief forbids for ordinary content — and
+   * the verdict may not be shortened either, because `PASS` names a
+   * **different** one of the four. So the headline stays prose and the verdict
+   * sits under it in the monospace face this interface reserves for tokens.
+   */
+  token?: string;
   /** What it means. */
   meaning: string;
   /** What happens next. */
@@ -1197,6 +1209,7 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
   const verdict = verdictPrimary(state.content.verdict, state.content.active);
   const holder = state.content.active;
   const gate = state.content.ownerGate;
+  const verdictWord = state.content.verdict === '—' ? null : verdict.word;
   const conclusion: Conclusion = gate
     ? {
         headline: 'Every merge gate passes. The candidate is eligible and it is not merged.',
@@ -1204,16 +1217,27 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
           'Eligible means the gates are satisfied. Merge is yours alone, in every phase, and nothing in this interface is a path to one.',
         next: 'Nothing proceeds until you decide.',
       }
-    : state.content.verdict !== '—'
+    : verdictWord !== null
       ? {
-          headline: `The review returned ${sentence(verdict.word)}`,
-          meaning: sentence(verdict.lead),
+          headline:
+            state.content.verdict === 'BLOCKED'
+              ? 'The candidate was refused at verification'
+              : state.content.verdict === 'INSUFFICIENT_EVIDENCE'
+                ? 'The Prover could not reach a conclusion'
+                : 'The review has returned its verdict',
+          token: verdictWord,
+          meaning:
+            state.content.verdict === 'BLOCKED'
+              ? 'A required check failed, which is a proven defect rather than missing proof. I do not proceed.'
+              : state.content.verdict === 'INSUFFICIENT_EVIDENCE'
+                ? 'A required check could not run, so nothing has been proved and nothing has been disproved.'
+                : 'Findings were raised and none of them blocks, so they are recorded and carried forward rather than closed.',
           next:
             state.content.verdict === 'BLOCKED'
               ? 'I have stopped the candidate. A repair round is your decision; I cannot start one.'
               : state.content.verdict === 'INSUFFICIENT_EVIDENCE'
                 ? 'I am waiting for the missing proof. I have not refused, because nothing has been disproved.'
-                : 'The candidate is carried forward with its findings attached.',
+                : 'The candidate carries its findings forward, and they stay inspectable.',
         }
       : holder
         ? {
@@ -1362,7 +1386,18 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
     name: NAME.virgil,
     remit: REMIT.virgil,
     status: {
-      word: gate ? 'Waiting on you' : holder ? sentence(`${holder} holds the hop`) : 'At rest',
+      /**
+       * Found by looking: this read **At rest** on a beat where the review had
+       * returned and Virgil was holding the candidate between hops, because it
+       * had only the two branches. Holding work is not resting.
+       */
+      word: gate
+        ? 'Waiting on you'
+        : holder
+          ? sentence(`${holder} holds the hop`)
+          : state.content.candidate !== null
+            ? 'Holding the candidate'
+            : 'At rest',
       means: gate ? 'Every gate passes and the decision is yours.' : sentence(verdict.lead),
       tint: gate ? STATUS.gold : verdict.status === 'red' ? STATUS.red : STATUS[verdict.status],
       mark: gate ? 'passed' : verdict.mark,

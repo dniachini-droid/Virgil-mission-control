@@ -276,6 +276,10 @@ export function AgentWindow({
           {/* What happened, what it means, what happens next. Never a table. */}
           <section className="v11w-lead" aria-label="What happened">
             <h2 className="v11w-headline">{doc.conclusion.headline}</h2>
+            {/* The exact verdict, as a token rather than as a shouted heading. */}
+            {doc.conclusion.token ? (
+              <p className="v11w-verdict-token">{doc.conclusion.token}</p>
+            ) : null}
             <p className="v11w-meaning">{doc.conclusion.meaning}</p>
             <p className="v11w-next">{doc.conclusion.next}</p>
           </section>

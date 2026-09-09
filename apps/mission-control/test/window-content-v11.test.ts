@@ -69,6 +69,7 @@ function allText(doc: WindowDoc): string[] {
     ...doc.progression.steps.map((step) => step.label),
     doc.context,
     doc.conclusion.headline,
+    doc.conclusion.token ?? '',
     doc.conclusion.meaning,
     doc.conclusion.next,
     ...doc.actions.map((action) => action.label),
@@ -91,6 +92,32 @@ describe('the conclusion leads, at every beat of every loop', () => {
         // sentences, never one repeated to fill the shape.
         expect(doc.conclusion.headline, where).not.toEqual(doc.conclusion.meaning);
         expect(doc.conclusion.meaning, where).not.toEqual(doc.conclusion.next);
+      }
+    }
+  });
+
+  it('sets a returned verdict as a token, never as a shouted headline', () => {
+    for (const { loop, seconds } of everyBeat()) {
+      for (const doc of docsAt(loop, seconds)) {
+        // No headline anywhere may be one of the four verdicts, or contain one:
+        // the exact word goes in `token`, in the monospace face.
+        for (const word of [
+          'PASS',
+          'PASS WITH NON-BLOCKING FINDINGS',
+          'BLOCKED',
+          'INSUFFICIENT EVIDENCE',
+        ]) {
+          expect(
+            doc.conclusion.headline.includes(word),
+            `${doc.key} @ loop ${loop} ${seconds}s shouts "${word}" in its headline`,
+          ).toBe(false);
+        }
+        if (doc.conclusion.token !== undefined) {
+          expect(
+            ['PASS', 'PASS WITH NON-BLOCKING FINDINGS', 'BLOCKED', 'INSUFFICIENT EVIDENCE'],
+            doc.key,
+          ).toContain(doc.conclusion.token);
+        }
       }
     }
   });

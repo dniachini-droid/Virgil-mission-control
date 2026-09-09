@@ -404,6 +404,25 @@
   text-wrap: balance;
 }
 
+/*
+ * The verdict, set as what it is: one of exactly four tokens from
+ * `constitution/authority.json`, in the monospace face this interface reserves
+ * for tokens, at a size that does not shout. It may never be shortened —
+ * `PASS` names a different one of the four — so it wraps rather than truncates.
+ */
+.v11w-verdict-token {
+  display: inline-block;
+  margin: 10px 0 0;
+  padding: 5px 10px;
+  font: 600 12.5px / 1.4 var(--mono);
+  letter-spacing: 0.06em;
+  color: var(--v11w-ivory);
+  background: rgba(190, 214, 255, 0.08);
+  border: 1px solid var(--v11w-tint);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
 .v11w-meaning {
   margin: 9px 0 0;
   font: 400 15px / 1.55 var(--ui);

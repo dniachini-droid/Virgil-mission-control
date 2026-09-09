@@ -480,3 +480,33 @@
 .v11-stage[data-orientation="landscape"] .v11-dock {
   justify-content: space-between;
 }
+
+/*
+ * **While a window is open in landscape, the chrome gets out of the strip.**
+ *
+ * The window is a near-full-screen sheet there, so the world survives as a
+ * narrow strip on the left — and the dock and the badge ran under the sheet,
+ * leaving a half-covered `TALK` and a clipped badge in the one part of the
+ * picture still visible. Found by looking at the frame.
+ *
+ * The dock goes, because "Talk to Virgil" is redundant while the reader is
+ * already in a conversation. **The badge does not go**: stage 1's rule is that
+ * it may never be hidden, so it moves inside the strip instead and keeps its
+ * word on screen. In portrait the sheet covers the whole viewport and the badge
+ * is behind it — there the window's own `ILLUSTRATIVE · NOT REAL STATE` band
+ * carries the same claim, at full width, directly under the header, which is
+ * the arrangement §5b asks for.
+ */
+.v11-stage.has-window[data-orientation="landscape"] .v11-dock {
+  display: none;
+}
+
+.v11-stage.has-window[data-orientation="landscape"] .v11-badge-dock {
+  right: auto;
+  bottom: var(--v11-bottom);
+  max-width: 17%;
+}
+
+.v11-stage.has-window[data-orientation="landscape"] .v11-badge {
+  padding-right: 4px;
+}

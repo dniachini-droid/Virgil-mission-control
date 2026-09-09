@@ -15,6 +15,7 @@
     "capture": "tsx e2e/capture-spikes.ts",
     "capture:v11": "tsx e2e/capture-v11.ts",
     "capture:v11:screens": "tsx e2e/capture-v11-screens.ts",
+    "capture:v11:windows": "tsx e2e/capture-v11-windows.ts",
     "verify:owner": "tsx e2e/verify-owner-build.ts",
     "verify:owner:v11": "tsx e2e/verify-owner-build-v11.ts",
     "reproduce:owner": "node owner-build/reproduce.mjs",

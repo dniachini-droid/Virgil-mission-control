@@ -16,6 +16,29 @@
  *    through the CDP mouse rather than asserted from the code;
  *  - V10's world still loads, unchanged, at V11's `#/v10` route.
  *
+ * **Stage 3 adds the window's own checks**, and inverts one of stage 1's on the
+ * owner's instruction:
+ *
+ *  - **one tap opens the window and moves the camera at the same time.** Stage
+ *    1 asserted the opposite — that the record waits out the flight — because
+ *    it was built to the brief's stage-1 line. The owner's decision in
+ *    `docs/process/PHASE_1_CONVERSATION_INTERFACE.md` §5b governs: *"tapping a
+ *    screen opens the panel straight away and takes you there… So you arent
+ *    waiting to be taken there first."* So the assertion is turned round rather
+ *    than dropped: the window must be **open at the press**, while the camera
+ *    is still moving;
+ *  - the way back is a chevron in the window's own header and takes one step to
+ *    the station, and the station's control takes one more to the overview —
+ *    which is stage 1's recorded compromise closed;
+ *  - every pressable thing inside the window measures at least 44 x 44, with
+ *    the evidence sections closed **and** expanded;
+ *  - no horizontal overflow with the window open, at either state;
+ *  - the composer stays above a **simulated** onscreen keyboard, through the
+ *    product's own `visualViewport` path;
+ *  - the conclusion is the first thing in the document and a table is never
+ *    the first thing;
+ *  - nothing in the window claims to have sent or performed anything.
+ *
  * **Every iPhone figure here is a simulated viewport in headless Chromium.**
  * No iPhone exists in this environment. Real-device checks are recorded as
  * NOT PERFORMED, never as met (`docs/process/V11_BRIEF.md`, caution 3;
@@ -54,6 +77,45 @@ const VIEWPORTS = [
   { name: 'landscape-844', width: 844, height: 390, portrait: false },
 ] as const;
 
+/**
+ * **The simulated onscreen keyboard.**
+ *
+ * `visualViewport` is read-only and no headless browser can raise an iOS
+ * keyboard, so the object itself is substituted before the page loads and its
+ * `resize` is dispatched on demand. What is exercised is the product's own code
+ * path — `useKeyboardInset` in `world/window/AgentWindow.tsx` — against an inset
+ * of the height an iPhone keyboard takes.
+ *
+ * **Simulated, and recorded as simulated.** Whether a real iOS keyboard leaves
+ * the composer where this says it does is NOT PERFORMED.
+ */
+/**
+ * Portrait: 336 CSS px, which is what an iPhone keyboard takes with its
+ * suggestion strip. Landscape: 180, because a 336 px keyboard in a 390 px-tall
+ * viewport leaves 54 px for a whole interface and is not a state any device
+ * produces — asserting it would be asserting a fiction.
+ */
+const KEYBOARD_PX = 336;
+const KEYBOARD_LANDSCAPE_PX = 180;
+const KEYBOARD_SHIM = `(() => {
+  const listeners = new Set();
+  const fake = {
+    get height() { return window.innerHeight - (window.__simKeyboard ?? 0); },
+    get width() { return window.innerWidth; },
+    get offsetTop() { return 0; },
+    get offsetLeft() { return 0; },
+    get scale() { return 1; },
+    addEventListener: (type, listener) => { listeners.add(listener); },
+    removeEventListener: (type, listener) => { listeners.delete(listener); },
+  };
+  window.__simKeyboard = 0;
+  window.__raiseKeyboard = (px) => {
+    window.__simKeyboard = px;
+    for (const listener of listeners) listener({ type: 'resize' });
+  };
+  Object.defineProperty(window, 'visualViewport', { get: () => fake });
+})();`;
+
 const consoleErrors: string[] = [];
 const consoleWarnings: string[] = [];
 const pageErrors: string[] = [];
@@ -68,6 +130,7 @@ const substituted = existsSync(preinstalled);
 const browser = await chromium.launch(substituted ? { executablePath: preinstalled } : {});
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await context.newPage();
+await page.addInitScript(KEYBOARD_SHIM);
 page.on('console', (m) => {
   if (m.type() === 'error') consoleErrors.push(m.text());
   if (m.type() === 'warning') consoleWarnings.push(m.text());
@@ -163,6 +226,16 @@ notes.push(
 for (const viewport of VIEWPORTS) {
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
   await page.goto(`${fileUrl}#/`, { waitUntil: 'load' });
+  /**
+   * **Reloaded, not navigated.** A `goto` that changes only the hash does not
+   * reload the document, so the window's own memory — drafts, kept turns, which
+   * evidence sections were opened — survived from one viewport's run into the
+   * next one's. The first pass of this check reported "5 of 5 sections open"
+   * with the evidence closed and "2 owner turns" after typing once, and both
+   * were the instrument's fault rather than the product's. Each viewport now
+   * starts from a fresh document.
+   */
+  await page.reload({ waitUntil: 'load' });
   await waitForWorld(page);
 
   // 1. No horizontal overflow, at the document and at every element.
@@ -243,8 +316,9 @@ for (const viewport of VIEWPORTS) {
   //    behaviour of this software renderer, not a flaw in the test.
   const state = () =>
     page.evaluate(() => ({
-      panel: document.querySelectorAll('.panel-root').length,
+      panel: document.querySelectorAll('.v11w-root').length,
       focus: (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus ?? '(none)',
+      window: (window as { __virgilV11?: { window?: string | null } }).__virgilV11?.window ?? null,
     }));
   const settle = async () => {
     await page.evaluate(() => (window as { __virgilV11Reset?: () => void }).__virgilV11Reset?.());
@@ -266,53 +340,61 @@ for (const viewport of VIEWPORTS) {
     const cx = virgil.x + virgil.width / 2;
     const cy = virgil.y + virgil.height / 2;
 
-    // 3a. A tap opens — after the deliberate transition, not with it.
+    // 3a. **A tap opens the window and moves the camera in the same event.**
+    //     The owner's decision, and the inverse of what stage 1 asserted here.
     await press(cx, cy);
-    const midFlight = await state();
+    const atPress = await state();
     await frames(page, 3);
     const afterTap = await state();
     if (afterTap.panel !== 1) {
       failures.push(
-        `${viewport.name}: a tap on the Virgil target opened ${afterTap.panel} panels, expected 1`,
+        `${viewport.name}: a tap on the Virgil target opened ${afterTap.panel} windows, expected 1`,
       );
     }
     if (afterTap.focus !== 'virgil') {
       failures.push(`${viewport.name}: a tap left the focus at ${afterTap.focus}, expected virgil`);
     }
-    if (midFlight.panel !== 0) {
-      failures.push(`${viewport.name}: the record opened before the camera moved`);
+    if (atPress.panel !== 1) {
+      failures.push(
+        `${viewport.name}: the window was not open at the press — it opened ${atPress.panel} windows, and the owner's decision is that it is up immediately`,
+      );
+    }
+    if (atPress.focus !== 'virgil') {
+      failures.push(
+        `${viewport.name}: the camera had not begun to move at the press (focus ${atPress.focus})`,
+      );
     }
     notes.push(
-      `${viewport.name}: tap on Virgil — the camera goes first (panels ${midFlight.panel} at the press), then the record (panels ${afterTap.panel}, focus ${afterTap.focus})`,
+      `${viewport.name}: tap on Virgil — window and camera together (windows ${atPress.panel}, focus ${atPress.focus} at the press; ${afterTap.window} after)`,
     );
 
     // 3b. The record's own dismissal leaves the reader at the station, as the
     //     owner decided at V9. Measured here because in portrait the panel is a
     //     full-screen sheet and its control is the only thing on top of it.
     const escBox = await page
-      .locator('.panel-back')
+      .locator('.v11w-back')
       .boundingBox({ timeout: 10_000 })
       .catch(() => null);
     if (!escBox) {
-      failures.push(`${viewport.name}: the record has no dismissal control`);
+      failures.push(`${viewport.name}: the window has no back chevron`);
     } else {
       if (escBox.width < MIN_TOUCH_PX || escBox.height < MIN_TOUCH_PX) {
         failures.push(
-          `${viewport.name}: the record's dismissal measures ${Math.round(escBox.width)} x ${Math.round(escBox.height)}`,
+          `${viewport.name}: the window's back chevron measures ${Math.round(escBox.width)} x ${Math.round(escBox.height)}`,
         );
       }
       await press(escBox.x + escBox.width / 2, escBox.y + escBox.height / 2);
       // Polled, not slept: the panel must close, and how many frames that
       // takes in a software rasteriser is not what this check is about.
       await page
-        .waitForFunction(() => document.querySelectorAll('.panel-root').length === 0, undefined, {
+        .waitForFunction(() => document.querySelectorAll('.v11w-root').length === 0, undefined, {
           timeout: 20_000,
           polling: 120,
         })
         .catch(() => undefined);
       const afterEsc = await state();
       if (afterEsc.panel !== 0) {
-        failures.push(`${viewport.name}: the record's dismissal left ${afterEsc.panel} panels`);
+        failures.push(`${viewport.name}: the back chevron left ${afterEsc.panel} windows open`);
       }
       if (afterEsc.focus !== 'virgil') {
         failures.push(
@@ -378,6 +460,263 @@ for (const viewport of VIEWPORTS) {
     notes.push(
       `${viewport.name}: 114 px drag across Virgil — panels ${afterDrag.panel}, focus ${afterDrag.focus}`,
     );
+    await settle();
+  }
+
+  // 4. **The window itself**, driven and measured: opened from the world, at
+  //    this viewport, with its evidence closed and then expanded.
+  const windowMeasure = async (label: string) => {
+    const measured = await page.evaluate((min) => {
+      const nodes = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          '.v11w-sheet button, .v11w-sheet textarea, .v11w-sheet summary',
+        ),
+      );
+      const doc = document.documentElement;
+      const small: string[] = [];
+      let smallest = Number.POSITIVE_INFINITY;
+      for (const node of nodes) {
+        const rect = node.getBoundingClientRect();
+        smallest = Math.min(smallest, rect.width, rect.height);
+        if (rect.width < min || rect.height < min) {
+          small.push(
+            `${node.tagName.toLowerCase()}.${(node.className || '(none)').toString().split(' ')[0]} ${Math.round(rect.width)}x${Math.round(rect.height)}`,
+          );
+        }
+      }
+      const past: string[] = [];
+      for (const element of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
+        const rect = element.getBoundingClientRect();
+        if (rect.width === 0 && rect.height === 0) continue;
+        if (rect.right > doc.clientWidth + 0.5 || rect.left < -0.5) {
+          past.push(
+            `${element.tagName.toLowerCase()}.${(element.className || '(none)').toString().split(' ')[0]}@${Math.round(rect.right)}`,
+          );
+        }
+      }
+      // The order the brief requires: the conclusion before any table, and the
+      // composer after the suggested actions.
+      const body = document.querySelector('.v11w-body');
+      const first = body?.firstElementChild?.className ?? '(none)';
+      const order = Array.from(document.querySelectorAll('.v11w-sheet *')).reduce(
+        (acc: { headline: number; table: number; actions: number; composer: number }, node, i) => {
+          const name = (node.className || '').toString();
+          if (name.includes('v11w-headline') && acc.headline < 0) acc.headline = i;
+          if (node.tagName === 'TABLE' && acc.table < 0) acc.table = i;
+          if (name.includes('v11w-actions') && acc.actions < 0) acc.actions = i;
+          if (name.includes('v11w-composer') && acc.composer < 0) acc.composer = i;
+          return acc;
+        },
+        { headline: -1, table: -1, actions: -1, composer: -1 },
+      );
+      return {
+        count: nodes.length,
+        smallest: Math.round(smallest * 10) / 10,
+        small,
+        past,
+        scrollWidth: doc.scrollWidth,
+        clientWidth: doc.clientWidth,
+        first,
+        order,
+        sections: document.querySelectorAll('.v11w-section').length,
+        openSections: document.querySelectorAll('.v11w-disclose[aria-expanded="true"]').length,
+        note: document.querySelector('.v11w-composer-note')?.textContent?.trim() ?? '(none)',
+        controls: document.querySelectorAll('.v11w-control').length,
+        enabledControls: Array.from(
+          document.querySelectorAll<HTMLButtonElement>('.v11w-control'),
+        ).filter((node) => !node.disabled).length,
+      };
+    }, MIN_TOUCH_PX);
+    if (measured.count === 0) {
+      failures.push(`${viewport.name} ${label}: the window has no controls at all`);
+    }
+    for (const entry of measured.small) {
+      failures.push(`${viewport.name} ${label}: ${entry} is under ${MIN_TOUCH_PX} px`);
+    }
+    if (measured.past.length > 0) {
+      failures.push(
+        `${viewport.name} ${label}: ${measured.past.length} element(s) outside the viewport — ${measured.past.slice(0, 6).join(', ')}`,
+      );
+    }
+    if (measured.scrollWidth > measured.clientWidth) {
+      failures.push(
+        `${viewport.name} ${label}: document scrollWidth ${measured.scrollWidth} > ${measured.clientWidth}`,
+      );
+    }
+    if (!measured.first.includes('v11w-lead')) {
+      failures.push(
+        `${viewport.name} ${label}: the first thing in the window is "${measured.first}", not the conclusion`,
+      );
+    }
+    if (
+      measured.order.headline < 0 ||
+      (measured.order.table >= 0 && measured.order.table < measured.order.headline)
+    ) {
+      failures.push(`${viewport.name} ${label}: a table comes before the conclusion`);
+    }
+    if (measured.order.composer < measured.order.actions) {
+      failures.push(`${viewport.name} ${label}: the composer comes before the suggested actions`);
+    }
+    if (measured.enabledControls !== 0) {
+      failures.push(
+        `${viewport.name} ${label}: ${measured.enabledControls} session control(s) are enabled`,
+      );
+    }
+    if (!/Nothing is sent/.test(measured.note)) {
+      failures.push(`${viewport.name} ${label}: the composer's note reads "${measured.note}"`);
+    }
+    notes.push(
+      `${viewport.name} ${label}: ${measured.count} controls, smallest ${measured.smallest} px; scrollWidth ${measured.scrollWidth}/${measured.clientWidth}, 0 past the edge; ${measured.openSections} of ${measured.sections} sections open; ${measured.controls} session controls, ${measured.enabledControls} enabled`,
+    );
+    return measured;
+  };
+
+  {
+    // The Prover's window, opened through the world by tapping his console's
+    // own screen — the same path the reader takes.
+    await settle();
+    const proverTarget = await page
+      .locator('[data-touch-target="prover-screen"]')
+      .boundingBox({ timeout: 10_000 })
+      .catch(() => null);
+    const box = proverTarget;
+    if (!box) {
+      failures.push(`${viewport.name}: the Prover's screen has no target to open`);
+    } else {
+      await press(box.x + box.width / 2, box.y + box.height / 2);
+      await page
+        .waitForFunction(() => document.querySelectorAll('.v11w-sheet').length === 1, undefined, {
+          timeout: 20_000,
+          polling: 120,
+        })
+        .catch(() => undefined);
+      /**
+       * **Where the tap took the camera, whatever it hit.** Two world targets
+       * can overlap on a phone and the hit test takes the nearer centre, so at
+       * 430 the press near the Prover's screen lands on one of Virgil's slabs
+       * instead. That is correct behaviour and the check should not depend on
+       * which: what has to hold is that the chevron leaves the reader **here**,
+       * at whatever station the tap flew to, and never back at the overview.
+       */
+      const stationFocus = (await state()).focus;
+      if (stationFocus === 'all') {
+        failures.push(`${viewport.name}: the tap opened a window without moving the camera`);
+      }
+      await windowMeasure('window, evidence closed');
+
+      // Expanded: every disclosure opened, which is where the tables, the
+      // terminal cards and the diffs are.
+      await page.evaluate(() => {
+        for (const node of Array.from(
+          document.querySelectorAll<HTMLButtonElement>('.v11w-disclose[aria-expanded="false"]'),
+        )) {
+          node.click();
+        }
+      });
+      await frames(page, 2);
+      await windowMeasure('window, evidence expanded');
+
+      // The composer, with the keyboard up. **Simulated**, through the
+      // product's own `visualViewport` path.
+      await page.locator('.v11w-input').click();
+      await page.locator('.v11w-input').fill('Why is this candidate not merged?');
+      const keyboardPx = viewport.portrait ? KEYBOARD_PX : KEYBOARD_LANDSCAPE_PX;
+      await page.evaluate((px) => {
+        (window as { __raiseKeyboard?: (n: number) => void }).__raiseKeyboard?.(px);
+      }, keyboardPx);
+      await frames(page, 2);
+      const composer = await page.evaluate(() => {
+        const input = document.querySelector('.v11w-input')?.getBoundingClientRect();
+        const keep = document.querySelector('.v11w-keep')?.getBoundingClientRect();
+        const hidden = (window as { __simKeyboard?: number }).__simKeyboard ?? 0;
+        return {
+          inputBottom: Math.round(input?.bottom ?? -1),
+          keepBottom: Math.round(keep?.bottom ?? -1),
+          visible: Math.round(window.innerHeight - hidden),
+          inset: getComputedStyle(
+            document.querySelector('.v11w-sheet') as Element,
+          ).getPropertyValue('--v11w-kb'),
+        };
+      });
+      if (composer.inputBottom > composer.visible || composer.keepBottom > composer.visible) {
+        failures.push(
+          `${viewport.name}: with a ${keyboardPx} px keyboard the composer sits at ${composer.inputBottom} and the keyboard starts at ${composer.visible}`,
+        );
+      }
+      notes.push(
+        `${viewport.name}: SIMULATED ${keyboardPx} px keyboard — composer bottom ${composer.inputBottom}, keep ${composer.keepBottom}, keyboard starts ${composer.visible}, inset ${composer.inset.trim()}`,
+      );
+
+      // What was typed is kept and never reported as sent. Counted as a
+      // difference, so nothing a previous step left behind can flatter it.
+      const turnsBefore = await page.evaluate(
+        () => document.querySelectorAll('.v11w-turn.is-owner').length,
+      );
+      await page.locator('.v11w-keep').click();
+      await frames(page, 2);
+      const kept = await page.evaluate(() => ({
+        turns: document.querySelectorAll('.v11w-turn.is-owner').length,
+        note: document.querySelector('.v11w-composer-note')?.textContent?.trim() ?? '(none)',
+      }));
+      if (kept.turns - turnsBefore !== 1) {
+        failures.push(
+          `${viewport.name}: keeping what was typed added ${kept.turns - turnsBefore} turns, expected 1`,
+        );
+      }
+      if (/sent|sending|delivered/i.test(kept.note.replace(/Nothing is sent/gi, ''))) {
+        failures.push(`${viewport.name}: the composer claims something was sent — "${kept.note}"`);
+      }
+      notes.push(
+        `${viewport.name}: kept ${kept.turns - turnsBefore} owner turn, note "${kept.note}"`,
+      );
+      await page.evaluate((px) => {
+        (window as { __raiseKeyboard?: (n: number) => void }).__raiseKeyboard?.(px);
+      }, 0);
+
+      // **The way back, one step per level.** The chevron goes to the station,
+      // and the station's own control goes to the overview: stage 1's recorded
+      // compromise — the way home hidden while a record is open — closed.
+      const chevron = await page
+        .locator('.v11w-back')
+        .boundingBox({ timeout: 10_000 })
+        .catch(() => null);
+      if (!chevron) {
+        failures.push(`${viewport.name}: the window has no back chevron`);
+      } else {
+        await press(chevron.x + chevron.width / 2, chevron.y + chevron.height / 2);
+        await page
+          .waitForFunction(() => document.querySelectorAll('.v11w-root').length === 0, undefined, {
+            timeout: 20_000,
+            polling: 120,
+          })
+          .catch(() => undefined);
+        const atStation = await state();
+        if (atStation.panel !== 0 || atStation.focus !== stationFocus) {
+          failures.push(
+            `${viewport.name}: the chevron left ${atStation.panel} windows and the focus at ${atStation.focus}, not the ${stationFocus} the tap flew to; it must leave the reader at the station`,
+          );
+        }
+        const home = await page
+          .locator('[data-touch-target="back"]')
+          .boundingBox({ timeout: 10_000 })
+          .catch(() => null);
+        if (!home) {
+          failures.push(`${viewport.name}: no way back to the overview at the station`);
+        } else {
+          await press(home.x + home.width / 2, home.y + home.height / 2);
+          await frames(page, 3);
+          const atOverview = await state();
+          if (atOverview.focus !== 'all') {
+            failures.push(
+              `${viewport.name}: the second step left the focus at ${atOverview.focus}`,
+            );
+          }
+          notes.push(
+            `${viewport.name}: back is one step per level — window → station (${atStation.focus}) → overview (${atOverview.focus})`,
+          );
+        }
+      }
+    }
     await settle();
   }
 
@@ -450,7 +789,7 @@ const tapAndTime = async (x: number, y: number, budgetMs: number) => {
   while (Date.now() - startedAt < budgetMs) {
     const sample = await page.evaluate(() => ({
       focus: (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus ?? '(none)',
-      panels: document.querySelectorAll('.panel-root').length,
+      panels: document.querySelectorAll('.v11w-root').length,
     }));
     const at = Date.now() - startedAt;
     if (movedAt < 0 && sample.focus !== 'all') movedAt = at;
@@ -499,10 +838,23 @@ const reduced = reducedTarget
 if (!reducedIsOn) failures.push('reduced-motion: the emulation did not take');
 if (normal.openedAt < 0) failures.push('the record never opened at the default motion setting');
 if (reduced.openedAt < 0) failures.push('reduced-motion: the record never opened');
-if (normal.gap >= 0 && reduced.gap >= 0 && reduced.gap >= normal.gap) {
-  failures.push(
-    `reduced-motion: the record still waits out a transition — ${reduced.gap} ms after the camera moved, against ${normal.gap} ms at the default setting`,
-  );
+/**
+ * **What this asserts changed with the owner's decision, and it is stricter.**
+ *
+ * Stage 1 required the reduced-motion gap to be *smaller* than the default's,
+ * because at stage 1 the default deliberately waited 1.02 s for the camera
+ * before opening the record. The owner's decision in
+ * `docs/process/PHASE_1_CONVERSATION_INTERFACE.md` §5b removes that wait
+ * altogether — one tap does both, concurrently — so the thing to require now is
+ * that **neither** setting waits: the window appears in the same sample as the
+ * camera move, at 40 ms of polling resolution, in both. A regression that
+ * reintroduced any delay in either mode fails here.
+ */
+if (normal.gap !== 0) {
+  failures.push(`the window waited ${normal.gap} ms after the camera moved; one tap must do both`);
+}
+if (reduced.gap !== 0) {
+  failures.push(`reduced-motion: the window waited ${reduced.gap} ms after the camera moved`);
 }
 notes.push(
   `motion (portrait 390): default — camera at ${normal.movedAt} ms, record at ${normal.openedAt} ms, gap ${normal.gap} ms; reduced — camera at ${reduced.movedAt} ms, record at ${reduced.openedAt} ms, gap ${reduced.gap} ms. Wall-clock figures are this software renderer's, not the product's; the gap is the measurement.`,
@@ -543,5 +895,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'owner build v11 verify: PASS — opens from file://, no console errors, no off-document requests, no horizontal overflow, every touch target at least 44 x 44, the gesture guard holds, V10 still loads at #/v10',
+  'owner build v11 verify: PASS — opens from file://, no console errors, no off-document requests, no horizontal overflow with the window open or closed, every touch target and every window control at least 44 x 44, one tap opens the window and moves the camera together, back is one step per level, the composer stays above a simulated keyboard and claims nothing was sent, no session control is enabled, the gesture guard holds, V10 still loads at #/v10',
 );
