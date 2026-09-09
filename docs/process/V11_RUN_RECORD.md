@@ -2536,7 +2536,7 @@ order `pnpm check` runs. **A partial `verify:owner:v11` run may never print
 | `build:owner:v11` from a clean tree | `v11-s4-virgil-27f5874d9c.html`, **8,690,854 bytes** |
 | `sha256sum -c *.sha256` | **20 committed artifacts, all `OK`** |
 | `pnpm reproduce:owner` | `identical — rebuilt from 4ae03314d93ed6e26982f3691034974ff5b3887b`; `PASS` |
-| `pnpm reproduce:owner:v11` | `identical — rebuilt from 99614fa2091eddfa8f5a2f4191684cce62f2a751`; `PASS` |
+| `pnpm reproduce:owner:v11` | `identical — rebuilt from 99614fa2091eddfa8f5a2f4191684cce62f2a751`; `PASS`. **Re-run after this pass's own artifact was committed**: `identical — v11-s4-virgil-27f5874d9c.html rebuilt from 27f5874d9c7f3a909d7ab60c355c94e2a53f16e5`, sha256 `c95120b4…8b59755`, 8,690,854 bytes; `PASS` |
 
 **Tests added this pass: 2**, both about wiring rather than behaviour — that the
 compression assessment is a named command, and that no wait in the verifier is
