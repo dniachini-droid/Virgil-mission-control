@@ -194,51 +194,43 @@ for (const viewport of VIEWPORTS) {
     )} px — ${targets.map((t) => `${t.id} ${t.w}x${t.h}`).join(', ')}`,
   );
 
-  // 3. The gesture guard, driven rather than read. A drag across a target
-  //    opens nothing; a tap on the same target opens.
-  const virgil = await page.locator('[data-touch-target="virgil"]').boundingBox();
+  // 3. The interface, driven rather than read. The order matters: the tap is
+  //    taken first, from a page that has just mounted and whose camera is at
+  //    rest, and the drag afterwards from the settled overview. The gesture
+  //    guard compares the camera at the press with the camera at the release,
+  //    so a test that presses while the view is still easing measures the
+  //    easing and not the rule — recorded in V10's own run record as a real
+  //    behaviour of this software renderer, not a flaw in the test.
+  const state = () =>
+    page.evaluate(() => ({
+      panel: document.querySelectorAll('.panel-root').length,
+      focus: (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus ?? '(none)',
+    }));
+  const settle = async () => {
+    await page.evaluate(() => (window as { __virgilV11Reset?: () => void }).__virgilV11Reset?.());
+    await page.waitForTimeout(2600);
+  };
+  const press = async (x: number, y: number) => {
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.up();
+  };
+
+  const virgil = await page
+    .locator('[data-touch-target="virgil"]')
+    .boundingBox({ timeout: 10_000 })
+    .catch(() => null);
   if (!virgil) {
     failures.push(`${viewport.name}: no Virgil target to drive the gesture guard against`);
   } else {
     const cx = virgil.x + virgil.width / 2;
     const cy = virgil.y + virgil.height / 2;
 
-    await page.mouse.move(cx, cy);
-    await page.mouse.down();
-    for (let step = 1; step <= 12; step += 1) {
-      await page.mouse.move(cx + step * 9, cy + step * 3);
-      await page.waitForTimeout(12);
-    }
-    await page.mouse.up();
-    await page.waitForTimeout(2200);
-    const afterDrag = await page.evaluate(() => ({
-      panel: document.querySelectorAll('.panel-root').length,
-      focus: (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus ?? '(none)',
-    }));
-    if (afterDrag.panel !== 0) {
-      failures.push(`${viewport.name}: a 110 px drag across the Virgil target opened a panel`);
-    }
-    notes.push(
-      `${viewport.name}: drag across Virgil — panels ${afterDrag.panel}, focus ${afterDrag.focus}`,
-    );
-
-    // Back to the overview before the tap, whatever the drag left behind.
-    await page.evaluate(() => (window as { __virgilV11Reset?: () => void }).__virgilV11Reset?.());
-    await page.waitForTimeout(1400);
-
-    const virgilAgain = await page.locator('[data-touch-target="virgil"]').boundingBox();
-    const tx = (virgilAgain ?? virgil).x + (virgilAgain ?? virgil).width / 2;
-    const ty = (virgilAgain ?? virgil).y + (virgilAgain ?? virgil).height / 2;
-    await page.mouse.move(tx, ty);
-    await page.mouse.down();
-    await page.mouse.up();
-    // The transition is deliberate and the interface follows it, so the wait
-    // has to outlast the flight.
-    await page.waitForTimeout(3000);
-    const afterTap = await page.evaluate(() => ({
-      panel: document.querySelectorAll('.panel-root').length,
-      focus: (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus ?? '(none)',
-    }));
+    // 3a. A tap opens — after the deliberate transition, not with it.
+    await press(cx, cy);
+    const midFlight = await state();
+    await page.waitForTimeout(3200);
+    const afterTap = await state();
     if (afterTap.panel !== 1) {
       failures.push(
         `${viewport.name}: a tap on the Virgil target opened ${afterTap.panel} panels, expected 1`,
@@ -247,13 +239,49 @@ for (const viewport of VIEWPORTS) {
     if (afterTap.focus !== 'virgil') {
       failures.push(`${viewport.name}: a tap left the focus at ${afterTap.focus}, expected virgil`);
     }
+    if (midFlight.panel !== 0) {
+      failures.push(`${viewport.name}: the record opened before the camera moved`);
+    }
     notes.push(
-      `${viewport.name}: tap on Virgil — panels ${afterTap.panel}, focus ${afterTap.focus}`,
+      `${viewport.name}: tap on Virgil — the camera goes first (panels ${midFlight.panel} at the press), then the record (panels ${afterTap.panel}, focus ${afterTap.focus})`,
     );
 
-    // 4. The way back to the overview exists and works.
-    const back = page.locator('[data-touch-target="back"]');
-    const backBox = await back.boundingBox();
+    // 3b. The record's own dismissal leaves the reader at the station, as the
+    //     owner decided at V9. Measured here because in portrait the panel is a
+    //     full-screen sheet and its control is the only thing on top of it.
+    const escBox = await page
+      .locator('.panel-back')
+      .boundingBox({ timeout: 10_000 })
+      .catch(() => null);
+    if (!escBox) {
+      failures.push(`${viewport.name}: the record has no dismissal control`);
+    } else {
+      if (escBox.width < MIN_TOUCH_PX || escBox.height < MIN_TOUCH_PX) {
+        failures.push(
+          `${viewport.name}: the record's dismissal measures ${Math.round(escBox.width)} x ${Math.round(escBox.height)}`,
+        );
+      }
+      await press(escBox.x + escBox.width / 2, escBox.y + escBox.height / 2);
+      await page.waitForTimeout(1200);
+      const afterEsc = await state();
+      if (afterEsc.panel !== 0) {
+        failures.push(`${viewport.name}: the record's dismissal left ${afterEsc.panel} panels`);
+      }
+      if (afterEsc.focus !== 'virgil') {
+        failures.push(
+          `${viewport.name}: dismissing the record moved the camera to ${afterEsc.focus}; it should leave the reader at the station`,
+        );
+      }
+      notes.push(
+        `${viewport.name}: record dismissed — panels ${afterEsc.panel}, still at ${afterEsc.focus}, control ${Math.round(escBox.width)} x ${Math.round(escBox.height)} px`,
+      );
+    }
+
+    // 3c. The way back to the overview exists, is a thumb wide, and works.
+    const backBox = await page
+      .locator('[data-touch-target="back"]')
+      .boundingBox({ timeout: 10_000 })
+      .catch(() => null);
     if (!backBox) {
       failures.push(`${viewport.name}: no way back to the overview is on screen`);
     } else {
@@ -262,54 +290,131 @@ for (const viewport of VIEWPORTS) {
           `${viewport.name}: the back target measures ${Math.round(backBox.width)} x ${Math.round(backBox.height)}`,
         );
       }
-      await page.mouse.move(backBox.x + backBox.width / 2, backBox.y + backBox.height / 2);
-      await page.mouse.down();
-      await page.mouse.up();
-      await page.waitForTimeout(1600);
-      const afterBack = await page.evaluate(() => ({
-        panel: document.querySelectorAll('.panel-root').length,
-        focus: (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus ?? '(none)',
-      }));
+      await press(backBox.x + backBox.width / 2, backBox.y + backBox.height / 2);
+      await page.waitForTimeout(1800);
+      const afterBack = await state();
       if (afterBack.panel !== 0 || afterBack.focus !== 'all') {
         failures.push(
           `${viewport.name}: back left panels ${afterBack.panel} and focus ${afterBack.focus}`,
         );
       }
       notes.push(
-        `${viewport.name}: back — panels ${afterBack.panel}, focus ${afterBack.focus}, ${Math.round(backBox.width)} x ${Math.round(backBox.height)}`,
+        `${viewport.name}: back — panels ${afterBack.panel}, focus ${afterBack.focus}, ${Math.round(backBox.width)} x ${Math.round(backBox.height)} px`,
       );
     }
+
+    // 3d. And a drag across the same target opens nothing. The owner’s own
+    //     defect: "when I'm trying to scroll and move the camera or zoom in, a
+    //     window opens."
+    await settle();
+    const again = await page
+      .locator('[data-touch-target="virgil"]')
+      .boundingBox({ timeout: 10_000 })
+      .catch(() => null);
+    const dx = (again ?? virgil).x + (again ?? virgil).width / 2;
+    const dy = (again ?? virgil).y + (again ?? virgil).height / 2;
+    await page.mouse.move(dx, dy);
+    await page.mouse.down();
+    for (let step = 1; step <= 12; step += 1) {
+      await page.mouse.move(dx + step * 9, dy + step * 3);
+      await page.waitForTimeout(12);
+    }
+    await page.mouse.up();
+    await page.waitForTimeout(2600);
+    const afterDrag = await state();
+    if (afterDrag.panel !== 0) {
+      failures.push(`${viewport.name}: a 114 px drag across the Virgil target opened a panel`);
+    }
+    if (afterDrag.focus !== 'all') {
+      failures.push(`${viewport.name}: a drag moved the focus to ${afterDrag.focus}`);
+    }
+    notes.push(
+      `${viewport.name}: 114 px drag across Virgil — panels ${afterDrag.panel}, focus ${afterDrag.focus}`,
+    );
+    await settle();
   }
 
   // 5. The development chrome is out of the ordinary experience, and the
   //    version marker is still reachable in it.
-  const chrome = await page.evaluate(() => {
-    const visible = (selector: string) => {
-      const node = document.querySelector<HTMLElement>(selector);
-      if (!node) return false;
-      const style = getComputedStyle(node);
-      return (
-        style.display !== 'none' && style.visibility !== 'hidden' && node.offsetParent !== null
-      );
-    };
-    return {
-      devMenuOpen: visible('.v11-dev-panel'),
-      devButton: document.querySelectorAll('[data-touch-target="dev"]').length,
-      marker: document.querySelector('.v11-marker')?.textContent?.trim() ?? '(none)',
-      badge: document.querySelector('.v11-badge')?.textContent?.trim() ?? '(none)',
-    };
-  });
-  if (chrome.devMenuOpen)
+  // No inner named helper here: `tsx` compiles one into an `__name()` call that
+  // does not exist inside the page, and the evaluate fails at runtime.
+  const chrome = await page.evaluate(() => ({
+    devMenuOpen: document.querySelectorAll('.v11-dev-panel').length,
+    devButton: document.querySelectorAll('[data-touch-target="dev"]').length,
+    marker: document.querySelector('.v11-marker')?.textContent?.trim() ?? '(none)',
+    badge: document.querySelector('.v11-badge')?.textContent?.trim() ?? '(none)',
+    devEntryPressed: document.querySelector('.v11-dev-entry')?.getAttribute('aria-expanded'),
+  }));
+  if (chrome.devMenuOpen !== 0) {
     failures.push(`${viewport.name}: the development menu is open by default`);
+  }
   if (chrome.devButton !== 1) {
     failures.push(`${viewport.name}: ${chrome.devButton} ways into the development menu`);
+  }
+  if (chrome.devEntryPressed !== 'false') {
+    failures.push(
+      `${viewport.name}: the development entry reports aria-expanded ${chrome.devEntryPressed}`,
+    );
   }
   if (chrome.marker === '(none)') failures.push(`${viewport.name}: no version marker is reachable`);
   if (!/demo data/i.test(chrome.badge)) {
     failures.push(`${viewport.name}: the demo badge reads "${chrome.badge}"`);
   }
-  notes.push(`${viewport.name}: marker "${chrome.marker}", badge "${chrome.badge}"`);
+  // The development chrome V10 put in the owner's face is gone from the
+  // ordinary experience: none of its nodes is in the document at all.
+  const v10Chrome = await page.evaluate(() => ({
+    controls: document.querySelectorAll('.room-controls').length,
+    badge: document.querySelectorAll('.room-demo-badge').length,
+    footer: document.querySelectorAll('.owner-footer').length,
+  }));
+  if (v10Chrome.controls + v10Chrome.badge + v10Chrome.footer !== 0) {
+    failures.push(
+      `${viewport.name}: V10 chrome is still in the ordinary experience — ${v10Chrome.controls} control bars, ${v10Chrome.badge} badges, ${v10Chrome.footer} footers`,
+    );
+  }
+  notes.push(
+    `${viewport.name}: marker "${chrome.marker}", badge "${chrome.badge}", V10 chrome nodes ${v10Chrome.controls + v10Chrome.badge + v10Chrome.footer}`,
+  );
 }
+
+// ------------------------------------------ reduced motion, at the same viewport
+//
+// The rule the brief asks for and KR-55 is the history of: reduced motion is
+// honoured by arriving, never by hiding. With no transition to wait for there
+// is nothing to wait for, so the record opens at once rather than after a pause
+// that would mean nothing — and the record still opens.
+await page.emulateMedia({ reducedMotion: 'reduce' });
+await page.setViewportSize({ width: 390, height: 844 });
+await page.goto(`${fileUrl}#/`, { waitUntil: 'load' });
+await waitForWorld(page);
+const reducedTarget = await page
+  .locator('[data-touch-target="virgil"]')
+  .boundingBox({ timeout: 10_000 })
+  .catch(() => null);
+if (!reducedTarget) {
+  failures.push('reduced-motion: no Virgil target');
+} else {
+  await page.mouse.move(
+    reducedTarget.x + reducedTarget.width / 2,
+    reducedTarget.y + reducedTarget.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(350);
+  const immediate = await page.evaluate(() => ({
+    panel: document.querySelectorAll('.panel-root').length,
+    focus: (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus ?? '(none)',
+  }));
+  if (immediate.panel !== 1) {
+    failures.push(
+      `reduced-motion: the record took longer than 350 ms to open (${immediate.panel} panels)`,
+    );
+  }
+  notes.push(
+    `reduced-motion (portrait 390): the record opens at once — panels ${immediate.panel}, focus ${immediate.focus}`,
+  );
+}
+await page.emulateMedia({ reducedMotion: 'no-preference' });
 
 const renderer = await page.evaluate(
   () => (window as { __virgilRenderer?: string }).__virgilRenderer,

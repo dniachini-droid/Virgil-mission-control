@@ -214,6 +214,18 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
 
   const start = mobilePose(focus, aspect);
   const focused = focus !== 'all' || panel !== null;
+  /**
+   * **When the way back is shown, and why not always.** In portrait the panel
+   * is a full-screen sheet — measured, not assumed: at 390 x 844 it covers the
+   * whole viewport including the top-left corner — so a back control underneath
+   * it could be pressed by nobody, and one on top of it would sit across the
+   * panel's own kicker. The panel's own dismissal leaves the reader at the
+   * station, which is the owner's decision from V9 and is not this stage's to
+   * overturn; the way home appears the moment the record is closed. Two taps
+   * from an open record, one from anywhere else. Stage 3 redesigns the panel
+   * and should fold "home" into it.
+   */
+  const showBack = focus !== 'all' && panel === null;
 
   /**
    * The hit test. It runs on the stage, alongside the world's own raycast, and
@@ -290,7 +302,7 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
           onPointerDown={(event) => event.stopPropagation()}
           onPointerUp={(event) => event.stopPropagation()}
         >
-          <BackControl shown={focused} onBack={toOverview} label={backLabel(focus, anchors)} />
+          <BackControl shown={showBack} onBack={toOverview} label={backLabel(focus, anchors)} />
           <DevEntry open={dev} onToggle={() => setDev((value) => !value)} />
           <DemoBadge
             mode={mode}
@@ -411,6 +423,11 @@ function DemoBadge({
         className={`v11-badge${recorded ? ' is-recorded' : ''}`}
         data-touch-target="badge"
         aria-expanded={open}
+        aria-label={
+          recorded
+            ? 'Recorded run — what this means'
+            : 'Demo data — what this means'
+        }
         onClick={onToggle}
       >
         <span className="v11-badge-dot" aria-hidden="true" />
