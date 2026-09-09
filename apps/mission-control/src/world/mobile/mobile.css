@@ -493,9 +493,12 @@
  * already in a conversation. **The badge does not go**: stage 1's rule is that
  * it may never be hidden, so it moves inside the strip instead and keeps its
  * word on screen. In portrait the sheet covers the whole viewport and the badge
- * is behind it — there the window's own `ILLUSTRATIVE · NOT REAL STATE` band
- * carries the same claim, at full width, directly under the header, which is
- * the arrangement §5b asks for.
+ * is behind it, which stage 3 accepted because the window carried its own
+ * marking under the header. **That marking is gone in the scripted mode**, on
+ * the owner's instruction of 9 September, so in portrait with a window open the
+ * chip is the only place the claim lives and it is behind the sheet. That is
+ * the instruction being followed rather than a defect: one small spot, and the
+ * reader reaches it by closing the window, which is one press.
  */
 .v11-stage.has-window[data-orientation="landscape"] .v11-dock {
   display: none;

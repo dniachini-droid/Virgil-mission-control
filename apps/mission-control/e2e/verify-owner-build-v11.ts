@@ -525,6 +525,29 @@ for (const viewport of VIEWPORTS) {
         enabledControls: Array.from(
           document.querySelectorAll<HTMLButtonElement>('.v11w-control'),
         ).filter((node) => !node.disabled).length,
+        /**
+         * **Every word the window puts on screen, and the demo vocabulary it
+         * may not contain.** The owner's instruction of 9 September:
+         * *"Remove all signs of Demo from the entire system except one small
+         * spot."* The one spot is the `Demo data` chip in the overview chrome,
+         * which is outside the window. So the whole of the window's text —
+         * header, conclusion, every expandable section whether open or shut,
+         * every message, the composer and the foot — is read here and matched
+         * against the removed vocabulary. Read from the **built artifact** in
+         * a browser, which is stronger than a unit test over the content
+         * functions: it also catches text that only a stylesheet or a
+         * component puts there.
+         */
+        demoWords: (document.querySelector('.v11w-sheet') as HTMLElement | null)?.innerText
+          ? Array.from(
+              new Set(
+                ((document.querySelector('.v11w-sheet') as HTMLElement).innerText.match(
+                  /illustrative|not real state|scripted|demonstration|demo\b/gi,
+                ) ?? []) as string[],
+              ),
+            )
+          : [],
+        honestyBands: document.querySelectorAll('.v11w-honesty').length,
       };
     }, MIN_TOUCH_PX);
     if (measured.count === 0) {
@@ -565,8 +588,18 @@ for (const viewport of VIEWPORTS) {
     if (!/Nothing is sent/.test(measured.note)) {
       failures.push(`${viewport.name} ${label}: the composer's note reads "${measured.note}"`);
     }
+    if (measured.demoWords.length > 0) {
+      failures.push(
+        `${viewport.name} ${label}: the window still says ${measured.demoWords.map((w) => `"${w}"`).join(', ')}`,
+      );
+    }
+    if (measured.honestyBands !== 0) {
+      failures.push(
+        `${viewport.name} ${label}: ${measured.honestyBands} not-real-state band(s) in the window`,
+      );
+    }
     notes.push(
-      `${viewport.name} ${label}: ${measured.count} controls, smallest ${measured.smallest} px; scrollWidth ${measured.scrollWidth}/${measured.clientWidth}, 0 past the edge; ${measured.openSections} of ${measured.sections} sections open; ${measured.controls} session controls, ${measured.enabledControls} enabled`,
+      `${viewport.name} ${label}: ${measured.count} controls, smallest ${measured.smallest} px; scrollWidth ${measured.scrollWidth}/${measured.clientWidth}, 0 past the edge; ${measured.openSections} of ${measured.sections} sections open; ${measured.controls} session controls, ${measured.enabledControls} enabled; 0 demo words, 0 not-real-state bands`,
     );
     return measured;
   };
@@ -746,6 +779,35 @@ for (const viewport of VIEWPORTS) {
   if (!/demo data/i.test(chrome.badge)) {
     failures.push(`${viewport.name}: the demo badge reads "${chrome.badge}"`);
   }
+  /**
+   * **One spot, and one only.** The owner's instruction of 9 September:
+   * *"Remove all signs of Demo from the entire system except one small spot -
+   * I know its a demo. Im sick of hearing about it."* The one spot is the
+   * chip above, with its full sentence behind a press. So the demo vocabulary
+   * is counted across the **whole ordinary interface**, with the chip's own
+   * dock and the hidden development menu discounted, and anything left is a
+   * failure. The count is over elements that carry the words as their own
+   * text, so a parent is not counted for its child's words.
+   */
+  const signage = await page.evaluate(() => {
+    const words = /illustrative|not real state|scripted|demonstration|demo\b/i;
+    const out: string[] = [];
+    for (const node of Array.from(document.querySelectorAll<HTMLElement>('.v11-stage *'))) {
+      if (node.closest('.v11-badge-dock') || node.closest('.v11-dev-panel')) continue;
+      const own = Array.from(node.childNodes)
+        .filter((child) => child.nodeType === 3)
+        .map((child) => child.textContent ?? '')
+        .join(' ');
+      if (words.test(own))
+        out.push(`${node.className || node.tagName}: ${own.trim().slice(0, 70)}`);
+    }
+    return out;
+  });
+  if (signage.length > 0) {
+    failures.push(
+      `${viewport.name}: ${signage.length} demo sign(s) outside the one chip — ${signage.slice(0, 4).join(' | ')}`,
+    );
+  }
   // The development chrome V10 put in the owner's face is gone from the
   // ordinary experience: none of its nodes is in the document at all.
   const v10Chrome = await page.evaluate(() => ({
@@ -759,7 +821,7 @@ for (const viewport of VIEWPORTS) {
     );
   }
   notes.push(
-    `${viewport.name}: marker "${chrome.marker}", badge "${chrome.badge}", V10 chrome nodes ${v10Chrome.controls + v10Chrome.badge + v10Chrome.footer}`,
+    `${viewport.name}: marker "${chrome.marker}", badge "${chrome.badge}", V10 chrome nodes ${v10Chrome.controls + v10Chrome.badge + v10Chrome.footer}, demo signs outside the one chip ${signage.length}`,
   );
 }
 

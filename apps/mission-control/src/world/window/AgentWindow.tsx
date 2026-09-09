@@ -210,7 +210,12 @@ export function AgentWindow({
         aria-modal="true"
         tabIndex={-1}
         aria-labelledby="v11w-name"
-        aria-describedby="v11w-honesty"
+        /* Described by the recorded-run marking when there is one. The
+           scripted mode has none since 9 September (`windowContent.ts`,
+           `honesty`), and pointing `aria-describedby` at an element that is
+           not in the document makes a screen reader announce nothing for it —
+           so the attribute is present only with the element. */
+        {...(doc.honesty ? { 'aria-describedby': 'v11w-honesty' } : {})}
         style={{ '--v11w-tint': doc.accent, '--v11w-kb': `${keyboard}px` } as React.CSSProperties}
       >
         <header className="v11w-head">
@@ -263,10 +268,19 @@ export function AgentWindow({
           </div>
         </header>
 
-        <p className="v11w-honesty" id="v11w-honesty" role="note">
-          <b>{doc.honesty.title}</b>
-          <span>{doc.honesty.note}</span>
-        </p>
+        {/* The recorded run says what it is. The scripted mode does not: the
+            owner's instruction of 9 September removed its amber band and its
+            paragraph outright, leaving the `Demo data` chip in the overview
+            chrome as the one place the interface says so. Nothing takes the
+            band's place — `.v11w-head` carries its own bottom rule and
+            `.v11w-body` is `flex: 1`, so the sheet closes up rather than
+            leaving the gap where it was. */}
+        {doc.honesty ? (
+          <p className="v11w-honesty" id="v11w-honesty" role="note">
+            <b>{doc.honesty.title}</b>
+            <span>{doc.honesty.note}</span>
+          </p>
+        ) : null}
 
         <div
           className="v11w-body"

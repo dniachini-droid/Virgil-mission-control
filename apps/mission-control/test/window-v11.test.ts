@@ -188,11 +188,25 @@ describe('the phone requirements', () => {
 });
 
 describe('accessibility', () => {
-  it('is a labelled dialog, described by its own honesty marking', () => {
+  it('is a labelled dialog, described by its marking only when it has one', () => {
     expect(window_).toContain('role="dialog"');
     expect(window_).toContain('aria-modal="true"');
     expect(window_).toContain('aria-labelledby="v11w-name"');
-    expect(window_).toContain('aria-describedby="v11w-honesty"');
+    /**
+     * **Changed with the removal of the scripted mode's marking.**
+     *
+     * It used to require the literal `aria-describedby="v11w-honesty"`. The
+     * scripted mode has no marking since the owner's instruction of
+     * 9 September, so on that route the element is not in the document, and a
+     * fixed `aria-describedby` pointing at a missing id makes a screen reader
+     * announce nothing for it — a silent accessibility fault. The attribute is
+     * therefore spread in with the element, and what is asserted is that
+     * pairing rather than the attribute alone, which is the stronger
+     * statement: it cannot be present without its target.
+     */
+    expect(window_).toContain("{ 'aria-describedby': 'v11w-honesty' }");
+    expect(window_).toContain('{doc.honesty ? (');
+    expect(window_).toContain('id="v11w-honesty"');
   });
 
   it('names every control a screen reader reaches', () => {

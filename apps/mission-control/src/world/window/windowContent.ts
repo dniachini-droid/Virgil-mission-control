@@ -119,8 +119,24 @@ export interface WindowDoc {
   actions: Action[];
   messages: Message[];
   sections: Section[];
-  /** The honesty marking. Prominent, never a footnote. */
-  honesty: { title: string; note: string };
+  /**
+   * **The recorded-run marking, and it is present only in the replay mode.**
+   *
+   * Until 9 September this carried a marking in both modes: the replay's
+   * *"A recorded run, replayed"* and the scripted mode's amber
+   * `Illustrative · not real state`. **The scripted mode's is gone**, on the
+   * owner's instruction of that day, and it is not moved, shortened or made
+   * quieter — it is removed, and the one place the interface still says so is
+   * the `Demo data` chip in the overview chrome (`mobile/MobileRoom.tsx`,
+   * `DemoBadge`).
+   *
+   * The replay's marking stays because it is not the same claim: it says the
+   * run **did** happen and every figure is read out of this repository's
+   * committed record, which is a statement about provenance rather than about
+   * being a demonstration. `undefined` in the scripted mode, and
+   * `AgentWindow.tsx` renders nothing at all rather than an empty band.
+   */
+  honesty?: { title: string; note: string } | undefined;
   /** The agent's own accent, for the header's small portrait. */
   accent: string;
   /** What the small animated head is doing, so the window reacts as work runs. */
@@ -272,16 +288,12 @@ function contextOf(state: DemoState): string {
   return `Candidate ${id} · ${state.content.candidate}`;
 }
 
-function honestyOf(state: DemoState) {
-  return state.mode === 'replay'
-    ? {
-        title: 'A recorded run, replayed',
-        note: `The Phase 0 consolidation actually happened and every figure below is read out of this repository's committed record. Candidate ${RUN.mergeSha.slice(0, 7)} is past fact, not live state.`,
-      }
-    : {
-        title: 'Illustrative · not real state',
-        note: 'A scripted demonstration. No repository event, no check and no review drives anything below, and nothing here can act.',
-      };
+function honestyOf(state: DemoState): { title: string; note: string } | undefined {
+  if (state.mode !== 'replay') return undefined;
+  return {
+    title: 'A recorded run, replayed',
+    note: `The Phase 0 consolidation actually happened and every figure below is read out of this repository's committed record. Candidate ${RUN.mergeSha.slice(0, 7)} is past fact, not live state.`,
+  };
 }
 
 // ------------------------------------------------------------ the Fabricator
@@ -881,7 +893,7 @@ function proverDoc(state: DemoState): WindowDoc {
       blocks: [
         {
           kind: 'markdown',
-          markdown: `${PROVER_CHECKS} checks, starting ${((proverChecks(state.outcome)[1]?.start ?? 0.56) - (proverChecks(state.outcome)[0]?.start ?? 0.2)).toFixed(2)} s apart, each running about 0.9 s. The names are the kinds of check this repository really runs; the results are \`screens/tally.ts\`'s illustrative schedule.`,
+          markdown: `${PROVER_CHECKS} checks, starting ${((proverChecks(state.outcome)[1]?.start ?? 0.56) - (proverChecks(state.outcome)[0]?.start ?? 0.2)).toFixed(2)} s apart, each running about 0.9 s. The names are the kinds of check this repository really runs; the results come from \`screens/tally.ts\`'s fixed schedule.`,
         },
       ],
     },

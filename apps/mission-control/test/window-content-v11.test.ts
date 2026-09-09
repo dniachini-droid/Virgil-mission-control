@@ -53,6 +53,18 @@ function docsAt(loop: number, seconds: number): WindowDoc[] {
   return AGENTS.map((agent: Agent) => windowDoc(state, { agent }));
 }
 
+/**
+ * The same documents in the **replay** mode, which is the mode that keeps a
+ * marking. `demoAt` produces the scripted state; the replay reaches
+ * `windowDoc` with `mode: 'replay'` (`replay/replayContent.ts`), and that one
+ * field is what `honestyOf` reads, so setting it here exercises the same
+ * branch without dragging the whole recorded timeline into this file.
+ */
+function replayDocsAt(loop: number, seconds: number): WindowDoc[] {
+  const state = { ...demoAt(seconds, loop, true), mode: 'replay' as const };
+  return AGENTS.map((agent: Agent) => windowDoc(state, { agent }));
+}
+
 /** Every string a document puts on screen, in one array. */
 function allText(doc: WindowDoc): string[] {
   const fromSection = (section: Section) => [
@@ -75,8 +87,8 @@ function allText(doc: WindowDoc): string[] {
     ...doc.actions.map((action) => action.label),
     ...doc.messages.flatMap((message) => message.blocks.flatMap(blockText)),
     ...doc.sections.flatMap(fromSection),
-    doc.honesty.title,
-    doc.honesty.note,
+    doc.honesty?.title ?? '',
+    doc.honesty?.note ?? '',
   ];
 }
 
@@ -311,12 +323,48 @@ describe('the functional interface text is DOM text and never enters the canvas'
     }
   });
 
-  it('honours the honesty marking on every document, in both modes', () => {
+  /**
+   * **This assertion was replaced, and the replacement is stronger.**
+   *
+   * It required every scripted-mode document to carry the amber
+   * `Illustrative · not real state` band and its `scripted demonstration`
+   * paragraph. The owner's instruction of 9 September removes them —
+   * *"Remove all signs of Demo from the entire system except one small spot"*
+   * — so the old form now asserts the presence of something the product is
+   * required **not** to have.
+   *
+   * The replacement is the inverse and covers more ground: it walks **every
+   * word of every document at every beat of every loop**, including every
+   * message, every expandable section and every block inside one, and fails
+   * if any of the removed vocabulary appears anywhere. Where the old
+   * assertion held two strings in one place, this one holds the whole of the
+   * window's rendered text — so the text cannot creep back into a section, a
+   * summary or a message the way it accumulated in the first place.
+   */
+  const REMOVED = /illustrative|not real state|scripted|demonstration|demo\b/i;
+
+  it('says nothing anywhere about being a demonstration', () => {
     for (const { loop, seconds } of everyBeat()) {
       for (const doc of docsAt(loop, seconds)) {
-        expect(doc.honesty.title).toBe('Illustrative · not real state');
-        expect(doc.honesty.note).toMatch(/scripted demonstration/);
+        expect(doc.honesty, `${doc.key} @ loop ${loop} ${seconds}s carries a marking`).toBe(
+          undefined,
+        );
+        for (const text of allText(doc)) {
+          expect(
+            REMOVED.test(text),
+            `${doc.key} @ loop ${loop} ${seconds}s says "${text.slice(0, 120)}"`,
+          ).toBe(false);
+        }
       }
+    }
+  });
+
+  it('keeps the recorded run’s own marking, which is a different claim', () => {
+    // Boundary: the replay says the run **did** happen and every figure is
+    // read out of this repository's committed record. That is provenance, not
+    // demo signage, and the instruction does not touch it.
+    for (const doc of replayDocsAt(0, 20)) {
+      expect(doc.honesty?.title, doc.key).toBe('A recorded run, replayed');
     }
   });
 });

@@ -354,10 +354,17 @@
 /* --------------------------------------------------- the honesty marking */
 
 /*
- * Prominent, at full width, on every document, directly under the header —
- * never a footnote. §5b: full detail set in clean HTML is far more believable
- * than a small glowing screen in a 3D scene, so the marking matters more here,
- * not less.
+ * **The recorded run's marking, and only the recorded run's.** Prominent, at
+ * full width, directly under the header — never a footnote. §5b: full detail
+ * set in clean HTML is far more believable than a small glowing screen in a 3D
+ * scene, so a claim about provenance matters more here, not less.
+ *
+ * Until 9 September the scripted mode had one too, in amber. The owner's
+ * instruction of that day removed it: *"Remove all signs of Demo from the
+ * entire system except one small spot."* So these rules apply on the replay
+ * route and nowhere else, and `AgentWindow.tsx` renders no element at all in
+ * the scripted mode — `.v11w-head` carries its own bottom rule and
+ * `.v11w-body` is `flex: 1`, so nothing is left where the band was.
  */
 .v11w-honesty {
   flex: none;
@@ -1355,9 +1362,11 @@
  * conversation — the window was all chrome. Landscape therefore compresses its
  * own furniture rather than inheriting portrait's.
  *
- * The honesty marking is **not** shortened or dropped: at this width its whole
- * sentence sits on one line at a smaller size, so the claim is intact and only
- * the leading is tighter.
+ * Where a marking is drawn at all — the replay route — it is **not** shortened
+ * or dropped: at this width its whole sentence sits on one line at a smaller
+ * size, so the claim is intact and only the leading is tighter. The scripted
+ * route has no marking since 9 September and gets those pixels back, which is
+ * the one place this removal makes the window better rather than only quieter.
  */
 .v11-stage[data-orientation="landscape"] .v11w-head {
   padding-top: calc(var(--v11-safe-top, 0px) + 6px);
