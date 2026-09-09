@@ -1642,10 +1642,17 @@ history and it is the owner's call.
   nothing in front of them, and nothing in front of the primary state. The
   judgment itself is this session's, from the frames listed above, and it is a
   builder's claim.
-- **The frames were captured from a dev server on these sources, not from the
-  committed artifact**, except where this record says otherwise. The artifact
-  below is built from the same commit and `verify:owner:v11` drives it, but the
-  three close-up frames the judgment rests on are dev-server frames.
+- **Most of the frames were captured from a vite dev server on these sources
+  rather than from the committed artifact**, because a pose that has to be
+  iterated needs a loop shorter than a build-and-boot. **Four were then taken
+  from the committed artifact itself** — `capture:v11:screens p390 consoles`
+  into `artifact-p390/`, `console errors 0` — and they show the same three
+  poses: the Fabricator with `BUILDING` legible beside him, the Prover with
+  `VERIFYING`, the Keeper with `REVIEWING`, and the Keeper idle and facing
+  front with his face readable and `STANDBY` whole. The `Demo data` chip is the
+  only demo signage in any of them, and the slab strip is at the top of the two
+  it is at the top of in the dev-server frames. So the judgment does not rest
+  on the dev server alone, and where it does the record says so.
 - **The slab cluster's lower edge is still in the top of all three portrait
   close-ups**, above, and that is recorded as open rather than fixed.
 - **A pass here is a builder's claim.** The deterministic checks are the
