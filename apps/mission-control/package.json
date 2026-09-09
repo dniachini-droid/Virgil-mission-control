@@ -8,12 +8,15 @@
     "dev": "vite",
     "build": "vite build",
     "build:owner": "vite build --config vite.owner.config.ts && node owner-build/inline.mjs",
+    "build:owner:v11": "vite build --config vite.owner.v11.config.ts && node owner-build/inline-v11.mjs",
     "preview": "vite preview --port 4173 --strictPort",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "capture": "tsx e2e/capture-spikes.ts",
     "verify:owner": "tsx e2e/verify-owner-build.ts",
+    "verify:owner:v11": "tsx e2e/verify-owner-build-v11.ts",
     "reproduce:owner": "node owner-build/reproduce.mjs",
+    "reproduce:owner:v11": "node owner-build/reproduce-v11.mjs",
     "install:browser": "playwright install --with-deps chromium"
   },
   "dependencies": {

@@ -89,7 +89,23 @@ jobs:
       - name: Verify the Owner Build opens with no network
         run: pnpm --filter mission-control run verify:owner
 
-      # 6. Every committed artifact still hashes to its recorded digest.
+      # 5b. The same for V11, which additionally measures the simulated iPhone
+      # viewports: no horizontal overflow, every touch target at least 44 x 44
+      # CSS px, the gesture guard refusing a drag and accepting a tap, and V10's
+      # world still loading at V11's own `#/v10` route. Simulated viewports in
+      # headless Chromium; no iPhone exists in CI either, and the script prints
+      # that in its own output.
+      - name: Owner Build V11
+        run: pnpm --filter mission-control run build:owner:v11
+
+      - name: Verify the V11 Owner Build opens with no network
+        run: pnpm --filter mission-control run verify:owner:v11
+
+      # 6. Every committed artifact still hashes to its recorded digest. The
+      # V11 artifacts live in the `v11/` subdirectory but their `.sha256` files
+      # stay here and name the relative path, so this one glob still covers
+      # them. Why they are in a subdirectory at all:
+      # apps/mission-control/owner-build/reproduce-v11.mjs, header.
       - name: Committed Owner Build digests
         working-directory: docs/process/PHASE_1_owner-builds
         run: sha256sum -c *.sha256
@@ -123,3 +139,8 @@ jobs:
       # guess.
       - name: Rebuild and compare
         run: pnpm reproduce:owner
+
+      # 7b. The same for the newest V11 artifact, rebuilt with `build:owner:v11`
+      # at its own source commit.
+      - name: Rebuild and compare the V11 artifact
+        run: pnpm reproduce:owner:v11

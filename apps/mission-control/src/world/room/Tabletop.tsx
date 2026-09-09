@@ -37,14 +37,34 @@ import { loadWindowTextures } from './WindowView.js';
  * (`floorGraphic.ts`), because the coplanar rings V6 laid over the floor
  * z-fought on the owner's phone.
  */
-export function Tabletop() {
+export function Tabletop({
+  planetAt = layout.tabletop.planetAt,
+  stationAt = layout.tabletop.stationAt,
+}: {
+  /**
+   * **Where the two depth planes stand, in the disc's own frame** (V11
+   * stage 1, additive). They default to `layout.tabletop.planetAt` and
+   * `stationAt`, so a caller that passes nothing gets exactly the placement
+   * V8 authored and V10 ships — `world/room/VirgilRoom.tsx` passes nothing
+   * and its output is unchanged.
+   *
+   * The override exists because a portrait phone has a horizontal half-angle
+   * of about 13°, and at that lens the planet at x = +9 m and the station at
+   * x = −11 m are outside the frame entirely, so the composition loses the
+   * depth the owner asked to keep. Moving a backdrop plane is a composition
+   * decision: nothing stands on them, nothing is measured against them, and
+   * no other geometry moves with them.
+   */
+  planetAt?: readonly [number, number, number];
+  stationAt?: readonly [number, number, number];
+} = {}) {
   const { tier } = useSettings();
   const coarse = tier === 'constrained' || tier === 'mobile';
   return (
     <group>
       <Disc coarse={coarse} />
       <Contact coarse={coarse} centre={layout.tabletop.centre} scale={13} />
-      <Backdrop coarse={coarse} />
+      <Backdrop coarse={coarse} planetAt={planetAt} stationAt={stationAt} />
       <StarField count={coarse ? 900 : 2600} radius={260} />
     </group>
   );
@@ -127,7 +147,15 @@ function Disc({ coarse }: { coarse: boolean }) {
  * behind the glass. The textures are the room's, cloned so the wrap and
  * repeat set here never reach the window.
  */
-function Backdrop({ coarse }: { coarse: boolean }) {
+function Backdrop({
+  coarse,
+  planetAt,
+  stationAt,
+}: {
+  coarse: boolean;
+  planetAt: readonly [number, number, number];
+  stationAt: readonly [number, number, number];
+}) {
   const textures = use(loadWindowTextures());
   const nebula = useMemo(() => {
     const t = textures.nebula.clone();
@@ -138,8 +166,8 @@ function Backdrop({ coarse }: { coarse: boolean }) {
     return t;
   }, [textures]);
   const [cx, , cz] = layout.tabletop.centre;
-  const [px, py, pz] = layout.tabletop.planetAt;
-  const [sx, sy, sz] = layout.tabletop.stationAt;
+  const [px, py, pz] = planetAt;
+  const [sx, sy, sz] = stationAt;
   return (
     <group>
       <mesh position={[cx, -20, cz]} rotation={[0, Math.PI, 0]}>

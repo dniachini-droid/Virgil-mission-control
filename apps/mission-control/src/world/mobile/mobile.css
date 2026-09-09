@@ -1,0 +1,488 @@
+/*
+ * V11 stage 1 — the chrome of the phone-first build.
+ *
+ * Everything here is scoped under `.v11-*`. Not one selector in this file can
+ * reach V10's `.room-stage`, `.room-controls`, `.room-demo-badge` or
+ * `.owner-footer`, which is how V10's route inside this same build stays the
+ * build the owner already has (`docs/process/V11_BRIEF.md`, the preservation
+ * contract).
+ *
+ * THE VIEWPORT. `100dvh` with a `100vh` fallback declared first, so a browser
+ * that has never heard of dynamic viewport units still gets a full-height
+ * stage; `viewport-fit=cover` in `owner-v11.html` is what makes
+ * `env(safe-area-inset-*)` return anything but zero. **The world paints under
+ * the insets on purpose** — the picture should reach the glass — and every
+ * readable or pressable thing is held inside them.
+ *
+ * THE COLOURS are the world's own, from `ui/app.css` and `room/palette.ts`.
+ * None is introduced here.
+ */
+
+.v11-stage {
+  position: fixed;
+  inset: 0;
+  /* The fallback first, then the dynamic unit for a browser that has it. */
+  height: 100vh;
+  height: 100dvh;
+  width: 100vw;
+  overflow: hidden;
+  background: #04051a;
+  /* The panel is a child of this stage and reads V10's footer variable for
+     its own inset. There is no footer here, so the panel takes the whole
+     height. */
+  --owner-footer-height: 0px;
+  --v11-safe-top: env(safe-area-inset-top, 0px);
+  --v11-safe-right: env(safe-area-inset-right, 0px);
+  --v11-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --v11-safe-left: env(safe-area-inset-left, 0px);
+  /* The Dynamic Island is 37 px tall inside a 59 px top inset on the devices
+     that have one; the extra keeps a control clear of it rather than level
+     with its lower edge. On a viewport with no inset both terms are zero. */
+  --v11-gutter: 12px;
+  --v11-top: calc(var(--v11-safe-top) + var(--v11-gutter));
+  --v11-right: calc(var(--v11-safe-right) + var(--v11-gutter));
+  --v11-bottom: calc(var(--v11-safe-bottom) + var(--v11-gutter));
+  --v11-left: calc(var(--v11-safe-left) + var(--v11-gutter));
+  --v11-touch: 48px;
+  font-family: var(--ui);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.v11-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* ------------------------------------------------------- the touch targets */
+
+.v11-touch-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+}
+
+/*
+ * Invisible until pressed. `pointer-events: none` is load-bearing and not a
+ * detail: an overlay that took the press would take it from the camera, and
+ * `OrbitControls` listens on the canvas, which is this layer's sibling. The
+ * hit test lives in `MobileRoom.tsx` and runs on the stage.
+ */
+.v11-touch {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--v11-touch);
+  height: var(--v11-touch);
+  display: none;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.v11-touch-ring {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 1px solid rgba(245, 196, 81, 0);
+  background: radial-gradient(circle, rgba(245, 196, 81, 0.22), rgba(245, 196, 81, 0) 70%);
+  opacity: 0;
+  transform: scale(0.7);
+  transition:
+    opacity 120ms ease-out,
+    transform 160ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.v11-touch.is-pressed .v11-touch-ring {
+  opacity: 1;
+  transform: scale(1);
+  border-color: rgba(245, 196, 81, 0.75);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v11-touch-ring {
+    transition: none;
+  }
+}
+
+/* -------------------------------------------------------------- the chrome */
+
+.v11-chrome {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.v11-chrome > * {
+  pointer-events: auto;
+}
+
+.v11-back,
+.v11-dev-entry,
+.v11-badge,
+.v11-talk {
+  font: inherit;
+  color: var(--paper);
+  background: rgba(6, 4, 14, 0.92);
+  border: 1px solid rgba(207, 228, 255, 0.24);
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.v11-back:focus-visible,
+.v11-dev-entry:focus-visible,
+.v11-badge:focus-visible,
+.v11-talk:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+/* The way back: top left, one control, never smaller than a thumb. */
+.v11-back {
+  position: absolute;
+  top: var(--v11-top);
+  left: var(--v11-left);
+  min-height: var(--v11-touch);
+  min-width: var(--v11-touch);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px 0 12px;
+  font: 600 13px / 1 var(--mono);
+  letter-spacing: 0.06em;
+  color: var(--ice);
+  border-color: rgba(207, 228, 255, 0.38);
+}
+
+.v11-back-glyph {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* The one way into the development menu. Discreet, and still 48 px. */
+.v11-dev-entry {
+  position: absolute;
+  top: var(--v11-top);
+  right: var(--v11-right);
+  width: var(--v11-touch);
+  height: var(--v11-touch);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 18px / 1 var(--mono);
+  color: rgba(207, 228, 255, 0.5);
+  background: rgba(6, 4, 14, 0.55);
+  border-color: rgba(207, 228, 255, 0.14);
+  box-shadow: none;
+}
+
+.v11-dev-entry.is-open {
+  color: var(--ink);
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+/* ---------------------------------------------------------- the demo badge */
+
+.v11-badge-dock {
+  position: absolute;
+  left: var(--v11-left);
+  right: var(--v11-right);
+  bottom: calc(var(--v11-bottom) + 64px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.v11-badge-dock > * {
+  pointer-events: auto;
+}
+
+/*
+ * The badge may never be hidden and may never be ambiguous. It is small
+ * because a paragraph of orange across the picture was the wrong way to be
+ * unmistakable, not because the claim has been softened: the word is on
+ * screen at all times and the whole sentence is one press away.
+ */
+.v11-badge {
+  min-height: var(--v11-touch);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 8px 0 14px;
+  font: 600 12px / 1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amber);
+  background: rgba(43, 15, 5, 0.94);
+  border-color: rgba(255, 179, 71, 0.75);
+}
+
+.v11-badge.is-recorded {
+  color: var(--ice);
+  background: rgba(4, 16, 34, 0.94);
+  border-color: rgba(191, 233, 255, 0.75);
+}
+
+.v11-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 10px currentColor;
+  flex: none;
+}
+
+.v11-badge-more {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 12px / 1 var(--mono);
+  border: 1px solid currentColor;
+  opacity: 0.75;
+  flex: none;
+}
+
+.v11-badge-body {
+  margin: 0;
+  max-width: min(520px, 100%);
+  box-sizing: border-box;
+  padding: 10px 13px;
+  font: 500 12.5px / 1.5 var(--ui);
+  letter-spacing: 0.01em;
+  color: #ffd9a8;
+  background: rgba(43, 15, 5, 0.96);
+  border: 1px solid rgba(255, 179, 71, 0.6);
+  border-radius: 12px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55);
+}
+
+.v11-badge-body.is-recorded {
+  color: #d8ecff;
+  background: rgba(4, 16, 34, 0.96);
+  border-color: rgba(191, 233, 255, 0.55);
+}
+
+/* --------------------------------------------- the dock, and the one marker */
+
+.v11-dock {
+  position: absolute;
+  left: var(--v11-left);
+  right: var(--v11-right);
+  bottom: var(--v11-bottom);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.v11-dock > * {
+  pointer-events: auto;
+}
+
+.v11-talk {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--v11-touch);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 18px;
+  font: 600 14px / 1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: linear-gradient(180deg, #f7d078, var(--gold));
+  border-color: rgba(255, 233, 176, 0.9);
+  box-shadow:
+    0 0 26px rgba(245, 196, 81, 0.28),
+    0 6px 22px rgba(0, 0, 0, 0.5);
+}
+
+.v11-talk-glyph {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.v11-talk-word {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The discreet version marker. The coordinator's judgment, recorded as such in
+ * `MobileRoom.tsx` and in the run record: the full provenance footer has moved
+ * into the development menu, and this is what is left in the open so that the
+ * next stale-build incident is still diagnosable in one glance.
+ */
+.v11-marker {
+  flex: none;
+  font: 500 9.5px / 1.2 var(--mono);
+  letter-spacing: 0.04em;
+  color: rgba(207, 228, 255, 0.42);
+  text-align: right;
+  user-select: text;
+  pointer-events: none;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------- the development menu */
+
+.v11-dev-panel {
+  position: absolute;
+  top: calc(var(--v11-top) + var(--v11-touch) + 8px);
+  right: var(--v11-right);
+  left: var(--v11-left);
+  max-width: 420px;
+  margin-left: auto;
+  max-height: calc(100% - var(--v11-top) - var(--v11-bottom) - var(--v11-touch) - 16px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 12px 14px 14px;
+  background: #06040e;
+  border: 1px solid rgba(245, 196, 81, 0.45);
+  border-radius: 10px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.65);
+  font: 11px / 1.5 var(--mono);
+  color: var(--paper);
+  -webkit-overflow-scrolling: touch;
+}
+
+.v11-dev-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: 600 11px / 1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.v11-dev-close {
+  font: inherit;
+  min-height: 32px;
+  padding: 0 12px;
+  color: var(--paper);
+  background: #100c1c;
+  border: 1px solid rgba(239, 233, 255, 0.32);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.v11-dev-note,
+.v11-dev-keys {
+  margin: 8px 0 0;
+  color: var(--ash);
+}
+
+.v11-dev-keys code {
+  color: var(--ice);
+}
+
+.v11-dev-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.v11-dev-label {
+  flex: none;
+  width: 58px;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.v11-dev-row button {
+  font: inherit;
+  min-height: 30px;
+  padding: 0 9px;
+  color: var(--paper);
+  background: #100c1c;
+  border: 1px solid rgba(239, 233, 255, 0.32);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.v11-dev-row button.is-active {
+  color: var(--ink);
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+.v11-dev-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(191, 233, 255, 0.22);
+  font: 9.5px / 1.5 var(--mono);
+  color: var(--ash);
+  user-select: text;
+}
+
+.v11-dev-foot b {
+  color: var(--ice);
+  font-weight: 600;
+}
+
+.v11-dev-foot code {
+  font: inherit;
+  color: var(--paper);
+  word-break: break-all;
+}
+
+.v11-dev-warn {
+  color: var(--amber);
+}
+
+/* ---------------------------------------------- the panel, inside the stage */
+
+/*
+ * Stage 3 redesigns the panel. Until then it is V10's, and the only V11 change
+ * is that it keeps clear of the home indicator and the Dynamic Island, which
+ * costs nothing and would otherwise put its composer under the gesture bar.
+ */
+.v11-stage .panel {
+  padding-top: var(--v11-safe-top);
+}
+
+.v11-stage .panel-body {
+  padding-bottom: calc(var(--v11-safe-bottom) + 12px);
+}
+
+.v11-stage .panel-back {
+  margin-right: var(--v11-safe-right);
+}
+
+/* Landscape: the dock is a strip rather than a bar, so it does not eat a
+   third of a 390 px-tall viewport. */
+.v11-stage[data-orientation="landscape"] .v11-badge-dock {
+  bottom: calc(var(--v11-bottom) + 58px);
+}
+
+.v11-stage[data-orientation="landscape"] .v11-talk {
+  flex: 0 1 320px;
+}
+
+.v11-stage[data-orientation="landscape"] .v11-dock {
+  justify-content: space-between;
+}

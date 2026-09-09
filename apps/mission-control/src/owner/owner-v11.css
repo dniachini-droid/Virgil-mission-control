@@ -1,0 +1,40 @@
+/*
+ * V11 shell only.
+ *
+ * `owner.css` is imported unchanged beside this file, because the `#/v10` route
+ * inside this build must look exactly like the build the owner already has.
+ * Nothing here may reach a V10 selector: every rule below is either on the
+ * document root — where it changes only what V10 already left at its default —
+ * or under a `.v11-` class.
+ */
+
+/*
+ * The document fills the dynamic viewport rather than the static one. The
+ * static `100%` stays as the first declaration so a browser without `dvh`
+ * still gets a full page; iOS Safari's shrinking URL bar is the reason the
+ * second exists at all.
+ */
+html,
+body,
+#root {
+  height: 100%;
+  height: 100dvh;
+  /* No rubber-banding under a fixed 3D stage. */
+  overscroll-behavior: none;
+}
+
+body {
+  /* `viewport-fit=cover` lets the page paint under the insets; nothing
+     scrollable lives here, so no horizontal scrollbar may ever appear. */
+  overflow-x: hidden;
+}
+
+/*
+ * The V10 comparison route inside the V11 build. It keeps V10's own footer, so
+ * `.room-stage` reserves the same strip it always did and `owner.css` does the
+ * rest. This rule exists only to state that intent in one place; it changes
+ * nothing.
+ */
+.owner-v11-note {
+  display: none;
+}

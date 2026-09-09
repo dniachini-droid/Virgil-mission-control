@@ -1,9 +1,18 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
-    "typecheck": { "dependsOn": ["^typecheck"], "outputs": [] },
-    "test": { "dependsOn": ["^build"], "outputs": ["coverage/**"] },
-    "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
     "build:owner": {
       "dependsOn": ["^build"],
       "outputs": ["dist/owner-build/**"],
@@ -17,6 +26,23 @@
     },
     "verify:owner": {
       "dependsOn": ["build:owner"],
+      "outputs": [],
+      "cache": false,
+      "env": ["CHROMIUM_EXECUTABLE", "PLAYWRIGHT_BROWSERS_PATH"]
+    },
+    "build:owner:v11": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/owner-build-v11/**"],
+      "cache": false,
+      "env": [
+        "VIRGIL_OWNER_SHA",
+        "VIRGIL_OWNER_V11_STAGE",
+        "VIRGIL_OWNER_V11_STAGE_SLUG",
+        "VIRGIL_OWNER_BUILD_DATE"
+      ]
+    },
+    "verify:owner:v11": {
+      "dependsOn": ["build:owner:v11"],
       "outputs": [],
       "cache": false,
       "env": ["CHROMIUM_EXECUTABLE", "PLAYWRIGHT_BROWSERS_PATH"]
