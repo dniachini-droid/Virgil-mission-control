@@ -238,10 +238,10 @@ screen and not a failure to draw. **Both are stage 2's, and neither was touched 
 | `pnpm check` — `verify:owner:v11` | `PASS — opens from file://, no console errors, no off-document requests, no horizontal overflow, every touch target at least 44 x 44, the gesture guard holds, V10 still loads at #/v10`; `console errors 0`; `requests 1, off-document 0` |
 | Mind Scan | `82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `mind scan: no findings` |
 | `build:owner` from a clean tree | `v10-s2-virgil-c269048153.html`, 8.13 MB (8,528,318 bytes) |
-| `build:owner:v11` from a clean tree | see the artifact below |
+| `build:owner:v11` from a clean tree | `v11/v11-s1-virgil-ca8104e0d1.html`, 8.16 MB (8,556,332 bytes) |
 | `sha256sum -c *.sha256` | 14 committed artifacts, all `OK` |
 | `pnpm reproduce:owner` | `identical — rebuilt from 4ae03314d93ed6e26982f3691034974ff5b3887b`; `PASS` |
-| `pnpm reproduce:owner:v11` | see the artifact below |
+| `pnpm reproduce:owner:v11` | `identical — rebuilt from ca8104e0d1…`; `PASS` (recorded in full below) |
 
 **Tests added this stage: 91, none changed, skipped or weakened.** The app's suite goes from 269 to
 360: 30 for the composition contract, 25 for the V11 build target and the preservation contract, 20
@@ -261,6 +261,15 @@ V10's script and fail on the file name. `reproduce.mjs` may not be edited, so th
 level down, where `readdirSync(...).filter(name => name.endsWith('.html'))` does not see it. **Its
 digest stays at the top level and names the relative path**, so the workflow's existing
 `sha256sum -c *.sha256` still covers it and no check was weakened to make room.
+
+### The artifact
+
+`docs/process/PHASE_1_owner-builds/v11/v11-s1-virgil-ca8104e0d1.html`, sha256
+`7c9e1b69979bab42720868dbfe658418f6ad7ec5e659f6faf10b8887c48670ac`, **8,556,332 bytes** — 0.33 %
+larger than V10's 8,528,241, which is the second entry, the phone composition, the touch layer, the
+hidden menu and the badge against identical model payloads. Its digest is
+`docs/process/PHASE_1_owner-builds/v11-s1-virgil-ca8104e0d1.html.sha256`, at the top level so the
+one existing `sha256sum -c *.sha256` covers it.
 
 ### What this stage does not claim
 
