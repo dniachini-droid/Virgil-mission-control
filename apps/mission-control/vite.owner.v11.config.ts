@@ -24,9 +24,13 @@ function git(args: string[]): string {
 
 const sha = process.env.VIRGIL_OWNER_SHA ?? git(['rev-parse', 'HEAD']);
 const worktreeDirty = git(['status', '--porcelain']) !== '';
+// The stage line is the build-identity signal the brief's first caution is
+// about: it is what diagnosed the day the owner was served a stale build. It is
+// changed whenever what the file contains changes, which is why it names this
+// pass rather than still naming stage 3 alone.
 const stage =
   process.env.VIRGIL_OWNER_V11_STAGE ??
-  'V11 stage 3 — the windows: full-screen agent and Virgil views that lead with the conclusion, a back chevron, a real composer that says it is not connected, evidence on demand, the cluster and the default camera moved on the owner’s own real-device evidence, and landscape’s consoles recovered';
+  'V11 stage 3, and the pass after it — the windows: full-screen agent and Virgil views that lead with the conclusion, a back chevron, a real composer that says it is not connected, evidence on demand, the cluster and the default camera moved on the owner’s own real-device evidence, and landscape’s consoles recovered; then the station close-ups re-framed so each character is in their own, and every sign of Demo removed but one chip';
 // Overridable for the same reason as V10's: the embedded minute is the only
 // part of the output the commit does not determine, so a reviewer needs to be
 // able to feed it back in and get the same bytes.
