@@ -160,6 +160,40 @@ describe('the V11 verify is a measurement, not a reading', () => {
     expect(verify).toContain('NOT PERFORMED, never met');
   });
 
+  /**
+   * The Keeper's **K11-04**. Nine `boundingBox({ timeout: 10_000 })` waits made
+   * the verify's `PASS` partly a statement about the machine: in his container
+   * they expired and reported *"the window has no back chevron"* about a
+   * chevron that is rendered, committed and visible in a frame. A check that
+   * cries wolf is worse than no check, so the waits are spent in rendered
+   * frames instead — and this test is what stops the next one being written in
+   * milliseconds.
+   *
+   * The exception, and it is a real one: the waits for the **document to load
+   * and the world to be ready** are still wall-clock, because before the first
+   * frame exists there is no frame to count. Every one of them is asserted
+   * below to be exactly that and nothing else.
+   */
+  it('waits in frames, not in milliseconds, everywhere a frame exists to count', () => {
+    expect(verify).toContain('const WAIT_FRAMES = 90');
+    expect(verify).toContain('async function boxOf(');
+    expect(verify).toContain('async function until(');
+    // And a press that misses a moving target is retried against a new
+    // measurement rather than timed to arrive after an interval.
+    expect(verify).toContain('async function pressUntil(');
+    // Not one locator bounding-box wait is left, and none may come back.
+    expect(verify).not.toMatch(/\.boundingBox\(/);
+    expect(verify).not.toMatch(/polling:/);
+
+    const wallClock = verify
+      .split('\n')
+      .filter((line) => /timeout:/.test(line) && !/^\s*\*/.test(line));
+    expect(wallClock).toHaveLength(5);
+    for (const line of wallClock) {
+      expect(line).toMatch(/canvas|heading|__virgilRoomReady|__virgilRenderer/);
+    }
+  });
+
   it('checks that V10’s route inside the V11 build still carries V10’s chrome', () => {
     expect(verify).toContain("'#/v10'");
     expect(verify).toContain('.room-controls');

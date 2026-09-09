@@ -197,6 +197,133 @@ async function frames(p: Page, count: number): Promise<void> {
   }
 }
 
+/**
+ * **The frame budget every wait in this file is spent from — the Keeper's
+ * K11-04, repaired at its cause rather than by a bigger number.**
+ *
+ * His review ran a single-viewport copy of this script at candidate `de3c7d8`
+ * in a container three to four times slower than the builders' and got five
+ * failures, **every one of them false**: *"the window has no back chevron"*
+ * when `AgentWindow.tsx:225` renders it and a committed frame shows it. Nine
+ * `boundingBox({ timeout: 10_000 })` waits had expired. The check was correct
+ * about the product and wrong about the clock, which is the fault this file
+ * already records fixing once for its sleeps and had left standing in its
+ * element waits — *"Timing by the wall clock would make the assertion a
+ * property of SwiftShader."*
+ *
+ * A check that cries wolf is worse than no check, because the next real
+ * failure gets waved through as another slow machine. So the wait is spent in
+ * **rendered frames**, which is the only clock this product's interface runs
+ * on: nothing in the DOM can change between two frames that a frame-counting
+ * wait would miss, and a machine ten times slower simply takes ten times longer
+ * to spend the same budget. **Nothing asserted is relaxed** — the chevron still
+ * has to exist, be visible and measure 44 x 44 — and the budget is still finite,
+ * so a genuinely absent element still fails rather than hanging.
+ *
+ * 90 frames: at this container's ~1.4 fps that is over a minute of grace, and
+ * on a fast machine a second and a half. The old 10,000 ms was under fourteen
+ * frames here.
+ */
+const WAIT_FRAMES = 90;
+
+type Box = { x: number; y: number; width: number; height: number };
+
+/**
+ * The box of the first element matching a CSS selector, waited for in frames.
+ * Visibility is decided the way Playwright decides it — an empty box or
+ * `visibility: hidden` is not there yet — so this is a drop-in for the
+ * locator wait on a bounding box it replaces, with the deadline changed and
+ * nothing else. No wait in this file measures a deadline in milliseconds any
+ * more, and a test asserts that no new one does.
+ */
+async function boxOf(p: Page, selector: string, budget = WAIT_FRAMES): Promise<Box | null> {
+  for (let attempt = 0; ; attempt += 1) {
+    // Anonymous arrows only, for the `__name` reason recorded above `frames`.
+    const box = await p.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const style = window.getComputedStyle(el);
+      if (style.visibility === 'hidden' || style.display === 'none') return null;
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return null;
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    }, selector);
+    if (box) return box;
+    if (attempt >= budget) return null;
+    await frames(p, 1);
+  }
+}
+
+/**
+ * A page condition, polled once a frame until it holds or the budget is spent.
+ * Returns whether it held, so a caller can say which happened; every caller
+ * here goes on to assert the state it wanted, exactly as it did when this was
+ * `waitForFunction({ timeout: 20_000 })`.
+ */
+async function until(p: Page, check: () => boolean, budget = WAIT_FRAMES): Promise<boolean> {
+  for (let attempt = 0; ; attempt += 1) {
+    if (await p.evaluate(check)) return true;
+    if (attempt >= budget) return false;
+    await frames(p, 1);
+  }
+}
+
+/**
+ * **The renderer's own frame period, measured once and used as the deadline for
+ * the few Playwright calls that can only be given milliseconds.**
+ *
+ * `locator.click()` and `locator.fill()` carry Playwright's default 30-second
+ * wall-clock timeout, and a 30-second default is exactly the fault K11-04
+ * names: in this container a single frame takes most of a second, so thirty
+ * seconds is forty frames, and the first run of this repair **crashed** on
+ * `.v11w-input` — worse than a false failure, because a crash prints nothing at
+ * all and the reader cannot tell a broken product from a slow machine. So the
+ * default becomes `WAIT_FRAMES` of this machine's own frames, never shorter
+ * than Playwright's 30 s on a fast one.
+ */
+let framePeriodMs = 16;
+
+async function calibrate(p: Page): Promise<void> {
+  const started = Date.now();
+  await frames(p, 6);
+  framePeriodMs = Math.max(16, (Date.now() - started) / 6);
+  context.setDefaultTimeout(Math.max(30_000, Math.round(framePeriodMs * WAIT_FRAMES)));
+  mark(
+    `a frame takes ${Math.round(framePeriodMs)} ms here, so a wait of ${WAIT_FRAMES} frames is ${Math.round((framePeriodMs * WAIT_FRAMES) / 1000)}s`,
+  );
+}
+
+/**
+ * **A press on a world target, retried against a freshly measured box until it
+ * does what it is supposed to do.**
+ *
+ * A touch target in this world is a projection of moving geometry: it is placed
+ * from the camera every frame, so a press aimed at where it was one frame ago
+ * can land on nothing while the camera is still easing. That is a property of
+ * the instrument, not of the product — the reader's thumb and the world's own
+ * hit test are never a frame apart. Before this, the miss was hidden by
+ * whatever latency the wait before it happened to add, which is exactly the
+ * kind of accident K11-04 is about. So the press is **repeated against a new
+ * measurement** until the condition it is supposed to cause holds, and it fails
+ * only when a bounded number of honest attempts have all missed.
+ */
+async function pressUntil(
+  p: Page,
+  selector: string,
+  condition: () => boolean,
+  attempts = 4,
+): Promise<boolean> {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const box = await boxOf(p, selector);
+    if (!box) return false;
+    await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await p.mouse.down();
+    await p.mouse.up();
+    if (await until(p, condition, 6)) return true;
+  }
+  return false;
+}
+
 async function waitForWorld(p: Page): Promise<void> {
   await p.locator('canvas').waitFor({ timeout: 30_000 });
   await p.waitForFunction(() => '__virgilRoomReady' in window, undefined, { timeout: 180_000 });
@@ -208,12 +335,27 @@ async function waitForWorld(p: Page): Promise<void> {
 const failures: string[] = [];
 const notes: string[] = [];
 
+/**
+ * **Progress, printed as it happens.** A run of this script takes about fifteen
+ * minutes in a software renderer and prints nothing until the end, so a session
+ * that hits its harness's ten-minute cap learns only that it was killed. Each
+ * stage announces itself with the seconds it started at, on stderr so the
+ * result lines on stdout stay exactly what they were.
+ */
+const startedAtMs = Date.now();
+function mark(label: string): void {
+  process.stderr.write(
+    `owner build v11 verify: … ${label} at ${Math.round((Date.now() - startedAtMs) / 1000)}s\n`,
+  );
+}
+
 // ---------------------------------------------------------------- the routes
 const visited: string[] = [];
 for (const route of ['', '#/v10', '#/s1', '#/spike/foundry', '#/spike/mind']) {
   await page.goto(`${fileUrl}${route}`, { waitUntil: 'load' });
   if (route === '' || route === '#/v10') {
     await waitForWorld(page);
+    if (route === '') await calibrate(page);
   } else if (route === '#/s1') {
     await page.getByRole('heading', { level: 1 }).waitFor({ timeout: 15_000 });
   } else {
@@ -244,6 +386,7 @@ notes.push(
 );
 
 // ------------------------------------------------- the simulated iPhone runs
+mark('the routes and V10 chrome are done; the viewports begin');
 for (const viewport of VIEWPORTS) {
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
   await page.goto(`${fileUrl}#/`, { waitUntil: 'load' });
@@ -259,6 +402,7 @@ for (const viewport of VIEWPORTS) {
   await page.reload({ waitUntil: 'load' });
   await waitForWorld(page);
 
+  mark(`${viewport.name}: overflow`);
   // 1. No horizontal overflow, at the document and at every element.
   const overflow = await page.evaluate(() => {
     const doc = document.documentElement;
@@ -296,6 +440,7 @@ for (const viewport of VIEWPORTS) {
     `${viewport.name}: scrollWidth ${overflow.scrollWidth} / clientWidth ${overflow.clientWidth}, 0 elements past the edge`,
   );
 
+  mark(`${viewport.name}: touch targets`);
   // 2. Every principal touch target, measured.
   const targets = await page.evaluate((min) => {
     const nodes = Array.from(document.querySelectorAll<HTMLElement>('[data-touch-target]'));
@@ -328,6 +473,7 @@ for (const viewport of VIEWPORTS) {
     )} px — ${targets.map((t) => `${t.id} ${t.w}x${t.h}`).join(', ')}`,
   );
 
+  mark(`${viewport.name}: gestures`);
   // 3. The interface, driven rather than read. The order matters: the tap is
   //    taken first, from a page that has just mounted and whose camera is at
   //    rest, and the drag afterwards from the settled overview. The gesture
@@ -351,10 +497,7 @@ for (const viewport of VIEWPORTS) {
     await page.mouse.up();
   };
 
-  const virgil = await page
-    .locator('[data-touch-target="virgil"]')
-    .boundingBox({ timeout: 10_000 })
-    .catch(() => null);
+  const virgil = await boxOf(page, '[data-touch-target="virgil"]');
   if (!virgil) {
     failures.push(`${viewport.name}: no Virgil target to drive the gesture guard against`);
   } else {
@@ -392,10 +535,7 @@ for (const viewport of VIEWPORTS) {
     // 3b. The record's own dismissal leaves the reader at the station, as the
     //     owner decided at V9. Measured here because in portrait the panel is a
     //     full-screen sheet and its control is the only thing on top of it.
-    const escBox = await page
-      .locator('.v11w-back')
-      .boundingBox({ timeout: 10_000 })
-      .catch(() => null);
+    const escBox = await boxOf(page, '.v11w-back');
     if (!escBox) {
       failures.push(`${viewport.name}: the window has no back chevron`);
     } else {
@@ -407,12 +547,7 @@ for (const viewport of VIEWPORTS) {
       await press(escBox.x + escBox.width / 2, escBox.y + escBox.height / 2);
       // Polled, not slept: the panel must close, and how many frames that
       // takes in a software rasteriser is not what this check is about.
-      await page
-        .waitForFunction(() => document.querySelectorAll('.v11w-root').length === 0, undefined, {
-          timeout: 20_000,
-          polling: 120,
-        })
-        .catch(() => undefined);
+      await until(page, () => document.querySelectorAll('.v11w-root').length === 0);
       const afterEsc = await state();
       if (afterEsc.panel !== 0) {
         failures.push(`${viewport.name}: the back chevron left ${afterEsc.panel} windows open`);
@@ -428,10 +563,7 @@ for (const viewport of VIEWPORTS) {
     }
 
     // 3c. The way back to the overview exists, is a thumb wide, and works.
-    const backBox = await page
-      .locator('[data-touch-target="back"]')
-      .boundingBox({ timeout: 10_000 })
-      .catch(() => null);
+    const backBox = await boxOf(page, '[data-touch-target="back"]');
     if (!backBox) {
       failures.push(`${viewport.name}: no way back to the overview is on screen`);
     } else {
@@ -457,10 +589,7 @@ for (const viewport of VIEWPORTS) {
     //     defect: "when I'm trying to scroll and move the camera or zoom in, a
     //     window opens."
     await settle();
-    const again = await page
-      .locator('[data-touch-target="virgil"]')
-      .boundingBox({ timeout: 10_000 })
-      .catch(() => null);
+    const again = await boxOf(page, '[data-touch-target="virgil"]');
     const dx = (again ?? virgil).x + (again ?? virgil).width / 2;
     const dy = (again ?? virgil).y + (again ?? virgil).height / 2;
     await page.mouse.move(dx, dy);
@@ -484,6 +613,7 @@ for (const viewport of VIEWPORTS) {
     await settle();
   }
 
+  mark(`${viewport.name}: the window`);
   // 4. **The window itself**, driven and measured: opened from the world, at
   //    this viewport, with its evidence closed and then expanded.
   const windowMeasure = async (label: string) => {
@@ -629,21 +759,14 @@ for (const viewport of VIEWPORTS) {
     // The Prover's window, opened through the world by tapping his console's
     // own screen — the same path the reader takes.
     await settle();
-    const proverTarget = await page
-      .locator('[data-touch-target="prover-screen"]')
-      .boundingBox({ timeout: 10_000 })
-      .catch(() => null);
-    const box = proverTarget;
-    if (!box) {
-      failures.push(`${viewport.name}: the Prover's screen has no target to open`);
+    const opened = await pressUntil(
+      page,
+      '[data-touch-target="prover-screen"]',
+      () => document.querySelectorAll('.v11w-sheet').length === 1,
+    );
+    if (!opened) {
+      failures.push(`${viewport.name}: pressing the Prover's screen opened no window`);
     } else {
-      await press(box.x + box.width / 2, box.y + box.height / 2);
-      await page
-        .waitForFunction(() => document.querySelectorAll('.v11w-sheet').length === 1, undefined, {
-          timeout: 20_000,
-          polling: 120,
-        })
-        .catch(() => undefined);
       /**
        * **Where the tap took the camera, whatever it hit.** Two world targets
        * can overlap on a phone and the hit test takes the nearer centre, so at
@@ -656,6 +779,7 @@ for (const viewport of VIEWPORTS) {
       if (stationFocus === 'all') {
         failures.push(`${viewport.name}: the tap opened a window without moving the camera`);
       }
+      mark(`${viewport.name}: window measured, evidence closed`);
       await windowMeasure('window, evidence closed');
 
       // Expanded: every disclosure opened, which is where the tables, the
@@ -668,12 +792,28 @@ for (const viewport of VIEWPORTS) {
         }
       });
       await frames(page, 2);
+      mark(`${viewport.name}: window measured, evidence expanded`);
       await windowMeasure('window, evidence expanded');
 
       // The composer, with the keyboard up. **Simulated**, through the
-      // product's own `visualViewport` path.
-      await page.locator('.v11w-input').click();
-      await page.locator('.v11w-input').fill('Why is this candidate not merged?');
+      // product's own `visualViewport` path. Reached by the same frame-budgeted
+      // wait as everything else, and **its absence is a failure, not a crash**:
+      // a `locator.click()` that expires throws out of the whole script and
+      // prints nothing, which tells the reader neither what passed nor why this
+      // did not.
+      mark(`${viewport.name}: the composer`);
+      const inputBox = await boxOf(page, '.v11w-input');
+      if (!inputBox) {
+        failures.push(`${viewport.name}: the window has no composer input`);
+      } else {
+        // `fill` scrolls the composer into view and focuses it itself. A raw
+        // mouse press at the measured centre cannot: in portrait the composer
+        // sits below the fold, and the first attempt at this repair pressed an
+        // off-screen coordinate, which landed on the world and dismissed the
+        // window. The wait is frame-budgeted; the action is Playwright's, with
+        // the calibrated deadline above.
+        await page.locator('.v11w-input').fill('Why is this candidate not merged?');
+      }
       const keyboardPx = viewport.portrait ? KEYBOARD_PX : KEYBOARD_LANDSCAPE_PX;
       await page.evaluate((px) => {
         (window as { __raiseKeyboard?: (n: number) => void }).__raiseKeyboard?.(px);
@@ -683,15 +823,23 @@ for (const viewport of VIEWPORTS) {
         const input = document.querySelector('.v11w-input')?.getBoundingClientRect();
         const keep = document.querySelector('.v11w-keep')?.getBoundingClientRect();
         const hidden = (window as { __simKeyboard?: number }).__simKeyboard ?? 0;
+        // Null-safe, because a sheet that is not open must be **reported** and
+        // not thrown: `getComputedStyle(null)` crashed this script once and a
+        // crash prints nothing at all.
+        const sheet = document.querySelector('.v11w-sheet');
         return {
           inputBottom: Math.round(input?.bottom ?? -1),
           keepBottom: Math.round(keep?.bottom ?? -1),
           visible: Math.round(window.innerHeight - hidden),
-          inset: getComputedStyle(
-            document.querySelector('.v11w-sheet') as Element,
-          ).getPropertyValue('--v11w-kb'),
+          sheets: document.querySelectorAll('.v11w-sheet').length,
+          inset: sheet ? getComputedStyle(sheet).getPropertyValue('--v11w-kb') : '(no sheet)',
         };
       });
+      if (composer.sheets !== 1) {
+        failures.push(
+          `${viewport.name}: ${composer.sheets} window sheets are open at the composer check, expected 1`,
+        );
+      }
       if (composer.inputBottom > composer.visible || composer.keepBottom > composer.visible) {
         failures.push(
           `${viewport.name}: with a ${keyboardPx} px keyboard the composer sits at ${composer.inputBottom} and the keyboard starts at ${composer.visible}`,
@@ -703,6 +851,7 @@ for (const viewport of VIEWPORTS) {
 
       // What was typed is kept and never reported as sent. Counted as a
       // difference, so nothing a previous step left behind can flatter it.
+      mark(`${viewport.name}: the kept turn`);
       const turnsBefore = await page.evaluate(
         () => document.querySelectorAll('.v11w-turn.is-owner').length,
       );
@@ -730,30 +879,20 @@ for (const viewport of VIEWPORTS) {
       // **The way back, one step per level.** The chevron goes to the station,
       // and the station's own control goes to the overview: stage 1's recorded
       // compromise — the way home hidden while a record is open — closed.
-      const chevron = await page
-        .locator('.v11w-back')
-        .boundingBox({ timeout: 10_000 })
-        .catch(() => null);
+      mark(`${viewport.name}: the way back`);
+      const chevron = await boxOf(page, '.v11w-back');
       if (!chevron) {
         failures.push(`${viewport.name}: the window has no back chevron`);
       } else {
         await press(chevron.x + chevron.width / 2, chevron.y + chevron.height / 2);
-        await page
-          .waitForFunction(() => document.querySelectorAll('.v11w-root').length === 0, undefined, {
-            timeout: 20_000,
-            polling: 120,
-          })
-          .catch(() => undefined);
+        await until(page, () => document.querySelectorAll('.v11w-root').length === 0);
         const atStation = await state();
         if (atStation.panel !== 0 || atStation.focus !== stationFocus) {
           failures.push(
             `${viewport.name}: the chevron left ${atStation.panel} windows and the focus at ${atStation.focus}, not the ${stationFocus} the tap flew to; it must leave the reader at the station`,
           );
         }
-        const home = await page
-          .locator('[data-touch-target="back"]')
-          .boundingBox({ timeout: 10_000 })
-          .catch(() => null);
+        const home = await boxOf(page, '[data-touch-target="back"]');
         if (!home) {
           failures.push(`${viewport.name}: no way back to the overview at the station`);
         } else {
@@ -774,6 +913,7 @@ for (const viewport of VIEWPORTS) {
     await settle();
   }
 
+  mark(`${viewport.name}: development chrome`);
   // 5. The development chrome is out of the ordinary experience, and the
   //    version marker is still reachable in it.
   // No inner named helper here: `tsx` compiles one into an `__name()` call that
@@ -863,14 +1003,28 @@ for (const viewport of VIEWPORTS) {
 // camera moving and the record appearing, which the renderer's latency is
 // common to and therefore cancels out of.
 if (RUN_TAIL) {
-  const tapAndTime = async (x: number, y: number, budgetMs: number) => {
+  mark('the motion and performance tail');
+  /**
+   * **The budget is frames; the measurement is still milliseconds.** The
+   * Keeper's K11-04 caught this loop too: its 12,000 ms budget expired in his
+   * slower container and produced *"reduced-motion: the record never opened"*
+   * and a gap of `-1 ms` about a record that opens immediately. What it
+   * measures — the interval between the camera moving and the record appearing
+   * — stays a wall-clock interval, because that is the quantity and the
+   * renderer's latency cancels out of it. What it *waits* is now a count of
+   * rendered frames, because the DOM cannot change between two of them, so a
+   * slow machine buys more time instead of a false failure. Sampling once a
+   * frame also replaces the 40 ms poll: a finer poll than the frame it observes
+   * measures nothing extra.
+   */
+  const tapAndTime = async (x: number, y: number, budgetFrames: number) => {
     const startedAt = Date.now();
     await page.mouse.move(x, y);
     await page.mouse.down();
     await page.mouse.up();
     let movedAt = -1;
     let openedAt = -1;
-    while (Date.now() - startedAt < budgetMs) {
+    for (let frame = 0; frame <= budgetFrames; frame += 1) {
       const sample = await page.evaluate(() => ({
         focus: (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus ?? '(none)',
         panels: document.querySelectorAll('.v11w-root').length,
@@ -881,7 +1035,7 @@ if (RUN_TAIL) {
         openedAt = at;
         break;
       }
-      await page.waitForTimeout(40);
+      await frames(page, 1);
     }
     return { movedAt, openedAt, gap: openedAt < 0 || movedAt < 0 ? -1 : openedAt - movedAt };
   };
@@ -889,15 +1043,12 @@ if (RUN_TAIL) {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${fileUrl}#/`, { waitUntil: 'load' });
   await waitForWorld(page);
-  const normalTarget = await page
-    .locator('[data-touch-target="virgil"]')
-    .boundingBox({ timeout: 10_000 })
-    .catch(() => null);
+  const normalTarget = await boxOf(page, '[data-touch-target="virgil"]');
   const normal = normalTarget
     ? await tapAndTime(
         normalTarget.x + normalTarget.width / 2,
         normalTarget.y + normalTarget.height / 2,
-        12_000,
+        WAIT_FRAMES,
       )
     : { movedAt: -1, openedAt: -1, gap: -1 };
 
@@ -907,15 +1058,12 @@ if (RUN_TAIL) {
   const reducedIsOn = await page.evaluate(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
-  const reducedTarget = await page
-    .locator('[data-touch-target="virgil"]')
-    .boundingBox({ timeout: 10_000 })
-    .catch(() => null);
+  const reducedTarget = await boxOf(page, '[data-touch-target="virgil"]');
   const reduced = reducedTarget
     ? await tapAndTime(
         reducedTarget.x + reducedTarget.width / 2,
         reducedTarget.y + reducedTarget.height / 2,
-        12_000,
+        WAIT_FRAMES,
       )
     : { movedAt: -1, openedAt: -1, gap: -1 };
 
@@ -1010,10 +1158,7 @@ if (RUN_TAIL) {
   );
 
   // A window over the world: reduced, not stopped, and the displays halve.
-  const virgilTarget = await page
-    .locator('[data-touch-target="virgil"]')
-    .boundingBox({ timeout: 10_000 })
-    .catch(() => null);
+  const virgilTarget = await boxOf(page, '[data-touch-target="virgil"]');
   if (virgilTarget) {
     await page.mouse.move(
       virgilTarget.x + virgilTarget.width / 2,
