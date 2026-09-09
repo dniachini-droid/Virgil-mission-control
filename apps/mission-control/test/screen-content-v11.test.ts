@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { playbackSchedule, replayAt } from '../src/world/replay/replayTimeline.js';
 import { ROLES, type Role } from '../src/world/room/cast.js';
 import { BEATS, demoAt, loopLength, type Outcome } from '../src/world/room/demo.js';
 import { splitHero } from '../src/world/screens/v11/chrome.js';
@@ -8,6 +9,9 @@ import { primaryFor, verdictPrimary } from '../src/world/screens/v11/content.js'
 import {
   drawConsoleScreen,
   drawSlab,
+  HOP_ORDER,
+  hopNodes,
+  hopsReturned,
   LONGEST_SCRIPTED_HOP,
   ledgerBarFill,
   type SlabKind,
@@ -475,6 +479,200 @@ describe('the beats the assertions above rest on', () => {
     const outcomes: Outcome[] = ['PASS', 'BLOCKED', 'INSUFFICIENT_EVIDENCE'];
     for (const [loop, outcome] of outcomes.entries()) {
       expect(demoAt(1, loop, true).outcome).toBe(outcome);
+    }
+  });
+});
+
+/**
+ * **The Keeper's KS4-01, and the test that did not exist.**
+ *
+ * For three seconds of every passing loop the run slab drew the Keeper's hop
+ * as returned — filled dot, full green bar, `HOPS 3 / 3 returned` — while the
+ * candidate slab in the same frame read `READY FOR REVIEW`, the verdict slab
+ * read `VERIFICATION PASSED. NOT YET REVIEWED.` and the Keeper's station was
+ * dark with report `—`. `constitution/STATE_LANGUAGE.md`, *Distinctions that
+ * must never collapse*: **`READY_FOR_REVIEW` is not reviewed.**
+ *
+ * The review found it, and then found why nothing else had: this file asserted
+ * the *words* a display uses and the bar's arithmetic, and nothing anywhere
+ * asserted **hop state**. A grep for `returned`, `hopNodes` or `hops` across
+ * the V11 tests returned comments. Two reviews had touched the function and
+ * `hopNodes` was byte-identical through both.
+ *
+ * So the expectation below is written from `demo.ts`'s `BEATS` and from
+ * nothing in `screens.ts`, and it is checked at **every half second of all
+ * three loops** and at **every beat of the replay** — three ways over: the
+ * pure derivation, the number the micro-rail prints, and the bar each row
+ * draws. A row cannot claim a hop that has not run without one of them
+ * failing.
+ */
+describe('no row claims a hop that has not run', () => {
+  type HopState = 'done' | 'active' | 'ahead';
+
+  /**
+   * What the three rows must read at `t`, derived from the script's own
+   * beats. A hop is `active` from the moment the hand-off starts until the
+   * next hop's hand-off starts — which is when the previous holder actually
+   * lets go — and `done` only after that. On the two loops that end in a
+   * refusal the Keeper never receives the candidate at all, so his row is
+   * `ahead` for the whole loop and to the end of it.
+   */
+  function expected(t: number, outcome: Outcome): [HopState, HopState, HopState] {
+    if (t < BEATS.handoffToFabricator) return ['ahead', 'ahead', 'ahead'];
+    if (t < BEATS.handoffToProver) return ['active', 'ahead', 'ahead'];
+    if (t < BEATS.proverReported) return ['done', 'active', 'ahead'];
+    if (outcome !== 'PASS') return ['done', 'done', 'ahead'];
+    // The passing loop only. This is the window KS4-01 lived in: the Prover
+    // has returned PASS, and the Keeper has not been handed anything.
+    if (t < BEATS.handoffToKeeper) return ['done', 'done', 'ahead'];
+    if (t < BEATS.keeperReported) return ['done', 'done', 'active'];
+    return ['done', 'done', 'done'];
+  }
+
+  it.each(beats())('loop $loop at $seconds s', ({ seconds, loop }) => {
+    const state = demoAt(seconds, loop, true);
+    const want = expected(seconds, state.outcome);
+    const nodes = hopNodes(state.content);
+    const where = `loop ${loop} at ${seconds}s (candidate ${state.content.candidate}, verdict ${state.content.verdict}, active ${state.content.active})`;
+
+    expect(
+      nodes.map((n) => n.state),
+      where,
+    ).toEqual(want);
+
+    // The number printed and the rows drawn are one derivation.
+    expect(hopsReturned(state.content), where).toBe(want.filter((s) => s === 'done').length);
+
+    // And a bar is a length and a length is a claim: a hop that has not run
+    // draws none, whatever the global clock says.
+    for (const i of [0, 1, 2]) {
+      if (want[i] === 'ahead') {
+        expect(ledgerBarFill(want[i] as HopState, i, seconds, false), `${where} row ${i}`).toBe(0);
+      }
+    }
+  });
+
+  /**
+   * The same assertion made from the glass rather than from the function:
+   * the run slab's micro-rail is rendered and the `N / 3 returned` it prints
+   * is read back. This is the surface the review photographed.
+   */
+  it.each(beats())('the run slab prints it, loop $loop at $seconds s', ({ seconds, loop }) => {
+    const state = demoAt(seconds, loop, true);
+    const want = expected(seconds, state.outcome).filter((s) => s === 'done').length;
+    const drawn = drawnText(
+      (canvas) =>
+        drawSlab(canvas, {
+          kind: 'roles',
+          content: state.content,
+          outcome: state.outcome,
+          seconds,
+          corner: 20,
+          t: seconds,
+          since: 1.2,
+          showBand: false,
+        }),
+      SLAB_SIZE[0],
+      SLAB_SIZE[1],
+    );
+    const rail = drawn.filter((line) => / \/ 3 returned$/.test(line));
+    expect(rail, `loop ${loop} at ${seconds}s`).toEqual([`${want} / 3 returned`]);
+  });
+
+  /**
+   * The three seconds themselves, named, so a regression is reported as the
+   * finding it is rather than as an arithmetic difference.
+   */
+  it('never draws the Keeper as returned while the candidate is READY_FOR_REVIEW', () => {
+    const offenders: string[] = [];
+    for (const { seconds, loop } of beats()) {
+      const { content } = demoAt(seconds, loop, true);
+      if (content.candidate !== 'READY_FOR_REVIEW') continue;
+      const keeper = hopNodes(content)[2] as { state: HopState };
+      if (keeper.state === 'done') offenders.push(`loop ${loop} at ${seconds}s`);
+      expect(ledgerBarFill(keeper.state, 2, seconds, false)).toBeLessThan(1);
+    }
+    // The window exists — 29 s to 32 s of the passing loop — so this test is
+    // exercising the state it names and not passing by never reaching it.
+    const window_ = beats().filter(
+      ({ seconds, loop }) => demoAt(seconds, loop, true).content.candidate === 'READY_FOR_REVIEW',
+    );
+    expect(window_.length).toBeGreaterThan(0);
+    expect(offenders).toEqual([]);
+  });
+
+  /**
+   * **The general rule, over the whole vocabulary rather than the script.**
+   * For every candidate state the constitution defines and every possible
+   * holder, no hop after the holder is ever `done`, and the Keeper's row is
+   * `done` only where a review verdict is the state itself. This is what
+   * stops the next surface being written from `content.verdict` again.
+   */
+  it('credits no hop that the candidate’s own state cannot account for', () => {
+    const reviewed = new Set([
+      'PASS_WITH_NON_BLOCKING_FINDINGS',
+      'SAFE_TO_MERGE',
+      'MERGED',
+      'DEPLOYED',
+    ]);
+    for (const candidate of [...authority.candidateStates, null] as (string | null)[]) {
+      for (const active of [null, ...HOP_ORDER]) {
+        for (const verdict of ['—', ...authority.reviewVerdicts]) {
+          const content = {
+            verdict,
+            active,
+            candidate,
+            ownerGate: false,
+          } as unknown as Parameters<typeof hopNodes>[0];
+          const nodes = hopNodes(content);
+          const where = `candidate ${candidate}, active ${active}, verdict ${verdict}`;
+          const holder = active === null ? -1 : HOP_ORDER.indexOf(active);
+          if (holder >= 0) {
+            // Nothing after the holder has run, and the holder has not
+            // returned: the run cannot be ahead of where the run is.
+            for (let i = holder; i < 3; i += 1) {
+              expect(nodes[i]?.state, `${where} row ${i}`).not.toBe('done');
+            }
+          }
+          if (holder !== 2 && !reviewed.has(candidate ?? '')) {
+            expect(nodes[2]?.state, where).toBe('ahead');
+          }
+          // A verdict on the glass never moves a row on its own.
+          expect(hopsReturned(content), where).toBe(nodes.filter((n) => n.state === 'done').length);
+        }
+      }
+    }
+  });
+
+  /**
+   * **The replay, beat by beat.** It plays recorded history, so a hop drawn as
+   * returned there is a claim about something that happened. The Keeper of the
+   * first candidate reviewed and blocked it; the Keeper of the second reviewed
+   * and passed it — and in neither segment may his row fill before he has the
+   * candidate.
+   */
+  it('claims nothing in the replay either', () => {
+    for (const { beat, at } of playbackSchedule('fast')) {
+      const state = replayAt(at + 0.05, 'fast', true);
+      const nodes = hopNodes(state.content);
+      const where = `beat ${beat.id} (candidate ${state.content.candidate}, active ${state.content.active})`;
+      const holder =
+        state.content.active === null
+          ? -1
+          : (HOP_ORDER as readonly string[]).indexOf(state.content.active);
+      if (holder >= 0) {
+        expect(nodes[holder]?.state, where).toBe('active');
+        for (let i = holder + 1; i < 3; i += 1) {
+          expect(nodes[i]?.state, where).toBe('ahead');
+        }
+      }
+      if (state.content.candidate === 'READY_FOR_REVIEW') {
+        expect(nodes[2]?.state, where).not.toBe('done');
+      }
+      // No bar at all in the replay: no per-hop duration reaches this slab.
+      for (const [i, node] of nodes.entries()) {
+        expect(ledgerBarFill(node.state, i, at, true), `${where} row ${i}`).toBe(0);
+      }
     }
   });
 });
