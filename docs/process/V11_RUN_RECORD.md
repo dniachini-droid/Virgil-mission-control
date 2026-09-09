@@ -2384,3 +2384,145 @@ default approved version has not changed.**
 - **A pass here is a builder's claim.** The deterministic checks are the
   evidence. The independent Keeper review covers `de3c7d8b2a` and **not this
   stage**; everything after that SHA is unreviewed.
+
+---
+
+## The decisions waiting on the owner
+
+**Read this section first in the morning.** It is the whole of what V11 needs
+from the owner and nobody else can settle. Each item says what the choice is,
+what each way costs, and — where a session has one — a recommendation. **Nothing
+here has been decided by a session, and writing an item down decides nothing.**
+No code was changed to anticipate any of these answers.
+
+It is written for someone who has not read the code. The finding identities in
+brackets are the independent review's (`docs/process/V11_KEEPER_REVIEW.md`), for
+anyone who wants the technical version.
+
+### 1. On a phone, an open window carries no "this is a demonstration" marking [K11-03]
+
+**The choice.** When you tap a character on a phone held upright, the record
+that opens fills the whole screen and covers the small `Demo data` chip. While
+that record is open, nothing on screen is labelled as a demonstration, and the
+candidate, the checks and the agent it describes are all invented.
+
+**How it got here, and this matters.** Stage 3 put a band across the top of that
+record reading `ILLUSTRATIVE · NOT REAL STATE`, and justified it by exactly this
+case. You then instructed: *"Remove all signs of Demo from the entire system
+except one small spot… I know its a demo."* The band went. **This is your
+instruction working as you gave it**, not a mistake, and no session may overrule
+it — which is why the band has not come back and will not until you say so.
+
+**What is still on screen while a record is open.** The composer's permanent
+line — *"Kept on this page. Nothing is sent: there is no session behind this
+build."* — and `Session controls — none is connected`. So the screen does say
+there is no live session; what it does not say is that the content is invented.
+
+**The ways out, and their costs.**
+
+| | What it costs |
+|---|---|
+| **Leave it** | Anyone you hand the phone to, at the moment they are reading a record, sees fabricated content with nothing marking it. You know it is a demonstration; a stranger does not. |
+| **Move the one chip instead of adding a second marking** | The `Demo data` chip follows the reader into the record's own header, so there is still exactly one marking in the whole product — the thing you asked for — and it is never off screen. Costs a little of the record's header and one small pass; the exact space it takes has not been measured, because nothing has been built. |
+| **Bring the band back in portrait only** | The clearest, and the thing you explicitly rejected. Not recommended. |
+
+**Recommendation:** the middle one — relocate the single existing chip rather
+than add anything. It is the only option that keeps *"one small spot"* literally
+true and still marks the screen a stranger is actually looking at. **Say the
+word and it is a small pass. Nothing has been done in anticipation.**
+
+### 2. Does V11 become the version you open by default?
+
+**The choice.** V11 lives on the branch `claude/virgil-mobile-v11` and nothing
+of it has been merged. The approved default is still V10, exactly as it was.
+Merging is yours alone in every phase, and no session will do it.
+
+**What you would be accepting.** The phone composition, the in-world screens,
+the full-screen records, the composer and the performance work — none of which
+any human has yet looked at on real graphics hardware or a real phone (item 3).
+
+**Recommendation:** look at the artifact on your own phone first. There is no
+deadline and nothing degrades by waiting.
+
+### 3. The two graphics-hardware checks are still not performed, and only you can perform them
+
+Not a decision so much as **the one thing no session can do for you**. Every
+frame in this record was drawn in software by a CPU renderer with no GPU, at
+about one and a half frames a second, on a simulated 390 × 844 rectangle that is
+not an iPhone. `OD-0005` requires these recorded as *not performed*, never as
+met, and they are.
+
+So: the Dynamic Island, the real onscreen keyboard, real scrolling, real
+sharpness, whether the thing is beautiful — **unknown**. Open
+`docs/process/PHASE_1_owner-builds/v11/` and the newest `v11-*.html` from your
+phone's own file system and look. Until you do, every aesthetic sentence in this
+record is a builder's claim about a software rasteriser.
+
+### 4. 27 MB of working scratch is tracked in the repository [K11-05]
+
+**Already decided by you on 9 September** — *"leave them and stop the bleeding"*
+— and honoured: `.gitignore` excludes `scratchpad/` and no pass has added to it
+since, though stage 4 added 4.0 MB of deliverable frames under
+`docs/process/PHASE_1_owner-builds/`, which is a different thing and is where
+frames belong. Listed only so you know it is still there. Removing the files
+from the current tree would not shrink the history and would cost a commit.
+**Recommendation: leave it.** No action is proposed against your decision.
+
+### 5. Whether to spend a megabyte of the download on a geometry codec
+
+**The choice.** The V11 file is 8.29 MB; the mobile transfer budget in
+`PERFORMANCE_STRATEGY.md` is 6 MB. Stage 4 measured every option with real
+encoders rather than guessing (`pnpm measure:compression:v11`, and the table in
+stage 4, item 1a):
+
+| | What it would save | What it costs |
+|---|---|---|
+| **gzip**, which the browser already decodes | **1.32 MB** | nothing — 0 bytes of decoder |
+| **Meshopt** | 1.02 MB | a 29 kB decoder; bit-exact, provably identical output |
+| **Draco** | 1.93 MB | a 334 kB decoder, and a real risk of visual change |
+| **Draco + gzip together** | 2.52 MB → about **6.17 MB** | the same, and still not under 6 MB |
+| **KTX2** | **nothing** — it would *add* 34 kB at best | rejected on the measurement |
+
+**Why it is yours and not a session's.** Every option changes the payload files
+that **V10's own world** renders from, and V10 built from a clean tree has been
+**8,528,318 bytes at every single stage of this branch**. That number is the
+preservation contract's strongest evidence, and moving it by a megabyte is a
+thing you should do knowingly.
+
+**Recommendation:** gzip first, in its own pass with its own review — it is free
+in decoder bytes and the largest saving per unit of risk. Not KTX2, ever, in a
+single-file document.
+
+### 6. The slab strip across the top of the portrait close-ups
+
+When you tap a character on a phone, the bottom edge of Virgil's screen cluster
+is still in the top of the frame — 78 px on the Fabricator, 64 on the Prover,
+**142 on the Keeper**. It was reduced, not cured. The only remedy is moving the
+cluster, **and you declined that**. Listed so the record does not quietly carry
+it as solved. **Recommendation: none — it is your composition.** If you change
+your mind, moving the cluster is a small pass.
+
+### 7. What happens after V11
+
+Your overnight instruction was *"Review after stage 4 and fix and that's it"*,
+so the three queued items below were **not started**
+(`docs/process/OVERNIGHT_PLAN_2026-09-09.md`):
+
+- **The dropped transcript** — you drag one of your own Claude Code session
+  files onto the page and read your real work in Virgil's interface. Read-only,
+  nothing uploaded. This is the step that answers whether you would actually use
+  this. **Ready to start under an ordinary grant.**
+- **A real state snapshot baked at build time** — the world stops playing a
+  script and reports this repository's actual state. **This is Phase 2 work and
+  Phase 2 is not authorised**, so it needs your word, not just your go-ahead.
+- **The Mind of Virgil** — a Phase 1 item never started. Ready when you want it.
+
+**Recommendation:** the dropped transcript next. It is the only one that tells
+you whether the product is worth continuing.
+
+### 8. Sound
+
+Out of the Phase 1 slice by your own decision (`OD-0007`, and
+`PHASE_1_BRIEF.md`, "Owner decisions required before start", item 3): optional
+sound motifs return *after it works well*. Nothing waits on you unless you want
+them sooner.
