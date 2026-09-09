@@ -1,0 +1,45 @@
+== fabricator
+  drawn opening        939.3 x 552.9 mm, radius 77.9 mm
+  plate inner opening  931.3 x 544.9 mm, radius 73.9 mm
+  ring width           62.0 mm
+  picture lift         10.12 mm
+  lip offset           13.62 mm
+  surround max height  32.89 mm
+  plate max height     36.39 mm
+  gap min / max        3.50 / 17.96 mm
+  outer edge gap       5.50 mm
+  max lift over ridge  4.00 mm
+  samples              864, missed 0 (0.0 %)
+  covered per side     74.0 mm
+  surround profile     0mm: med 0.3 max 5.9 | 12mm: med 14.8 max 29.8 | 25mm: med 28.0 max 31.1 | 37mm: med 26.9 max 32.0 | 50mm: med 28.0 max 32.9 | 62mm: med 26.5 max 32.3
+
+== prover
+  drawn opening        855.0 x 458.1 mm, radius 42.9 mm
+  plate inner opening  847.0 x 450.1 mm, radius 38.9 mm
+  ring width           62.0 mm
+  picture lift         5.50 mm
+  lip offset           9.00 mm
+  surround max height  29.23 mm
+  plate max height     32.73 mm
+  gap min / max        3.50 / 14.22 mm
+  outer edge gap       5.50 mm
+  max lift over ridge  5.50 mm
+  samples              864, missed 0 (0.0 %)
+  covered per side     81.3 mm
+  surround profile     0mm: med -1.2 max 1.1 | 12mm: med -1.1 max 23.1 | 25mm: med 16.0 max 28.7 | 37mm: med 23.1 max 29.2 | 50mm: med 23.6 max 28.2 | 62mm: med 23.1 max 27.9
+
+== keeper
+  drawn opening        871.6 x 575.4 mm, radius 81.1 mm
+  plate inner opening  863.6 x 567.4 mm, radius 77.1 mm
+  ring width           62.0 mm
+  picture lift         5.76 mm
+  lip offset           9.26 mm
+  surround max height  91.19 mm
+  plate max height     94.69 mm
+  gap min / max        3.50 / 16.34 mm
+  outer edge gap       5.50 mm
+  max lift over ridge  5.50 mm
+  samples              864, missed 0 (0.0 %)
+  covered per side     73.5 mm
+  surround profile     0mm: med -1.6 max 0.7 | 12mm: med -1.7 max 16.4 | 25mm: med 14.9 max 19.3 | 37mm: med 15.8 max 21.3 | 50mm: med 18.4 max 69.3 | 62mm: med 19.4 max 91.2
+
