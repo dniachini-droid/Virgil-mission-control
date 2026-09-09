@@ -454,24 +454,18 @@
   color: var(--amber);
 }
 
-/* ---------------------------------------------- the panel, inside the stage */
+/* --------------------------------------------- the window, inside the stage */
 
 /*
- * Stage 3 redesigns the panel. Until then it is V10's, and the only V11 change
- * is that it keeps clear of the home indicator and the Dynamic Island, which
- * costs nothing and would otherwise put its composer under the gesture bar.
+ * **Stage 3 replaced the panel rather than extending it.** V11's route now
+ * renders `world/window/AgentWindow.tsx`, whose whole appearance is in
+ * `world/window/window.css` under `.v11w-*`. The three `.v11-stage .panel-*`
+ * rules stage 1 added are gone with it, and V9's panel and its stylesheet are
+ * untouched, still dressing V10's own record at `#/v10`.
+ *
+ * The window reads this file's four `--v11-safe-*` variables for its own
+ * insets, so there is exactly one definition of where the safe area is.
  */
-.v11-stage .panel {
-  padding-top: var(--v11-safe-top);
-}
-
-.v11-stage .panel-body {
-  padding-bottom: calc(var(--v11-safe-bottom) + 12px);
-}
-
-.v11-stage .panel-back {
-  margin-right: var(--v11-safe-right);
-}
 
 /* Landscape: the dock is a strip rather than a bar, so it does not eat a
    third of a 390 px-tall viewport. */

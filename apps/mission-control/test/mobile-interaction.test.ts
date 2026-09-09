@@ -123,14 +123,34 @@ describe('the targets themselves', () => {
   });
 });
 
-describe('a tap moves the camera before the record opens', () => {
-  it('waits out the flight rather than opening with it', () => {
+/**
+ * **Stage 3 replaced this contract, on the owner's own instruction, and the
+ * three assertions here changed with it.**
+ *
+ * Stage 1 asserted that the record waits out the camera's flight — built to the
+ * V11 brief's stage-1 line, *"tapping triggers a deliberate camera transition
+ * before the interface opens."* The owner had already decided the opposite in
+ * `docs/process/PHASE_1_CONVERSATION_INTERFACE.md` §5b, and against this
+ * session's own recommendation: *"tapping a screen opens the panel straight
+ * away and takes you there … So you arent waiting to be taken there first."*
+ * His decision governs. So the assertion is inverted rather than deleted, and
+ * nothing is left untested: the window must be set in the same event as the
+ * camera, and the delay must be gone.
+ */
+describe('one tap opens the window and moves the camera, concurrently', () => {
+  it('sets the window and the focus in the same event', () => {
     expect(room).toContain('export const FLIGHT_SECONDS = 0.9');
-    expect(room).toContain('window.setTimeout(() => setPanel(target), OPEN_AFTER_MS)');
+    expect(room).toContain('setFocus(to);\n    setWin(target);');
   });
 
-  it('opens at once under reduced motion, because there is nothing to wait for', () => {
-    expect(room).toContain('if (settings.reducedMotion) setPanel(target);');
+  it('has no delay left between the press and the window', () => {
+    expect(room).not.toContain('OPEN_AFTER_MS');
+    expect(room).not.toContain('window.setTimeout(() => setWin');
+  });
+
+  it('grows the window out of the point the tapped display occupied', () => {
+    expect(room).toContain('const projected = projections()[id];');
+    expect(room).toContain('setOrigin(');
   });
 
   it('is one deliberate move even when two handlers answer the same press', () => {

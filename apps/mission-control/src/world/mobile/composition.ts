@@ -1,8 +1,8 @@
-import type { PanelTarget, SlabName } from '../panel/panelContent.js';
 import { CAST, eyeHeight, figurePlacement, ROLES, type Role, screenCentre } from '../room/cast.js';
 import { closeUpPose, fovFor, screenCorners } from '../room/closeUp.js';
 import { type CameraPose, layout } from '../room/palette.js';
 import { v11Cluster, v11ClusterCentre, v11SlabAt } from '../screens/v11/bank.js';
+import type { WindowTarget } from '../window/windowContent.js';
 
 /**
  * **V11 stage 1: a composition authored for a phone held upright, and a
@@ -326,12 +326,22 @@ export interface Anchor {
   point: Vec3;
   /** Where the camera goes when it is tapped. */
   focus: MobileFocus;
-  /** Which document opens once the camera has arrived. */
-  panel: PanelTarget;
+  /**
+   * Which window opens — **in the same event**, not once the camera has
+   * arrived. The owner's decision of 8 September: one tap does both,
+   * concurrently (`MobileRoom.tsx`, `select`).
+   *
+   * The three slabs open **Virgil's** window at the section each of them
+   * summarises, because his is the central operating interface and the owner's
+   * constraint is that the reader must not have to manage four separate chats
+   * (`PHASE_1_CONVERSATION_INTERFACE.md` §4). The slab is the glance; his
+   * window is the read.
+   */
+  window: WindowTarget;
 }
 
-function slabAnchor(id: string, label: string, point: Vec3, slab: SlabName): Anchor {
-  return { id, label, point, focus: 'board', panel: { kind: 'slab', slab } };
+function slabAnchor(id: string, label: string, point: Vec3, at: string): Anchor {
+  return { id, label, point, focus: 'board', window: { agent: 'virgil', at } };
 }
 
 /**
@@ -349,16 +359,11 @@ export function anchors(): Anchor[] {
       // His face, not his feet: the point the eye goes to.
       point: [vx, vy + 1.42, vz],
       focus: 'virgil',
-      panel: { kind: 'slab', slab: 'verdict' },
+      window: { agent: 'virgil' },
     },
-    slabAnchor('board-roles', 'The run ledger', v11SlabAt('roles').position, 'roles'),
-    slabAnchor('board-verdict', 'The verdict board', v11SlabAt('verdict').position, 'verdict'),
-    slabAnchor(
-      'board-candidate',
-      'The candidate board',
-      v11SlabAt('candidate').position,
-      'candidate',
-    ),
+    slabAnchor('board-roles', 'The run ledger', v11SlabAt('roles').position, 'sequence'),
+    slabAnchor('board-verdict', 'The verdict board', v11SlabAt('verdict').position, 'truth'),
+    slabAnchor('board-candidate', 'The candidate board', v11SlabAt('candidate').position, 'next'),
   ];
   for (const role of ROLES) {
     const stand = figurePlacement(role).at;
@@ -367,7 +372,7 @@ export function anchors(): Anchor[] {
       label: CAST[role].label,
       point: [stand[0], eyeHeight(role) + 0.06, stand[2]],
       focus: role,
-      panel: { kind: 'role', role },
+      window: { agent: role },
     });
     const [sx, sy, sz] = screenCentre(role);
     list.push({
@@ -375,7 +380,7 @@ export function anchors(): Anchor[] {
       label: `${CAST[role].label}'s screen`,
       point: [sx, sy, sz],
       focus: role,
-      panel: { kind: 'role', role },
+      window: { agent: role },
     });
   }
   return list;

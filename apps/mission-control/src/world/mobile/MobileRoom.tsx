@@ -19,9 +19,10 @@ import {
 import { Figure } from '../characters/Figure.js';
 import { VirgilRigged } from '../characters/VirgilRigged.js';
 import type { FaceState } from '../characters/Visor.js';
-import { Panel } from '../panel/Panel.js';
-import type { PanelTarget, SlabName } from '../panel/panelContent.js';
-import { publishDemoState } from '../panel/panelStore.js';
+import { demoSnapshot, publishDemoState } from '../panel/panelStore.js';
+import type { SlabName } from '../panel/panelContent.js';
+import { AgentWindow, type WindowOrigin } from '../window/AgentWindow.jsx';
+import { type Agent, windowForLedgerRow, type WindowTarget } from '../window/windowContent.js';
 import { RUN, RUN_SECONDS, recordedClock, recordedDuration } from '../replay/recordedRun.js';
 import {
   compressionOf,
@@ -55,7 +56,7 @@ import {
   orientationFor,
 } from './composition.js';
 import { type Insets, NO_INSETS, readInsets } from './safeArea.js';
-import { setPressed, TouchProjector, TouchTargets, targetAt } from './TouchTargets.js';
+import { projections, setPressed, TouchProjector, TouchTargets, targetAt } from './TouchTargets.js';
 import './mobile.css';
 
 /**
@@ -90,10 +91,17 @@ import './mobile.css';
 
 export type View = 'room' | 'tabletop';
 
-/** How long the deliberate transition into a selection lasts, in seconds. */
+/**
+ * How long the camera's travel into a selection lasts, in seconds.
+ *
+ * **Stage 3 removed the delay that used to follow it.** Stage 1 opened the
+ * record `FLIGHT_SECONDS * 1000 + 120` ms after the press, so the move read
+ * first; the owner's binding decision is that one tap does both concurrently,
+ * so the window now opens in the same event and the flight runs underneath it
+ * (`select`, below). The travel itself is unchanged, because the second half of
+ * his sentence — *"and takes you there"* — still has to happen.
+ */
 export const FLIGHT_SECONDS = 0.9;
-/** And how long after it starts the record opens. Deliberate: the move reads first. */
-export const OPEN_AFTER_MS = FLIGHT_SECONDS * 1000 + 120;
 
 export interface BuildIdentity {
   sha: string;
@@ -108,7 +116,8 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
   const [speed, setSpeed] = useState<ReplaySpeed>(() => initialSpeed());
   const [view, setView] = useState<View>(() => initialView());
   const [focus, setFocus] = useState<MobileFocus>(() => initialFocus());
-  const [panel, setPanel] = useState<PanelTarget | null>(null);
+  const [win, setWin] = useState<WindowTarget | null>(null);
+  const [origin, setOrigin] = useState<WindowOrigin | null>(null);
   const [dev, setDev] = useState(false);
   const [badgeOpen, setBadgeOpen] = useState(false);
   /**
@@ -155,40 +164,62 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
   }, []);
 
   /**
-   * **A tap moves the camera, and the record follows the move.** The brief:
-   * *"tapping triggers a deliberate camera transition before the interface
-   * opens."* This is the one place V11 departs from V10's behaviour on purpose
-   * — V10 opens both in the same event, by the owner's earlier decision, and
-   * V10 still does at `#/v10`.
+   * **One tap does both, concurrently** — and this is stage 3 reversing a
+   * stage-1 decision on the owner's own instruction, recorded rather than
+   * quietly changed.
    *
-   * With reduced motion there is no transition to wait for, so the record
-   * opens at once rather than after a pause that would mean nothing.
+   * Stage 1 built the brief's stage-1 line — *"tapping triggers a deliberate
+   * camera transition before the interface opens"* — as a 1.02 s delay before
+   * the record appeared. The owner had already decided otherwise, in
+   * `docs/process/PHASE_1_CONVERSATION_INTERFACE.md` §5b, against this
+   * session's own recommendation: *"tapping a screen opens the panel straight
+   * away and takes you there — but the panel opens up so you can see it
+   * instantly, while you are being taken there. So you arent waiting to be
+   * taken there first."* That decision governs, so the window is set and the
+   * camera is set in the same event: **the window is up immediately and the
+   * flight runs underneath it.**
+   *
+   * The window renders from data and never waits for a frame
+   * (`window/AgentWindow.tsx`), so there is nothing here that could make it
+   * wait. `verify:owner:v11` drives the press and measures that the window is
+   * already open while the camera is still moving — the inverse of the
+   * assertion stage 1 made, changed deliberately and not relaxed.
    */
-  const opening = useRef(0);
   const lastSelection = useRef({ id: '', at: 0 });
-  const select = (id: string, to: MobileFocus, target: PanelTarget) => {
+  const select = (id: string, to: MobileFocus, target: WindowTarget) => {
     const now = performance.now();
     // The world's own raycast handler and this layer's hit test can both
     // answer one press. Whichever arrives first wins; the other is ignored.
     if (lastSelection.current.id === id && now - lastSelection.current.at < 700) return;
     lastSelection.current = { id, at: now };
+    // Where the character's display is on screen at the moment of the tap, so
+    // the window can expand out of it rather than appear over it.
+    const projected = projections()[id];
+    setOrigin(projected && projected.visible ? { x: projected.x, y: projected.y } : null);
     setFocus(to);
-    window.clearTimeout(opening.current);
-    if (settings.reducedMotion) setPanel(target);
-    else {
-      setPanel(null);
-      opening.current = window.setTimeout(() => setPanel(target), OPEN_AFTER_MS);
-    }
+    setWin(target);
   };
   const toOverview = () => {
-    window.clearTimeout(opening.current);
     lastSelection.current = { id: '', at: 0 };
-    setPanel(null);
+    setWin(null);
     setFocus('all');
   };
-  const selectAnchor = (id: string) => {
+  const selectAnchor = (id: string, row?: number) => {
     const anchor = anchors.find((candidate) => candidate.id === id);
-    if (anchor) select(anchor.id, anchor.focus, anchor.panel);
+    if (!anchor) return;
+    // A ledger row opens that hop's own agent, which is the owner's decision
+    // of 8 September: the row carries shape and colour at distance and the
+    // window carries the whole of it.
+    const target =
+      row === undefined ? anchor.window : windowForLedgerRow(demoSnapshot(), row);
+    select(anchor.id, anchor.focus, target);
+  };
+  /** Another agent's window, without going back to the world first. */
+  const goToAgent = (agent: Agent, at?: string) => {
+    const anchor = anchors.find((candidate) => candidate.id === agent);
+    lastSelection.current = { id: '', at: 0 };
+    setFocus(anchor ? anchor.focus : 'virgil');
+    setWin(at === undefined ? { agent } : { agent, at });
   };
 
   // What the verifier drives the interface through. Two values and one
@@ -196,14 +227,22 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
   // depends on it existing.
   useEffect(() => {
     const w = window as Window & {
-      __virgilV11?: { focus: string; panel: string | null; orientation: string };
+      __virgilV11?: {
+        focus: string;
+        window: string | null;
+        section: string | null;
+        orientation: string;
+      };
       __virgilV11Reset?: () => void;
     };
-    w.__virgilV11 = { focus, panel: panel ? panel.kind : null, orientation };
+    w.__virgilV11 = {
+      focus,
+      window: win ? win.agent : null,
+      section: win?.at ?? null,
+      orientation,
+    };
     w.__virgilV11Reset = toOverview;
   });
-
-  useEffect(() => () => window.clearTimeout(opening.current), []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -222,19 +261,22 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
   });
 
   const start = mobilePose(focus, aspect);
-  const focused = focus !== 'all' || panel !== null;
+  const focused = focus !== 'all' || win !== null;
   /**
-   * **When the way back is shown, and why not always.** In portrait the panel
-   * is a full-screen sheet — measured, not assumed: at 390 x 844 it covers the
-   * whole viewport including the top-left corner — so a back control underneath
-   * it could be pressed by nobody, and one on top of it would sit across the
-   * panel's own kicker. The panel's own dismissal leaves the reader at the
-   * station, which is the owner's decision from V9 and is not this stage's to
-   * overturn; the way home appears the moment the record is closed. Two taps
-   * from an open record, one from anywhere else. Stage 3 redesigns the panel
-   * and should fold "home" into it.
+   * **The way back is never hidden now, and that is stage 3 fixing stage 1's
+   * recorded compromise.** Stage 1 wrote here that in portrait the sheet covers
+   * the corner the station's control sits in, so the way home was unreachable
+   * until the record was closed — two taps from an open record — and it named
+   * folding "home" into the panel as stage 3's job.
+   *
+   * The window now carries its own back chevron in its header
+   * (`window/AgentWindow.tsx`), so there is a visible way back at every level
+   * and **back is one step per level**, which is the owner's decision: window →
+   * station → overview, matching the three distances. This control is the
+   * station's step, and it is hidden only while the window is over it, where a
+   * second control would be both unreachable and redundant.
    */
-  const showBack = focus !== 'all' && panel === null;
+  const showBack = focus !== 'all' && win === null;
 
   /**
    * The hit test. It runs on the stage, alongside the world's own raycast, and
@@ -321,13 +363,8 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
             onToggle={() => setBadgeOpen((value) => !value)}
           />
           <TalkBar
-            marker={`V11 · stage 2 · ${build.shortSha}`}
-            onTalk={() =>
-              select('virgil', 'virgil', {
-                kind: 'slab',
-                slab: 'verdict',
-              })
-            }
+            marker={`V11 · stage 3 · ${build.shortSha}`}
+            onTalk={() => select('virgil', 'virgil', { agent: 'virgil' })}
           />
           {dev ? (
             <DevPanel
@@ -342,8 +379,7 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
               setView={setView}
               focus={focus}
               onLookAt={(next) => {
-                window.clearTimeout(opening.current);
-                setPanel(null);
+                setWin(null);
                 setFocus(next);
               }}
               onClose={() => setDev(false)}
@@ -351,7 +387,15 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
           ) : null}
         </div>
 
-        <Panel target={panel} onClose={() => setPanel(null)} />
+        {/* The window: DOM, outside the canvas, rendered from data. Its own
+            chevron is one step back — to the station the tap took the reader
+            to, never snapped back to the overview. */}
+        <AgentWindow
+          target={win}
+          origin={origin}
+          onClose={() => setWin(null)}
+          onGo={goToAgent}
+        />
       </div>
     </SettingsContext.Provider>
   );
@@ -681,7 +725,7 @@ function Cast({
    * found (`screens/v11/ConsoleScreenV11.tsx`).
    */
   focus: MobileFocus;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, row?: number) => void;
 }) {
   const forced = forcedFace();
   const scripted = useDemo(demo && forced === null && mode === 'demo');
@@ -700,7 +744,7 @@ function Cast({
         seconds={state.seconds}
         mode={state.mode}
         speed={speed}
-        onOpen={(slab: SlabName) => onSelect(`board-${slab}`)}
+        onOpen={(slab: SlabName, row?: number) => onSelect(`board-${slab}`, row)}
       />
       {ROLES.map((role) => {
         const member = state.cast[role];

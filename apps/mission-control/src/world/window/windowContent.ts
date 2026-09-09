@@ -185,8 +185,15 @@ function statusOf(role: Role, state: DemoState) {
 export function sentence(text: string): string {
   const keep = /^[A-Z][A-Z_ -]*$/.test(text) && TOKENS.has(text);
   if (keep) return text;
-  const lower = text.toLowerCase();
-  return lower.charAt(0).toUpperCase() + lower.slice(1);
+  // Every sentence, not only the first. Found by looking: the Prover's own
+  // status line came out as "A required check failed. the candidate is
+  // refused." because only character zero was raised.
+  return text
+    .toLowerCase()
+    .replace(
+      /(^|[.!?]\s+)([a-z])/g,
+      (_, lead: string, letter: string) => lead + letter.toUpperCase(),
+    );
 }
 
 /** The words that stay in capitals because they are vocabulary, not prose. */
@@ -198,23 +205,52 @@ const TOKENS = new Set<string>([
   'NO VERDICT',
 ]);
 
+/**
+ * **Which hops have happened, from the run ledger itself.**
+ *
+ * Two frames caught this. A window opened after a verdict read `Nothing in
+ * flight` with all three steps dim although two hops had plainly happened, and
+ * at the owner gate every step read *not started* — because the demonstration
+ * deliberately returns every station to `READY` at the gate ("every agent
+ * idle, every screen quiet, one thing lit"), so a station's current state
+ * cannot answer *did this hop happen*. **The ledger can**, and it is the
+ * surface whose whole rule is that a row is appended when a hop happens and
+ * never rewritten. So the pips, the sequence and the historical record all read
+ * the same rows and cannot disagree.
+ */
+function hopsAt(state: DemoState): ({ reported: boolean } | null)[] {
+  const rows = ledgerAt(state.seconds, state.outcome);
+  return ROLES.map((role) => {
+    const row = rows.find((entry) => entry.role === role);
+    return row ? { reported: row.report !== null } : null;
+  });
+}
+
+/** The quiet progression treatment that replaces the technical breadcrumb. */
 function progressionOf(state: DemoState, agent: Agent) {
   const holder = state.content.active;
   const index =
     holder === 'Fabricator' ? 0 : holder === 'Prover' ? 1 : holder === 'Keeper' ? 2 : -1;
-  const agentIndex = agent === 'virgil' ? index : ROLES.indexOf(agent);
-  const steps = HOP_LABELS.map((label, i) => ({
-    label,
-    state: (i < index ? 'done' : i === index ? 'active' : 'todo') as 'done' | 'active' | 'todo',
+  const hops = hopsAt(state);
+  const steps = ROLES.map((role, i) => ({
+    label: HOP_LABELS[i] ?? role,
+    state: (hops[i] === null ? 'todo' : hops[i]?.reported ? 'done' : 'active') as
+      | 'done'
+      | 'active'
+      | 'todo',
   }));
-  const label =
-    index < 0
-      ? state.content.ownerGate
-        ? 'Waiting on you'
-        : 'Nothing in flight'
-      : agentIndex === index
+  const agentIndex = agent === 'virgil' ? index : ROLES.indexOf(agent);
+  const label = state.content.ownerGate
+    ? 'Waiting on you'
+    : index >= 0
+      ? agentIndex === index
         ? `${HOP_LABELS[index]}, now`
-        : `${HOP_LABELS[index]} is in flight`;
+        : `${HOP_LABELS[index]} is in flight`
+      : hops[2]?.reported
+        ? 'Review returned'
+        : hops[1]?.reported
+          ? 'Verification returned'
+          : 'Nothing in flight';
   return { steps, label };
 }
 
@@ -571,6 +607,64 @@ export const CHECK_NAMES: readonly string[] = [
   'mind scan',
 ];
 
+/**
+ * **The command a check actually is, and its output.** Found by looking at a
+ * frame: the conclusion said `unit mission-control returned a failure` while
+ * the terminal card under it printed `@virgil/visual-language`, because the
+ * card had been authored by hand and the conclusion derived from `tally.ts`'s
+ * own failing index. Two texts written apart, disagreeing on screen — the exact
+ * defect the owner caught in V7. So the card is derived from the check's own
+ * name and there is one source again.
+ */
+function runOf(name: string): { command: string; file: string } {
+  if (name.startsWith('unit ')) {
+    const target = name.slice(5);
+    const filter = target === 'mission-control' ? 'mission-control' : `@virgil/${target}`;
+    return {
+      command: `pnpm --filter ${filter} test`,
+      file: target === 'mission-control' ? 'test/screen-content-v11.test.ts' : 'src/roles.test.ts',
+    };
+  }
+  if (name.startsWith('typecheck ')) {
+    const target = name.slice(10);
+    const filter = target === 'mission-control' ? 'mission-control' : `@virgil/${target}`;
+    return { command: `pnpm --filter ${filter} typecheck`, file: 'tsconfig.json' };
+  }
+  if (name === 'biome lint') return { command: 'pnpm biome check .', file: 'biome.json' };
+  if (name === 'owner build')
+    return { command: 'pnpm build:owner:v11', file: 'owner-build/inline-v11.mjs' };
+  if (name === 'owner verify')
+    return { command: 'pnpm verify:owner:v11', file: 'e2e/verify-owner-build-v11.ts' };
+  if (name === 'committed digests') return { command: 'sha256sum -c *.sha256', file: '*.sha256' };
+  return { command: 'pnpm --filter @virgil/knowledge-lint run lint', file: 'knowledge/' };
+}
+
+function failureBlock(name: string): Block {
+  const run = runOf(name);
+  return {
+    kind: 'terminal',
+    command: run.command,
+    lines: [
+      { stream: 'out', text: `❯ ${run.file} (1 failed)` },
+      { stream: 'err', text: 'AssertionError: expected 300 to be 299' },
+      { stream: 'err', text: `  at ${run.file}:118:24` },
+    ],
+    exit: 1,
+  };
+}
+
+function couldNotRunBlock(name: string): Block {
+  const run = runOf(name);
+  return {
+    kind: 'terminal',
+    command: run.command,
+    lines: [
+      { stream: 'err', text: `${run.file}: not found — the check did not run` },
+      { stream: 'err', text: 'no result was produced, and none is inferred' },
+    ],
+  };
+}
+
 function proverDoc(state: DemoState): WindowDoc {
   const { station, since } = beatOf(state, 'prover');
   const tally = proverTally(station === 'WORKING' ? since : 100, state.outcome);
@@ -717,16 +811,7 @@ function proverDoc(state: DemoState): WindowDoc {
             blocks:
               tally.failed > 0
                 ? ([
-                    {
-                      kind: 'terminal',
-                      command: `pnpm --filter @virgil/visual-language test`,
-                      lines: [
-                        { stream: 'out', text: '❯ src/roles.test.ts (18 tests | 1 failed)' },
-                        { stream: 'err', text: 'AssertionError: expected 4 to be 3' },
-                        { stream: 'err', text: '  at roles.test.ts:118:24' },
-                      ],
-                      exit: 1,
-                    },
+                    failureBlock(failedNames[0] ?? ''),
                     {
                       kind: 'evidence',
                       rows: [
@@ -742,16 +827,7 @@ function proverDoc(state: DemoState): WindowDoc {
                     },
                   ] as Block[])
                 : ([
-                    {
-                      kind: 'terminal',
-                      command: 'pnpm --filter mission-control verify:owner',
-                      lines: [
-                        {
-                          stream: 'err',
-                          text: 'browser executable not found; the check did not run',
-                        },
-                      ],
-                    },
+                    couldNotRunBlock(skippedNames[0] ?? ''),
                     {
                       kind: 'note',
                       text: 'A check that could not run proves nothing either way. Recording it as a pass would be the most dangerous thing this interface could do.',
@@ -1003,7 +1079,7 @@ function keeperDoc(state: DemoState): WindowDoc {
       blocks: [
         {
           kind: 'table',
-          head: ['Boundary', 'The exact reason', 'Authority'],
+          head: ['Boundary', 'Reason', 'Authority'],
           rows: REFUSALS.map((entry) => [entry.refused, entry.reason, entry.authority]),
         },
         ...(proverRefused
@@ -1151,6 +1227,7 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
             next: 'The next candidate begins with a grant naming the worktree, the paths and the expiry.',
           };
 
+  const hops = hopsAt(state);
   const agentRows = ROLES.map((role) => {
     const s = statusOf(role, state);
     return [sentence(CAST[role].label), s.word, s.means];
@@ -1176,13 +1253,18 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
         },
         {
           kind: 'evidence',
-          rows: countsFor('prover', state.outcome, state.cast.prover.work).map((value) => ({
-            label: 'Verification',
-            value,
-            standing: (state.cast.prover.station === 'REPORTED'
-              ? 'verified'
-              : 'unresolved') as Standing,
-          })),
+          rows: [
+            {
+              label: 'Verification',
+              value: countsFor('prover', state.outcome, state.cast.prover.work).join(' · '),
+              // **Read from the verdict, not from the station.** At the owner
+              // gate every station is deliberately returned to `READY`, so a
+              // station's state cannot answer whether verification happened;
+              // a returned verdict can, and it is the thing that makes those
+              // counts a verified fact rather than an open question.
+              standing: (state.content.verdict === '—' ? 'unresolved' : 'verified') as Standing,
+            },
+          ],
         },
       ],
     },
@@ -1191,7 +1273,7 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
       title: 'What every agent is doing',
       summary: agentRows.map((row) => `${row[0]}: ${String(row[1]).toLowerCase()}`).join(' · '),
       open: at === 'agents' || at === 'sequence',
-      blocks: [{ kind: 'table', head: ['Agent', 'State', 'What that means'], rows: agentRows }],
+      blocks: [{ kind: 'table', head: ['Agent', 'State', 'Means'], rows: agentRows }],
     },
     {
       id: 'sequence',
@@ -1200,19 +1282,17 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
       blocks: [
         {
           kind: 'plan',
-          steps: ROLES.map((role) => ({
+          steps: ROLES.map((role, i) => ({
             text:
               role === 'fabricator'
                 ? 'Fabricator builds, and returns a claim of completion'
                 : role === 'prover'
                   ? 'Prover verifies that exact commit, and returns facts'
                   : 'Keeper reviews independently, and returns a verdict with findings',
-            state:
-              state.cast[role].station === 'REPORTED'
-                ? 'done'
-                : state.cast[role].station === 'READY'
-                  ? 'todo'
-                  : 'active',
+            state: (hops[i] === null ? 'todo' : hops[i]?.reported ? 'done' : 'active') as
+              | 'done'
+              | 'active'
+              | 'todo',
           })),
         },
         {
@@ -1261,7 +1341,7 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
       blocks: [
         {
           kind: 'table',
-          head: ['Control', 'What it would do', 'Available'],
+          head: ['Control', 'Would', 'Available'],
           rows: SESSION_ACTIONS.map((action) => [
             action.label,
             action.would,
@@ -1454,6 +1534,13 @@ function fabricatorThread(state: DemoState): Message[] {
   ]);
 }
 
+/** Which check the loop's own schedule fails, by name. One source, again. */
+function failingCheckName(state: DemoState): string {
+  const resolved = proverTally(100, state.outcome);
+  const at = resolved.checks.findIndex((check) => check.state === 'failed');
+  return at < 0 ? '' : (CHECK_NAMES[at] ?? '');
+}
+
 function proverThread(state: DemoState): Message[] {
   const { station, since } = beatOf(state, 'prover');
   const tally = proverTally(station === 'WORKING' ? since : 100, state.outcome);
@@ -1495,17 +1582,9 @@ function proverThread(state: DemoState): Message[] {
         report === 'BLOCKED'
           ? [
               para(
-                `${tally.failed} required check failed. That is a proven defect and the candidate does not progress.`,
+                `${tally.failed} required check failed — ${failingCheckName(state)}. That is a proven defect and the candidate does not progress.`,
               ),
-              {
-                kind: 'terminal',
-                command: 'pnpm --filter @virgil/visual-language test',
-                lines: [
-                  { stream: 'err', text: 'AssertionError: expected 4 to be 3' },
-                  { stream: 'err', text: '  at roles.test.ts:118:24' },
-                ],
-                exit: 1,
-              },
+              failureBlock(failingCheckName(state)),
             ]
           : report === 'INSUFFICIENT_EVIDENCE'
             ? [
@@ -1545,14 +1624,22 @@ function keeperThread(state: DemoState): Message[] {
             ? `Reading the candidate and its evidence. ${tally.findings} findings raised, ${tally.blocking} of them blocking.`
             : 'The candidate and its evidence have been read.',
         ),
-        {
-          kind: 'findings',
-          rows: tally.raised.map((finding, i) => ({
-            id: `KV-${String(i + 1).padStart(2, '0')}`,
-            severity: finding.severity,
-            where: `${(finding.line * 100).toFixed(0)}% down the text`,
-          })),
-        },
+        // The list belongs in the turn only while the findings are arriving;
+        // once the review has reported, the `Findings` section carries the
+        // collected list and printing both put the same three rows on screen
+        // twice, which is what the frame showed.
+        ...(station === 'WORKING'
+          ? ([
+              {
+                kind: 'findings',
+                rows: tally.raised.map((finding, i) => ({
+                  id: `KV-${String(i + 1).padStart(2, '0')}`,
+                  severity: finding.severity,
+                  where: `${(finding.line * 100).toFixed(0)}% down the text`,
+                })),
+              },
+            ] as Block[])
+          : []),
       ],
     },
     {

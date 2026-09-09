@@ -200,11 +200,11 @@ describe('what a tap can reach', () => {
     }
   });
 
-  it('sends a specialist and their screen to the same record, so an overlap is harmless', () => {
+  it('sends a specialist and their screen to the same window, so an overlap is harmless', () => {
     for (const role of ROLES) {
       const person = list.find((anchor) => anchor.id === role);
       const screen = list.find((anchor) => anchor.id === `${role}-screen`);
-      expect(person?.panel).toEqual(screen?.panel);
+      expect(person?.window).toEqual(screen?.window);
       expect(person?.focus).toBe(screen?.focus);
     }
   });

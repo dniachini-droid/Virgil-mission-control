@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 import type { Block, Message } from './blocks.js';
 import { NO_SESSION_NOTE, transport } from './session.js';
 
@@ -35,6 +35,25 @@ interface WindowMemory {
 
 const memory = new Map<string, WindowMemory>();
 const listeners = new Set<() => void>();
+/**
+ * A version counter, and it is load-bearing.
+ *
+ * **The first version of this store subscribed in a `useEffect`, and a defect
+ * followed that is worth recording because it produced a picture that lied.**
+ * The window study expands every section by clicking each disclosure as soon as
+ * the document is in the DOM. Those clicks land *between* React's commit and
+ * its passive effects, so `announce()` had no subscriber yet: the store was
+ * updated, no re-render was scheduled, and every "expanded" frame came out
+ * showing only the sections that open by default — while the measurements taken
+ * from the same page were correct. The measurement was right and the frame was
+ * wrong, which is the worse way round.
+ *
+ * `useSyncExternalStore` is the fix rather than a workaround: it compares the
+ * snapshot again after it subscribes and re-renders if it moved, so a change
+ * made in that window cannot be lost. `panelStore.ts` uses the same idiom for
+ * the same class of reason.
+ */
+let version = 0;
 
 function slot(key: string): WindowMemory {
   const found = memory.get(key);
@@ -45,6 +64,7 @@ function slot(key: string): WindowMemory {
 }
 
 function announce(): void {
+  version += 1;
   for (const listener of listeners) listener();
 }
 
@@ -108,20 +128,22 @@ export function resetWindowMemory(): void {
 /** The one sentence the composer prints under itself. */
 export const COMPOSER_NOTE = NO_SESSION_NOTE;
 
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+const snapshot = () => version;
+
 /** Subscribes a component to the store. */
 export function useWindowMemory(key: string): {
   draft: string;
   typed: Message[];
   open: Record<string, boolean>;
 } {
-  const [, bump] = useState(0);
-  useEffect(() => {
-    const listener = () => bump((n) => n + 1);
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-    };
-  }, []);
+  useSyncExternalStore(subscribe, snapshot, snapshot);
   const entry = slot(key);
   return { draft: entry.draft, typed: entry.typed, open: entry.open };
 }
