@@ -34,7 +34,19 @@
  * Nothing here writes into `src/`. It is a measurement, and adopting any of it
  * would be a separate, deliberate change with its own diff.
  *
- * Usage: node asset-pipeline/assess-compression.mjs
+ * Usage: `pnpm measure:compression:v11` from the repository root, or
+ * `pnpm --filter mission-control measure:compression:v11`, or directly as
+ * `node asset-pipeline/assess-compression.mjs`. It is a **named command**
+ * rather than an orphaned file because of the Keeper's **K11-01**: at candidate
+ * `de3c7d8` this script was wired into no `package.json` script, no test and no
+ * CI step, so the numbers the brief requires to be recorded existed only in one
+ * session's stdout. They are in `docs/process/V11_RUN_RECORD.md` (stage 4, item
+ * 1a) and this command is how a reader re-derives them.
+ *
+ * It is deliberately **not** in `pnpm check`. It asserts nothing and can fail
+ * nothing: it prints measurements, and a check that cannot fail does not belong
+ * in the gate. `test/required-checks-v11.test.ts` holds the wiring instead, so
+ * removing the command breaks a test.
  */
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';

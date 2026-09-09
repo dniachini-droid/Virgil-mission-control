@@ -5,6 +5,17 @@ Branch `claude/virgil-mobile-v11`, from `c2f9651`. The brief is
 what is simulated and what was not performed. One section per stage, written when that stage's
 artifact exists.
 
+**How to read it, and the one way it can mislead you.** Each section speaks **as of its own pass**,
+and is left standing afterwards as the evidence of what that pass found rather than rewritten to
+match what came later. So a sentence like *"stage 4 is not started"* or *"independent review has not
+happened"* is true at the SHA of the section it sits in and is **superseded by the sections below
+it** — where that is so, the sentence now says which pass it speaks for. The Keeper's **K11-01** was
+exactly this fault taken one step too far: at candidate `de3c7d8` the words *"Stage 4 is not
+started"* were the **last line of the whole file**, in the commit that added stage 4's compression
+assessment, with no later section to supersede them, so the record contradicted the commit it shipped
+in. The current state of the branch is always the **last** section, and the two indexes that hold no
+history are **"The decisions waiting on the owner"** and **"Known limitations"**, near the end.
+
 ---
 
 ## Stage 1 — composition and interaction
@@ -284,10 +295,12 @@ one existing `sha256sum -c *.sha256` covers it.
   correctly around a real Dynamic Island is **not performed**, not met.
 - **No performance figure was taken and none is implied.** The wall-clock numbers above describe
   SwiftShader.
-- **A pass here is a builder's claim.** The deterministic checks are the evidence; independent review
-  has not happened.
-- Stages 2, 3 and 4 of the brief are not started. The screens, the windows, the twelve review states
-  and the KTX2/Draco/Meshopt assessment the brief's second caution requires are all still ahead.
+- **A pass here is a builder's claim.** The deterministic checks are the evidence; **as of stage 1**
+  independent review has not happened. It happened later, at `de3c7d8`
+  (`docs/process/V11_KEEPER_REVIEW.md`), and covers stages 1 to 3 and no more.
+- **As of stage 1**, stages 2, 3 and 4 of the brief are not started. The screens, the windows, the
+  twelve review states and the KTX2/Draco/Meshopt assessment the brief's second caution requires are
+  all still ahead of *this* pass; each has its own section below.
 
 ---
 
@@ -738,10 +751,11 @@ one existing `sha256sum -c *.sha256` covers it.
   and says nothing about a phone. No performance figure against the tier budgets has been taken on
   any device, and `PERFORMANCE_STRATEGY.md`'s measurement section still reads "None has been
   performed on any branch."
-- **A pass here is a builder's claim.** The deterministic checks are the evidence; independent
-  review has not happened.
-- Stages 3 and 4 of the brief are not started: the full-screen windows, the twelve review states and
-  the KTX2/Draco/Meshopt assessment the brief's second caution requires are all still ahead.
+- **A pass here is a builder's claim.** The deterministic checks are the evidence; **as of stage 2**
+  independent review has not happened. It happened later, at `de3c7d8`.
+- **As of stage 2**, stages 3 and 4 of the brief are not started: the full-screen windows, the twelve
+  review states and the KTX2/Draco/Meshopt assessment the brief's second caution requires are all
+  still ahead of *this* pass; each has its own section below.
 
 ---
 
@@ -1359,18 +1373,21 @@ Sharpness selector lives.
   disabled with their reasons; merge is not offered at all and remains the
   owner's alone in every phase.
 - **A pass here is a builder's claim.** The deterministic checks are the
-  evidence; independent review has not happened.
-- Stage 4 of the brief is not started: performance, the twelve review states and
-  the KTX2 / Draco / Meshopt assessment the brief's second caution requires are
-  all still ahead.
+  evidence; **as of stage 3** independent review has not happened. It happened
+  later, at `de3c7d8`, and covers this stage.
+- **As of stage 3**, stage 4 of the brief is not started: performance, the twelve
+  review states and the KTX2 / Draco / Meshopt assessment the brief's second
+  caution requires are all still ahead of *this* pass. Stage 4 has its own
+  section below.
 
 ---
 
 ## Between stages 3 and 4 — the character in their own close-up, and the demo signage removed
 
-**Two items the owner asked for after seeing stage 3, and nothing else.** Stage 4
-is not started: performance, the twelve review states and the KTX2 / Draco /
-Meshopt assessment are all still ahead, and none of them was touched.
+**Two items the owner asked for after seeing stage 3, and nothing else.** As of
+this pass stage 4 is not started: performance, the twelve review states and the
+KTX2 / Draco / Meshopt assessment are all still ahead of *it*, and none of them
+was touched here. Stage 4 has its own section below.
 
 ### Item 1 — the character is no longer cropped out of their own station close-up
 
@@ -1656,8 +1673,14 @@ history and it is the owner's call.
 - **The slab cluster's lower edge is still in the top of all three portrait
   close-ups**, above, and that is recorded as open rather than fixed.
 - **A pass here is a builder's claim.** The deterministic checks are the
-  evidence; independent review has not happened.
-- **Stage 4 is not started.**
+  evidence; **as of this pass** independent review has not happened. It happened
+  immediately afterwards, at `de3c7d8`, and covers this pass
+  (`docs/process/V11_KEEPER_REVIEW.md`).
+- **As of this pass, stage 4 is not started.** It is started in the very next
+  section, and at candidate `de3c7d8` this sentence was the last line of the file
+  in a commit that had begun stage 4 — the Keeper's **K11-01**, repaired by the
+  note at the top of this record and by this line naming the pass it speaks
+  for.
 
 ---
 
@@ -1689,6 +1712,10 @@ quantised payload may beat them under this constraint. Measure, then choose,
 and record the numbers either way."*
 
 `asset-pipeline/assess-compression.mjs` is the measurement and it is committed.
+It runs as **`pnpm measure:compression:v11`** — a named command since the
+repair pass below, because at candidate `de3c7d8` nothing invoked it at all
+(the Keeper's K11-01). Every number in this section was **re-derived by that
+command** during the repair pass and came back byte-identical.
 It reads every committed runtime payload and re-encodes the geometry with the
 **real** `draco3d` 1.5.7 and `meshoptimizer` 1.1.1 encoders that are already in
 this workspace's pnpm store — no dependency was added, because the lockfile is

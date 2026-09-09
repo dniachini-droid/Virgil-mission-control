@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -47,6 +47,29 @@ describe('`pnpm check` exercises both verifies', () => {
     expect(rootPackage.scripts['reproduce:owner']).toBe(
       'node apps/mission-control/owner-build/reproduce.mjs',
     );
+  });
+
+  /**
+   * The Keeper's **K11-01**: the compressed-format assessment the brief's
+   * second caution requires was committed as a 577-line script that **nothing
+   * invoked** — no `package.json` script, no test, no CI step — so its numbers
+   * lived in one session's stdout and nowhere a reader could reach. The numbers
+   * are in the run record now; this holds the command that re-derives them.
+   *
+   * It is not in `pnpm check` and this test does not ask for it there: the
+   * script asserts nothing and prints measurements, and a step that cannot fail
+   * does not belong in a gate.
+   */
+  it('names the compressed-format assessment, so it is a command and not an orphan', () => {
+    expect(rootPackage.scripts['measure:compression:v11']).toBe(
+      'node apps/mission-control/asset-pipeline/assess-compression.mjs',
+    );
+    expect(appPackage.scripts['measure:compression:v11']).toBe(
+      'node asset-pipeline/assess-compression.mjs',
+    );
+    expect(
+      existsSync(resolve(repoRoot, 'apps/mission-control/asset-pipeline/assess-compression.mjs')),
+    ).toBe(true);
   });
 
   it('cannot verify a stale V11 artifact: the turbo graph builds it first', () => {
