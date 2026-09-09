@@ -39,7 +39,7 @@ enough that a change becomes a deliberate act with a diff a reviewer sees.
 
 Three independent checks:
 
-- **`sha256sum -c *.sha256` in `docs/process/PHASE_1_owner-builds/`: all 14 committed artifacts OK**,
+- **`sha256sum -c *.sha256` in `docs/process/PHASE_1_owner-builds/`: all 15 committed artifacts OK**,
   including `v10-s2-virgil-4ae03314d9.html`.
 - **`pnpm reproduce:owner`: PASS.** It rebuilt the committed V10 artifact in a detached worktree at
   its own source commit `4ae03314d93ed6e26982f3691034974ff5b3887b` and `cmp` found no difference —
@@ -239,9 +239,9 @@ screen and not a failure to draw. **Both are stage 2's, and neither was touched 
 | Mind Scan | `82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `mind scan: no findings` |
 | `build:owner` from a clean tree | `v10-s2-virgil-c269048153.html`, 8.13 MB (8,528,318 bytes) |
 | `build:owner:v11` from a clean tree | `v11/v11-s1-virgil-ca8104e0d1.html`, 8.16 MB (8,556,332 bytes) |
-| `sha256sum -c *.sha256` | 14 committed artifacts, all `OK` |
+| `sha256sum -c *.sha256` | 15 committed artifacts, all `OK` |
 | `pnpm reproduce:owner` | `identical — rebuilt from 4ae03314d93ed6e26982f3691034974ff5b3887b`; `PASS` |
-| `pnpm reproduce:owner:v11` | `identical — rebuilt from ca8104e0d1…`; `PASS` (recorded in full below) |
+| `pnpm reproduce:owner:v11` | `identical — rebuilt from ca8104e0d1a3f2bd1290247b6ae592c54936d5ff`; `PASS — the committed V11 artifact is byte-for-byte derivable from its commit` |
 
 **Tests added this stage: 91, none changed, skipped or weakened.** The app's suite goes from 269 to
 360: 30 for the composition contract, 25 for the V11 build target and the preservation contract, 20
