@@ -575,8 +575,9 @@ describe('the V11 station close-up frames the character', () => {
           behind.slice(0, 5),
           `${label} ${role}: ${behind.length} of ${bust.length} points of the character are behind something`,
         ).toEqual([]);
+        const who = [...new Set(blocked.map((r) => r.by))].join(', ') || 'nothing';
         notes.push(
-          `${label} ${role}: ${unhidden.length}/${samples.length} screen samples the console does not hide; ${blocked.length} of those behind something from the close-up, 0 in the primary state's own region`,
+          `${label} ${role}: ${unhidden.length}/${samples.length} screen samples the console does not hide; ${blocked.length} of those behind something from the close-up (${who}), 0 in the primary state's own region; the character 0/${bust.length} behind anything`,
         );
       }
     }

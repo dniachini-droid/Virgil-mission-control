@@ -1363,3 +1363,266 @@ Sharpness selector lives.
 - Stage 4 of the brief is not started: performance, the twelve review states and
   the KTX2 / Draco / Meshopt assessment the brief's second caution requires are
   all still ahead.
+
+---
+
+## Between stages 3 and 4 — the character in their own close-up, and the demo signage removed
+
+**Two items the owner asked for after seeing stage 3, and nothing else.** Stage 4
+is not started: performance, the twelve review states and the KTX2 / Draco /
+Meshopt assessment are all still ahead, and none of them was touched.
+
+### Item 1 — the character is no longer cropped out of their own station close-up
+
+**This is the oldest open visual defect in the project.** V8.1 opened it, V9
+deferred it to the panel pass, V11 stage 2 deferred it again and named the
+remedy. It contradicted the owner's V8 §0.10.8 direction — *"have each agent at
+the console, sightly to the left so it doesnt obstruct the screens, faciung
+forward"* — and the V11 brief's requirement that the Fabricator, the Prover and
+the Keeper stay recognisable.
+
+**Why V8.1 could not fix it, and why this pass could.** V8.1 searched **242
+candidate poses** and found none that held both the whole of a console's screen
+and its character for all three roles; the characters stand about 2 m in front of
+their consoles and up to **47° off the screen's axis**, and stage 2 measured the
+close-up's horizontal half-angle at 390 × 844 as **17.1°**. That search was only
+necessary because the screen had to carry the full text of the hop. **Stage 3's
+window carries it now**, so the screen has to be present and its **primary state**
+has to read — which is what freed the frame.
+
+**The new poses**, at 390 × 844, from `src/world/mobile/stationCloseUp.ts`. Every
+number in the file is measured, and the measurement is written at the place it
+decides. Only the **distance** is solved — by bisection, as the nearest stand
+that holds the required points inside the lens at this viewport's aspect — so a
+change to a console's position, a character's height or a model moves the camera
+rather than silently cropping something.
+
+| | V10's close-up | V11's station close-up |
+|---|---|---|
+| the Fabricator | (−1.95, 2.07, −0.99), 3.00 m, **67.5°** | **(−0.47, 2.11, 1.18) → (−2.97, 1.01, −1.96), 5.53 m, 52°** |
+| the Prover | (−0.08, 2.05, −2.26), 3.00 m, **69.9°** | **(0.55, 2.18, 0.89) → (−0.76, 0.89, −3.46), 6.14 m, 52°** |
+| the Keeper | (1.90, 2.45, −1.43), 3.00 m, **70.6°** | **(1.22, 2.62, 1.96) → (1.68, 0.85, −2.84), 6.39 m, 52°** |
+
+It keeps the one property V8.1 established — the camera stands on the screen's
+own measured mean normal — and swings **6° off it away from the character**,
+which is measured rather than chosen: rays from the pose to the 132 samples of
+the Fabricator's glass his console does not itself hide, with him in his
+front-facing pose, are blocked at **13 of them at −8°, 7 at −4°, 4 at 0° and 0 at
++6°**, and every one of those blocked samples is in the third of the screen the
+primary state is drawn on. The first built frame of this pass showed exactly
+that: `STANDBY` reading as `ANDBY`.
+
+The elevation is **0.7 of the screen's own rise**, and it is bounded from both
+sides by the set. Above: at V10's 1.25 the camera stands at y ≈ 3.3 from six
+metres out and **Virgil's candidate slab comes between the camera and the
+Keeper's screen** — 73 of his 75 unhidden samples blocked at 1.35, 37 at 1.2, 1
+at 1.05, 0 at 0.9 and below. Below: at 0.35 **Virgil's own console stands in
+front of the Prover's torso** — 1 of the 18 points of it blocked at 6.0 m, 3 at
+6.5, 6 at 9.0. Nothing is blocked at 0.6 and above at any distance the solve
+reaches.
+
+**Which edge of the screen is croppable is not arbitrary.** The primary state is
+drawn at the **left** of the display canvas (`screens/v11/chrome.ts`,
+`heroRect`), and the canvas's left edge maps onto the station's own −x
+(`screens/screenPlane.ts`), which is the side the character stands on. So a
+frame that keeps the character and loses the far edge of the glass loses the
+**micro-rail**, never the state — which is what stage 2 says that rail is for.
+
+### What each new pose gives up, measured
+
+`test/station-close-up-v11.test.ts` prints all of this from the geometry rather
+than quoting it.
+
+| At 390 × 844 | Fabricator | Prover | Keeper |
+|---|---|---|---|
+| of the screen inside the frame | **69 %** | **69 %** | **70 %** |
+| the visible part's width | **109 CSS px** | **95** | **94** |
+| the whole screen's width at that distance | **162** | **142** | **134** |
+| the **drawn display**, against stage 2's | **152.2 × 89.3** (was 200.2 × 117.4) | **125.0 × 66.9** (was 174.4 × 93.3) | **123.9 × 82.4** (was 177.2 × 117.1) |
+| against the 64 px text-collapse threshold | **2.4×** (was 3.1×) | **2.0×** (was 2.7×) | **1.9×** (was 2.8×) |
+| the character's head and torso, of the frame's height | **44 %** | **37 %** | **34 %** |
+| the face | **66 px** | **54** | **45** |
+| screen samples behind anything | **5 of 132**, his own shoulder, in the bottom 10 % of the glass | **5 of 142**, his own console's casing at the mask's edge | **6 of 216**, his own console's casing |
+| in the **primary state's own region** | **0** | **0** | **0** |
+| the character behind anything | **0 of 18** | **0 of 18** | **0 of 18** |
+
+At 430 × 932 the same, larger: 120, 105 and 104 CSS px of visible screen and 73,
+59 and 50 px of face. **In landscape all three screens are whole** — 100 % in
+frame at 103, 115 and 159 CSS px — because the frame there is wide and shallow
+and the solve stands much nearer (4.2, 4.0 and 3.4 m).
+
+**What else entered frame, and it is the one thing this fix could not clear:
+the lower edge of Virgil's slab cluster.** The cluster hangs at y = 2.50–6.64,
+x = ±3.0, z ≈ −1.3, which is between a camera standing off a console on the +z
+side and the console itself, and the first frames of this pass showed it as a
+cropped slab with legible type across the **top fifth** of all three close-ups —
+reading as an overlay rather than as depth. **The cluster is not moved**: the
+owner has declined that change, and `composition.ts`'s overview and
+`screens/v11/bank.ts` are untouched. The camera tilts down 0.2 m of target
+height instead, which takes the cluster's sample points in frame from 12, 10 and
+17 to **6, 6 and 12 of 294**, and what is left is a strip from the top of the
+frame down to **78 px** on the Fabricator, **64 px** on the Prover and **142 px**
+on the Keeper at 390 × 844 — the Keeper's the worst, and his reads `OWNER ONLY`
+above the `← Overview` control. **It is a reduction and not a cure, and the
+arithmetic says why**: clearing it completely takes a tilt of 0.8 m on the
+Fabricator and 1.0 m on the Prover, and **no tilt clears it at all on the
+Keeper**, whose candidate slab reaches x = +0.07 while his own camera stands at
+x ≈ +1.2. Those tilts put the character's feet near the middle of the frame and
+turn its lower half into floor. **In landscape the cluster is out of shot
+entirely** — 0 of 294 points, at all three roles. This is named as a finding for
+stage 4 or for the owner, not as a thing that was fixed.
+
+### What looking found, and every frame that was looked at
+
+The frames are in the session scratchpad **outside the repository**, at
+`/tmp/claude-0/-home-user-Virgil-mission-control/f269a3ff-13b6-5a28-ace2-f0d6b365c3ad/scratchpad/`,
+and are referenced rather than committed. They were captured from a vite dev
+server on this branch's own sources, in headless Chromium at
+`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`, with the demonstration
+clock seeked on `window.__virgilDemo` and the view changed by pressing the same
+**Look at** control in the development menu the owner has — never by navigating,
+which is the mistake stage 2 recorded.
+
+- **before**, `before-p390/`, at 390 × 844: all three close-ups of the committed
+  stage-3 behaviour. The Fabricator's console fills the frame with `BUILDING`
+  legible and **one arm** of him at the left edge; the Prover's the same with a
+  knee and a shoulder; **the Keeper is not in his own frame at all.** This is the
+  defect, and it is what three passes reasoned about instead of looking at;
+- **after**, `after-p390/`, at 390 × 844: each character large and central,
+  their console beside them, `BUILDING`, `VERIFYING` and `REVIEWING` legible on
+  the glass;
+- **after, facing front**, `after-idle/`: the two roles that are idle at another
+  role's beat, which is the worst case for a character standing between the
+  camera and their own screen. The Fabricator's cyan visor eyes and smile read
+  plainly and his screen says `STANDBY` **whole**; the Keeper's face, his hood
+  and his three floating cards read, and his `STANDBY` is whole too;
+- **after, landscape**, `after-l844/` at 844 × 390: each character central with
+  their console at the right, and in the Keeper's frame the Prover's console
+  behind him reading `PASS`;
+- **the four iterations that were rejected**, `try1-p390/` to `try4-p390/`,
+  kept because each one is the evidence for a constant in the file: `try1` is
+  where Virgil's slab filled the top fifth, `try2` where a low camera put
+  Virgil's console across the Prover's body, `try3` where `STANDBY` read as
+  `ANDBY`, `try4` where the swing fixed that and the Keeper's slab strip grew;
+- **the window**, `after-window/`, for item 2 below.
+
+**Stage 2's other fix still holds at the new poses.** A display is on while the
+camera is looking at it (`ConsoleScreenV11.tsx`: `state !== 'READY' || attention`,
+and `attention` is `focus === role`, which does not depend on distance). Verified
+by looking: in the idle frames both the Fabricator's and the Keeper's screens are
+lit and titled at their new distance, and the black-screen defect stage 1 found
+has not come back.
+
+**The gesture guard and the touch targets are exactly as they were.**
+`room/gesture.ts` and `mobile/TouchTargets.tsx` are untouched, and
+`verify:owner:v11` drives both in the built artifact: 13 targets, smallest 48 px,
+and a 114 px drag across Virgil opens nothing.
+
+**The overview and the slab cluster are unchanged, and here is the evidence
+rather than the assurance.** Nothing outside `src/world/mobile/` was edited;
+`composition.ts`'s `overviewPose`, `PORTRAIT_FRAME` and `LANDSCAPE_FRAME` and
+`screens/v11/bank.ts`'s `V11_CLUSTER` are byte-identical to stage 3, and their
+own assertions — the overview's enclosure and anchor tests in
+`mobile-composition.test.ts` and the cluster's five size, gap and clearance
+targets in `cluster-v11-s3.test.ts` — all still pass unchanged. The 11 px
+clearance over the consoles is not touched by anything in this pass.
+
+### Item 2 — every sign of Demo out of V11 except one chip
+
+Removed on the owner's instruction, which is recorded in the commit: the amber
+`Illustrative · not real state` bar and its paragraph from every stage-3 window,
+and the word `illustrative` from the Prover's `Where these numbers come from`
+evidence block. **One chip remains**, the `Demo data` pill in the overview chrome
+with its full sentence behind a press.
+
+The grep the instruction asked for covered `ILLUSTRATIVE`, `NOT REAL STATE`,
+`SCRIPTED`, `DEMONSTRATION`, `DEMO` and `illustrative` across every V11 source.
+Four things were kept and each is a judgment at the boundary, named so it can be
+overruled: the chip itself; the **recorded run's** own marking, which is the
+opposite claim (the run did happen and every figure is read out of this
+repository's committed record); the composer's *"Nothing is sent: there is no
+session behind this build"* and the five disabled session controls, which the
+instruction's own second boundary protects; and the hidden development menu's
+`Demo On/Off` and `Scripted/Replay` switch labels, which are the names of two
+switches rather than signage. The in-world screens needed nothing — stage 2
+already took their bands off on the owner's earlier instruction. V10 keeps all of
+its own signage.
+
+Nothing was left where the bar was: `.v11w-head` carries its own bottom rule and
+`.v11w-body` is `flex: 1`, so the sheet closes up, and in landscape the window
+gets those pixels back — the one place this removal makes the window better
+rather than only quieter. Looked at in three frames in `after-window/`: the
+Prover's window, the same window with its evidence expanded, and Virgil's.
+
+### The checks, as printed
+
+`pnpm check` was **split into its five parts** because the two verifies build the
+two artifacts and `verify:owner:v11` alone takes 11m 43s, past the ten-minute
+foreground cap. Every part ran in the foreground.
+
+| Check | Result |
+|---|---|
+| `pnpm lint` | `Checked 274 files in 201ms. No fixes applied.` |
+| `pnpm typecheck` | `Tasks: 8 successful, 8 total` |
+| `pnpm test` | agent-contracts 70, visual-language 18, gate-engine 19, domain 104, knowledge-graph 24, **mission-control 826 in 30 files** |
+| `pnpm verify:owner` | `PASS — opens from file://, no console errors, no off-document requests`; `console errors 0` |
+| `pnpm verify:owner:v11` | `PASS`; `console errors 0`; 13 targets, smallest 48 px; reduced-motion gap **0 ms**; **`0 demo words, 0 not-real-state bands`** in the window at both viewports and **`demo signs outside the one chip 0`** in the ordinary interface |
+| Mind Scan | `82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `mind scan: no findings` |
+| `build:owner` from a clean tree | **8,528,318 bytes** — identical to stages 1, 2 and 3 |
+
+**Tests: 10 added, two replaced, none skipped or weakened.** The app's suite goes
+from 816 to 826: nine for the station close-up and one for the recorded run's own
+marking. Three assertions changed because their subject changed on the owner's
+instruction, and each replacement is stated at the place it was made and is
+stronger in the dimension that now matters:
+
+1. `mobile-composition.test.ts` required the whole of the screen's box inside the
+   close-up frame; it now requires the **primary state and the character**,
+   at all five viewports rather than one;
+2. `screen-geometry-v11.test.ts` carries the re-measured drawn-display widths and
+   a floor of 1.8× the text-collapse threshold rather than 2.5×, with the old
+   figures quoted in the file beside the new ones;
+3. `window-content-v11.test.ts` required the removed bar's two strings to be
+   present; it now walks **every word of every document at every beat of every
+   loop** — every message, every expandable section and every block inside one —
+   and fails if any of the removed vocabulary appears anywhere.
+
+`window-v11.test.ts`'s accessibility assertion changed form for a real reason: a
+fixed `aria-describedby="v11w-honesty"` would now point at an id that is not in
+the document on the scripted route, which makes a screen reader announce nothing
+for it, so the attribute is spread in with the element and the test holds the
+pairing.
+
+### One thing this pass leaves for the Keeper's attention, not a change
+
+The repository's own `scratchpad/` directory holds **86 tracked files, 27 MB** of
+diagnostic PNGs and sweep logs committed by earlier passes on this branch; this
+pass wrote every frame and every sweep to the session scratchpad outside the
+repository instead and added nothing to it, and the existing files are left
+exactly as they are because removing them from `HEAD` would not shrink the
+history and it is the owner's call.
+
+### What this pass does not claim
+
+- **No visual-quality judgment has been made on real graphics hardware.** Every
+  frame here was rendered in software by SwiftShader. OD-0005 defers the two
+  graphics-hardware checks and requires them recorded as not performed, never as
+  met.
+- **Every iPhone check here is a simulated viewport in headless Chromium.**
+  390 × 844, 430 × 932 and 844 × 390 are CSS pixel sizes given to a browser.
+  **No real device has been used and no real-device check has been performed.**
+- **"Recognisable and substantially in frame" is a judgment from frames, not a
+  measurement.** What the tests hold is the geometry: the character inside the
+  frame with air, their head and torso spanning more than 30 % of its height,
+  nothing in front of them, and nothing in front of the primary state. The
+  judgment itself is this session's, from the frames listed above, and it is a
+  builder's claim.
+- **The frames were captured from a dev server on these sources, not from the
+  committed artifact**, except where this record says otherwise. The artifact
+  below is built from the same commit and `verify:owner:v11` drives it, but the
+  three close-up frames the judgment rests on are dev-server frames.
+- **The slab cluster's lower edge is still in the top of all three portrait
+  close-ups**, above, and that is recorded as open rather than fixed.
+- **A pass here is a builder's claim.** The deterministic checks are the
+  evidence; independent review has not happened.
+- **Stage 4 is not started.**
