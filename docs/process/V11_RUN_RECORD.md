@@ -2577,6 +2577,204 @@ top level so the one existing `sha256sum -c *.sha256` covers it.
 
 ---
 
+## The language pass — every sentence in English, and the two bytes it cost
+
+The owner read this line in Virgil's window:
+
+> *Every merge gate passes. The candidate is eligible and it is not merged… Merge is yours alone, in
+> every phase, and nothing in this interface is a path to one. Nothing proceeds until you decide.*
+
+and said: *"That sentence is jargon. Make the sentences make sense. Owner decision required. Or
+something. Make it actually mean something in English."*
+
+He is not a software engineer, he has never read `constitution/STATE_LANGUAGE.md`, and he should not
+have to in order to use his own product.
+
+### The standard is his, and it took two goes to find it
+
+The coordinator offered a plainer draft — *"Everything passed. This change is ready to go into the
+project — and it hasn't gone in. Only you can do that, and nothing happens until you say so."* — and
+**he rejected that too**: *"Is still stupid. 'And hasn't gone in?' Why? Just say the change is ready
+to go into the project. And that it's waiting on me for the decision. Yes make all the sentences
+proper English."*
+
+His version is the standard, and it is now what the interface says:
+
+> **The change is ready to go into the project. It is waiting on your decision.**
+
+Three rules came out of that second correction, and every sentence in this pass was written to them.
+
+1. **Do not state the obvious negative.** *Ready to go in* already tells the reader it has not gone
+   in. Spelling it out reads as a disclaimer, not a sentence.
+2. **Do not pile clauses on for safety.** The rejected draft made four assertions where two carry
+   the whole meaning, and every extra clause makes the important one harder to find.
+3. **Say what it is and what it is waiting on.** Most of these sentences reduce to exactly that, in
+   two short sentences.
+
+**Where the old voice came from is worth naming, because the trap runs through this codebase.** This
+project's truthfulness discipline had been producing defensive, over-qualified prose — every clause
+hedged so that nothing could possibly be over-claimed. That was the right instinct applied badly.
+Plain English carries the truth *better*, because a person actually reads it. A sentence nobody
+finishes protects nobody.
+
+### The distinction that makes the pass safe
+
+**Labels stay; sentences change.** `READY_FOR_REVIEW`, `BUILDING`, `SAFE_TO_MERGE` and the four
+verdicts come from `constitution/authority.json`, tests hold them there, and **not one of them was
+touched**. They are shown because they are checkable truth. What was rewritten is the prose around
+them, which had been written in the same vocabulary as the labels — which is exactly what made it
+unreadable.
+
+The two do not overlap: **not one of the fifteen candidate states or the four verdicts contains a
+word on the ban list**, so the new test needs no exemption for a label at all.
+
+Where a label appears and its meaning is not obvious it is glossed once, in passing, in the same
+breath and never as a glossary: *"The project calls this BUILDER_REPORTED_COMPLETE: said to be
+finished, checked by nobody."*
+
+### The ten sentences that matter most
+
+| Before | After |
+|---|---|
+| Every merge gate passes. The candidate is eligible and it is not merged. | Everything passed. The change is ready to go into the project. |
+| Eligible means the gates are satisfied. Merge is yours alone, in every phase, and nothing in this interface is a path to one. | It is waiting on your decision. |
+| `EVERY GATE PASSES. ELIGIBLE, NOT MERGED.` | `READY TO GO INTO THE PROJECT. WAITING ON YOU.` |
+| `VERIFICATION PASSED. NOT YET REVIEWED.` | `THE CHECKS PASSED. NOBODY HAS REVIEWED IT YET.` |
+| `HOLDS THE HOP UNDER AN AUTHORITY GRANT` | `IS DOING THE WORK RIGHT NOW` |
+| `NO HOP IN FLIGHT. VIRGIL HOLDS IT.` | `NOTHING IS BEING WORKED ON. VIRGIL HOLDS IT.` |
+| A builder's success report is a claim, never evidence. The deterministic checks and the independent review are what would make it a proof. | A builder saying it worked is only its word. The checks and the review are the evidence. |
+| That is a claim, not evidence. It is the candidate state BUILDER_REPORTED_COMPLETE: nothing has been checked and nothing has been reviewed. | That is its word for it, not proof. The project calls this BUILDER_REPORTED_COMPLETE: said to be finished, checked by nobody. |
+| A required check failed, which is a proven defect rather than missing proof. I do not proceed. | Something is genuinely wrong, not merely unproved. I have stopped it. |
+| The grant names the plan, the permitted paths, the base commit and the expiry. Outside those paths it may not write. | It has been told what to do, which files it may touch, which version to start from and when its permission runs out. It cannot write anywhere else. |
+
+### The distinctions that had to be worked at
+
+Four could have been lost to simplification, and the owner could not have told from the interface
+that any of them had gone. Each is kept **once**, in the plainest words, and then the sentence stops.
+
+- **Checked is not reviewed.** *"It can go for review now. Nobody has reviewed it yet — that is a
+  separate step."* The screen's own lead was shortened for a second reason recorded at stage 2: it
+  elides, and *"VERIFICATION PASSED. REVIEW HAS NOT …"* can be read as *review has not passed*. The
+  replacement elides to *"THE CHECKS PASSED. NOBODY HAS …"*, which cannot.
+- **A claim is not evidence.** The Fabricator's own screen now reads `THE BUILDER SAYS SO. NOTHING
+  IS CHECKED YET.` — it names **who said it** and denies that anything was checked, which is what
+  `CLAIM` was carrying.
+- **A failed check is not a check that could not run.** *"Something is genuinely wrong, not merely
+  unproved"* against *"A check could not run, so nothing was proved either way."* A test asserts
+  that no sentence at the second beat contains the word *failed*.
+- **Ready to go in is not merged.** The owner's own sentence carries it, and the owner card under it
+  reads `WAITING ON YOUR DECISION` / `ONLY YOU CAN PUT IT IN`.
+
+### The test that holds the rule
+
+`apps/mission-control/test/plain-language-v11.test.ts`, and it is the durable part of the pass.
+
+Eighteen banned words — the owner's list plus the ones his rule reaches that his list did not happen
+to name — checked as whole words, case-insensitively, over **every window and every one of the six
+in-world displays, at every half second of all three loops**, over the windows in the replay mode,
+over every beat of the recorded run, and over the window's fixed furniture. Tokens are dropped
+before the ban is applied, because a path, a file name or a command **is** its own spelling; two
+proper names are exempted by an explicit, reasoned list, because `gate-engine` is a package and
+`candidate-artifact.json` is a file.
+
+It also asserts the four distinctions are **present** in the plain words, so a pass that flattened
+one of them would satisfy the ban and fail the file.
+
+**Four existing audits quoted the old wording and now assert the property instead**, which is the
+form they should have had: the merge-eligibility audit imports the sentence as a constant rather
+than matching a string, the Fabricator's `COMPLETE` lead must name who said it and deny that
+anything was checked and must never read as a result, the badge must say it is a demonstration and
+that nothing is connected, and the fine print under the dead controls must name the owner as the
+only one who can put a change in.
+
+### The preservation contract, and the two bytes
+
+**Checked rather than assumed, which is the only reason this is a paragraph and not a defect.** The
+first draft reworded two evidence lines at their source in `screens/tally.ts` and
+`replay/replayTimeline.ts` — `TETHERS 88 · 88 INTACT` and `EVERY DETERMINISTIC CHECK WAS GREEN`.
+Both files are in V10's own graph. V10 built from a clean tree came out at **8,528,320 bytes**.
+
+Two bytes. V11 is additive, and two bytes is as much a breach as the ninety-six a repair pass found
+the day before. The two shared files were restored byte for byte and the rewording moved to V11's
+own side of the line, exactly as `screens/v11/recorded.ts` already does for the recorded run's
+identity after that cost 96. `screens/v11/content.ts` gains `plainly`, which substitutes
+**vocabulary and nothing else** on a shared line's way to a V11 slab, and three assertions hold it
+there: every number and SHA survives unchanged, every result word is present after exactly when it
+was present before, and a line containing neither word comes back identical.
+
+**V10 built from a clean tree at this pass's HEAD is 8,528,318 bytes — the eighth consecutive pass
+at that exact number.**
+
+### The checks, as printed
+
+`pnpm check` was split into its parts again, because this harness caps a foreground command at ten
+minutes. Every part below ran in the **foreground**, at this pass's own commit `b8a7793978`, in the
+order `pnpm check` runs them. **A partial `verify:owner:v11` run may never print `PASS`** — each
+printed `PASS (partial: …)` and named what it ran.
+
+| Check | Result |
+|---|---|
+| `pnpm lint` | `Checked 280 files in 196ms. No fixes applied.` |
+| `pnpm typecheck` | `Tasks: 8 successful, 8 total` |
+| `pnpm test` | agent-contracts 70, visual-language 18, gate-engine 19, domain 104, knowledge-graph 24, **mission-control 1,480 in 32 files** — 1,715 in all |
+| `pnpm verify:owner` | `PASS — opens from file://, no console errors, no off-document requests`; `console errors 0`; `requests 1, off-document 0` |
+| `verify:owner:v11`, portrait 390 | `PASS (partial)`; 13 targets, smallest 48 px; 17 window controls, smallest 44; `scrollWidth 390/390`, 0 past the edge; 5 session controls, 0 enabled; 0 demo words, 0 bands; composer clear of a simulated 336 px keyboard by 48 px |
+| `verify:owner:v11`, portrait 430 | `PASS (partial)`; the same, 48 px of clearance |
+| `verify:owner:v11`, landscape 844 | `PASS (partial)`; 15 window controls; 29 px of clearance at a 180 px keyboard |
+| `verify:owner:v11`, motion and performance | `PASS (partial)` **on its second run**; see below. Reduced-motion gap **0 ms** and default gap **0 ms**; loop always / demand / never / always; levels at DPR 3 **full 2, reduced 2, minimal 1.25**; window text **1,345 DOM characters, 0 canvases** |
+| Mind Scan | `82 nodes, 166 edges, 10 pages, 28 claims, 94 tethers (94 intact)`; `mind scan: no findings` |
+| `build:owner` from a clean tree | `v10-s2-virgil-b8a7793978.html`, **8,528,318 bytes** |
+| `build:owner:v11` from a clean tree | `v11-s4-virgil-b8a7793978.html`, **8,691,637 bytes** |
+| `sha256sum -c *.sha256` | **22 committed artifacts, all `OK`** |
+| `pnpm reproduce:owner` | `identical — rebuilt from 4ae03314d93ed6e26982f3691034974ff5b3887b`; `PASS` |
+| `pnpm reproduce:owner:v11` | `identical — v11-s4-virgil-b8a7793978.html rebuilt from b8a7793978a4c4ac5c15fba6ef963e0ff2724868`, sha256 `83c0b0f5…6951449`, 8,691,637 bytes; `PASS` |
+
+**The motion check failed once and is recorded, not deleted.** Its first run printed `FAILED — the
+record never opened at the default motion setting; the window waited -1 ms after the camera moved`.
+The tap landed on nothing: `movedAt` was `-1` as well, so the camera never moved either, which is
+the signature of a tap that missed rather than of a window that did not open. The identical command
+against the identical artifact passed on its second run with a default gap of 0 ms. **It is a flake
+in this software renderer under a frame budget, and it is written down as one rather than smoothed
+away** — a session that hides a failing run has done the one thing this project exists to prevent.
+The reduced-motion side passed on both runs.
+
+**Tests added this pass: 13**, all in the new file — five over the whole rendered surface, three
+holding `plainly` to vocabulary, one recording that the constitution's labels are untouched by the
+ban, and four holding the distinctions present. **None was changed to pass, and none was skipped or
+weakened.** Four existing assertions were rewritten from a fixed string to the property they were
+always trying to hold, which is stated above and in each file's own comment.
+
+### The artifact
+
+`docs/process/PHASE_1_owner-builds/v11/v11-s4-virgil-b8a7793978.html`, sha256
+`83c0b0f53abc090c47026b99e68d81f325a371e54ae5cfce6f5707c3c6951449`, **8,691,637 bytes** — 783 bytes
+larger than stage 4's, and the whole of the difference is prose: plainer sentences are slightly
+longer than the jargon they replace, which is the trade the owner asked for. Its digest is
+`docs/process/PHASE_1_owner-builds/v11-s4-virgil-b8a7793978.html.sha256`, at the top level so the
+one existing `sha256sum -c *.sha256` covers it.
+
+### What this pass does not claim, and two things it found
+
+- **It is a builder's claim.** The deterministic checks above are the evidence, and this pass was
+  reviewed by nobody. No Keeper review covers any commit in this section.
+- **`docs/process/OWNER_DECISIONS_2026-09-10.md` landed on this branch while this pass was running**
+  (commit `528398f`, 00:42 UTC) and this pass builds on top of it without acting on any of it. Two
+  items bear on work already recorded here and are flagged rather than actioned:
+  - **Item 9 supersedes the one-tap behaviour** that `verify-owner-build-v11.ts` still asserts and
+    that every viewport line above prints as *"tap on Virgil — window and camera together"*. That
+    assertion is correct about the build as it stands and **wrong about what the owner now wants**.
+    The verifier and the interaction change together, in their own pass.
+  - **Item 3 records the owner's first look on real graphics hardware** — *"Runs beautifully."*
+    `CLAUDE.md`'s Phase status paragraph still says *"No visual-quality judgment has been made on
+    real graphics hardware by anybody"*. Those two cannot both be current. **Reported, not
+    resolved**: `CLAUDE.md` is not this pass's to edit, and a session that finds a contradiction
+    reports it.
+- **No sentence was made less true.** That is a claim about the four distinctions above, held by
+  four assertions, and it is not a claim that no reader will ever find a sentence that could be
+  plainer still.
+
+---
+
 ## The decisions waiting on the owner
 
 **Read this section first in the morning.** It is the whole of what V11 needs
