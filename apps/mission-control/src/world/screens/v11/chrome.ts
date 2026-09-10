@@ -534,7 +534,7 @@ export function heroBlock(
   // and is set at a size that fits whatever that is.
   const leadTop = top + size * (0.56 + 1.02 * (parts.length - 1)) + size * 0.5 + 1.1 * u;
   const room = r.y + r.h - leadTop;
-  const set = fitLead(ctx, m.type.lead, lead, r.w, room, 3);
+  const set = fitLead(ctx, m.type.lead, lead, r.w, room, 3, 1.34);
   if (set.lines.length > 0) {
     ctx.save();
     ctx.globalAlpha = k;
@@ -704,7 +704,7 @@ export function heroBand(
   const wordBottom = r.y + 0.4 * u + size * (1.24 + 1.02 * (parts.length - 1));
   // The conclusion takes the lines the budget has left, at most two at the
   // ordinary size and up to three when it has to step down to stay whole.
-  const set = fitLead(ctx, m.type.lead, lead, width, r.y + budget - wordBottom, 2);
+  const set = fitLead(ctx, m.type.lead, lead, width, r.y + budget - wordBottom, 2, 1.3);
   const lines = set.lines;
   ctx.save();
   ctx.globalAlpha = k;
@@ -781,18 +781,25 @@ export function fitLead(
   width: number,
   room: number,
   atSize: number,
+  pitchFactor: number,
 ): { lines: string[]; px: number; pitch: number } {
   const floor = px * 0.78;
   let size = px;
-  let best: { lines: string[]; px: number; pitch: number } | null = null;
+  let fallback: { lines: string[]; px: number; pitch: number } | null = null;
   for (;;) {
-    const pitch = size * 1.34;
+    const pitch = size * pitchFactor;
     const cap = size === px ? atSize : atSize + 1;
     const allowed = Math.max(0, Math.min(cap, Math.floor(room / pitch)));
     const lines = allowed > 0 ? wrapMono(ctx, size, text, width, allowed) : [];
-    if (!best) best = { lines, px: size, pitch };
-    if (!lines.some((line) => line.endsWith('…'))) return { lines, px: size, pitch };
-    if (size <= floor) return { lines, px: size, pitch };
+    const whole = lines.length > 0 && !lines.some((line) => line.endsWith('…'));
+    if (whole) return { lines, px: size, pitch };
+    // **An empty result is a failure to fit, not a fit.** The first version of
+    // this loop stepped down only when it saw an ellipsis, so a room too short
+    // for even one line at the starting size returned nothing at all and drew
+    // no conclusion — worse than the cut sentence it was written to cure, and
+    // it took a magnified frame to see it.
+    if (lines.length > 0) fallback = { lines, px: size, pitch };
+    if (size <= floor) return fallback ?? { lines, px: size, pitch };
     size = Math.max(floor, size - 0.5);
   }
 }
