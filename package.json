@@ -9,7 +9,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm verify:owner && pnpm verify:owner:v11",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm verify:owner && pnpm verify:owner:v11 && pnpm verify:web",
     "lint": "biome check .",
     "format": "biome format --write .",
     "typecheck": "turbo run typecheck",
@@ -22,7 +22,8 @@
     "virgil:status": "node scripts/virgil-status.mjs",
     "reproduce:owner": "node apps/mission-control/owner-build/reproduce.mjs",
     "reproduce:owner:v11": "node apps/mission-control/owner-build/reproduce-v11.mjs",
-    "measure:compression:v11": "node apps/mission-control/asset-pipeline/assess-compression.mjs"
+    "measure:compression:v11": "node apps/mission-control/asset-pipeline/assess-compression.mjs",
+    "verify:web": "turbo run verify:web"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",

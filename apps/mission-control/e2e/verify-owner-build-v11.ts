@@ -50,7 +50,7 @@
  * Usage: pnpm --filter mission-control build:owner:v11 &&
  *        pnpm --filter mission-control verify:owner:v11
  */
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { chromium, type Page } from '@playwright/test';
@@ -437,6 +437,33 @@ notes.push(
 );
 
 // ------------------------------------------------- the simulated iPhone runs
+/**
+ * **The Keeper's KP2-10, checked in the artifact rather than in the source.**
+ *
+ * The Owner Build's promise is that it cannot reach the network, and
+ * `verify:owner:v11` proves the running page makes no request. It does not prove
+ * the file has no way to: the instruct client was carried into the artifact
+ * whole — `/api/instruct`, the secret header, the storage key — unreachable only
+ * because a runtime branch happened never to be taken. `__LIVE__` is a
+ * compile-time constant and those functions now test it first, so the bundler
+ * folds them away; this reads the built file and fails if any of it comes back.
+ *
+ * A grep over an artifact is a blunt instrument and is the right one here: the
+ * question is not what the code does, it is whether these bytes are present at
+ * all in a file the owner opens from a disk with no server.
+ */
+{
+  const text = readFileSync(file, 'utf8');
+  const mustBeAbsent = ['/api/instruct', '/api/state', 'x-virgil-secret', 'virgil.instruct.secret'];
+  const present = mustBeAbsent.filter((needle) => text.includes(needle));
+  if (present.length > 0) {
+    failures.push(
+      `the Owner Build carries the live-mode strings ${present.join(', ')}; __LIVE__ should have removed them`,
+    );
+  }
+  mark(`the artifact carries none of ${mustBeAbsent.length} live-mode strings`);
+}
+
 mark('the routes and V10 chrome are done; the viewports begin');
 for (const viewport of VIEWPORTS) {
   await page.setViewportSize({ width: viewport.width, height: viewport.height });

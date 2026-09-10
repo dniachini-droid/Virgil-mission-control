@@ -119,6 +119,8 @@ describe('the gate runs in full before anything can merge', () => {
     'Mind Scan, V10 owner build and verify, committed digests',
     'V11 owner build and verify',
     'newest Owner Build rebuilds byte for byte',
+    // KP2-09: the hosted build, which had no check of any kind until this one.
+    'hosted build, read and refused',
   ];
 
   it('offers a fast half, and it is lint, typecheck and the tests', () => {

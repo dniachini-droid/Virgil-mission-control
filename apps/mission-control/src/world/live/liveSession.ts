@@ -38,6 +38,10 @@ declare const __LIVE__: boolean;
 const SECRET_KEY = 'virgil.instruct.secret';
 
 export function storedSecret(): string | null {
+  // Each of the three tests `__LIVE__` first, for the reason given at `instruct`
+  // below: a build that cannot send has no secret to keep, and the constant
+  // folds these bodies — and the storage key with them — out of it entirely.
+  if (!__LIVE__) return null;
   if (typeof localStorage === 'undefined') return null;
   try {
     const value = localStorage.getItem(SECRET_KEY);
@@ -51,6 +55,7 @@ export function storedSecret(): string | null {
 }
 
 export function rememberSecret(secret: string): void {
+  if (!__LIVE__) return;
   if (typeof localStorage === 'undefined') return;
   try {
     localStorage.setItem(SECRET_KEY, secret.trim());
@@ -61,6 +66,7 @@ export function rememberSecret(secret: string): void {
 }
 
 export function forgetSecret(): void {
+  if (!__LIVE__) return;
   if (typeof localStorage === 'undefined') return;
   try {
     localStorage.removeItem(SECRET_KEY);
@@ -82,6 +88,31 @@ export function canInstruct(): boolean {
  * thing and is reported differently.
  */
 export async function instruct(text: string, secret: string): Promise<SendOutcome> {
+  /**
+   * **The Keeper's KP2-10: this function did not read `__LIVE__`, so its body
+   * survived into a build that can never call it.**
+   *
+   * `canInstruct()` read the flag and this did not, and the one call site sits
+   * behind a runtime check the bundler cannot prove unreachable. So the V11
+   * Owner Build — the single file the owner opens from `file://`, whose whole
+   * promise is that it has no way to reach the network — carried `/api/instruct`,
+   * `x-virgil-secret` and `virgil.instruct.secret` in its text. Not a request:
+   * `verify:owner:v11` proves the artifact makes none, and it did. What it
+   * carried was the machinery to make one, unreachable by an accident of control
+   * flow rather than by construction.
+   *
+   * `__LIVE__` is a compile-time constant. Testing it *first*, before anything
+   * else in the function, lets the bundler fold the branch away and take the
+   * whole body with it — the strings included. `owner-build-v11.test.ts` greps
+   * the artifact for them, so this cannot quietly come back.
+   */
+  if (!__LIVE__) {
+    return {
+      sent: false,
+      kept: true,
+      note: 'This build has nothing to send to. Nothing left this device.',
+    };
+  }
   const instruction = text.trim();
   if (!instruction) {
     return { sent: false, kept: false, note: 'Nothing was typed, so nothing was sent.' };

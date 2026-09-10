@@ -24,7 +24,8 @@
     "verify:owner:v11": "tsx e2e/verify-owner-build-v11.ts",
     "reproduce:owner": "node owner-build/reproduce.mjs",
     "reproduce:owner:v11": "node owner-build/reproduce-v11.mjs",
-    "install:browser": "playwright install --with-deps chromium"
+    "install:browser": "playwright install --with-deps chromium",
+    "verify:web": "tsx e2e/verify-web-build.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

@@ -46,6 +46,14 @@
       "outputs": [],
       "cache": false,
       "env": ["CHROMIUM_EXECUTABLE", "PLAYWRIGHT_BROWSERS_PATH"]
+    },
+    "build:web": {
+      "cache": false,
+      "outputs": ["dist/web/**"]
+    },
+    "verify:web": {
+      "dependsOn": ["build:web"],
+      "cache": false
     }
   }
 }

@@ -1,7 +1,7 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-10T22:30:50Z",
-  "aboutCommit": "1c803b1a895cf4ada2e51af51b1017e040a249c2",
+  "reportedAt": "2026-09-10T22:42:22Z",
+  "aboutCommit": "45a41c2366bf1a90c4e5ca04b5638d323ceff745",
   "branch": "claude/virgil-mobile-v11",
   "candidate": null,
   "holder": "fabricator",
@@ -10,7 +10,7 @@
       "role": "fabricator",
       "activity": "WORKING",
       "reported": null,
-      "at": "2026-09-10T22:30:50Z"
+      "at": "2026-09-10T22:42:22Z"
     },
     {
       "role": "prover",
@@ -26,5 +26,5 @@
     }
   ],
   "review": null,
-  "note": "Fourth repair round, authorised in OD-0011: KP4 findings and the open KP2 and KP3 ones."
+  "note": "Fourth round: KP2-09 and KP2-10 closed. KP2-11, 12, 15, 16, 17, 19 remain."
 }

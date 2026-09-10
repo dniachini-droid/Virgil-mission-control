@@ -194,6 +194,43 @@ jobs:
       - name: pnpm check
         run: pnpm check
 
+  # 1b. **The hosted build, which had no check of any kind — the Keeper's
+  #     KP2-09.** It is the target the owner opens on his phone and the only one
+  #     that can start a session, and until now nothing in this repository would
+  #     have failed if `build:web` broke. Its own job rather than a step of
+  #     another, because it is quick and because a check folded into a slow job
+  #     is a check that gets skipped when the slow job times out.
+  verify-web:
+    name: hosted build, read and refused
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install the Chromium the lockfile pins
+        run: pnpm --filter mission-control run install:browser
+
+      - name: Build the hosted target
+        run: pnpm --filter mission-control run build:web
+
+      # Serves `dist/web` from a local server with a stubbed `/api/state`, so it
+      # reaches no network and holds no credential. It asserts the page asks,
+      # draws what it was told, and — with the endpoint failing — says so and
+      # draws no recorded value.
+      - name: Verify the hosted build reads, and refuses honestly
+        run: pnpm --filter mission-control run verify:web
+
   # 2. Everything that used to sit behind `pnpm check` in the same job and was
   #    therefore reported as `skipped` whenever it ran long. None of it needs
   #    the V11 verify to have finished, and a Mind Scan that never runs because
