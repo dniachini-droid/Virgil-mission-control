@@ -1,7 +1,6 @@
 export * from './common.js';
 export * from './events.js';
 export * from './knowledge.js';
-export * from './live.js';
 export * from './operational.js';
 export * from './paths.js';
 export * from './visual.js';
@@ -9,7 +8,6 @@ export * from './visual.js';
 import * as common from './common.js';
 import * as events from './events.js';
 import * as knowledge from './knowledge.js';
-import * as live from './live.js';
 import * as operational from './operational.js';
 import * as visual from './visual.js';
 
@@ -54,10 +52,20 @@ export const schemaRegistry = {
   'authority-config': visual.AuthorityConfig,
   'evidence-ref': common.EvidenceRef,
   'check-run': common.CheckRun,
-  // Phase 2 slice two. A session's own report of what it is doing, and the only
-  // schema in this registry whose contents are a claim by construction rather
-  // than a record of something that happened.
-  'session-status-report': live.SessionStatusReport,
 } as const;
+
+/**
+ * **Kept out of the registry above, and out of this file's exports, on purpose.**
+ *
+ * `src/live.ts` is Phase 2 slice two's session-status schema. Adding it to the
+ * barrel put **914 bytes into V10's Owner Build**, which is 8,528,318 bytes and
+ * may not move: V10 imports this package, so everything the barrel re-exports is
+ * reachable from V10's bundle whether V10 uses it or not. The preservation
+ * contract caught it on the next build, which is what it is for.
+ *
+ * So the schema is registered where it is needed and nowhere else. `export-
+ * schemas` imports it directly and writes `schemas/session-status-report.schema.json`
+ * exactly as before; nothing that compiles into V10 can see it.
+ */
 
 export type SchemaName = keyof typeof schemaRegistry;

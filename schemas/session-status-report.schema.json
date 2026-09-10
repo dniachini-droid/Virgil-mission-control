@@ -57,8 +57,7 @@
                     "DEPLOYED",
                     "QUARANTINED",
                     "OWNER_DECISION_REQUIRED"
-                  ],
-                  "description": "A candidate state from constitution/authority.json"
+                  ]
                 },
                 {
                   "type": "null"
@@ -163,8 +162,7 @@
                       "PASS_WITH_NON_BLOCKING_FINDINGS",
                       "BLOCKED",
                       "INSUFFICIENT_EVIDENCE"
-                    ],
-                    "description": "A review verdict from constitution/authority.json"
+                    ]
                   }
                 ]
               },
@@ -208,8 +206,7 @@
                 "PASS_WITH_NON_BLOCKING_FINDINGS",
                 "BLOCKED",
                 "INSUFFICIENT_EVIDENCE"
-              ],
-              "description": "A review verdict from constitution/authority.json"
+              ]
             },
             "recordPath": {
               "type": "string",

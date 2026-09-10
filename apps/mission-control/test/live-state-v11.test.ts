@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { SessionStatusReport } from '@virgil/agent-contracts';
+import { SessionStatusReport } from '../../../packages/agent-contracts/src/live.js';
 import { describe, expect, it } from 'vitest';
 import authority from '../../../constitution/authority.json' with { type: 'json' };
 import { type LiveAnswer, stateFromAnswer } from '../src/world/live/liveState.js';
