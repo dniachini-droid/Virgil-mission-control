@@ -18,7 +18,10 @@ import { type DemoState, demoAt } from '../room/demo.js';
  * makes **zero** network requests and therefore works from `file://` with no
  * server, and `e2e/verify-owner-build*.ts` fails the build if it makes one. V10
  * never imports this file at all — it renders through `room/VirgilRoom`, not
- * `mobile/MobileRoom` — so its 8,528,318 bytes cannot move by anything here.
+ * `mobile/MobileRoom` — so nothing here can reach V10's build. (This sentence
+ * used to end "so its 8,528,318 bytes cannot move", which was a figure two
+ * builds out of date and a contract `OD-0010` has since retired: the Keeper's
+ * KP3-12.)
  *
  * **What it may not do, which is most of what this file is about.**
  *
@@ -272,7 +275,19 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
     cast[role] = { ...cast[role], work: EMPTY_WORK[role] };
   }
 
-  if (report) {
+  /**
+   * **KP4-06: the principle this file states for one field, applied to the one
+   * beside it.**
+   *
+   * The candidate repair said it plainly — *"both refuse it, because one of them
+   * being enough is what was assumed last time"* — and then this loop took
+   * `report.hops` on trust. A report without the key throws `TypeError` here.
+   * The deployed wire check refuses such a report today, so nothing reaches this
+   * line through it; but the function and this page are separate artefacts that
+   * can ship from different commits, and "the other side already checked" is the
+   * assumption that produced the finding this repair was closing.
+   */
+  if (report && Array.isArray(report.hops)) {
     for (const hop of report.hops) {
       const role = hop.role as keyof typeof cast;
       if (!(role in cast)) continue;

@@ -258,6 +258,24 @@ describe('the function keeps the claim apart from the facts', () => {
   });
 
   /**
+   * **KP4-06(b): one link of a three-link chain was asserted.**
+   *
+   * The check is called by `readSessionReport`; nothing said `handler` calls
+   * `readSessionReport`, or that what it returns becomes the `sessionReport` the
+   * page reads. Both were true and neither was held, so two of the three links
+   * could be cut and the test guarding the third would still pass — the same
+   * shape as the finding it was written for, a link further along.
+   */
+  it('reaches the answer the page reads, from end to end', () => {
+    const handler = FUNCTION.slice(FUNCTION.indexOf('export default async function handler'));
+    expect(handler).toContain('readSessionReport(');
+    expect(handler).toContain('sessionReport:');
+    // And the value that reaches the page is the one the check passed, not a
+    // second read of the file that skipped it.
+    expect(handler).toMatch(/sessionReport:\s*session\??\.?\w*/);
+  });
+
+  /**
    * **The copy of the constitution's fifteen states, held against the original.**
    *
    * `state.mjs` is deployed alone, with no bundler and no way to import
@@ -446,6 +464,76 @@ describe('the function checks the report’s shape on the wire, not only in test
 });
 
 /**
+ * **KP3-08 and KP4-08: the two files nothing was reading.**
+ *
+ * `__LIVE__` decides whether the live-state reader is compiled in at all, and
+ * every claim this project makes about the Owner Build making no network request
+ * rests on its value in three configs. Nothing asserted those values; the claim
+ * was carried by `verify:owner` opening a browser, which proves the built
+ * artifact is quiet but says nothing about which config produced it or why. And
+ * `.virgil/state.json` — the file the room draws — was written by a script whose
+ * output nothing validated against the schema it is supposed to satisfy.
+ */
+describe('the flag that decides whether the network code exists at all', () => {
+  const config = (name: string) =>
+    readFileSync(new URL(`../${name}`, import.meta.url), 'utf8').replace(/\s+/g, ' ');
+
+  it('is false in every build that must make no request, and true only in the hosted one', () => {
+    expect(config('vite.config.ts')).toContain('__LIVE__: false');
+    expect(config('vite.owner.v11.config.ts')).toContain('__LIVE__: false');
+    expect(config('vitest.config.ts')).toContain('__LIVE__: false');
+    expect(config('vite.web.config.ts')).toContain('__LIVE__: true');
+  });
+
+  it('is true in exactly one config, so a second hosted build cannot appear unnoticed', () => {
+    const live = [
+      'vite.config.ts',
+      'vite.owner.v11.config.ts',
+      'vitest.config.ts',
+      'vite.web.config.ts',
+    ].filter((name) => config(name).includes('__LIVE__: true'));
+    expect(live).toEqual(['vite.web.config.ts']);
+  });
+
+  /**
+   * **KP2-14, reported rather than repaired, and this test is the report.**
+   *
+   * `vite.owner.config.ts` — V10's — defines no `__LIVE__` at all. That is not
+   * an oversight left standing out of laziness: the file is one of V10's
+   * protected files, fingerprinted by `owner-build-v11.test.ts`, and `OD-0010`
+   * keeps that fingerprint deliberately. A session adding a `define` to it was
+   * refused by that test on 2026-09-10 and was right to be. So the gap is held
+   * here as a fact with a reason rather than closed by a session overriding an
+   * owner decision. The V10 artifact is quiet, and `verify:owner` proves that
+   * about the artifact each run.
+   */
+  it('is absent from V10’s config, which is protected and not this session’s to change', () => {
+    expect(config('vite.owner.config.ts')).not.toContain('__LIVE__');
+  });
+});
+
+/**
+ * **KP4-08.** The committed report is what the site actually reads. Nothing
+ * checked it against either of the two things that must accept it, so a report
+ * this repository had committed could be one the deployed function refuses, and
+ * the first anyone would know is the room saying nobody is working.
+ */
+describe('the report this repository has committed is one the site can read', () => {
+  const committed = JSON.parse(
+    readFileSync(new URL('../../../.virgil/state.json', import.meta.url), 'utf8'),
+  );
+
+  it('satisfies the schema', () => {
+    const parsed = SessionStatusReport.safeParse(committed);
+    expect(parsed.success ? null : JSON.stringify(parsed.error.issues)).toBeNull();
+  });
+
+  it('is accepted by the wire check that stands in front of the room', () => {
+    expect(shapeComplaint(committed)).toBeNull();
+  });
+});
+
+/**
  * **The Keeper's KP3-05: the pairing proved less than it was described as
  * proving, and now it generates its cases instead of listing them.**
  *
@@ -567,6 +655,13 @@ describe('the wire check and the schema agree about generated reports, not only 
     '2026-13-45T06:00:00Z',
     '2026-09-10T06:00:00+00:00',
     '2026-09-10T06:00:00.123456Z',
+    // KP4-09's two, found by the Keeper outside this battery and added to it.
+    // Their presence here does not make the battery a proof; it makes it two
+    // values larger, which is the honest description of what happened.
+    '2026-02-30T00:00:00Z',
+    '2026-11-31T00:00:00Z',
+    2 ** 53,
+    Number.MAX_SAFE_INTEGER + 2,
     'x'.repeat(300),
     'x'.repeat(301),
     'x'.repeat(5000),

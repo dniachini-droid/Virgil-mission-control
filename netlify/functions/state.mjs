@@ -243,18 +243,40 @@ export function shapeComplaint(report) {
   const isString = (value) => typeof value === 'string' && value.length > 0;
   const isSha = (value) => typeof value === 'string' && /^[0-9a-f]{40}$/.test(value);
   /**
-   * ISO-8601 with an offset, which is what `Timestamp` in `common.ts` is. Not a
-   * formality: `liveState.ts` decides from `reportedAt` whether the report is
-   * still current, and any other string parses to `NaN` — which compares false
-   * against every threshold and so reads as *fresh*, not as *unreadable*.
+   * ISO-8601 with an offset, which is what `Timestamp` in `common.ts` is.
+   *
+   * **The reason first given here was false, and the Keeper's KP4-05 caught it.**
+   * It said `liveState.ts` would read an unparseable timestamp as *fresh*. It
+   * would not: `reportIsCurrent` opens with `if (Number.isNaN(at)) return false`,
+   * and even without that line the comparison against `NaN` is `false`, which is
+   * *not current* — the opposite of what was claimed. A comment asserting a
+   * defect that does not exist is the same species of artefact as one asserting
+   * a guard that does not exist, and this file has been the subject of both.
+   *
+   * The true reason is narrower and is enough. The schema requires an instant
+   * and this must refuse exactly what the schema refuses, or the two disagree
+   * about a report and which is right depends on which you ask. Beyond that, a
+   * timestamp is the only thing in the report that says *when*, and a reader
+   * downstream of this one — a future one, not `reportIsCurrent` — has no way to
+   * tell a broken clock from an old one if this admits both.
    */
   const isInstant = (value) =>
     typeof value === 'string' &&
     /^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d+)?(Z|[+-]([01]\d|2[0-3]):[0-5]\d)$/.test(
       value,
     ) &&
-    !Number.isNaN(Date.parse(value));
-  const isCount = (value) => Number.isInteger(value) && value >= 0;
+    !Number.isNaN(Date.parse(value)) &&
+    // A date that exists. `2026-02-30` matches the shape, parses without error
+    // and rolls forward to 2 March — so it passed here while the schema refused
+    // it. One of the two divergences the Keeper's KP4-09 found outside the
+    // generated battery, and the reason a disclaimer about that battery has to
+    // stay attached to it: this was closed because someone went looking, not
+    // because 1,431 cases said there was nothing to find.
+    new Date(value).toISOString().slice(0, 10) ===
+      `${value.slice(0, 4)}-${value.slice(5, 7)}-${value.slice(8, 10)}`;
+  // Safe, not merely integral: `2 ** 53` is an integer to JavaScript and is not
+  // one the schema accepts. KP4-09's second divergence.
+  const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
   /**
    * `normaliseRepoPath` from `packages/agent-contracts/src/paths.ts`, ported
    * rather than imported for the reason at the head of this function. It refuses

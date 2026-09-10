@@ -244,7 +244,10 @@ describe('no fixture value reaches a live screen', () => {
     /(^|\W)0 \/ 3(\W|$)/,
     /(^|\W)14 required(\W|$)/,
     /EVIDENCE LOCKED/,
-    /NON-BLOCKING PERSIST/,
+    // KP4-07(c) removed `/NON-BLOCKING PERSIST/` from this list. The string
+    // exists, in `screens/stationScreen.ts`, and is not reachable from
+    // `drawConsoleScreen`, so the entry could never fire through this harness
+    // and counted as coverage while providing none.
   ];
 
   for (const [what, sessionReport] of CASES) {
@@ -619,7 +622,18 @@ describe('every word in a verdict position is one of the four, or none', () => {
   });
 });
 
-describe('every word in a candidate-state position is one of the fifteen, or none', () => {
+/**
+ * **KP4-07(b): the title said "every" and the body checked the recording.**
+ *
+ * Twice now a Keeper has read this block's name as a claim about the whole
+ * product and found it iterating `demoAt` beats alone. The property does hold
+ * everywhere — the live half is covered in `live-state-v11.test.ts`, where a
+ * word that is not one of the fifteen is dropped before it can reach a slab, and
+ * that is checked against `authority.json` rather than against a list here — but
+ * a title is read by whoever is deciding what is already covered, and this one
+ * was inviting them to stop looking. So it says what it does.
+ */
+describe('every candidate word in the recording is one of the fifteen, or none', () => {
   it('over every beat of every loop', () => {
     const allowed = new Set([...authority.candidateStates.map(spaced), 'NO CANDIDATE']);
     for (const { seconds, loop } of beats()) {

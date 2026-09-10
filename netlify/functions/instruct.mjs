@@ -121,13 +121,39 @@ export default async function handler(request) {
       return refuse('This will not run against the default branch.', 403);
     }
 
-    // One at a time, and a ceiling. Both answered from GitHub's own record, so
-    // there is nothing here to keep, lose, or disagree with.
-    const runs = await gh(
-      `/repos/${repo}/actions/workflows/${WORKFLOW}/runs?per_page=100`,
-      token,
-    ).catch(() => null);
-    const list = runs?.workflow_runs ?? [];
+    /**
+     * One at a time, and a ceiling. Both answered from GitHub's own record, so
+     * there is nothing here to keep, lose, or disagree with.
+     *
+     * **And both refuse rather than wave through when that record cannot be
+     * read — the Keeper's KP2-07.** This was `.catch(() => null)` falling to an
+     * empty list, so a failing query did not disable one limit, it disabled
+     * *both*: no run looks in flight and no run counts against the day. The
+     * moment GitHub returned a 500 or the token expired, the endpoint that
+     * starts sessions on the owner's repository became unlimited, silently, and
+     * looked exactly as it does when nothing has been started yet.
+     *
+     * A limit that cannot be checked has not been satisfied. So an unreadable
+     * record is a refusal, and the refusal says which it was, because "try
+     * again" is a different instruction to the owner than "you have hit the
+     * ceiling".
+     */
+    let list;
+    try {
+      const runs = await gh(
+        `/repos/${repo}/actions/workflows/${WORKFLOW}/runs?per_page=100`,
+        token,
+      );
+      list = runs?.workflow_runs;
+      if (!Array.isArray(list)) throw new Error('the runs query returned no list of runs');
+    } catch (error) {
+      return refuse(
+        `The record of what is already running could not be read (${
+          error?.status ?? error?.message ?? 'no reason given'
+        }), so nothing was started. The limits are counted from that record, and a limit that cannot be counted has not been met.`,
+        503,
+      );
+    }
 
     const inFlight = list.find((run) => run.status === 'queued' || run.status === 'in_progress');
     if (inFlight) {

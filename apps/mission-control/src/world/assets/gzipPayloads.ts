@@ -11,11 +11,20 @@
  *
  * ## Why this module exists at all, rather than the payload files being gzipped
  *
- * **The preservation contract.** V10 must build to exactly 8,528,318 bytes, and
- * V10's world renders from these same payload files through these same decode
- * functions. Gzipping a file, or adding a branch to a shared decoder, moves
- * V10's bytes and breaks the contract — this is the class of leak that has been
- * caught three times on this branch, at 96 bytes, 2 bytes and 2 bytes.
+ * **Coupling into V10's build.** V10's world renders from these same payload
+ * files through these same decode functions, so gzipping a file, or adding a
+ * branch to a shared decoder, reaches V10 whether or not V10 uses the change.
+ * That is the class of leak caught four times on this branch, at 96, 2, 2 and
+ * 914 bytes.
+ *
+ * The byte count that caught them is **retired**: `OD-0010` ends V10's
+ * preservation contract, and a build differing from any recorded figure is no
+ * longer a breach. This paragraph used to state that contract as live and quote
+ * 8,528,318 as current — the Keeper's KP3-12, and it was both stale and no
+ * longer a rule. What remains true is the reason the file is shaped this way:
+ * not one line V10 compiles is changed. What is gone is the tripwire that used
+ * to notice when that stopped being true, and `OD-0010` records what was lost
+ * with it.
  *
  * So **not one line that V10 compiles is changed.** The whole of the difference
  * is a Vite plugin that exists only in `vite.owner.v11.config.ts`

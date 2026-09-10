@@ -62,6 +62,24 @@ if (!ACTIVITIES.includes(activity)) {
   console.error(`virgil-status: --activity must be one of ${ACTIVITIES.join(', ')}.`);
   process.exit(1);
 }
+/**
+ * **The Keeper's KP4-08.** `--holder` and `--activity` were checked and the note
+ * beside them was not, while the schema and the deployed wire check both cap it
+ * at 300 characters. So this script — whose entire purpose is that a session
+ * should not have to remember how to write this file correctly — could write a
+ * file the site refuses, and the room would then say nobody was working while a
+ * session was. Refused here, at the point where the number is knowable and the
+ * message can say what to do about it.
+ */
+const NOTE_LIMIT = 300;
+if (note !== null && note.length > NOTE_LIMIT) {
+  console.error(
+    `virgil-status: --note is ${note.length} characters and the limit is ${NOTE_LIMIT}. ` +
+      'The schema and the wire check both refuse a longer one, so this would write a report ' +
+      'the site cannot read. Shorten it; the detail belongs in the commit message.',
+  );
+  process.exit(1);
+}
 
 const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim();
 const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {

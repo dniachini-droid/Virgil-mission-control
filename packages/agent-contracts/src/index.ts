@@ -58,10 +58,15 @@ export const schemaRegistry = {
  * **Kept out of the registry above, and out of this file's exports, on purpose.**
  *
  * `src/live.ts` is Phase 2 slice two's session-status schema. Adding it to the
- * barrel put **914 bytes into V10's Owner Build**, which is 8,528,318 bytes and
- * may not move: V10 imports this package, so everything the barrel re-exports is
- * reachable from V10's bundle whether V10 uses it or not. The preservation
- * contract caught it on the next build, which is what it is for.
+ * barrel put **914 bytes into V10's Owner Build**: V10 imports this package, so
+ * everything the barrel re-exports is reachable from V10's bundle whether V10
+ * uses it or not. V10's byte count caught it on the next build.
+ *
+ * That count is **retired** by `OD-0010` and is no longer a contract; this
+ * paragraph said the build "may not move" and quoted a figure that is no longer
+ * current (the Keeper's KP3-12). The reason to keep the schema out of the barrel
+ * does not depend on the contract: 914 bytes of unreachable code in a build the
+ * owner opens from a file is waste whether or not anything is counting.
  *
  * So the schema is registered where it is needed and nowhere else. `export-
  * schemas` imports it directly and writes `schemas/session-status-report.schema.json`

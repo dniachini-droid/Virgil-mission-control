@@ -1219,8 +1219,20 @@ if (RUN_TAIL) {
       );
     }
     /**
-     * **The margin, checked rather than assumed.** An opening and a camera move
-     * have been seen on frame 0 of every tap on every machine this has run on.
+     * **The margin, checked rather than assumed — and the Keeper's KP4-10 about
+     * what it does and does not measure.**
+     *
+     * What is timed here is a record opening on the *second* tap and a camera
+     * moving on the first. What the budget must be long enough to observe is a
+     * record opening on the *first* tap — which by design never happens, and so
+     * can never be timed. **The step from those two to the third is an inference
+     * by analogy, not a measurement**: they are the same code path answering the
+     * same press, so an opening that must not come would appear on the same
+     * frame as one that must. That is a reasonable belief and it is not evidence,
+     * and it is written here as the first rather than the second.
+     *
+     * An opening and a camera move have been seen on frame 0 of every tap on
+     * every machine this has run on.
      * If either ever needs four frames or more — a quarter of the budget the
      * first tap is watched for — the negative budget is no longer long enough to
      * be evidence that nothing happened, and this says so instead of passing.

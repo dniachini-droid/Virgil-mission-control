@@ -800,7 +800,27 @@ function DemoBadge({
               read from GitHub {live.asOf ? readClock(live.asOf) : 'never yet'}. The branch, the
               commit and the check results come from GitHub, which no session can write to.{' '}
               {live.answer?.sessionReport &&
-              reportIsCurrent(live.answer.sessionReport.reportedAt) ? (
+              reportIsCurrent(live.answer.sessionReport.reportedAt) &&
+              live.answer.sessionReport.branch !== live.answer.branch ? (
+                /**
+                 * **KP4-04.** The room drops a report about another branch —
+                 * `stateFromAnswer` compares the two and draws nobody working —
+                 * and this paragraph tested freshness alone. So a fresh report
+                 * naming a different branch produced *"Who is working comes from
+                 * the agents' own report"* over a room in which nobody was
+                 * working: the prose describing a rule the code beside it does
+                 * not follow, which is the same defect as a screen inventing a
+                 * number, one layer up.
+                 */
+                <>
+                  A session did write a report {readClock(live.answer.sessionReport.reportedAt)},
+                  but it is about branch {live.answer.sessionReport.branch}, and this is{' '}
+                  {live.answer.branch ?? '—'}. It is not drawn here: a report about one branch says
+                  nothing about another, and showing it would put that session's work on this
+                  branch's room.
+                </>
+              ) : live.answer?.sessionReport &&
+                reportIsCurrent(live.answer.sessionReport.reportedAt) ? (
                 <>
                   Who is working comes from the agents’ own report in{' '}
                   <code>.virgil/state.json</code>
@@ -819,11 +839,23 @@ function DemoBadge({
                   session last wrote down, and a report left standing would look exactly like one
                   still true.
                 </>
-              ) : (
+              ) : live.answer?.sessionReportReason ? (
+                /**
+                 * **KP4-03.** A report the wire check refuses arrives as
+                 * `sessionReport: null` with a reason beside it, and fell to the
+                 * branch below — which announced that no session had written a
+                 * report and then printed the reason one had been refused, in
+                 * the same sentence. Two statements about one fact, and the
+                 * first of them false.
+                 */
                 <>
-                  No session has written a report, so nobody is shown working.{' '}
-                  {live.answer?.sessionReportReason ?? ''}
+                  A session did write a report and this build refused it, so nobody is shown
+                  working: {live.answer.sessionReportReason} Nothing is being guessed at in its
+                  place — a report that cannot be read is not the same as no report, and neither is
+                  drawn as work.
                 </>
+              ) : (
+                <>No session has written a report, so nobody is shown working.</>
               )}{' '}
               {live.error ? `Last attempt: ${live.error}` : ''}
             </>

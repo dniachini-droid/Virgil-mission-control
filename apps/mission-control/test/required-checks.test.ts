@@ -171,7 +171,87 @@ describe('the gate runs in full before anything can merge', () => {
    * derived set from the knowledge graph is kept as well, since deriving is
    * still better than naming for the paths that can move.
    */
-  it('ignores no path that any check actually reads', () => {
+  /**
+   * **Rewritten a third time, after the Keeper's KP4-01 found the second version
+   * blind to the worst value the field can take.**
+   *
+   * The second version extracted *path-shaped* tokens with a regex requiring a
+   * `/`. So `paths-ignore: ['**']` — skip every check on every push, the most
+   * damaging single line that can be written here — was never extracted, never
+   * reached the assertion, and passed a test titled for catching exactly that.
+   * The guard written for it, `pattern.startsWith('**')`, could not fire on the
+   * bare form. A rule, a guard beside it, and no path by which the guard runs:
+   * the third occurrence of that shape in this file's history.
+   *
+   * **So the property is inverted.** Rather than extract what looks like a path
+   * and ask whether it is safe, this takes every item of every ignore list and
+   * demands it be *proven* harmless — and nothing is proven harmless except a
+   * pattern whose top segment is a directory no check reads. A bare `**`, a bare
+   * `*`, a filename with no directory: none of them can be proven harmless, so
+   * all of them fail. Being unrecognisable is now a reason to fail rather than a
+   * way to slip through, which is the direction a guard has to fail in.
+   */
+
+  /**
+   * Every item of every ignore list inside a workflow's `on:` block, each
+   * carrying the key it came from — because a path pattern and a branch pattern
+   * are judged by different rules and confusing them is how the branch fixture
+   * passed while claiming to be refused.
+   */
+  function ignoredPatternsIn(onBlock: string): { key: string; value: string }[] {
+    const out: { key: string; value: string }[] = [];
+    // `paths-ignore`, `branches-ignore`, `tags-ignore` — every key GitHub has
+    // that removes runs. `branches-ignore: ['claude/**']` would take the gate off
+    // the working branch, which is outside the old title's subject and inside
+    // this one's.
+    const keys = /((?:paths|branches|tags)-ignore)\s*:(.*)$/gm;
+    for (const key of onBlock.matchAll(keys)) {
+      const name = key[1] ?? '';
+      const inline = key[2] ?? '';
+      const from = (key.index ?? 0) + key[0].length;
+      // A flow sequence on the same line, and/or a block sequence beneath it.
+      const rest = onBlock.slice(from);
+      const blockItems = rest.slice(0, rest.search(/^\s*[\w"'-]+\s*:/m) + 1 || rest.length);
+      for (const text of [inline, blockItems]) {
+        // The brackets of a flow sequence are not items in it. They were, in
+        // the first draft of this repair, and the mutation test caught it
+        // refusing `[` while `**` went unexamined — a guard that fires on the
+        // right line for the wrong reason is not a guard, and it would have
+        // refused every legitimate flow sequence too.
+        for (const item of text.matchAll(/(?:^|[[,\s])-?\s*['"]?([^\s'",[\]]+)['"]?/gm)) {
+          const value = (item[1] ?? '').trim();
+          if (value && value !== '-') out.push({ key: name, value });
+        }
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Why a pattern is not permitted, or null when it is. A pattern is permitted
+   * only when its first segment is a directory nothing reads — everything else,
+   * recognised or not, is refused.
+   */
+  function whyRefused(
+    { key, value: pattern }: { key: string; value: string },
+    never: ReadonlySet<string>,
+  ): string | null {
+    // A branch or tag is not a path, and no branch may be exempt: the workflow
+    // declares `branches: ['**']` because the gate has to run wherever the work
+    // is. So these are refused outright rather than measured against the set of
+    // directories a check reads, which would say nothing about them.
+    if (key !== 'paths-ignore') return `${key}: ${pattern} takes the gate off a branch`;
+    if (pattern.startsWith('*')) return `${pattern} covers paths every check reads`;
+    const top = pattern.split('/')[0] ?? '';
+    if (!pattern.includes('/')) {
+      return `${pattern} is a bare name, and nothing here can prove it is not read`;
+    }
+    if (never.has(top)) return `${pattern} is under ${top}, which a check reads`;
+    return null;
+  }
+
+  /** The directories a check reads: derived where they can move, named where they cannot. */
+  function neverIgnorable(): Set<string> {
     const deriver = readFileSync(
       resolve(repoRoot, 'packages/knowledge-graph/src/derive.ts'),
       'utf8',
@@ -181,48 +261,60 @@ describe('the gate runs in full before anything can merge', () => {
     // `kdir` is `knowledge/`, which the join hides behind a variable.
     derived.add('knowledge');
     expect(derived.size).toBeGreaterThan(1);
-
     // Named outright, not derived: a check reading these is the normal case, and
     // their absence from an ignore list is not something to infer from anywhere.
-    const never = new Set([...derived, 'apps', 'packages', 'constitution', 'schemas', '.github']);
+    for (const dir of ['apps', 'packages', 'constitution', 'schemas', '.github']) derived.add(dir);
+    return derived;
+  }
 
-    // The `on:` block, whole, from `on:` to the next top-level key.
-    const onAt = workflow.search(/^on:$/m);
+  /** The `on:` block, whole, from `on:` to the next top-level key. */
+  function onBlockOf(yaml: string): string {
+    const onAt = yaml.search(/^on:$/m);
     expect(onAt).toBeGreaterThan(-1);
-    const after = workflow.slice(onAt + 3);
+    const after = yaml.slice(onAt + 3);
     const endsAt = after.search(/^\S/m);
-    const block = endsAt === -1 ? after : after.slice(0, endsAt);
+    return endsAt === -1 ? after : after.slice(0, endsAt);
+  }
 
-    // Every path-shaped token inside it, however it is written: `- docs/**`,
-    // `- 'docs/**'`, `- "docs/**"`, or `['docs/**', 'knowledge/**']`.
-    const patterns = [...block.matchAll(/['"]?([A-Za-z_.*][\w./*-]*\/[\w./*-]*)['"]?/g)]
-      .map((m) => m[1] ?? '')
-      .filter((value) => value.includes('/'));
-
-    for (const pattern of patterns) {
-      const top = pattern.split('/')[0] ?? '';
-      expect(
-        never.has(top) || pattern.startsWith('**'),
-        `the workflow's on: block ignores ${pattern}, which a check reads`,
-      ).toBe(false);
+  it('ignores no path that any check actually reads', () => {
+    const never = neverIgnorable();
+    for (const pattern of ignoredPatternsIn(onBlockOf(workflow))) {
+      const refused = whyRefused(pattern, never);
+      expect(refused, `the workflow's on: block ignores ${pattern.value}`).toBeNull();
     }
   });
 
-  it('would catch an ignore list written any of the ordinary ways', () => {
-    // The test above is only worth having if it fails on the forms KP3-03 named.
-    // Rather than trust that, each is run through the same extraction here.
-    const forms = [
-      "  push:\n    paths-ignore:\n      - 'docs/**'\n",
-      '  push:\n    paths-ignore:\n      - docs/**\n',
-      '  push:\n    paths-ignore:\n      - "docs/**"\n',
-      "  push:\n    paths-ignore: ['docs/**', 'knowledge/**']\n",
-      "  push:\n    paths-ignore:\n    - 'apps/**'\n",
+  /**
+   * **KP4-07(a): the test that was supposed to prove the test above.**
+   *
+   * It ran the extraction over five YAML forms and asserted only that something
+   * came out — never that the something was *refused*. So it proved extraction
+   * and called itself catching, and it would have passed with `apps` and
+   * `packages` deleted from the never-set, which is the exact deletion KP3-03
+   * was raised about. It runs the whole judgment now, and the list it runs it
+   * over includes the three forms KP4-01 found slipping through.
+   */
+  it('refuses an ignore list written any of the ordinary ways, and the three that got through', () => {
+    const never = neverIgnorable();
+    const mustRefuse: [string, string][] = [
+      ['quoted, six spaces', "  push:\n    paths-ignore:\n      - 'docs/**'\n"],
+      ['unquoted', '  push:\n    paths-ignore:\n      - docs/**\n'],
+      ['double-quoted', '  push:\n    paths-ignore:\n      - "docs/**"\n'],
+      ['flow sequence', "  push:\n    paths-ignore: ['docs/**', 'knowledge/**']\n"],
+      ['four-space indent', "  push:\n    paths-ignore:\n    - 'apps/**'\n"],
+      ['the source tree', "  push:\n    paths-ignore:\n      - 'apps/**'\n      - 'packages/**'\n"],
+      // KP4-01's three. The first is the whole gate, gone, in eleven characters.
+      ['everything', "  push:\n    paths-ignore: ['**']\n"],
+      ['everything, one star', "  push:\n    paths-ignore: ['*']\n"],
+      ['a bare filename', "  push:\n    paths-ignore: ['CLAUDE.md']\n"],
+      // Not paths at all: the gate taken off the branch the work happens on.
+      ['the working branch', "  push:\n    branches-ignore: ['claude/**']\n"],
     ];
-    for (const form of forms) {
-      const found = [...form.matchAll(/['"]?([A-Za-z_.*][\w./*-]*\/[\w./*-]*)['"]?/g)]
-        .map((m) => m[1] ?? '')
-        .filter((value) => value.includes('/'));
-      expect(found.length, `no pattern extracted from: ${form.trim()}`).toBeGreaterThan(0);
+    for (const [what, form] of mustRefuse) {
+      const patterns = ignoredPatternsIn(form);
+      expect(patterns.length, `nothing extracted from ${what}: ${form.trim()}`).toBeGreaterThan(0);
+      const refusals = patterns.map((p) => whyRefused(p, never)).filter((r) => r !== null);
+      expect(refusals.length, `${what} was not refused: ${form.trim()}`).toBeGreaterThan(0);
     }
   });
 

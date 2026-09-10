@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:4656f6300d0fb77dbc7fea52733583247613fbcf4d9aad8cedbb782862201d1b",
+  "graphHash": "sha256:8693d7735359b652aaffc05938826dc644e59dcae27b69192c0d513cd9e286ad",
   "nodes": [
     {
       "id": "agent-roster",
@@ -127,6 +127,16 @@
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0010 — V10 is retired as a viewing point, and its byte count is no longer a contract (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0011-fourth-repair-round-authorised.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0011 — A fourth repair-and-re-review round on PR #8 is authorised (Tier 3)",
       "epistemicClass": "owner_approved_decision",
       "authorityClass": "owner_decision",
       "status": null,
