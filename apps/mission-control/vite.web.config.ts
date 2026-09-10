@@ -56,6 +56,7 @@ export default defineConfig({
   base: './',
   publicDir: false,
   define: {
+    __LIVE__: true,
     __OWNER_BUILD_SHA__: JSON.stringify(worktreeDirty ? `${sha} (+uncommitted changes)` : sha),
     __OWNER_BUILD_SHORT_SHA__: JSON.stringify(sha.slice(0, 10)),
     __OWNER_BUILD_DATE__: JSON.stringify(buildDate),

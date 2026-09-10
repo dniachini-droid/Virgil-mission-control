@@ -135,12 +135,18 @@ export interface ScreenContent {
  *
  * `demo` is the scripted thirty-second demonstration of invented content;
  * `replay` is a recorded run played back faster than it happened
- * (`world/replay/`). **They make opposite claims about their own
+ * (`world/replay/`); `live` is this repository's real state, read from
+ * `/api/state` by the hosted build only (`world/live/liveState.ts`, Phase 2
+ * slice one). **The three make different claims about their own
  * truthfulness**, so nothing may be ambiguous about which is on: the
  * honesty band's words change, the badge changes, and the panel's band
  * changes with them.
+ *
+ * `live` is unreachable in the Owner Build, which compiles the live module out
+ * and makes no network request at all; a state carrying it there would be a
+ * state nothing can produce.
  */
-export type RunMode = 'demo' | 'replay';
+export type RunMode = 'demo' | 'replay' | 'live';
 
 export interface DemoState {
   running: boolean;

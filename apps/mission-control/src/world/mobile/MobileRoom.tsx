@@ -19,6 +19,7 @@ import {
 import { Figure } from '../characters/Figure.js';
 import { VirgilRigged } from '../characters/VirgilRigged.js';
 import type { FaceState } from '../characters/Visor.js';
+import { type Live, liveIsCompiledIn, useLive } from '../live/liveState.js';
 import type { SlabName } from '../panel/panelContent.js';
 import { demoSnapshot, publishDemoState } from '../panel/panelStore.js';
 import { RUN, RUN_SECONDS, recordedClock, recordedDuration } from '../replay/recordedRun.js';
@@ -137,6 +138,13 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
   const [origin, setOrigin] = useState<WindowOrigin | null>(null);
   const [dev, setDev] = useState(false);
   const [badgeOpen, setBadgeOpen] = useState(false);
+  /**
+   * **The hosted build's third source.** `useLive` is compiled to nothing in the
+   * Owner Build (`world/live/liveState.ts`), so this is a constant `null` there
+   * and the file still makes no request of any kind. In the hosted build it
+   * reads `/api/state` and keeps reading while the page is open.
+   */
+  const live = useLive(mode === 'live');
   /**
    * **How many device pixels the world is drawn at.** Stage 3's answer to the
    * owner's crispness question, and the reasoning is in `pixelRatio.ts`: every
@@ -522,6 +530,7 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
                   demo={demo}
                   mode={mode}
                   speed={speed}
+                  live={live}
                   focus={focus}
                   orientation={orientation}
                   onSelect={selectAnchor}
@@ -543,6 +552,7 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
                 demo={demo}
                 mode={mode}
                 speed={speed}
+                live={live}
                 focus={focus}
                 orientation={orientation}
                 onSelect={selectAnchor}
@@ -591,9 +601,17 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
            */}
           <StepHint shown={showBack} />
           <DevEntry open={dev} onToggle={() => setDev((value) => !value)} />
+          {mode === 'live' && !live.state ? (
+            <p className="v11-live-notice" role="status">
+              {live.error
+                ? `This repository could not be read. ${live.error}`
+                : 'Reading this repository…'}
+            </p>
+          ) : null}
           <DemoBadge
             mode={mode}
             speed={speed}
+            live={live}
             open={badgeOpen}
             onToggle={() => setBadgeOpen((value) => !value)}
           />
@@ -725,35 +743,47 @@ function DevEntry({ open, onToggle }: { open: boolean; onToggle: () => void }) {
 function DemoBadge({
   mode,
   speed,
+  live,
   open,
   onToggle,
 }: {
   mode: RunMode;
   speed: ReplaySpeed;
+  live: Live;
   open: boolean;
   onToggle: () => void;
 }) {
   const recorded = mode === 'replay';
+  const isLive = mode === 'live';
   return (
     <div className={`v11-badge-dock${open ? ' is-open' : ''}`}>
       <button
         type="button"
-        className={`v11-badge${recorded ? ' is-recorded' : ''}`}
+        className={`v11-badge${recorded ? ' is-recorded' : ''}${isLive ? ' is-live' : ''}`}
         data-touch-target="badge"
         aria-expanded={open}
         aria-label={
-          recorded ? 'Recorded example — what it shows' : 'Demo information — what it means'
+          isLive
+            ? 'Live state — what it shows'
+            : recorded
+              ? 'Recorded example — what it shows'
+              : 'Demo information — what it means'
         }
         onClick={onToggle}
       >
         <span className="v11-badge-dot" aria-hidden="true" />
-        <span className="v11-badge-word">{recorded ? 'Recorded run' : 'Demo data'}</span>
+        <span className="v11-badge-word">
+          {isLive ? 'This repository' : recorded ? 'Recorded run' : 'Demo data'}
+        </span>
         <span className="v11-badge-more" aria-hidden="true">
           {open ? '×' : 'i'}
         </span>
       </button>
       {open ? (
-        <p className={`v11-badge-body${recorded ? ' is-recorded' : ''}`} role="status">
+        <p
+          className={`v11-badge-body${recorded ? ' is-recorded' : ''}${isLive ? ' is-live' : ''}`}
+          role="status"
+        >
           {recorded ? (
             <>
               This is the Phase 0 consolidation, a run that really happened, replayed at{' '}
@@ -762,6 +792,14 @@ function DemoBadge({
               non-blocking findings and went into the project as {RUN.mergeSha.slice(0, 7)}. Every
               figure is read out of this repository's own record. It already happened; none of it is
               live.
+            </>
+          ) : isLive ? (
+            <>
+              This is {live.answer?.repo ?? 'this repository'}, branch {live.answer?.branch ?? '—'},
+              read from GitHub {live.asOf ? readClock(live.asOf) : 'never yet'}. It shows what
+              GitHub reports and nothing more. No agent is running, no Keeper has reviewed this
+              commit, and the review slab says so rather than guessing.{' '}
+              {live.error ? `Last attempt: ${live.error}` : ''}
             </>
           ) : (
             <>
@@ -1093,6 +1131,7 @@ function Cast({
   demo,
   mode,
   speed,
+  live,
   focus,
   orientation,
   onSelect,
@@ -1100,6 +1139,7 @@ function Cast({
   demo: boolean;
   mode: RunMode;
   speed: ReplaySpeed;
+  live: Live;
   /**
    * What the camera is looking at. A console's display powers on while it
    * is the focus, which is the fix for the close-up black screen stage 1
@@ -1131,7 +1171,18 @@ function Cast({
   const replayed = useReplay(demo && forced === null && mode === 'replay', speed);
   const running = mode === 'replay' ? replayed : scripted;
   const frozen = useMemo(() => (held === null ? null : demoAt(held.t, held.loop, true)), [held]);
-  const state = forced ? forcedState(forced) : (frozen ?? running);
+  /**
+   * **In live mode the world draws nothing until something has been read.**
+   *
+   * The alternative was to fall back to the at-rest scripted state, and that is
+   * a lie with a specific shape: `screens/candidate.ts` supplies a data-shaped
+   * identifier when none is set, so a live page that had read nothing would draw
+   * `9abcdef` beside a real branch name and look exactly like a page that had.
+   * The same trap the Keeper's KS4-04 caught in the replay. So `null` here, and
+   * the DOM says what happened instead.
+   */
+  const state = forced ? forcedState(forced) : mode === 'live' ? live.state : (frozen ?? running);
+  if (!state) return null;
   publishDemoState(state);
   // The recorded run's real duration and real branch, for the two surfaces
   // that were inventing them (KS4-02, KS4-04). Added here rather than in
@@ -1516,9 +1567,41 @@ function forcedFace(): FaceState | null {
   return (FACE_STATES as readonly string[]).includes(value ?? '') ? (value as FaceState) : null;
 }
 
+/**
+ * **What the page opens on.**
+ *
+ * The Owner Build opens on the scripted demonstration, as it always has;
+ * `__LIVE__` is false there and this cannot return `live`. The hosted build
+ * opens on **this repository's real state**, which is the whole point of Phase 2
+ * slice one, and `#/?run=demo` and `#/?run=replay` still reach the other two so
+ * that the recording stays one press away — it is the thing that shows what a
+ * full run looks like, and a real repository is usually quiet.
+ */
+/**
+ * **How long ago the state was read, in words rather than a timestamp.**
+ *
+ * A page showing a state is claiming the state is current, and the only honest
+ * version of that claim carries its age. Seconds are rounded down, never up: a
+ * reading is never made to sound fresher than it is.
+ */
+function readClock(iso: string): string {
+  const at = Date.parse(iso);
+  if (Number.isNaN(at)) return 'at a time it did not record';
+  const seconds = Math.floor((Date.now() - at) / 1000);
+  if (seconds < 0) return 'just now';
+  if (seconds < 60) return `${seconds} second${seconds === 1 ? '' : 's'} ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+}
+
 function initialMode(): RunMode {
   if (typeof window === 'undefined') return 'demo';
-  return query().get('run') === 'replay' ? 'replay' : 'demo';
+  const asked = query().get('run');
+  if (asked === 'replay') return 'replay';
+  if (asked === 'demo') return 'demo';
+  return liveIsCompiledIn() ? 'live' : 'demo';
 }
 
 function initialSpeed(): ReplaySpeed {

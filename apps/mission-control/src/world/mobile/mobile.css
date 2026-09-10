@@ -609,3 +609,50 @@
 .v11-stage[data-orientation="landscape"] .v11-step-hint {
   bottom: calc(var(--v11-bottom) + 116px);
 }
+
+/**
+ * **Live state: the badge's third colour, and the notice that replaces the
+ * world when nothing has been read.**
+ *
+ * Phase 2 slice one. The demonstration's badge is amber and the recording's is
+ * its own; live is cyan, which is this project's colour for a thing that is
+ * actually happening, and it is as visible as the other two. The rule the badge
+ * has always been held to applies unchanged: it may not disappear, and it may
+ * not imply that what is on screen came from somewhere it did not.
+ */
+.v11-badge.is-live {
+  border-color: color-mix(in srgb, var(--v11-cyan, #6fe3ff) 55%, transparent);
+}
+.v11-badge.is-live .v11-badge-dot {
+  background: var(--v11-cyan, #6fe3ff);
+}
+.v11-badge-body.is-live {
+  border-color: color-mix(in srgb, var(--v11-cyan, #6fe3ff) 40%, transparent);
+}
+
+/**
+ * Shown **instead of** the world, never over it. In live mode a room drawn
+ * before anything has been read would be a room asserting that nothing is
+ * happening, and the identifiers on its slabs would be the demonstration's
+ * data-shaped placeholders standing beside a real branch name.
+ */
+.v11-live-notice {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  max-width: min(30rem, calc(100vw - 3rem));
+  padding: 0.9rem 1.1rem;
+  border-radius: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--v11-cyan, #6fe3ff) 35%, transparent);
+  background: rgba(6, 12, 22, 0.86);
+  color: #dbe7f2;
+  font:
+    500 0.95rem / 1.45 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  text-align: center;
+  z-index: 6;
+}
