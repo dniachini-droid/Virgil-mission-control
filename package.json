@@ -19,6 +19,7 @@
     "build:owner:v11": "turbo run build:owner:v11",
     "verify:owner": "turbo run verify:owner",
     "verify:owner:v11": "turbo run verify:owner:v11",
+    "virgil:status": "node scripts/virgil-status.mjs",
     "reproduce:owner": "node apps/mission-control/owner-build/reproduce.mjs",
     "reproduce:owner:v11": "node apps/mission-control/owner-build/reproduce-v11.mjs",
     "measure:compression:v11": "node apps/mission-control/asset-pipeline/assess-compression.mjs"

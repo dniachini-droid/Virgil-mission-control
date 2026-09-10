@@ -19,7 +19,7 @@ import {
 import { Figure } from '../characters/Figure.js';
 import { VirgilRigged } from '../characters/VirgilRigged.js';
 import type { FaceState } from '../characters/Visor.js';
-import { type Live, liveIsCompiledIn, useLive } from '../live/liveState.js';
+import { type Live, liveIsCompiledIn, reportIsCurrent, useLive } from '../live/liveState.js';
 import type { SlabName } from '../panel/panelContent.js';
 import { demoSnapshot, publishDemoState } from '../panel/panelStore.js';
 import { RUN, RUN_SECONDS, recordedClock, recordedDuration } from '../replay/recordedRun.js';
@@ -798,7 +798,8 @@ function DemoBadge({
               This is {live.answer?.repo ?? 'this repository'}, branch {live.answer?.branch ?? '—'},
               read from GitHub {live.asOf ? readClock(live.asOf) : 'never yet'}. The branch, the
               commit and the check results come from GitHub, which no session can write to.{' '}
-              {live.answer?.sessionReport ? (
+              {live.answer?.sessionReport &&
+              reportIsCurrent(live.answer.sessionReport.reportedAt) ? (
                 <>
                   Who is working comes from the agents’ own report in{' '}
                   <code>.virgil/state.json</code>
@@ -808,6 +809,14 @@ function DemoBadge({
                   , written {readClock(live.answer.sessionReport.reportedAt)}. That is their word
                   for it, not proof — you can open the file and read exactly what this screen is
                   drawing.
+                </>
+              ) : live.answer?.sessionReport ? (
+                <>
+                  The agents’ last report was written{' '}
+                  {readClock(live.answer.sessionReport.reportedAt)} and has gone cold, so nobody is
+                  shown working. This app cannot see an agent by itself; it knows only what a
+                  session last wrote down, and a report left standing would look exactly like one
+                  still true.
                 </>
               ) : (
                 <>

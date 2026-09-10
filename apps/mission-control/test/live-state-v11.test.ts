@@ -2,7 +2,12 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import authority from '../../../constitution/authority.json' with { type: 'json' };
 import { SessionStatusReport } from '../../../packages/agent-contracts/src/live.js';
-import { type LiveAnswer, stateFromAnswer } from '../src/world/live/liveState.js';
+import {
+  type LiveAnswer,
+  REPORT_GOES_COLD_MS,
+  reportIsCurrent,
+  stateFromAnswer,
+} from '../src/world/live/liveState.js';
 
 /**
  * **The guards on live state, which are the same guards the recording has and
@@ -157,32 +162,36 @@ const REPORT = {
 };
 
 describe('the sessions’ own report reaches the room', () => {
+  // A minute after the report was written, so these are about the mapping rather
+  // than about the shelf life, which has its own block below.
+  const JUST_AFTER = Date.parse(REPORT.reportedAt) + 60_000;
+
   it('lights the role the report says holds the work', () => {
-    const state = stateFromAnswer({ ...FULL, sessionReport: { ...REPORT } });
+    const state = stateFromAnswer({ ...FULL, sessionReport: { ...REPORT } }, JUST_AFTER);
     expect(state?.content.active).toBe('fabricator');
     expect(state?.cast.fabricator.activity).toBe('working');
     expect(state?.cast.prover.activity).toBe('rest');
   });
 
   it('ignores a report about a different branch', () => {
-    const state = stateFromAnswer({
-      ...FULL,
-      sessionReport: { ...REPORT, branch: 'some-other-branch' },
-    });
+    const state = stateFromAnswer(
+      { ...FULL, sessionReport: { ...REPORT, branch: 'some-other-branch' } },
+      JUST_AFTER,
+    );
     expect(state?.content.active).toBeNull();
     expect(state?.cast.fabricator.activity).toBe('rest');
   });
 
   it('still shows no verdict when the report names no review record', () => {
-    const state = stateFromAnswer({ ...FULL, sessionReport: { ...REPORT } });
+    const state = stateFromAnswer({ ...FULL, sessionReport: { ...REPORT } }, JUST_AFTER);
     expect(state?.content.verdict).toBe('—');
   });
 
   it('never claims an owner gate, which nothing here can observe', () => {
-    const state = stateFromAnswer({
-      ...FULL,
-      sessionReport: { ...REPORT, holder: 'virgil' },
-    });
+    const state = stateFromAnswer(
+      { ...FULL, sessionReport: { ...REPORT, holder: 'virgil' } },
+      JUST_AFTER,
+    );
     expect(state?.content.ownerGate).toBe(false);
     // `virgil` means between roles, and is not a role standing at a station.
     expect(state?.content.active).toBeNull();
@@ -222,5 +231,60 @@ describe('the function keeps the claim apart from the facts', () => {
 
   it('refuses a schema version it does not read, rather than guessing', () => {
     expect(FUNCTION).toContain("!== 'virgil.session-status.v1'");
+  });
+});
+
+/**
+ * **A report has a shelf life, and the failure it guards is a session stopping.**
+ *
+ * Not a session lying. A Fabricator left lit looks exactly like a Fabricator
+ * still building, and the screen the owner opens to find out whether anything is
+ * happening would answer yes for ever. Past the shelf life the room goes to rest
+ * and the badge says when the report was written.
+ */
+describe('a report that has gone cold is not drawn as now', () => {
+  const NOW = Date.parse('2026-09-10T12:00:00Z');
+  const at = (msAgo: number) => new Date(NOW - msAgo).toISOString();
+
+  it('is current while it is inside the shelf life', () => {
+    expect(reportIsCurrent(at(60_000), NOW)).toBe(true);
+    expect(reportIsCurrent(at(REPORT_GOES_COLD_MS - 1000), NOW)).toBe(true);
+  });
+
+  it('is not current past it', () => {
+    expect(reportIsCurrent(at(REPORT_GOES_COLD_MS + 1000), NOW)).toBe(false);
+    expect(reportIsCurrent(at(6 * 60 * 60 * 1000), NOW)).toBe(false);
+  });
+
+  it('is not current when it is stamped in the future', () => {
+    // A clock that cannot say when a thing happened cannot be trusted to say
+    // when it stops being true.
+    expect(reportIsCurrent(at(-10 * 60_000), NOW)).toBe(false);
+  });
+
+  it('is not current when the stamp is not a time at all', () => {
+    expect(reportIsCurrent('not a date', NOW)).toBe(false);
+  });
+
+  it('puts the room back at rest rather than leaving an agent lit', () => {
+    const cold = {
+      ...FULL,
+      sessionReport: { ...REPORT, reportedAt: at(REPORT_GOES_COLD_MS + 60_000) },
+    };
+    const state = stateFromAnswer(cold, NOW);
+    expect(state?.content.active).toBeNull();
+    expect(state?.cast.fabricator.activity).toBe('rest');
+  });
+
+  it('keeps the branch and the commit, which do not go stale', () => {
+    const cold = {
+      ...FULL,
+      sessionReport: { ...REPORT, reportedAt: at(REPORT_GOES_COLD_MS + 60_000) },
+    };
+    const state = stateFromAnswer(cold, NOW);
+    // These come from GitHub, not from the report, and are as true at midnight
+    // as at noon.
+    expect(state?.content.candidateId).toBe('b5660f3');
+    expect(state?.content.branch).toBe('claude/virgil-mobile-v11');
   });
 });

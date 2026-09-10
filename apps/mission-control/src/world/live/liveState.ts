@@ -64,6 +64,36 @@ const STATION: Record<string, 'READY' | 'RECEIVING' | 'WORKING' | 'REPORTED'> = 
 /** How often the page asks again. The function caches for 25 s; this is not tighter. */
 const POLL_MS = 30_000;
 
+/**
+ * **How old a session's report may be before the room stops drawing it as now.**
+ *
+ * The report is written by a session about itself, and the failure that matters
+ * is not a session lying — it is a session **stopping**. A Fabricator left lit
+ * looks exactly like a Fabricator still building, and the screen the owner opens
+ * on his phone to find out whether anything is happening would answer *yes* for
+ * ever.
+ *
+ * So a report has a shelf life. Past it the room goes to rest and the badge says
+ * when the report was written, which is the honest reading: nobody has said
+ * anything for a while, and this app cannot see agents by itself. Twenty minutes
+ * is chosen to be longer than a quiet stretch inside a working session and much
+ * shorter than a session being over.
+ *
+ * **The identifiers are not aged out with it.** The branch and commit come from
+ * GitHub, not from the report, and they are as true at midnight as at noon.
+ */
+export const REPORT_GOES_COLD_MS = 20 * 60 * 1000;
+
+/** Whether a report is still fresh enough to be drawn as what is happening now. */
+export function reportIsCurrent(reportedAt: string, now = Date.now()): boolean {
+  const at = Date.parse(reportedAt);
+  if (Number.isNaN(at)) return false;
+  // A report stamped in the future is not fresh, it is wrong; the clock that
+  // wrote it cannot be trusted to say when it stops being true.
+  if (at > now + 60_000) return false;
+  return now - at <= REPORT_GOES_COLD_MS;
+}
+
 export interface LiveAnswer {
   ok: boolean;
   asOf: string;
@@ -131,7 +161,7 @@ export interface Live {
  * because it is what the room looks like when nothing is happening — and when
  * nothing is happening, that is what should be on screen.
  */
-export function stateFromAnswer(answer: LiveAnswer): DemoState | null {
+export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState | null {
   if (!answer.ok) return null;
   const base = demoAt(0, 0, false);
   // `exactOptionalPropertyTypes` is on, and it is right to be: an absent field
@@ -152,10 +182,19 @@ export function stateFromAnswer(answer: LiveAnswer): DemoState | null {
    * committed, so it can never name the commit that contains it, and any rule
    * phrased as "the head must equal aboutCommit" would call every report stale.
    */
-  const report =
+  const onThisBranch =
     answer.sessionReport && answer.sessionReport.branch === answer.branch
       ? answer.sessionReport
       : null;
+  /**
+   * **And only while it is still current.** See `REPORT_GOES_COLD_MS`: the
+   * failure this guards is a session stopping, not a session lying, and a
+   * Fabricator left lit is indistinguishable from one still building. Past the
+   * shelf life the room goes to rest and the badge says when the report was
+   * written.
+   */
+  const report =
+    onThisBranch && reportIsCurrent(onThisBranch.reportedAt, now) ? onThisBranch : null;
 
   const cast = { ...base.cast };
   if (report) {
