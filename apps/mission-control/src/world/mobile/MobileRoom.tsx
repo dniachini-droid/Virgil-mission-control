@@ -706,7 +706,7 @@ function DevEntry({ open, onToggle }: { open: boolean; onToggle: () => void }) {
       className={`v11-dev-entry${open ? ' is-open' : ''}`}
       data-touch-target="dev"
       aria-expanded={open}
-      aria-label="Development menu"
+      aria-label="Developer settings"
       onClick={onToggle}
     >
       <span aria-hidden="true">⋯</span>
@@ -741,7 +741,9 @@ function DemoBadge({
         className={`v11-badge${recorded ? ' is-recorded' : ''}`}
         data-touch-target="badge"
         aria-expanded={open}
-        aria-label={recorded ? 'Recorded run — what this means' : 'Demo data — what this means'}
+        aria-label={
+          recorded ? 'Recorded example — what it shows' : 'Demo information — what it means'
+        }
         onClick={onToggle}
       >
         <span className="v11-badge-dot" aria-hidden="true" />
@@ -857,7 +859,7 @@ function DevPanel({
   onClose: () => void;
 }) {
   return (
-    <div className="v11-dev-panel" role="dialog" aria-label="Development menu">
+    <div className="v11-dev-panel" role="dialog" aria-label="Developer settings">
       <header className="v11-dev-head">
         <span>Development</span>
         <button type="button" className="v11-dev-close" onClick={onClose}>
@@ -923,7 +925,7 @@ function DevPanel({
           type="button"
           className={view === 'room' ? 'is-active' : ''}
           onClick={() => setView('room')}
-          title="The room is retired, not removed"
+          title="The old room is no longer used, but it has been kept."
         >
           Room (retired)
         </button>
@@ -961,7 +963,7 @@ function DevPanel({
             onClick={() => setForcedLevel(option)}
             title={
               option === 'auto'
-                ? 'Measure the frames and step down only if the device cannot hold its budget.'
+                ? 'First check whether the device runs the scene smoothly. Lower the visual quality only if it struggles.'
                 : LEVEL_PLANS[option].note
             }
           >
@@ -975,7 +977,7 @@ function DevPanel({
         <code>{LEVEL_PLANS[level].redrawScale}</code>. Governor:{' '}
         {governor.lastMeanMs > 0
           ? `${governor.lastMeanMs} ms a frame. `
-          : 'no window sampled yet. '}
+          : 'No performance test has run yet. '}
         {governor.reason} No performance figure taken here describes a device.
       </p>
       <div className="v11-dev-row">
@@ -1259,9 +1261,9 @@ function PerformanceNotice({ level, forced }: { level: Level; forced: boolean })
         {/*
           **The Keeper's KS4-09.** The governor-chosen wording was
           `Reduced to ${plan.label.toLowerCase()}`, which reads
-          "Reduced to reduced" at the middle rung. It says *who chose this*,
+          "Visual quality is already reduced" at the middle rung. It says *who chose this*,
           so the verb is now the governor's action rather than the rung's
-          own name: "Stepped down to reduced", "Stepped down to minimal".
+          own name: "Visual quality reduced", "Visual quality set to minimum".
           Only reachable where the governor engages, which is no hardware
           this project has measured on, so it is corrected and recorded and
           not demonstrated. The forced string, which is the one in the
@@ -1618,7 +1620,7 @@ function registerRenderer(gl: THREE.WebGLRenderer): boolean {
   const debug = context.getExtension('WEBGL_debug_renderer_info');
   const renderer = debug
     ? String(context.getParameter(debug.UNMASKED_RENDERER_WEBGL))
-    : 'unknown renderer';
+    : 'Graphics system not recognised';
   const w = window as Window & { __virgilRenderer?: string; __virgilSoftware?: boolean };
   w.__virgilRenderer = renderer;
   const software = /swiftshader|llvmpipe|software/i.test(renderer);

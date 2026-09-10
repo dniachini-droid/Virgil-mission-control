@@ -401,7 +401,7 @@ export function AgentWindow({
               type="submit"
               className="v11w-keep"
               data-touch-target="composer-keep"
-              aria-label="Keep this on the page. Nothing is sent."
+              aria-label="Save your message on this page. It will not be sent."
             >
               Keep
             </button>
@@ -485,7 +485,7 @@ const SPEAKER_NAME: Record<string, string> = {
   prover: 'Prover',
   keeper: 'Keeper',
   owner: 'You',
-  system: 'This build',
+  system: 'About this version',
 };
 
 function Turn({ message }: { message: Message }) {

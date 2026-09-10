@@ -210,7 +210,7 @@ describe('accessibility', () => {
   });
 
   it('names every control a screen reader reaches', () => {
-    expect(window_).toContain('aria-label="Keep this on the page. Nothing is sent."');
+    expect(window_).toContain('aria-label="Save your message on this page. It will not be sent."');
     expect(window_).toContain('aria-expanded={open}');
     expect(window_).toContain('aria-disabled="true"');
     expect(window_).toContain('className="v11w-sr"');

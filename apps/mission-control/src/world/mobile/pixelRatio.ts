@@ -47,22 +47,22 @@ export const SHARPNESS: readonly { id: Sharpness; label: string; note: string }[
   {
     id: 'auto',
     label: 'Auto',
-    note: 'Stage 4’s default: the smallest of the device’s own ratio, the tier’s ceiling and the tier’s pixel budget — so a big screen is not asked for the same ratio as a small one.',
+    note: 'Automatic chooses the clearest picture the device can display smoothly.',
   },
   {
     id: 'low',
     label: 'Low',
-    note: 'What V10 and V11 stages 1 and 2 drew at: 1.25× on a phone, upscaled to the panel.',
+    note: 'Older versions used a less detailed picture on phones and enlarged it to fit.',
   },
   {
     id: 'standard',
     label: 'Standard',
-    note: 'Stage 3’s default, kept as an explicit choice: 2× on a phone, 2× on a desktop.',
+    note: '2× resolution on phones and computers.',
   },
   {
     id: 'native',
     label: 'Native',
-    note: 'The device’s own pixel ratio, capped at 3. Sharpest, and the most fragment work.',
+    note: 'Uses the full detail available on the device, up to 3×. It looks sharpest but requires the most power.',
   },
 ];
 

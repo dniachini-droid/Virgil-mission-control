@@ -904,7 +904,7 @@ export function arrival(ctx: Ctx, m: Metrics, r: Rect, t: number, since: number,
     ctx.fillStyle = dim(0.6 * settle);
     ctx.textAlign = 'center';
     ctx.fillText(
-      'AUTHORITY GRANT · PERMITTED PATHS · EXPIRY',
+      'PERMISSION · FILES IT CAN CHANGE · WHEN PERMISSION ENDS',
       gx + gridW / 2,
       gy + gridH + 2.2 * u,
     );

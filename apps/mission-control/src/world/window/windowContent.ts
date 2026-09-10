@@ -123,7 +123,7 @@ export interface WindowDoc {
    * **The recorded-run marking, and it is present only in the replay mode.**
    *
    * Until 9 September this carried a marking in both modes: the replay's
-   * *"A recorded run, replayed"* and the scripted mode's amber
+   * *"A saved example being replayed"* and the scripted mode's amber
    * `Illustrative · not real state`. **The scripted mode's is gone**, on the
    * owner's instruction of that day, and it is not moved, shortened or made
    * quieter — it is removed, and the one place the interface still says so is
@@ -143,13 +143,15 @@ export interface WindowDoc {
   reaction: 'idle' | 'attentive' | 'working' | 'passed' | 'blocked';
 }
 
-const HOP_LABELS = ['Build', 'Verify', 'Review'];
+const HOP_LABELS = ['Build', 'Check', 'Review'];
 
 const REMIT: Record<Agent, string> = {
-  virgil: 'He decides who does what, and holds the work between steps.',
-  fabricator: 'It writes the code, in its own copy of the project, and reports back.',
-  prover: 'It runs every required check and reports what actually happened.',
-  keeper: 'It reviews the work on its own, against the project’s rules.',
+  virgil:
+    'Virgil gives each agent its job, passes the work between them and tells you what is happening.',
+  fabricator:
+    'The Fabricator writes the code in a safe copy of the project, then says when it has finished.',
+  prover: 'The Prover runs every required automated check and reports what happened.',
+  keeper: 'The Keeper independently reviews the work against the project’s rules.',
 };
 
 const NAME: Record<Agent, string> = {
@@ -269,29 +271,29 @@ function progressionOf(state: DemoState, agent: Agent) {
   }));
   const agentIndex = agent === 'virgil' ? index : ROLES.indexOf(agent);
   const label = state.content.ownerGate
-    ? 'Waiting on you'
+    ? 'You need to decide'
     : index >= 0
       ? agentIndex === index
         ? `${HOP_LABELS[index]}, now`
         : `${HOP_LABELS[index]} is under way`
       : hops[2]?.reported
-        ? 'The review is back'
+        ? 'The Keeper has finished its review'
         : hops[1]?.reported
-          ? 'The checks are back'
-          : 'Nothing under way';
+          ? 'The Prover has finished the checks'
+          : 'No work in progress';
   return { steps, label };
 }
 
 function contextOf(state: DemoState): string {
   const id = state.content.candidateId ?? CANDIDATE_ID;
-  if (state.content.candidate === null) return 'No change under way';
+  if (state.content.candidate === null) return 'No code change in progress';
   return `Change ${id} · ${state.content.candidate}`;
 }
 
 function honestyOf(state: DemoState): { title: string; note: string } | undefined {
   if (state.mode !== 'replay') return undefined;
   return {
-    title: 'A recorded run, replayed',
+    title: 'A saved example being replayed',
     note: `The Phase 0 consolidation really happened, and every figure below is read out of this repository's own record. ${RUN.mergeSha.slice(0, 7)} is history, not something happening now.`,
   };
 }
@@ -312,9 +314,12 @@ export const BUILD_PATHS: readonly { path: string; status: string; plus: number 
 
 /** The illustrative commit subjects: one per `FABRICATOR_COMMITS`. */
 export const BUILD_COMMITS: readonly { sha: string; subject: string }[] = [
-  { sha: '4d1a9c2', subject: 'The window opens from a character and renders from data' },
-  { sha: 'b70e58f', subject: 'The conclusion leads; the evidence expands' },
-  { sha: 'e29c014', subject: 'Landscape gets its own cluster scale' },
+  {
+    sha: '4d1a9c2',
+    subject: 'Select a character to open this window and see what that agent is doing.',
+  },
+  { sha: 'b70e58f', subject: 'The result appears first. Open the details to see the evidence.' },
+  { sha: 'e29c014', subject: 'Landscape mode uses a layout sized for wider screens.' },
 ];
 
 /** The commands the build ran, and what they printed. Illustrative. */
@@ -337,55 +342,54 @@ function fabricatorDoc(state: DemoState): WindowDoc {
   const conclusion: Conclusion =
     station === 'REPORTED'
       ? {
-          headline: 'The Fabricator says the work is done',
+          headline: 'The Fabricator says it has finished the code',
           meaning:
-            'That is its word for it, not proof. The project calls this BUILDER_REPORTED_COMPLETE: said to be finished, checked by nobody.',
-          next: 'It goes to the Prover next, which runs every check against this exact version.',
+            'BUILDER_REPORTED_COMPLETE — The Fabricator says it has finished. The checks and review have not happened yet.',
+          next: 'The Prover will run every required check on this exact version next. You do not need to do anything yet.',
         }
       : station === 'WORKING'
         ? {
             headline: `Writing the code — ${tally.files} of ${BUILD_PATHS.length} files, ${tally.commits} of ${FABRICATOR_COMMITS.length} commits`,
             meaning:
-              'It can only touch the files it was given. What it says at the end is a report, not proof.',
-            next: 'It saves the work, then passes it to the Prover with everything the Prover will need.',
+              'The Fabricator can change only the files it was assigned. Its completion report is not proof.',
+            next: 'It saves the work, then gives the Prover everything needed to check it.',
           }
         : station === 'RECEIVING'
           ? {
-              headline: 'Taking the work on',
+              headline: 'The Fabricator is receiving the task',
               meaning:
-                'It has been told what to do, which files it may touch, which version to start from and when its permission runs out. It cannot write anywhere else.',
+                'It receives the task, the files it may change, the version to start from and its deadline. It cannot change other files.',
               next: 'It starts work in its own copy of the project.',
             }
           : {
-              headline: 'Nothing is being built',
-              meaning:
-                'The Fabricator has not been given anything to do, and it has no permission open.',
-              next: 'Virgil sets out the job and its limits before any work starts.',
+              headline: 'The Fabricator is not working',
+              meaning: 'It has not been given a task, so it cannot change anything.',
+              next: 'Virgil defines the task, the files that may be changed and when permission ends before work starts.',
             };
   const sections: Section[] = [
     {
       id: 'objective',
-      title: 'What it is trying to do',
-      summary: 'Four steps, taken from its own job description',
+      title: 'What the Fabricator has been asked to do',
+      summary: 'Its four steps',
       open: station === 'WORKING' || station === 'RECEIVING',
       blocks: [
         {
           kind: 'plan',
           steps: [
             {
-              text: 'Write the code, only in the files it was given',
+              text: 'Write the code only in the assigned files',
               state: station === 'REPORTED' ? 'done' : station === 'WORKING' ? 'active' : 'todo',
             },
             {
-              text: 'Add tests next to the code it wrote',
+              text: 'Add tests for the code it wrote',
               state: station === 'REPORTED' ? 'done' : tally.files > 4 ? 'active' : 'todo',
             },
             {
-              text: 'Save the work, push it, open a draft pull request',
+              text: 'Save the work and prepare it for checking',
               state: station === 'REPORTED' ? 'done' : tally.commits > 0 ? 'active' : 'todo',
             },
             {
-              text: 'Pass it on with everything the checks will need',
+              text: 'Pass it on with everything the checks need',
               state: station === 'REPORTED' ? 'done' : 'todo',
             },
           ],
@@ -393,14 +397,14 @@ function fabricatorDoc(state: DemoState): WindowDoc {
         {
           kind: 'markdown',
           markdown:
-            'What it may and may not do is written down in `.claude/agents/fabricator.md`. It **may not** review its own work, merge it, deploy it, or touch a file it was not given.',
+            'Its rules are written in `.claude/agents/fabricator.md`. It cannot check or review its own work, add it to your project, make it available to users, or change other files.',
         },
       ],
     },
     {
       id: 'files',
       title: `Files changed — ${tally.files} of ${BUILD_PATHS.length}`,
-      summary: tally.files === 0 ? 'None yet' : `${tally.files} files touched so far`,
+      summary: tally.files === 0 ? 'No decisions yet' : `${tally.files} files touched so far`,
       blocks: [
         { kind: 'files', rows: BUILD_PATHS.slice(0, tally.files).map((row) => ({ ...row })) },
         ...(tally.files > 0
@@ -425,13 +429,13 @@ function fabricatorDoc(state: DemoState): WindowDoc {
     },
     {
       id: 'activity',
-      title: 'Commands and tool activity',
+      title: 'What the Fabricator did',
       summary:
         station === 'WORKING'
-          ? 'Running now'
+          ? 'A command is running now'
           : station === 'REPORTED'
-            ? 'Two commands, both exit 0'
-            : 'Nothing has run',
+            ? 'Two commands completed successfully'
+            : 'No commands have run',
       blocks: [
         {
           kind: 'tools',
@@ -467,8 +471,8 @@ function fabricatorDoc(state: DemoState): WindowDoc {
     },
     {
       id: 'decisions',
-      title: 'Decisions it made while building',
-      summary: 'Three, each with the reason',
+      title: 'Choices the Fabricator made while working',
+      summary: 'Three decisions, each with a reason',
       blocks: [
         {
           kind: 'markdown',
@@ -492,7 +496,7 @@ function fabricatorDoc(state: DemoState): WindowDoc {
     },
     {
       id: 'candidate',
-      title: 'The change itself',
+      title: 'The code change',
       summary: `${tally.commits} of ${FABRICATOR_COMMITS.length} commits, on one branch`,
       blocks: [
         {
@@ -500,17 +504,17 @@ function fabricatorDoc(state: DemoState): WindowDoc {
           branch: 'claude/virgil-mobile-v11',
           base: '2fafac8',
           head: state.content.candidateId ?? CANDIDATE_ID,
-          note: 'One branch. A fix makes a new commit; a commit that has been reviewed is never rewritten.',
+          note: 'The Fabricator works in one safe copy of the project. Each fix is saved as a new version. A reviewed version is never altered.',
         },
         { kind: 'commits', rows: BUILD_COMMITS.slice(0, tally.commits).map((row) => ({ ...row })) },
         {
           kind: 'pr',
           title: 'V11 stage 3 — the windows',
-          identity: 'draft, unmerged',
+          identity: 'Saved and submitted, not added to your project',
           state: 'DRAFT',
           lines: [
-            'A draft pull request is as far as a builder goes. It has not gone into the project and nobody has reviewed it.',
-            'Only you can put it in.',
+            'The Fabricator has saved and submitted its work. The checks and review have not happened yet.',
+            'Only you can add it to the project.',
           ],
         },
         {
@@ -522,8 +526,11 @@ function fabricatorDoc(state: DemoState): WindowDoc {
     },
     {
       id: 'report',
-      title: 'What the Fabricator reported',
-      summary: station === 'REPORTED' ? 'Sent — and it is only its word' : 'Not sent',
+      title: 'The Fabricator’s completion report',
+      summary:
+        station === 'REPORTED'
+          ? 'Sent to the Prover — still only a claim'
+          : 'Not sent to the Prover',
       open: station === 'REPORTED',
       blocks: [
         {
@@ -534,11 +541,11 @@ function fabricatorDoc(state: DemoState): WindowDoc {
               standing: 'claim' as Standing,
             },
             {
-              text: 'The implementation is complete and correct',
+              text: 'The Fabricator says the work is complete and correct',
               standing: 'claim' as Standing,
             },
             {
-              text: 'Nothing has been checked and nobody has reviewed it',
+              text: 'The checks and review have not happened yet',
               standing:
                 station === 'REPORTED' ? ('verified' as Standing) : ('unresolved' as Standing),
             },
@@ -546,24 +553,24 @@ function fabricatorDoc(state: DemoState): WindowDoc {
         },
         {
           kind: 'note',
-          text: 'A builder saying it worked is only its word. The checks and the review are the evidence.',
+          text: 'The Fabricator’s report is a claim. The checks and independent review provide the evidence.',
         },
       ],
     },
     {
       id: 'handoff',
-      title: 'What goes to the Prover',
-      summary: station === 'REPORTED' ? 'Ready, with everything it has to carry' : 'Not yet',
+      title: 'What the Prover needs',
+      summary: station === 'REPORTED' ? 'Everything the Prover needs is ready' : 'Not ready yet',
       blocks: [
         {
           kind: 'table',
-          head: ['What goes with it', 'Value'],
+          head: ['Information sent to the Prover', 'Value'],
           rows: [
-            ['Change', state.content.candidateId ?? CANDIDATE_ID],
-            ['Started from', '2fafac8'],
-            ['Checks to run', String(PROVER_CHECKS)],
+            ['Exact version being checked', state.content.candidateId ?? CANDIDATE_ID],
+            ['Version it started from', '2fafac8'],
+            ['Required checks', String(PROVER_CHECKS)],
             ['Files changed', String(tally.files)],
-            ['What it proves', 'Nothing yet — it is the builder’s word'],
+            ['What the checks have proved', 'Nothing yet — only the Fabricator’s report'],
           ],
         },
       ],
@@ -583,24 +590,24 @@ function fabricatorDoc(state: DemoState): WindowDoc {
         ? [
             {
               id: 'to-prover',
-              label: 'What the Prover made of it',
+              label: 'What the Prover found',
               goes: { kind: 'agent', agent: 'prover' },
             },
             {
               id: 'open-report',
-              label: 'Read what it reported',
+              label: 'Read the Prover’s report',
               goes: { kind: 'section', id: 'report' },
             },
           ]
         : [
             {
               id: 'open-files',
-              label: 'Show the files changed',
+              label: 'View the changed files',
               goes: { kind: 'section', id: 'files' },
             },
             {
               id: 'open-activity',
-              label: 'Show what it ran',
+              label: 'View every check it ran',
               goes: { kind: 'section', id: 'activity' },
             },
           ],
@@ -685,7 +692,7 @@ function couldNotRunBlock(name: string): Block {
     command: run.command,
     lines: [
       { stream: 'err', text: `${run.file}: not found — the check did not run` },
-      { stream: 'err', text: 'no result was produced, and none is inferred' },
+      { stream: 'err', text: 'The check produced no result, so its outcome is unknown.' },
     ],
   };
 }
@@ -710,37 +717,37 @@ function proverDoc(state: DemoState): WindowDoc {
         ? {
             headline: `${resolved} of ${PROVER_CHECKS} checks have finished`,
             meaning:
-              'A check that has not finished is not a pass. Nothing is decided until they all have.',
-            next: 'It reports back every check, what it found and when it ran.',
+              'A check that has not finished cannot pass or fail. The work waits until every required check has a result.',
+            next: 'The Prover reports the result and evidence for every check, including when it ran.',
           }
         : station === 'RECEIVING'
           ? {
-              headline: 'Taking the change in to be checked',
+              headline: 'The Prover is receiving the work',
               meaning:
-                'It gets the exact version, the list of checks to run, and what the builder said about it. What the builder said proves nothing.',
+                'The Prover receives the exact version, the required checks and the Fabricator’s report. That report is not evidence.',
               next: `All ${PROVER_CHECKS} checks now run against that exact version.`,
             }
           : {
-              headline: 'Nothing is being checked',
-              meaning: 'The Prover has not been given anything to work on.',
-              next: 'The Fabricator has to finish first.',
+              headline: 'The Prover is not checking anything',
+              meaning: 'The Prover has not received anything to check.',
+              next: 'The Fabricator must finish first.',
             }
       : report === 'PASS'
         ? {
             headline: `All ${PROVER_CHECKS} checks passed`,
-            meaning: 'The machine found nothing wrong with it.',
-            next: 'It can go for review now. Nobody has reviewed it yet — that is a separate step.',
+            meaning: 'The automated checks found no problems.',
+            next: 'The automated checks passed. The Keeper will review the work next. You do not need to do anything yet.',
           }
         : report === 'BLOCKED'
           ? {
               headline: `${tally.failed} of ${PROVER_CHECKS} checks failed`,
               meaning: `${failedNames.join(', ')} failed. Something is genuinely wrong, so the change is refused.`,
-              next: 'It does not go for review. Whether anyone tries again is your decision, and nothing here can start one.',
+              next: 'A check confirmed a problem, so review will not begin. You decide whether the agents should fix it and try again.',
             }
           : {
               headline: `${tally.skipped} check could not run`,
               meaning: `${skippedNames.join(', ')} never ran, so nobody knows either way. The project's word for that is INSUFFICIENT EVIDENCE, and it is not the same as a failure.`,
-              next: 'That check has to run before anything can be decided. Virgil is waiting; he is not refusing.',
+              next: 'This check must run before the work can continue. Virgil is waiting for a result; the work has not failed.',
             };
 
   const sections: Section[] = [
@@ -763,8 +770,8 @@ function proverDoc(state: DemoState): WindowDoc {
     },
     {
       id: 'facts',
-      title: 'What is proved, and what is only claimed',
-      summary: 'What a check proved, and what somebody merely said',
+      title: 'What is proven and what is only reported',
+      summary: 'Results from checks, kept separate from what agents said',
       open: station === 'REPORTED',
       blocks: [
         {
@@ -804,11 +811,11 @@ function proverDoc(state: DemoState): WindowDoc {
                 ]
               : []),
             {
-              text: 'The builder said the work is done',
+              text: 'The Fabricator says the work is finished',
               standing: 'claim' as Standing,
             },
             {
-              text: 'Somebody independent has reviewed it',
+              text: 'The Keeper reviewed it independently',
               standing:
                 state.cast.keeper.station === 'REPORTED'
                   ? ('verified' as Standing)
@@ -818,7 +825,7 @@ function proverDoc(state: DemoState): WindowDoc {
         },
         {
           kind: 'note',
-          text: 'A fact is something a check produced. A claim is something an agent said. This window never lets the two sound alike.',
+          text: 'A check result is evidence. An agent’s statement is a claim. This screen keeps them separate.',
         },
       ],
     },
@@ -827,7 +834,9 @@ function proverDoc(state: DemoState): WindowDoc {
           {
             id: 'failure',
             title:
-              tally.failed > 0 ? 'The failure, and its evidence' : 'The check that could not run',
+              tally.failed > 0
+                ? 'The problem a check found, with the evidence'
+                : 'A required check with no result',
             summary:
               tally.failed > 0
                 ? `${failedNames.join(', ')} — the output as it was printed`
@@ -841,13 +850,17 @@ function proverDoc(state: DemoState): WindowDoc {
                       kind: 'evidence',
                       rows: [
                         { label: 'Check', value: failedNames.join(', '), standing: 'verified' },
-                        { label: 'Exit code', value: '1', standing: 'verified' },
                         {
-                          label: 'Can be repeated',
-                          value: 'yes, from the command as recorded',
+                          label: 'Command result code — 0 means it ran successfully',
+                          value: '1',
                           standing: 'verified',
                         },
-                        { label: 'Stops it going on', value: 'yes', standing: 'verified' },
+                        {
+                          label: 'Can be run again',
+                          value: 'Yes — the saved command can be run again',
+                          standing: 'verified',
+                        },
+                        { label: 'Does this stop the work?', value: 'yes', standing: 'verified' },
                       ],
                     },
                   ] as Block[])
@@ -855,7 +868,7 @@ function proverDoc(state: DemoState): WindowDoc {
                     couldNotRunBlock(skippedNames[0] ?? ''),
                     {
                       kind: 'note',
-                      text: 'A check that could not run proves nothing either way. Writing it down as a pass would be the worst thing this app could do.',
+                      text: 'This check couldn’t run, so it cannot be marked as passed or failed.',
                     },
                   ] as Block[]),
           } satisfies Section,
@@ -863,38 +876,38 @@ function proverDoc(state: DemoState): WindowDoc {
       : []),
     {
       id: 'progress',
-      title: 'Can it go on?',
+      title: 'Can the work continue?',
       summary:
         station === 'REPORTED'
           ? report === 'PASS'
-            ? 'Yes, to review. Review is not approval.'
-            : 'No. It stops here.'
-          : 'Not yet decided',
+            ? 'Yes. The Keeper reviews it next. You do not need to approve anything yet.'
+            : 'No. The work stops here.'
+          : 'Not decided yet',
       blocks: [
         {
           kind: 'table',
-          head: ['What has to be true', 'Is it?'],
+          head: ['What must happen', 'Has it happened?'],
           rows: [
-            ['Every check finished', station === 'REPORTED' ? 'yes' : 'no'],
-            ['Anything failed', tally.failed > 0 ? 'yes' : 'no'],
-            ['Any check unable to run', tally.skipped > 0 ? 'yes' : 'no'],
+            ['Every check produced a result', station === 'REPORTED' ? 'yes' : 'no'],
+            ['Did any check find a problem?', tally.failed > 0 ? 'yes' : 'no'],
+            ['Was any check unable to run?', tally.skipped > 0 ? 'yes' : 'no'],
             [
-              'Can go for review',
+              'Can the Keeper review it?',
               station === 'REPORTED' && tally.failed === 0 && tally.skipped === 0 ? 'yes' : 'no',
             ],
-            ['Can go into the project', 'your decision alone, always'],
+            ['Can it be added to your project?', 'Only you decide whether to add it'],
           ],
         },
       ],
     },
     {
       id: 'schedule',
-      title: 'Where these numbers come from',
+      title: 'Where each result came from',
       summary: 'Fixed schedules. No check was run to produce them',
       blocks: [
         {
           kind: 'markdown',
-          markdown: `${PROVER_CHECKS} checks, starting ${((proverChecks(state.outcome)[1]?.start ?? 0.56) - (proverChecks(state.outcome)[0]?.start ?? 0.2)).toFixed(2)} s apart, each running about 0.9 s. The names are the kinds of check this repository really runs; the results come from \`screens/tally.ts\`'s fixed schedule.`,
+          markdown: `${PROVER_CHECKS} checks, starting ${((proverChecks(state.outcome)[1]?.start ?? 0.56) - (proverChecks(state.outcome)[0]?.start ?? 0.2)).toFixed(2)} s apart, each running about 0.9 s. The names are the kinds of check this repository really runs; the results come from \`screens/tally.ts\`The required checks come from the project’s fixed list.`,
         },
       ],
     },
@@ -914,12 +927,12 @@ function proverDoc(state: DemoState): WindowDoc {
         ? [
             {
               id: 'open-failure',
-              label: 'Show me the failure',
+              label: 'View the failed check',
               goes: { kind: 'section', id: 'failure' },
             },
             {
               id: 'open-checks',
-              label: 'See every check',
+              label: 'View every check',
               goes: { kind: 'section', id: 'checks' },
             },
           ]
@@ -927,24 +940,24 @@ function proverDoc(state: DemoState): WindowDoc {
           ? [
               {
                 id: 'open-checks',
-                label: 'See every check',
+                label: 'View every check',
                 goes: { kind: 'section', id: 'checks' },
               },
               {
                 id: 'to-keeper',
-                label: 'Go to the review',
+                label: 'Open the Keeper’s review',
                 goes: { kind: 'agent', agent: 'keeper' },
               },
             ]
           : [
               {
                 id: 'open-checks',
-                label: 'See every check',
+                label: 'View every check',
                 goes: { kind: 'section', id: 'checks' },
               },
               {
                 id: 'open-facts',
-                label: 'What is proved, what is claimed',
+                label: 'Compare claims with evidence',
                 goes: { kind: 'section', id: 'facts' },
               },
             ],
@@ -967,29 +980,31 @@ function proverDoc(state: DemoState): WindowDoc {
  */
 const REFUSALS: readonly { refused: string; reason: string; authority: string }[] = [
   {
-    refused: 'A change under constitution/',
-    reason: 'Barred to every session. Only the owner may change the rules.',
+    refused: 'Changing the project’s protected rules',
+    reason: 'No agent may change these files. Only you can change the rules.',
     authority: 'authority.json · boundaryProtection.sessionDenied',
   },
   {
     refused: 'Filing a decision under docs/decisions/OD-*',
-    reason: 'Allowed only when the owner says so, written down word for word.',
+    reason: 'This can happen only when you decide. Your exact words are saved.',
     authority: 'OD-0006',
   },
   {
     refused: 'Editing a record under knowledge/raw/',
-    reason: 'Only ever added to. A source record is never edited or deleted.',
+    reason:
+      'New source records can be added. Existing source records are never changed or deleted.',
     authority: 'CLAUDE.md · hard limits',
   },
   {
-    refused: 'Treating a builder’s report as proof',
+    refused: 'Using the Fabricator’s claim as if it were proof',
     reason:
-      'A builder saying it worked is only its word. The checks and the review are the evidence.',
+      'The Fabricator’s report is a claim. The checks and independent review provide the evidence.',
     authority: 'authority.json · virgilProhibitions',
   },
   {
-    refused: 'Merging, deploying, or expanding its own authority',
-    reason: 'Yours alone, always. Nothing in this app may become a way to do it.',
+    refused:
+      'Adding changes to your project, making them available to users, or giving itself more access',
+    reason: 'Only you can do these things. The app cannot do them for you.',
     authority: 'authority.json · ownerOnlyActions',
   },
 ];
@@ -1005,34 +1020,34 @@ function keeperDoc(state: DemoState): WindowDoc {
       ? {
           headline: `The review found ${tally.findings} things, none serious enough to stop it`,
           meaning:
-            'The project’s word for that is PASS WITH NON-BLOCKING FINDINGS, not a plain PASS. Everything it found is kept and can still be read.',
-          next: 'The change is ready to go into the project. It is waiting on your decision.',
+            'PASS WITH NON-BLOCKING FINDINGS — The review found issues, but none requires the work to stop. Every issue remains recorded.',
+          next: 'The checks and independent review are complete. You can now choose whether to add the change to your project.',
         }
       : station === 'WORKING'
         ? {
             headline: `Reading the change — ${tally.findings} things found so far`,
             meaning:
-              'Everything it finds gets a name and a severity the moment it is found. Whoever built and checked this has no part in the review.',
-            next: 'It will report a verdict with everything it found attached, whatever the verdict is.',
+              'Each issue is named and marked by how serious it is. The Keeper did not build or check this work.',
+            next: 'The Keeper reports its decision and includes everything it found.',
           }
         : station === 'RECEIVING'
           ? {
-              headline: 'Taking the change in to review',
+              headline: 'Receiving the change for review',
               meaning:
-                'It gets the exact version, the check results and the evidence behind them. It cannot change a thing.',
-              next: 'The review starts. Nobody who built or checked this has any part in it.',
+                'The Keeper receives the exact version, the check results and their evidence. It cannot change any files.',
+              next: 'The independent review begins. The Keeper did not build or check this work.',
             }
           : proverRefused
             ? {
-                headline: 'There is no review of this change',
+                headline: 'The Keeper did not review this change',
                 meaning:
-                  'The checks did not clear it, so it never got here. Not reviewed is not the same as passed.',
-                next: 'Nothing gets reviewed until it gets this far. It was stopped on purpose; nothing was missed.',
+                  'The checks did not clear the work for review, so the Keeper never reviewed it. The Prover’s screen says whether a problem was found or a check could not run.',
+                next: 'The process correctly stopped before review. Open the Prover’s result to see why.',
               }
             : {
                 headline: 'Nothing is being reviewed',
-                meaning: 'The Keeper has not been given anything to read.',
-                next: 'Work reaches review only after the checks clear it.',
+                meaning: 'The Keeper has not received anything to review.',
+                next: 'Review begins only after every required check passes.',
               };
 
   const sections: Section[] = [
@@ -1041,7 +1056,7 @@ function keeperDoc(state: DemoState): WindowDoc {
       title: `What the review found — ${tally.findings} so far`,
       summary:
         tally.findings === 0
-          ? 'Nothing yet'
+          ? 'No issues found yet'
           : `${tally.blocking} serious enough to stop it · each one named`,
       open: station === 'WORKING' || station === 'REPORTED',
       blocks: [
@@ -1054,67 +1069,67 @@ function keeperDoc(state: DemoState): WindowDoc {
           })),
         },
         ...(tally.findings === 0
-          ? ([{ kind: 'note', text: 'This review has found nothing so far.' }] as Block[])
+          ? ([{ kind: 'note', text: 'The review has found no issues so far.' }] as Block[])
           : []),
       ],
     },
     {
       id: 'evidence',
-      title: 'The evidence, and where it comes from',
-      summary: 'Every figure, and the file in this repository it is read from',
+      title: 'The evidence and its sources',
+      summary: 'Every result and the file it came from',
       blocks: [
         {
           kind: 'evidence',
           rows: [
             {
-              label: 'Which change',
+              label: 'Exact version reviewed',
               value: state.content.candidateId ?? CANDIDATE_ID,
               standing: 'claim',
             },
             {
-              label: 'Checks',
-              value: proverReported ? `reported by the Prover` : 'not back yet',
+              label: 'Automated checks',
+              value: proverReported ? `Provided by the Prover` : 'The Prover has not finished yet',
               standing: proverReported ? 'verified' : 'unresolved',
             },
             {
-              label: 'The reviewer stands apart',
-              value: 'completely — it cannot change a single file',
+              label: 'The Keeper works independently',
+              value: 'It can read the files but cannot change them',
               standing: 'verified',
             },
             {
-              label: 'What it found is kept',
-              value: 'even after a pass, and you can still read it',
+              label: 'Every issue it finds is saved',
+              value: 'You can still read the issues after the work passes review',
               standing: 'verified',
             },
           ],
         },
         {
           kind: 'table',
-          head: ['Figure', 'Source', 'Where'],
+          head: ['Information', 'Source', 'Where'],
           rows: [
-            ['The four verdicts', 'authority.json', 'reviewVerdicts'],
-            ['The severities', 'agent-contracts', 'common.ts · Severity'],
-            ['The states a change can be in', 'authority.json', 'candidateStates'],
-            ['Owner-only actions', 'authority.json', 'ownerOnlyActions'],
+            ['The four decisions the Keeper can return', 'authority.json', 'reviewVerdicts'],
+            ['How serious an issue can be', 'agent-contracts', 'common.ts · Severity'],
+            ['Every stage a change can be in', 'authority.json', 'candidateStates'],
+            ['Actions only you can take', 'authority.json', 'ownerOnlyActions'],
           ],
         },
       ],
     },
     {
       id: 'refusals',
-      title: 'Refusals, and their exact reasons',
+      title: 'Actions the agents are not allowed to take, with the exact reasons',
       summary: `${REFUSALS.length} lines this role will not cross`,
       blocks: [
         {
           kind: 'table',
-          head: ['What it will not do', 'Why', 'Where that is written'],
+          head: ['What it refuses to do', 'Why', 'Where the rule is written'],
           rows: REFUSALS.map((entry) => [entry.refused, entry.reason, entry.authority]),
         },
         ...(proverRefused
           ? ([
               {
                 kind: 'note',
-                text: 'This change never reached review, so the Keeper has refused nothing about it. The rows above are lines it holds, not things that happened.',
+                text: 'This change never reached review, so the Keeper made no decision about it. The rows above show rules, not events from this run.',
               },
             ] as Block[])
           : []),
@@ -1122,31 +1137,31 @@ function keeperDoc(state: DemoState): WindowDoc {
     },
     {
       id: 'authority',
-      title: 'Who decides what',
-      summary: 'Who may decide what, and which document wins when two disagree',
+      title: 'Who makes each decision',
+      summary: 'Who can make each decision, and which rule takes priority if two conflict',
       blocks: [
         {
           kind: 'table',
-          head: ['Order', 'What wins'],
+          head: ['Order', 'The rule that takes priority'],
           rows: [
-            ['1', 'The commission, and the owner’s own written decisions'],
+            ['1', 'Your original instructions and your written decisions'],
             ['2', 'constitution/ — out of bounds to every session'],
-            ['3', 'Design decisions that have been accepted'],
-            ['4', 'Architecture, art direction, security, testing, process'],
-            ['5', 'The wiki, which explains and never overrules'],
+            ['3', 'Design decisions you have approved'],
+            ['4', 'Architecture, art direction, security, testing and process'],
+            ['5', 'The wiki explains the rules but cannot change them'],
           ],
         },
         {
           kind: 'markdown',
           markdown:
-            'A session that finds a contradiction **reports it**. It does not resolve it silently.',
+            'If an agent finds conflicting instructions, it tells you instead of choosing silently.',
         },
       ],
     },
     {
       id: 'history',
       title: 'What has happened so far',
-      summary: 'Every step of this run, in the order it happened',
+      summary: 'Every completed step, shown in order',
       blocks: [
         {
           kind: 'table',
@@ -1155,12 +1170,12 @@ function keeperDoc(state: DemoState): WindowDoc {
             sentence(row.label),
             stamp(row.startedAt),
             row.endedAt === null ? '—' : stamp(row.endedAt),
-            row.report === null ? 'still going' : row.report.split('_').join(' '),
+            row.report === null ? 'In progress' : row.report.split('_').join(' '),
           ]),
         },
         {
           kind: 'note',
-          text: 'A row is added when a step happens, and never changed afterwards. A step that did not happen is never shown as one that passed.',
+          text: 'Each step is recorded when it happens and that record is never changed. A step with no result is never shown as passed.',
         },
       ],
     },
@@ -1180,24 +1195,24 @@ function keeperDoc(state: DemoState): WindowDoc {
         ? [
             {
               id: 'open-findings',
-              label: 'Read what it found',
+              label: 'View the review findings',
               goes: { kind: 'section', id: 'findings' },
             },
             {
               id: 'open-evidence',
-              label: 'Where this comes from',
+              label: 'View the sources',
               goes: { kind: 'section', id: 'evidence' },
             },
           ]
         : [
             {
               id: 'open-refusals',
-              label: 'What it refuses, and why',
+              label: 'View refused actions and reasons',
               goes: { kind: 'section', id: 'refusals' },
             },
             {
               id: 'open-history',
-              label: 'The record so far',
+              label: 'View the full history',
               goes: { kind: 'section', id: 'history' },
             },
           ],
@@ -1232,42 +1247,43 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
   const verdictWord = state.content.verdict === '—' ? null : verdict.word;
   const conclusion: Conclusion = gate
     ? {
-        headline: 'Everything passed. The change is ready to go into the project.',
-        meaning: 'It is waiting on your decision.',
-        next: 'You put it in yourself, outside this app. Nothing here can do it for you.',
+        headline:
+          'The checks and independent review passed. You can now choose whether to add the change to your project.',
+        meaning: 'Choose whether to add this change to your project.',
+        next: 'If you choose to add it, you must do that yourself outside this app.',
       }
     : verdictWord !== null
       ? {
           headline:
             state.content.verdict === 'BLOCKED'
-              ? 'A check failed, so the change was stopped'
+              ? 'A check found a problem, so the work stopped'
               : state.content.verdict === 'INSUFFICIENT_EVIDENCE'
-                ? 'The Prover could not tell'
-                : 'The review is back',
+                ? 'A required check produced no result'
+                : 'The Keeper has finished its review',
           token: verdictWord,
           meaning:
             state.content.verdict === 'BLOCKED'
-              ? 'Something is genuinely wrong, not merely unproved. I have stopped it.'
+              ? 'A check confirmed a problem, so I stopped the work.'
               : state.content.verdict === 'INSUFFICIENT_EVIDENCE'
-                ? 'A check could not run, so nothing was proved either way.'
-                : 'It found some things, none of them serious enough to stop it. They are written down and kept.',
+                ? 'A check could not run, so it could not be marked as passed or failed.'
+                : 'The review found minor issues, but none requires the work to stop. All are recorded.',
           next:
             state.content.verdict === 'BLOCKED'
-              ? 'Whether anyone tries again is your decision. I cannot start one.'
+              ? 'You must decide whether the agents should fix the problem and try again. I cannot restart them myself.'
               : state.content.verdict === 'INSUFFICIENT_EVIDENCE'
-                ? 'I am waiting for that check to run. I have not refused it.'
-                : 'They stay open, and you can read them at any time.',
+                ? 'The required check still has no result. I am waiting; this is not a failed check.'
+                : 'These issues remain recorded and available to read.',
         }
       : holder
         ? {
             headline: `${holder} is doing the work`,
             meaning: `Nothing has been checked and nobody has reviewed it. The project's word for where it has got to is ${state.content.candidate}.`,
-            next: 'I pass it on when this step reports back, and not before.',
+            next: 'When one agent finishes, I pass the work to the next. I never move it on before then.',
           }
         : {
             headline: 'Nothing is being worked on',
-            meaning: 'No work is open and nobody has been given anything to do.',
-            next: 'The next job starts with me setting out what to do, which files may be touched, and when permission ends.',
+            meaning: 'No work is in progress and no agent has been given a task.',
+            next: 'When work starts, I define the task, the files that may be changed and when permission ends.',
           };
 
   const hops = hopsAt(state);
@@ -1279,26 +1295,26 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
   const sections: Section[] = [
     {
       id: 'truth',
-      title: 'Where the project stands',
-      summary: `${state.content.candidate ?? 'No change'} · ${state.content.verdict === '—' ? 'no verdict' : sentence(verdict.word)}`,
+      title: 'Where your project stands',
+      summary: `${state.content.candidate ?? 'No current change'} · ${state.content.verdict === '—' ? 'no verdict' : sentence(verdict.word)}`,
       open: at === 'truth' || at === 'verdict',
       blocks: [
         {
           kind: 'table',
           head: ['What', 'State'],
           rows: [
-            ['The change', state.content.candidate ?? 'none under way'],
-            ['Which one', state.content.candidateId ?? CANDIDATE_ID],
+            ['The change', state.content.candidate ?? 'No work in progress'],
+            ['Exact version being worked on', state.content.candidateId ?? CANDIDATE_ID],
             ['Verdict', state.content.verdict === '—' ? 'NO VERDICT' : verdict.word],
-            ['Doing the work', holder ?? 'Virgil'],
-            ['Ready to go into the project', gate ? 'yes' : 'no'],
+            ['Who is working now', holder ?? 'Virgil'],
+            ['Checks and review complete — waiting for your decision', gate ? 'yes' : 'no'],
           ],
         },
         {
           kind: 'evidence',
           rows: [
             {
-              label: 'Checks',
+              label: 'Automated checks',
               value: countsFor('prover', state.outcome, state.cast.prover.work).join(' · '),
               // **Read from the verdict, not from the station.** At the owner
               // gate every station is deliberately returned to `READY`, so a
@@ -1320,18 +1336,18 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
     },
     {
       id: 'sequence',
-      title: 'What has to happen, and in what order',
-      summary: 'One step at a time, and each one needs the one before it',
+      title: 'What must happen, and in what order',
+      summary: 'One step happens at a time. Each step must finish before the next begins.',
       blocks: [
         {
           kind: 'plan',
           steps: ROLES.map((role, i) => ({
             text:
               role === 'fabricator'
-                ? 'The Fabricator builds it, and says when it thinks it is done'
+                ? 'The Fabricator writes the code and reports when it believes the work is finished.'
                 : role === 'prover'
-                  ? 'The Prover checks that exact version, and reports what happened'
-                  : 'The Keeper reviews it on its own, and reports a verdict with everything it found',
+                  ? 'The Prover runs every required check on that exact version and reports the results.'
+                  : 'The Keeper independently reviews it and reports its decision with every issue it found.',
             state: (hops[i] === null ? 'todo' : hops[i]?.reported ? 'done' : 'active') as
               | 'done'
               | 'active'
@@ -1341,7 +1357,7 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
         {
           kind: 'markdown',
           markdown:
-            'Each of them does **one step** and never the next one’s. I hold the work in between; I do not build, check, review or judge.',
+            'Each agent has one job. I coordinate the handovers and keep you informed. I do not write code, run checks, review the work or approve it. The final decision is yours.',
         },
       ],
     },
@@ -1349,31 +1365,31 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
       id: 'next',
       title: 'Your next decision',
       summary: gate
-        ? 'Whether to put it in — and only you can'
+        ? 'Add the change to your project, or leave it out. Only you can decide.'
         : state.content.verdict === 'BLOCKED'
-          ? 'Whether to let them try again'
+          ? 'Whether the agents should fix it and try again'
           : state.content.verdict === 'INSUFFICIENT_EVIDENCE'
-            ? 'Whether to run the missing check, or stop'
-            : 'None yet — the work is still going',
+            ? 'Whether to run the missing check or stop this work'
+            : 'No decision is needed yet. The work is still in progress.',
       open: at === 'next' || at === 'candidate' || gate,
       blocks: [
         {
           kind: 'decision',
           question: gate
-            ? 'The change is ready to go into the project. Do you want to put it in?'
+            ? 'The checks and independent review are complete. Do you want to add this change to your project?'
             : state.content.verdict === 'BLOCKED'
-              ? 'The change was refused. Do you want to let them try once more?'
+              ? 'The change was rejected because a problem was confirmed. Do you want the agents to fix it and try again?'
               : state.content.verdict === 'INSUFFICIENT_EVIDENCE'
-                ? 'A check could not run. Do you want it run now?'
-                : 'Nothing is waiting on you while the work is still going.',
+                ? 'A check could not run. Do you want the Prover to run it again?'
+                : 'No decision is needed while the agents are still working.',
           options: gate
-            ? ['Put it in yourself, outside this app', 'Leave it where it is']
+            ? ['Add it to the project outside this app', 'Leave it unchanged']
             : state.content.verdict === 'BLOCKED'
-              ? ['Let them try once more', 'Stop here', 'Look at the failure first']
+              ? ['Fix the problems and try again', 'Stop here', 'View the problem first']
               : state.content.verdict === 'INSUFFICIENT_EVIDENCE'
                 ? ['Run the missing check', 'Stop here']
-                : ['Read what is happening', 'Wait'],
-          note: 'Written down as a question, not offered as a button. Nothing in this app can act, and putting a change in is yours alone.',
+                : ['View the current work', 'Wait'],
+          note: 'For now, this only shows what Virgil would ask you. The app cannot add the change to your project; only you can.',
         },
       ],
     },
@@ -1388,7 +1404,7 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
           rows: SESSION_ACTIONS.map((action) => [
             action.label,
             action.would,
-            action.ownerOnly ? 'no — and yours alone in any case' : 'no',
+            action.ownerOnly ? 'No — only you can decide' : 'no',
           ]),
         },
         {
@@ -1411,13 +1427,13 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
        * had only the two branches. Holding work is not resting.
        */
       word: gate
-        ? 'Waiting on you'
+        ? 'You need to decide'
         : holder
           ? sentence(`${holder} is doing the work`)
           : state.content.candidate !== null
-            ? 'Holding the change'
-            : 'At rest',
-      means: gate ? 'Everything passed. The decision is yours.' : sentence(verdict.lead),
+            ? 'Waiting for the next step'
+            : 'No work',
+      means: gate ? 'Checks and review passed. Add it?' : sentence(verdict.lead),
       tint: gate ? STATUS.gold : verdict.status === 'red' ? STATUS.red : STATUS[verdict.status],
       mark: gate ? 'passed' : verdict.mark,
     },
@@ -1435,7 +1451,7 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
 
 /**
  * The suggested actions under Virgil's message. The owner's example is
- * *"[Show me the failure] [Authorise repair] [Keep everything paused]"*, and
+ * *"[View the failed check] [Authorise repair] [Keep everything paused]"*, and
  * §5a settles what they may be: they act on the view. So *"Show me the
  * failure"* goes to the Prover's own failure evidence, and **Authorise repair**
  * is not offered here at all — it is in the controls section, listed as
@@ -1447,7 +1463,7 @@ function virgilActions(state: DemoState): Action[] {
   if (state.content.ownerGate) {
     return [
       { id: 'to-keeper', label: 'Read the review', goes: { kind: 'agent', agent: 'keeper' } },
-      { id: 'open-next', label: 'What is waiting on me', goes: { kind: 'section', id: 'next' } },
+      { id: 'open-next', label: 'My next decision', goes: { kind: 'section', id: 'next' } },
       { id: 'open-controls', label: 'What I cannot do', goes: { kind: 'section', id: 'controls' } },
     ];
   }
@@ -1456,10 +1472,10 @@ function virgilActions(state: DemoState): Action[] {
       {
         id: 'to-prover',
         label:
-          state.content.verdict === 'BLOCKED' ? 'Show me the failure' : 'Show me the missing check',
+          state.content.verdict === 'BLOCKED' ? 'View the failed check' : 'Show the missing check',
         goes: { kind: 'agent', agent: 'prover', at: 'failure' },
       },
-      { id: 'open-next', label: 'What is waiting on me', goes: { kind: 'section', id: 'next' } },
+      { id: 'open-next', label: 'My next decision', goes: { kind: 'section', id: 'next' } },
       {
         id: 'open-truth',
         label: 'Keep everything as it is',
@@ -1531,7 +1547,7 @@ function fabricatorThread(state: DemoState): Message[] {
       from: 'virgil',
       blocks: [
         para(
-          'Here is the job. You get your own copy of the project, one branch, the files you may touch, and a time limit. Build it and tell me when it is done.',
+          'Here is the task. Use your own project copy and one branch. Change only assigned files before permission ends. Build it and report back.',
         ),
       ],
     },
@@ -1539,7 +1555,7 @@ function fabricatorThread(state: DemoState): Message[] {
       at: BEATS.handoffToFabricator + 0.5,
       from: 'fabricator',
       blocks: [
-        para('Taking it on. I will only touch the files I was given.'),
+        para('I’m starting. I will change only my assigned files.'),
         {
           kind: 'markdown',
           markdown:
@@ -1565,23 +1581,21 @@ function fabricatorThread(state: DemoState): Message[] {
       from: 'fabricator',
       blocks: [
         para(
-          'It is built, pushed, and there is a draft pull request open. This is my word for it, not proof: nothing has been checked and nobody has reviewed it.',
+          'I have finished and uploaded the code, and opened a draft request to add it. This is only my report. Nothing has been checked or reviewed yet.',
         ),
         {
           kind: 'pr',
           title: 'V11 stage 3 — the windows',
-          identity: 'draft, unmerged',
+          identity: 'Saved and submitted, not added to your project',
           state: 'DRAFT',
-          lines: ['A draft pull request is as far as a builder goes.'],
+          lines: ['The Fabricator stops at the draft request.'],
         },
       ],
     },
     {
       at: BEATS.handoffToProver,
       from: 'virgil',
-      blocks: [
-        para('Got it. I am passing it to the Prover. A builder saying it is done decides nothing.'),
-      ],
+      blocks: [para('I have it. The Prover checks it next. The Fabricator’s report is not proof.')],
     },
   ]);
 }
@@ -1616,7 +1630,7 @@ function proverThread(state: DemoState): Message[] {
         para(
           station === 'WORKING'
             ? `Running the checks. ${resolved} of ${PROVER_CHECKS} have finished. A check that has not finished is not a pass.`
-            : `Every check has finished.`,
+            : `Required checks finished.`,
         ),
         {
           kind: 'checks',
@@ -1641,7 +1655,7 @@ function proverThread(state: DemoState): Message[] {
           : report === 'INSUFFICIENT_EVIDENCE'
             ? [
                 para(
-                  'One check could not run, so I cannot tell either way. I am reporting INSUFFICIENT EVIDENCE, which is not the same as a failure.',
+                  'One required check could not run, so I cannot mark the work as passed or failed. INSUFFICIENT EVIDENCE',
                 ),
               ]
             : [
@@ -1662,7 +1676,7 @@ function keeperThread(state: DemoState): Message[] {
       from: 'virgil',
       blocks: [
         para(
-          'The checks cleared it. Review it on your own, against the project’s rules, and report a verdict with everything you find.',
+          'Checks passed. Keeper, independently review this version against the project’s rules. Report your decision and every issue.',
         ),
       ],
     },
@@ -1674,7 +1688,7 @@ function keeperThread(state: DemoState): Message[] {
         para(
           station === 'WORKING'
             ? `Reading the change and the evidence for it. ${tally.findings} things found so far, ${tally.blocking} of them serious enough to stop it.`
-            : 'I have read the change and the evidence for it.',
+            : 'I reviewed the change and its evidence.',
         ),
         // The list belongs in the turn only while the findings are arriving;
         // once the review has reported, the `Findings` section carries the
@@ -1718,7 +1732,7 @@ function virgilThread(state: DemoState): Message[] {
       from: 'virgil',
       blocks: [
         para(
-          'Good evening. Nothing is being worked on yet. When something starts I will tell you who has it, what has been proved, and what is waiting on you.',
+          'Good evening. No work has started. I’ll tell you who has it, what the checks found, what the review found and whether you need to decide.',
         ),
       ],
     },
@@ -1727,7 +1741,7 @@ function virgilThread(state: DemoState): Message[] {
       from: 'virgil',
       blocks: [
         para(
-          'I have given the work to the Fabricator: its own copy of the project, the files it may touch, and a time limit.',
+          'I’ve given the Fabricator the task, its own copy of the project, the files it can change and a deadline.',
         ),
       ],
     },
@@ -1736,7 +1750,7 @@ function virgilThread(state: DemoState): Message[] {
       from: 'virgil',
       blocks: [
         para(
-          'The Fabricator says it is done. That is its word, and I am treating it as its word: it goes to the Prover to be checked.',
+          'The Fabricator says the code is finished. That is a claim, not proof. The Prover checks it next; you do not need to act.',
         ),
       ],
     },
@@ -1745,9 +1759,7 @@ function virgilThread(state: DemoState): Message[] {
       from: 'virgil',
       until: BEATS.proverReported,
       blocks: [
-        para(
-          'The Prover is running the checks. I will not tell you a verdict before one comes back.',
-        ),
+        para('The Prover is running the checks. I’ll report back when all required checks finish.'),
       ],
     },
     ...(state.outcome === 'BLOCKED'
@@ -1774,7 +1786,7 @@ function virgilThread(state: DemoState): Message[] {
             from: 'virgil' as const,
             blocks: [
               para(
-                'A check could not run, so the Prover cannot tell. I am not refusing it — nothing was disproved. I am waiting for that check to run.',
+                'A required check could not run, so the Prover cannot mark the work as passed or failed. I am waiting for that check to be run.',
               ),
             ],
           },
@@ -1787,7 +1799,7 @@ function virgilThread(state: DemoState): Message[] {
             from: 'virgil' as const,
             blocks: [
               para(
-                'Every check passed. It can go for review — which is not the same as having been reviewed — so I am giving it to the Keeper.',
+                'All checks passed. I’m sending this exact version to the Keeper for independent review. You do not need to act yet.',
               ),
             ],
           },
@@ -1796,7 +1808,7 @@ function virgilThread(state: DemoState): Message[] {
             from: 'virgil' as const,
             blocks: [
               para(
-                'The review came back PASS WITH NON-BLOCKING FINDINGS. What it found is written down and stays open, not closed.',
+                'The Keeper returned PASS WITH NON-BLOCKING FINDINGS. Its issues remain open, but none stops the change.',
               ),
             ],
           },
@@ -1805,13 +1817,13 @@ function virgilThread(state: DemoState): Message[] {
             from: 'virgil' as const,
             blocks: [
               para(
-                'Everything passed. The change is ready to go into the project, and it is waiting on your decision.',
+                'Checks and review passed. You can now choose whether to add the change to your project.',
               ),
               {
                 kind: 'decision' as const,
-                question: 'The change is ready to go into the project.',
-                options: ['Put it in yourself, outside this app', 'Leave it where it is'],
-                note: 'Written down as a question. Nothing here can put it in, and nothing here should be able to.',
+                question: 'Ready. Add it to your project?',
+                options: ['Add it to the project outside this app', 'Leave it unchanged'],
+                note: 'This question means you must decide. To add the change, do it yourself outside the app.',
               },
             ],
           },

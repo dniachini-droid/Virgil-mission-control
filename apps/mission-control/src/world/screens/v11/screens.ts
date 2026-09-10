@@ -177,7 +177,7 @@ export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScree
           ? 1
           : clamp01(since / 6);
     rail = [
-      { label: 'files changed', value: `${tally.files} / ${files.length}` },
+      { label: 'Files changed', value: `${tally.files} / ${files.length}` },
       { label: 'commits', value: `${tally.commits} / ${commits.length}` },
       { label: 'branch', value: branch ?? 'claude/…-v11' },
       { label: 'head', value: (candidateId ?? CANDIDATE_ID).slice(0, 7) },
@@ -228,8 +228,8 @@ export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScree
         value: `${tally.blocking}`,
         colour: tally.blocking > 0 ? STATUS.red : undefined,
       },
-      { label: 'sources', value: 'SEALED · 5 LINKS' },
-      { label: 'may not', value: 'CHANGE THE FILES' },
+      { label: 'sources', value: 'EVIDENCE LOCKED · 5 LINKS' },
+      { label: 'MAY NOT', value: 'CHANGE THE FILES' },
     ];
     picture = () =>
       archive(
@@ -395,7 +395,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
     headerRail(
       ctx,
       m,
-      'Verdict',
+      'Review result',
       accent.key,
       ['REVIEW', content.verdict === '—' ? 'NOT BACK YET' : 'BACK'],
       agentMark.virgil!,
@@ -441,11 +441,11 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
             .concat([{ label: 'change', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) }])
         : [
             {
-              label: 'working on it',
+              label: 'Working now',
               value: content.active ? content.active.toUpperCase() : 'VIRGIL',
             },
             { label: 'change', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) },
-            { label: 'merge', value: 'YOURS ALONE' },
+            { label: 'merge', value: 'ONLY YOU CAN DECIDE' },
             { label: 'evidence', value: 'NONE YET' },
           ],
     );
@@ -465,7 +465,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
     headerRail(
       ctx,
       m,
-      'The run',
+      'This work',
       accent.key,
       ['3 STEPS', content.active ? content.active.toUpperCase() : 'AT REST'],
       agentMark.virgil!,
@@ -477,8 +477,8 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
       body,
       holder.toUpperCase(),
       content.active
-        ? 'IS DOING THE WORK RIGHT NOW'
-        : 'NOTHING IS BEING WORKED ON. VIRGIL HOLDS IT.',
+        ? 'THIS AGENT IS WORKING NOW'
+        : 'NO AGENT IS WORKING ON IT. VIRGIL IS WAITING TO PASS IT ON.',
       content.active ? STATUS.cyan : STATUS.gold,
       clamp01(since / ARRIVE_SECONDS),
       statusMark(content.active ? 'working' : 'standby', t),
@@ -495,9 +495,9 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
       // **One derivation, printed and drawn.** The rail used to count the
       // rows' own `done` states, which is the same answer by luck rather
       // than by construction; both now come from `hopsReturned`.
-      { label: 'steps done', value: `${hopsReturned(content)} / ${HOP_ORDER.length}` },
+      { label: 'Steps finished', value: `${hopsReturned(content)} / ${HOP_ORDER.length}` },
       { label: 'change', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) },
-      { label: 'merge', value: 'YOURS ALONE' },
+      { label: 'merge', value: 'ONLY YOU CAN DECIDE' },
       /**
        * **The Keeper's KS4-02.** This column printed `seconds` in both
        * modes. In the scripted demonstration `seconds` is the script's own
@@ -544,9 +544,9 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
   headerRail(
     ctx,
     m,
-    'The change',
+    'The work being prepared',
     accent.key,
-    ['ITS STATE', content.candidateId ?? CANDIDATE_ID.slice(0, 7)],
+    ['WHERE IT IS NOW', content.candidateId ?? CANDIDATE_ID.slice(0, 7)],
     agentMark.virgil!,
   );
   const used = heroBand(
@@ -554,7 +554,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
     m,
     body,
     state.replace(/_/g, ' '),
-    gate ? READY_TO_GO_IN : 'THE PROJECT’S OWN WORD FOR WHERE IT IS',
+    gate ? READY_TO_GO_IN : 'THE STATUS RECORDED BY THE PROJECT',
     colour,
     clamp01(since / ARRIVE_SECONDS),
     statusMark(
@@ -573,9 +573,9 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
   dossier(ctx, m, { ...rest, h: rest.h * 0.5 }, content, t);
   ownerCard(ctx, m, { ...rest, y: rest.y + rest.h * 0.52, h: rest.h * 0.48 }, gate, t);
   microRail(ctx, m, [
-    { label: 'which change', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) },
-    { label: 'history', value: 'ONE COMMIT, NEVER REWRITTEN' },
-    { label: 'merge', value: 'YOURS ALONE', colour: gate ? STATUS.amber : undefined },
+    { label: 'Which change', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) },
+    { label: 'history', value: 'THIS EXACT VERSION WILL NEVER BE CHANGED.' },
+    { label: 'merge', value: 'ONLY YOU CAN DECIDE', colour: gate ? STATUS.amber : undefined },
     {
       label: 'decisions',
       value: gate ? '1 AWAITING' : '0 AWAITING',
@@ -1030,8 +1030,10 @@ function ownerCard(
   ctx.textAlign = 'left';
   const textX = x + 4.2 * u;
   const textW = w - 5.6 * u;
-  const label = gate ? 'WAITING ON YOUR DECISION' : 'NOTHING IS WAITING ON YOU';
-  const note = gate ? 'ONLY YOU CAN PUT IT IN' : 'THE WORK CARRIES ON';
+  const label = gate ? 'WAITING FOR YOUR DECISION' : 'YOU DO NOT NEED TO DO ANYTHING YET';
+  const note = gate
+    ? 'ONLY YOU CAN ADD IT TO THE PROJECT'
+    : 'THE AGENTS ARE CONTINUING. YOU DO NOT NEED TO ACT.';
   // Two lines where the card is tall enough for two, one where it is not.
   const two = cardH >= m.type.data * 1.2 + m.type.micro * 1.5;
   ctx.fillStyle = gate ? STATUS.amber : dim(0.5);

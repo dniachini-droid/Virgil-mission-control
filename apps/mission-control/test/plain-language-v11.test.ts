@@ -377,7 +377,7 @@ describe('the shared evidence lines are reworded and never rewritten', () => {
   ];
 
   it('says the two words plainly', () => {
-    expect(plainly('TETHERS 88 · 88 INTACT')).toBe('SOURCE LINKS 88 · 88 INTACT');
+    expect(plainly('TETHERS 88 · 88 INTACT')).toBe('LINKS TO THE SOURCES 88 · 88 INTACT');
     expect(plainly('EVERY DETERMINISTIC CHECK WAS GREEN')).toBe('EVERY CHECK WAS GREEN');
   });
 
@@ -517,8 +517,10 @@ describe('the distinctions survive the plain words', () => {
     expect(gate.content.ownerGate).toBe(true);
     const doc = windowDoc(gate, { agent: 'virgil' });
     const said = [doc.conclusion.headline, doc.conclusion.meaning, doc.conclusion.next].join(' ');
-    expect(said).toMatch(/ready to go into the project/i);
+    expect(said).toMatch(/add (the|this) change to your project/i);
     expect(said).toMatch(/your|you/i);
+    // Ready to go in is not gone in: no sentence at this beat may say it has.
+    expect(said).not.toMatch(/\b(merged|added it|gone in|put in)\b/i);
   });
 
   it('checked is not reviewed: the window says review is a separate step', () => {
@@ -541,10 +543,17 @@ describe('the distinctions survive the plain words', () => {
     const blocked = windowDoc(demoAt(31, 1, true), { agent: 'virgil' });
     const missing = windowDoc(demoAt(31, 2, true), { agent: 'virgil' });
     const said = (doc: WindowDoc) => `${doc.conclusion.headline} ${doc.conclusion.meaning}`;
-    expect(said(blocked)).toMatch(/failed/i);
+    expect(said(blocked)).toMatch(/failed|found a problem|confirmed a problem/i);
     expect(said(missing)).toMatch(/could not run|couldn’t run|did not run/i);
     // The one that must never blur: a check that could not run is not a
-    // failure, and no sentence at that beat may call it one.
-    expect(said(missing)).not.toMatch(/\bfailed\b/i);
+    // failure, and no sentence at that beat may call it one — in either
+    // vocabulary, the old word or the owner's plainer one.
+    // The word `failed` survives in exactly one construction, the owner's own
+    // denial — *"could not be marked as passed or failed"* — which says the
+    // opposite of a failure. Removing that clause, the word may not appear at
+    // all, so no sentence can claim a failure by hiding behind the exception.
+    const missingSaid = said(missing).replace(/could not be marked as passed or failed/gi, '');
+    expect(missingSaid).not.toMatch(/\bfailed\b/i);
+    expect(said(missing)).not.toMatch(/found a problem|confirmed a problem/i);
   });
 });

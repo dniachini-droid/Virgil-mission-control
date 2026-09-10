@@ -453,19 +453,19 @@ export function anchors(orientation: ClusterOrientation = 'portrait'): Anchor[] 
     },
     slabAnchor(
       'board-roles',
-      'The run ledger',
+      'What has happened',
       v11SlabAt('roles', orientation).position,
       'sequence',
     ),
     slabAnchor(
       'board-verdict',
-      'The verdict board',
+      'The Keeper’s decision',
       v11SlabAt('verdict', orientation).position,
       'truth',
     ),
     slabAnchor(
       'board-candidate',
-      'The candidate board',
+      'The change being worked on',
       v11SlabAt('candidate', orientation).position,
       'next',
     ),

@@ -144,11 +144,12 @@ describe('the status vocabulary', () => {
     // **The property, not the word.** This asserted that the lead contained
     // `CLAIM`, which held the epistemics to one piece of the repository's own
     // vocabulary; the plain-language pass says the same thing in English —
-    // *"THE BUILDER SAYS SO. NOTHING IS CHECKED YET."* What matters is that
+    // *"THE FABRICATOR SAYS THE CODE IS FINISHED. THE CHECKS HAVE NOT
+    // CONFIRMED THAT YET."* What matters is that
     // the lead names **who said it** and denies that anything has been
     // checked, and that it never reads as a result.
-    expect(primary.lead).toMatch(/BUILDER SAYS|CLAIM/);
-    expect(primary.lead).toMatch(/NOTHING IS CHECKED|NOT EVIDENCE/);
+    expect(primary.lead).toMatch(/BUILDER SAYS|FABRICATOR SAYS|CLAIM/);
+    expect(primary.lead).toMatch(/NOTHING IS CHECKED|NOT EVIDENCE|HAVE NOT CONFIRMED/);
     expect(primary.lead).not.toMatch(/\bPASSED\b|\bVERIFIED\b|\bPROVED\b/);
   });
 

@@ -270,7 +270,10 @@ describe('there is no session, and nothing pretends there is', () => {
     const outcome = NO_SESSION.send('anything at all');
     expect(outcome.sent).toBe(false);
     expect(outcome.kept).toBe(true);
-    expect(outcome.note).toMatch(/nothing running behind this build/);
+    expect(outcome.note).toMatch(/is not sent/i);
+    expect(outcome.note).toMatch(
+      /no agents are actually running|nothing running behind this build/i,
+    );
   });
 
   it('never performs a control, and says the decision is the owner’s', () => {
@@ -368,7 +371,7 @@ describe('the functional interface text is DOM text and never enters the canvas'
     // read out of this repository's committed record. That is provenance, not
     // demo signage, and the instruction does not touch it.
     for (const doc of replayDocsAt(0, 20)) {
-      expect(doc.honesty?.title, doc.key).toBe('A recorded run, replayed');
+      expect(doc.honesty?.title, doc.key).toBe('A saved example being replayed');
     }
   });
 });

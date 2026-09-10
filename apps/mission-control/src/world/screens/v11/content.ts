@@ -47,14 +47,14 @@ const VERB: Record<Role, string> = {
 const DOING: Record<Role, string> = {
   fabricator: 'WRITING THE CODE, ONLY IN THE FILES IT WAS GIVEN',
   prover: 'RUNNING EVERY CHECK ON THIS EXACT VERSION',
-  keeper: 'READING THE CHANGE AND THE EVIDENCE FOR IT',
+  keeper: 'REVIEWING THE CHANGE AND THE EVIDENCE',
 };
 
 export function primaryFor(role: Role, state: StationState, report: Report): Primary {
   if (state === 'RECEIVING')
     return {
       word: 'INBOUND',
-      lead: 'THE WORK IS BEING PASSED TO IT',
+      lead: 'WAITING FOR THE PREVIOUS AGENT TO FINISH',
       mark: 'receiving',
       status: 'cyan',
     };
@@ -69,7 +69,7 @@ export function primaryFor(role: Role, state: StationState, report: Report): Pri
         // the verdicts.
         return {
           word: 'REPORTED COMPLETE',
-          lead: 'THE BUILDER SAYS SO. NOTHING IS CHECKED YET.',
+          lead: 'THE FABRICATOR SAYS THE CODE IS FINISHED. THE CHECKS HAVE NOT CONFIRMED THAT YET.',
           mark: 'reported',
           status: 'cyan',
         };
@@ -89,21 +89,21 @@ export function primaryFor(role: Role, state: StationState, report: Report): Pri
       case 'PASS_WITH_NON_BLOCKING_FINDINGS':
         return {
           word: 'PASS WITH NON-BLOCKING FINDINGS',
-          lead: 'THE ISSUES FOUND ARE WRITTEN DOWN AND KEPT',
+          lead: 'THE REVIEW FOUND MINOR ISSUES. THEY ARE RECORDED AND KEPT.',
           mark: 'passed',
           status: 'green',
         };
       case 'BLOCKED':
         return {
           word: 'BLOCKED',
-          lead: 'A CHECK FAILED. THE CHANGE IS REFUSED.',
+          lead: 'A REQUIRED CHECK FOUND A PROBLEM. THE WORK HAS STOPPED.',
           mark: 'blocked',
           status: 'red',
         };
       case 'INSUFFICIENT_EVIDENCE':
         return {
           word: 'INSUFFICIENT EVIDENCE',
-          lead: 'A CHECK COULD NOT RUN. THAT IS NOT A FAILURE.',
+          lead: 'A CHECK COULDN’T RUN. THIS DOES NOT MEAN THE WORK FAILED.',
           mark: 'insufficient',
           status: 'amber',
         };
@@ -113,7 +113,7 @@ export function primaryFor(role: Role, state: StationState, report: Report): Pri
   }
   return {
     word: 'STANDBY',
-    lead: 'ON, AND WAITING. NOTHING TO DO YET.',
+    lead: 'READY FOR WORK.',
     mark: 'standby',
     status: 'cyan',
   };
@@ -136,7 +136,7 @@ export function primaryFor(role: Role, state: StationState, report: Report): Pri
  * **vocabulary** is translated, on V11's own side of the line:
  *
  *  - `TETHERS` is the knowledge graph's word for a claim's link back to the
- *    source it came from. `SOURCE LINKS` is that, in English, and the count is
+ *    source it came from. `LINKS TO THE SOURCES` is that, in English, and the count is
  *    untouched.
  *  - `DETERMINISTIC` in *"every deterministic check was green"* adds nothing a
  *    reader can use — the sentence is about checks passing — so it goes, and
@@ -146,7 +146,7 @@ export function primaryFor(role: Role, state: StationState, report: Report): Pri
  * is the one thing this function may never grow into.
  */
 const PLAINER: readonly (readonly [RegExp, string])[] = [
-  [/\bTETHERS\b/g, 'SOURCE LINKS'],
+  [/\bTETHERS\b/g, 'LINKS TO THE SOURCES'],
   [/\bDETERMINISTIC\s+/g, ''],
 ];
 
@@ -183,7 +183,7 @@ export function accentOf(who: string): { key: string; second: string } {
  * merged** is not lost — it is carried by *ready to go into the project* and
  * by *waiting on you*, which is the same distinction in words a person uses.
  */
-export const READY_TO_GO_IN = 'READY TO GO INTO THE PROJECT. WAITING ON YOU.';
+export const READY_TO_GO_IN = 'READY. YOU CAN NOW CHOOSE WHETHER TO ADD IT TO YOUR PROJECT.';
 
 /**
  * The verdict on Virgil's centre slab. **It takes who is working on the
@@ -218,21 +218,23 @@ export function verdictPrimary(verdict: string, active: string | null, eligible 
             // width it has, and "VERIFICATION PASSED. REVIEW HAS NOT …" can be
             // read as "review has not passed". This one elides to "THE CHECKS
             // PASSED. NOBODY HAS …", which cannot.
-            'THE CHECKS PASSED. NOBODY HAS REVIEWED IT YET.',
+            'THE CHECKS PASSED. THE KEEPER HAS NOT REVIEWED IT YET.',
         mark: 'passed',
         status: 'green',
       };
     case 'PASS_WITH_NON_BLOCKING_FINDINGS':
       return {
         word: 'PASS WITH NON-BLOCKING FINDINGS',
-        lead: eligible ? READY_TO_GO_IN : 'THE ISSUES FOUND ARE WRITTEN DOWN AND KEPT',
+        lead: eligible
+          ? READY_TO_GO_IN
+          : 'THE REVIEW FOUND MINOR ISSUES. THEY ARE RECORDED AND KEPT.',
         mark: 'passed',
         status: 'green',
       };
     case 'BLOCKED':
       return {
         word: 'BLOCKED',
-        lead: 'VIRGIL HAS STOPPED IT. IT GOES NO FURTHER.',
+        lead: 'VIRGIL HAS STOPPED THE WORK BECAUSE A PROBLEM WAS CONFIRMED.',
         mark: 'blocked',
         status: 'red',
       };
@@ -240,7 +242,7 @@ export function verdictPrimary(verdict: string, active: string | null, eligible 
     case 'INSUFFICIENT_EVIDENCE':
       return {
         word: 'INSUFFICIENT EVIDENCE',
-        lead: 'VIRGIL IS WAITING FOR THE MISSING CHECK.',
+        lead: 'VIRGIL IS WAITING FOR A CHECK THAT DID NOT RUN.',
         mark: 'insufficient',
         status: 'amber',
       };
@@ -282,7 +284,7 @@ export function verdictPrimary(verdict: string, active: string | null, eligible 
         word: 'NO VERDICT',
         lead: active
           ? `NOTHING HAS COME BACK YET. ${active.toUpperCase()} IS WORKING ON IT.`
-          : 'NOTHING HAS COME BACK ON THIS CHANGE YET.',
+          : 'THE KEEPER HAS NOT FINISHED ITS REVIEW YET.',
         mark: 'working',
         status: 'cyan',
       };

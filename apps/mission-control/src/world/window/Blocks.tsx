@@ -81,7 +81,7 @@ function Markdown({ markdown }: { markdown: string }) {
 }
 
 const STANDING_WORD: Record<Standing, string> = {
-  verified: 'Verified',
+  verified: 'Confirmed by a check',
   claim: 'Claim',
   unresolved: 'Not known',
 };

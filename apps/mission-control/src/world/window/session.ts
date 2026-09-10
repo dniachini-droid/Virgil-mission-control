@@ -44,26 +44,27 @@ export const SESSION_ACTIONS: readonly SessionActionSpec[] = [
   {
     id: 'approve',
     label: 'Approve',
-    would: 'record that you approved a change. It never puts it into the project.',
+    would:
+      'Record that you accept the change. You will still need to add it to the project yourself.',
     ownerOnly: true,
   },
   {
     id: 'reject',
     label: 'Reject',
-    would: 'send a change back with your reason attached.',
+    would: 'Send the change back and explain what needs to change.',
     ownerOnly: true,
   },
-  { id: 'pause', label: 'Pause', would: 'hold every agent where it stands.', ownerOnly: false },
+  { id: 'pause', label: 'Pause', would: 'Pause every agent where it is.', ownerOnly: false },
   {
     id: 'stop',
     label: 'Stop',
-    would: 'end the run and leave the change exactly as it is.',
+    would: 'Stop the work and leave the change as it is.',
     ownerOnly: false,
   },
   {
     id: 'resume',
     label: 'Resume',
-    would: 'let a paused run carry on from the step it stopped at.',
+    would: 'Continue paused work from where it stopped.',
     ownerOnly: false,
   },
 ];
@@ -98,7 +99,7 @@ export interface SessionTransport {
 }
 
 export const NO_SESSION_NOTE =
-  'Kept on this page. Nothing is sent — there is nothing running behind this build.';
+  'Your message stays on this page. It is not sent because no agents are actually running.';
 
 export const NO_SESSION: SessionTransport = {
   connected: false,

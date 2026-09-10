@@ -73,7 +73,7 @@ export const LEVEL_PLANS: Record<Level, LevelPlan> = {
   full: {
     id: 'full',
     label: 'Full',
-    note: 'The scene as authored.',
+    note: 'Full visual quality.',
     tierSteps: 0,
     redrawScale: 1,
     post: true,
@@ -85,7 +85,7 @@ export const LEVEL_PLANS: Record<Level, LevelPlan> = {
   reduced: {
     id: 'reduced',
     label: 'Reduced',
-    note: 'Fewer stars, no post-processing, no shadows, the screens redrawing half as often. Nothing is drawn smaller or softer.',
+    note: 'Fewer stars, no visual effects or shadows, and screens update half as often. Nothing is smaller or less sharp.',
     tierSteps: 1,
     redrawScale: 0.5,
     post: false,
@@ -97,7 +97,7 @@ export const LEVEL_PLANS: Record<Level, LevelPlan> = {
   minimal: {
     id: 'minimal',
     label: 'Minimal',
-    note: 'Everything Reduced does, and the world is drawn at a lower pixel ratio — never below one device pixel per CSS pixel.',
+    note: 'Uses the Reduced settings and lowers the detail in the 3D room. Text and controls stay clear.',
     tierSteps: 2,
     redrawScale: 0.25,
     post: false,
@@ -247,7 +247,7 @@ export function newGovernor(level: Level = 'full'): GovernorState {
     overRuns: 0,
     underMs: 0,
     lastMeanMs: 0,
-    reason: 'Not yet measured.',
+    reason: 'Not measured yet.',
   };
 }
 

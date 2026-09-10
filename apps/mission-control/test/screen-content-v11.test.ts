@@ -420,7 +420,7 @@ describe('the ready-to-go-in sentence appears only in the state it names', () =>
     // that the sentence cannot be read the other way round.
     const checked = verdictPrimary('PASS', null, false).lead;
     expect(checked).toMatch(/^THE CHECKS PASSED\./);
-    expect(checked).toMatch(/NOBODY HAS REVIEWED IT YET/);
+    expect(checked).toMatch(/NOBODY HAS REVIEWED IT YET|HAS NOT REVIEWED IT YET/);
     expect(verdictPrimary('PASS', null, true).lead).toBe(READY_TO_GO_IN);
   });
 });
