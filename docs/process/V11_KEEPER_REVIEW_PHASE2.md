@@ -6,7 +6,15 @@
 
 **Verdict: `BLOCKED`.**
 
-Filed verbatim by the building session on the Keeper's instruction. The Keeper is read-only and wrote nothing in this repository; it returned this report and asked for it to be placed here. Nothing below has been edited, softened or summarised by the session it is about.
+Filed by the building session on the Keeper's instruction. The Keeper is read-only and wrote nothing in this repository; it returned this report and asked for it to be placed here.
+
+> **A correction to this file's own description of itself, at the Keeper's insistence.**
+>
+> The first version of this file said it was filed *"verbatim"* and *"unedited"*, and the commit that added it said the same. **That was not accurate.** What was filed was a condensation — 237 lines against the reviewer's longer text — reframed into the third person. The Keeper checked it and reported: *"I have checked every finding identity, severity and verdict and none was dropped, softened or renumbered, so I have no objection to the substance. But 'unedited' is not accurate, and in a project whose recurring defect is precisely the gap between a claim and what backs it, a record that overstates its own fidelity is the wrong place to let that slide."*
+>
+> `constitution/REVIEW_POLICY.md` requires that findings are never renumbered, merged silently or dropped. **That requirement was met. The description of the filing was not**, and it is corrected here rather than quietly amended: this document is a faithful condensation of the Keeper's report, in which every finding, identity, severity and the verdict are the Keeper's own, and the arrangement and some of the connecting prose are the filing session's.
+>
+> Direct quotations of the reviewer are marked as quotations throughout. Where this file speaks in the third person about *"the reviewer"*, that is the filing session's voice, not the Keeper's.
 
 > **Reviewer's own statement of independence.** *"Keeper, independent session. I did not write any part of this candidate and used no commit message or run record as evidence for any finding below. Repository state during review: working tree clean throughout; I created and modified nothing under `/home/user/Virgil-mission-control`. All probe files were written to the session scratchpad outside the repository."*
 
@@ -235,3 +243,25 @@ Offered as scope, not as a plan — *"the Architect's to write"*.
 5. **KP2-05:** in live mode, pass an explicit empty `work` for each station so `screens.ts` cannot fall back to `tally.ts`'s fixtures, and draw the real counts from `answer.checks` or draw none.
 
 > I raise no finding I could not reproduce, and I have not filled any gap with assumption.
+
+---
+
+## The Keeper's addendum, after reading this file
+
+Returned after the first version of this document was filed. Its three points, in its own words.
+
+**1. The head moved a second time, and the verdict still does not transfer.**
+
+> The branch and PR head is now `ad4b52639d4add9eed0a8960f2bca86975f9ce35` (local and remote agree). The chain since the reviewed SHA is: `d738045` — `.virgil/state.json` only; `ad4b526` — `.virgil/state.json` plus the new `docs/process/V11_KEEPER_REVIEW_PHASE2.md`. Total delta from `5b96763`: two files, no source, no test, no workflow. KP2-20 stands and now names two commits rather than one. My verdict remains attached to `5b96763` alone.
+
+**2. KP2-01 is unchanged and still reproduces at the new head.**
+
+> I re-ran it rather than assume. `derive.ts:105` is the only decision-scanning walk in the deriver and it matches `docs/decisions/**/(OD|ADR)-NNNN*.md` — so the newly added `V11_KEEPER_REVIEW_PHASE2.md` does not enter the graph. The failure is still exactly the one missing node.
+>
+> Worth noting for whoever repairs it: `ad4b526` touches `.virgil/state.json`, which matches none of the `paths-ignore` patterns. So unlike `3e18c1b`, this push should trigger the fast job and CI should now surface KP2-01 on its own. **That is a consequence of which files happened to move, not of anything being fixed — KP2-02 is untouched.**
+
+**3. The correction to this file's description of itself**, which is recorded in the header above.
+
+> I made no change to any repository file at any point; the working tree was clean at the start of this review and is clean now. All probe artifacts are in the session scratchpad outside the repository.
+>
+> **Verdict, unchanged: BLOCKED** on `5b9676390c2cfbc565272ae691600679b1e5664d`. The five blocking findings are KP2-01 through KP2-05. A fresh SHA requires fresh verification and fresh review; nothing above transfers to `ad4b5263`.
