@@ -103,7 +103,7 @@ export const NO_SESSION_NOTE =
 
 export const NO_SESSION: SessionTransport = {
   connected: false,
-  absence: 'Nothing is running behind this build. Nothing here can change the project.',
+  absence: 'No agents are running. Nothing here can change your project.',
   history: () => [],
   send: (text: string) => ({
     sent: false,

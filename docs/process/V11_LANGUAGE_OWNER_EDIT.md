@@ -34,38 +34,39 @@ formal name in place. That is what the marker asked for.
 
 ## What was NOT applied, and why
 
-### 1. Five sentences that put "demo" back into the window
+### 1. Five sentences that put "demo" back into the window — resolved by the owner
 
-**Held at their existing wording. This is an owner decision, not a session
-decision, and it is being reported rather than resolved** (`CLAUDE.md`,
-*Authority order*: "A session that finds a contradiction reports it; it does not
-resolve it silently").
+Five of the returned sentences used "demo" or "demonstration" as the plain way
+of saying that nothing is running behind the build. That reverses the owner's
+instruction of 9 September — *"Remove all signs of Demo from the entire system
+except one small spot"*, and *"No bands. No demo signage on the screens."* — which
+is enforced by a test (`window-content-v11.test.ts`, *"says nothing anywhere
+about being a demonstration"*) that walks every word of every window document at
+every beat of every loop.
 
-On 9 September the owner instructed: *"Remove all signs of Demo from the entire
-system except one small spot"*, and again: *"Remove the bands. That's it. I don't
-want any other stupid changes as a result. No bands. No demo signage on the
-screens."* That instruction is enforced by a test — `window-content-v11.test.ts`,
-*"says nothing anywhere about being a demonstration"* — which walks every word of
-every window document at every beat of every loop and fails if the vocabulary
-reappears.
+The five were held rather than applied, and the contradiction was reported to the
+owner rather than resolved by the session (`CLAUDE.md`, *Authority order*). He
+answered on 10 September:
 
-Five of the returned sentences use "demo" or "demonstration" as the plain way of
-saying that nothing is running behind the build:
+> *"Demo won't mean anything once we run so I don't care if they are there or
+> not. Leave them out since they will be removed eventually."*
 
-| L | The returned wording |
+So his rewrites are applied with **only the demo clause taken out**, and nothing
+else about them touched. The standing instruction holds, the test is untouched,
+and it still passes:
+
+| L | As applied |
 |---|---|
-| 131 | This is a demonstration. Nothing here can change your project. |
-| 178 | …This box shows where the screenshot would appear; **the demo** does not load one. |
-| 190 | …**This demo** does not read or change any files. |
-| 395 | …They do not work **in this demo** because no agents are running. |
-| 420 | …**This demo** cannot restart the work. |
+| 131 | No agents are running. Nothing here can change your project. |
+| 178 | A preview of the app at iPhone size (390 × 844). This box shows where the screenshot would appear; no image file is loaded. |
+| 190 | An example of the report the Fabricator sends with its work. This app does not read or change any files. |
+| 395 | These controls show what the finished app will include. They do not work because no agents are running. |
+| 420 | Only you can decide whether they try again. This app cannot restart the work. |
 
-They are accurate. They may well be clearer than what is there now. But applying
-them means reversing a standing instruction and loosening the test that enforces
-it, and neither is a session's to do quietly. **The five are held at their
-current text until the owner says which way it goes.** A sixth (L6, "Demo
-information — what it means") is an aria-label in the mobile room, outside the
-scope of both the instruction and the test, and was applied.
+Four of the five are his own words with a clause removed or one noun swapped for
+`app`. The fifth, L178, needed four words that are not his — *"no image file is
+loaded"* — because the clause being removed carried a guarantee worth keeping,
+and the old sentence it replaces made the same one.
 
 ### 2. Two screen-reader suffixes (L104, L105)
 
@@ -132,9 +133,10 @@ fails the test; it cannot hide behind the exception.
 - `pnpm run test` — **1,739 tests pass** across six packages, 1,504 of them in
   `mission-control`.
 
-## One thing the owner may want to look at
+## The controls table's "Available" column
 
-In the controls table, the "Available" column now reads **"No — only you can
-decide"** for the owner-only controls, which is the returned wording, and plain
-lowercase **"no"** for the rest, which was too short to be extracted. They sit
-in the same column. Changing it is a one-word decision and it is his.
+The returned wording gave the owner-only rows **"No — only you can decide"** and
+left the others at plain lowercase **"no"**, which had been too short to extract.
+Two cases in one column. The owner put the choice to the session — *"Yes fix the
+'No' to either no or no this is for you to decide"* — and it is now **"No"** in
+both, matching the capital his own wording set.

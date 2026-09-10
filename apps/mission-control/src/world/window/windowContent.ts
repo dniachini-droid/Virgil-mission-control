@@ -464,7 +464,7 @@ function fabricatorDoc(state: DemoState): WindowDoc {
         {
           kind: 'image',
           label: 'p390-window-fabricator.png',
-          note: 'A picture the build takes of itself at 390 x 844. The frame is laid out here; no image file is built into this app, and nothing is fetched to fill it.',
+          note: 'A preview of the app at iPhone size (390 × 844). This box shows where the screenshot would appear; no image file is loaded.',
           tint: ACCENT.fabricator?.key ?? STATUS.cyan,
         },
       ],
@@ -520,7 +520,7 @@ function fabricatorDoc(state: DemoState): WindowDoc {
         {
           kind: 'attachment',
           name: 'candidate-artifact.json',
-          note: 'The record a builder passes on. Shown as an example; this app reads and writes no files.',
+          note: 'An example of the report the Fabricator sends with its work. This app does not read or change any files.',
         },
       ],
     },
@@ -1404,12 +1404,12 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
           rows: SESSION_ACTIONS.map((action) => [
             action.label,
             action.would,
-            action.ownerOnly ? 'No — only you can decide' : 'no',
+            action.ownerOnly ? 'No — only you can decide' : 'No',
           ]),
         },
         {
           kind: 'note',
-          text: 'They are listed so the shape of the app is settled. None of them works, because there is nothing running behind this build.',
+          text: 'These controls show what the finished app will include. They do not work because no agents are running.',
         },
       ],
     },
@@ -1773,7 +1773,7 @@ function virgilThread(state: DemoState): Message[] {
               ),
               {
                 kind: 'note' as const,
-                text: 'I cannot decide to try again. That is yours alone, and nothing here can do it.',
+                text: 'Only you can decide whether they try again. This app cannot restart the work.',
               },
             ],
           },
