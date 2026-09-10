@@ -534,18 +534,16 @@ export function heroBlock(
   // and is set at a size that fits whatever that is.
   const leadTop = top + size * (0.56 + 1.02 * (parts.length - 1)) + size * 0.5 + 1.1 * u;
   const room = r.y + r.h - leadTop;
-  const pitch = m.type.lead * 1.34;
-  const allowed = Math.max(0, Math.min(3, Math.floor(room / pitch)));
-  if (allowed > 0) {
+  const set = fitLead(ctx, m.type.lead, lead, r.w, room, 3);
+  if (set.lines.length > 0) {
     ctx.save();
     ctx.globalAlpha = k;
     ctx.fillStyle = dim(0.66);
     ctx.textBaseline = 'top';
     ctx.textAlign = 'left';
-    const lines = wrapMono(ctx, m.type.lead, lead, r.w, allowed);
-    lines.forEach((line, i) => {
-      ctx.font = mono(m.type.lead);
-      ctx.fillText(line, r.x, leadTop + i * pitch);
+    set.lines.forEach((line, i) => {
+      ctx.font = mono(set.px);
+      ctx.fillText(line, r.x, leadTop + i * set.pitch);
     });
     ctx.restore();
   }
@@ -704,20 +702,21 @@ export function heroBand(
   ctx.restore();
   spaced(ctx, '0em');
   const wordBottom = r.y + 0.4 * u + size * (1.24 + 1.02 * (parts.length - 1));
-  // The conclusion takes the lines the budget has left, at most two.
-  const allowed = Math.max(0, Math.min(2, Math.floor((r.y + budget - wordBottom) / leadPitch)));
-  const lines = allowed > 0 ? wrapMono(ctx, m.type.lead, lead, width, allowed) : [];
+  // The conclusion takes the lines the budget has left, at most two at the
+  // ordinary size and up to three when it has to step down to stay whole.
+  const set = fitLead(ctx, m.type.lead, lead, width, r.y + budget - wordBottom, 2);
+  const lines = set.lines;
   ctx.save();
   ctx.globalAlpha = k;
   ctx.fillStyle = dim(0.66);
   ctx.textBaseline = 'top';
   ctx.textAlign = 'left';
   lines.forEach((line, i) => {
-    ctx.font = mono(m.type.lead);
-    ctx.fillText(line, left, wordBottom + 0.3 * u + i * leadPitch);
+    ctx.font = mono(set.px);
+    ctx.fillText(line, left, wordBottom + 0.3 * u + i * set.pitch);
   });
   ctx.restore();
-  const used = Math.max(cy + radius, wordBottom + 0.3 * u + lines.length * leadPitch);
+  const used = Math.max(cy + radius, wordBottom + 0.3 * u + lines.length * set.pitch);
   return used - r.y + 1.2 * u;
 }
 
@@ -754,6 +753,48 @@ export function bodyRect(m: Metrics): Rect {
     w: w - 2 * pad - 2.8 * u,
     h: h - band - foot - rail - 1.2 * u - top,
   };
+}
+
+/**
+ * **The conclusion, whole, in the space there is.**
+ *
+ * `wrapMono` elides what will not fit, and an elision is the honest thing to do
+ * once a sentence has run out of room. The owner's language pass made these
+ * sentences longer — plainer English costs characters — and three of them came
+ * back reading *"READY. YOU CAN NOW CHOOSE WHETHER TO …"*, which is exactly the
+ * cut that helper exists to admit to. His instruction on seeing them was that
+ * more lines are fine.
+ *
+ * So the size is chosen before the elision is: the text is set at the ordinary
+ * lead size and, only if that has to cut it, at successively smaller ones down
+ * to a floor of 78% — each step buying another line in the same vertical space.
+ * A sentence still too long at the floor is elided as before, because a screen
+ * that cannot say the whole thing must not pretend it did.
+ *
+ * `room` is the vertical space available; `atSize` is the most lines to use
+ * before stepping down; the step-down may use one more than that.
+ */
+export function fitLead(
+  ctx: Ctx,
+  px: number,
+  text: string,
+  width: number,
+  room: number,
+  atSize: number,
+): { lines: string[]; px: number; pitch: number } {
+  const floor = px * 0.78;
+  let size = px;
+  let best: { lines: string[]; px: number; pitch: number } | null = null;
+  for (;;) {
+    const pitch = size * 1.34;
+    const cap = size === px ? atSize : atSize + 1;
+    const allowed = Math.max(0, Math.min(cap, Math.floor(room / pitch)));
+    const lines = allowed > 0 ? wrapMono(ctx, size, text, width, allowed) : [];
+    if (!best) best = { lines, px: size, pitch };
+    if (!lines.some((line) => line.endsWith('…'))) return { lines, px: size, pitch };
+    if (size <= floor) return { lines, px: size, pitch };
+    size = Math.max(floor, size - 0.5);
+  }
 }
 
 /** Greedy word wrap on the mono face, at most `max` lines, the last elided. */
