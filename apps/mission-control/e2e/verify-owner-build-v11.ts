@@ -790,7 +790,7 @@ for (const viewport of VIEWPORTS) {
         `${viewport.name} ${label}: ${measured.enabledControls} session control(s) are enabled`,
       );
     }
-    if (!/Nothing is sent/.test(measured.note)) {
+    if (!/is not sent/i.test(measured.note)) {
       failures.push(`${viewport.name} ${label}: the composer's note reads "${measured.note}"`);
     }
     if (measured.demoWords.length > 0) {
@@ -944,7 +944,7 @@ for (const viewport of VIEWPORTS) {
           `${viewport.name}: keeping what was typed added ${kept.turns - turnsBefore} turns, expected 1`,
         );
       }
-      if (/sent|sending|delivered/i.test(kept.note.replace(/Nothing is sent/gi, ''))) {
+      if (/sent|sending|delivered/i.test(kept.note.replace(/it is not sent/gi, ''))) {
         failures.push(`${viewport.name}: the composer claims something was sent — "${kept.note}"`);
       }
       notes.push(
@@ -1067,35 +1067,43 @@ for (const viewport of VIEWPORTS) {
 // ------------------------------------------ reduced motion, at the same viewport
 //
 // The rule the brief asks for and KR-55 is the history of: reduced motion is
-// honoured by **arriving**, never by hiding. With no transition to wait for
-// there is nothing to wait for, so the record opens in the same render as the
-// camera move rather than after a pause that would mean nothing.
+// honoured by **arriving**, never by hiding. Nothing waits for a transition in
+// either setting, so reduced motion has nothing to shorten and must behave
+// exactly as the default does.
 //
-// **Measured as a gap, not as a clock.** A first attempt asserted that the
-// record opens within 350 ms of the press and failed while the product was
-// correct: in this container the first `evaluate` after a synthetic press
-// returned at 2,518 ms, because the software renderer takes that long to run
-// the handler and draw — V10's run record already measured 845 ms from press
-// to handler here. Timing by the wall clock would make the assertion a
-// property of SwiftShader. So what is measured is the interval between the
-// camera moving and the record appearing, which the renderer's latency is
-// common to and therefore cancels out of.
+// **Not measured by a clock, and since the owner's decision of 10 September not
+// measured by a gap either.** A first attempt asserted that the record opens
+// within 350 ms of the press and failed while the product was correct: in this
+// container the first `evaluate` after a synthetic press returned at 2,518 ms,
+// because the software renderer takes that long to run the handler and draw —
+// V10's run record already measured 845 ms from press to handler here. Timing
+// by the wall clock would make the assertion a property of SwiftShader. What
+// replaced it was the interval between the camera moving and the record
+// appearing, which cancels that latency out — and which the two-step rule
+// dissolves, because those two events are now in two separate presses. So what
+// is asserted is the rule: travel on the first tap, open on the second, the
+// same in both settings. The millisecond figures are recorded as notes and are
+// this renderer's, never the product's.
 if (RUN_TAIL) {
   mark('the motion and performance tail');
   /**
-   * **The budget is frames; the measurement is still milliseconds.** The
-   * Keeper's K11-04 caught this loop too: its 12,000 ms budget expired in his
+   * **The budget is frames, and what it waits for is a state, not a deadline.**
+   * The Keeper's K11-04 caught this loop: a 12,000 ms budget expired in his
    * slower container and produced *"reduced-motion: the record never opened"*
-   * and a gap of `-1 ms` about a record that opens immediately. What it
-   * measures — the interval between the camera moving and the record appearing
-   * — stays a wall-clock interval, because that is the quantity and the
-   * renderer's latency cancels out of it. What it *waits* is now a count of
-   * rendered frames, because the DOM cannot change between two of them, so a
-   * slow machine buys more time instead of a false failure. Sampling once a
-   * frame also replaces the 40 ms poll: a finer poll than the frame it observes
-   * measures nothing extra.
+   * about a record that opens immediately. What it waits is a count of rendered
+   * frames, because the DOM cannot change between two of them, so a slow machine
+   * buys more time instead of a false failure. Sampling once a frame also
+   * replaces the 40 ms poll: a finer poll than the frame it observes measures
+   * nothing extra. The millisecond figures it returns are kept for the notes and
+   * are not asserted on.
    */
-  const tapAndTime = async (x: number, y: number, budgetFrames: number) => {
+  const sampleWorld = () =>
+    page.evaluate(() => ({
+      focus: (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus ?? '(none)',
+      panels: document.querySelectorAll('.v11w-root').length,
+    }));
+
+  const tapAndWatch = async (x: number, y: number, budgetFrames: number) => {
     const startedAt = Date.now();
     await page.mouse.move(x, y);
     await page.mouse.down();
@@ -1103,32 +1111,66 @@ if (RUN_TAIL) {
     let movedAt = -1;
     let openedAt = -1;
     for (let frame = 0; frame <= budgetFrames; frame += 1) {
-      const sample = await page.evaluate(() => ({
-        focus: (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus ?? '(none)',
-        panels: document.querySelectorAll('.v11w-root').length,
-      }));
+      const seen = await sampleWorld();
       const at = Date.now() - startedAt;
-      if (movedAt < 0 && sample.focus !== 'all') movedAt = at;
-      if (openedAt < 0 && sample.panels === 1) {
-        openedAt = at;
-        break;
-      }
+      if (movedAt < 0 && seen.focus !== 'all') movedAt = at;
+      if (openedAt < 0 && seen.panels === 1) openedAt = at;
+      if (openedAt >= 0) break;
       await frames(page, 1);
     }
-    return { movedAt, openedAt, gap: openedAt < 0 || movedAt < 0 ? -1 : openedAt - movedAt };
+    const settled = await sampleWorld();
+    return { movedAt, openedAt, focus: settled.focus, panels: settled.panels };
+  };
+
+  /**
+   * **Both taps, each measured on its own, at one motion setting.** The first
+   * must travel and open nothing; the second must open without travelling
+   * again. Between them the check waits `GUARD_MS`, because `selectAnchor`
+   * ignores a repeat of the same target inside that window so that the world's
+   * raycast and the DOM hit test cannot answer one press twice — and a second
+   * deliberate tap has to clear it.
+   */
+  const bothTaps = async (label: string) => {
+    const target = await boxOf(page, '[data-touch-target="virgil"]');
+    if (!target) {
+      failures.push(`${label}: the Virgil target was not on the page`);
+      return null;
+    }
+    const first = await tapAndWatch(
+      target.x + target.width / 2,
+      target.y + target.height / 2,
+      WAIT_FRAMES,
+    );
+    if (first.movedAt < 0) {
+      failures.push(`${label}: the first tap never moved the camera`);
+    }
+    if (first.panels !== 0) {
+      failures.push(
+        `${label}: the first tap opened ${first.panels} record(s); the owner's decision is that it only travels`,
+      );
+    }
+    await page.waitForTimeout(GUARD_MS);
+    const moved = (await boxOf(page, '[data-touch-target="virgil"]')) ?? target;
+    const second = await tapAndWatch(
+      moved.x + moved.width / 2,
+      moved.y + moved.height / 2,
+      WAIT_FRAMES,
+    );
+    if (second.openedAt < 0) {
+      failures.push(`${label}: the second tap never opened the record`);
+    }
+    if (second.focus !== 'virgil') {
+      failures.push(
+        `${label}: the second tap moved the camera to ${second.focus}; it must open without travelling again`,
+      );
+    }
+    return { first, second };
   };
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${fileUrl}#/`, { waitUntil: 'load' });
   await waitForWorld(page);
-  const normalTarget = await boxOf(page, '[data-touch-target="virgil"]');
-  const normal = normalTarget
-    ? await tapAndTime(
-        normalTarget.x + normalTarget.width / 2,
-        normalTarget.y + normalTarget.height / 2,
-        WAIT_FRAMES,
-      )
-    : { movedAt: -1, openedAt: -1, gap: -1 };
+  const normal = await bothTaps('default motion');
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(`${fileUrl}#/`, { waitUntil: 'load' });
@@ -1136,40 +1178,36 @@ if (RUN_TAIL) {
   const reducedIsOn = await page.evaluate(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
-  const reducedTarget = await boxOf(page, '[data-touch-target="virgil"]');
-  const reduced = reducedTarget
-    ? await tapAndTime(
-        reducedTarget.x + reducedTarget.width / 2,
-        reducedTarget.y + reducedTarget.height / 2,
-        WAIT_FRAMES,
-      )
-    : { movedAt: -1, openedAt: -1, gap: -1 };
+  const reduced = await bothTaps('reduced-motion');
 
   if (!reducedIsOn) failures.push('reduced-motion: the emulation did not take');
-  if (normal.openedAt < 0) failures.push('the record never opened at the default motion setting');
-  if (reduced.openedAt < 0) failures.push('reduced-motion: the record never opened');
   /**
-   * **What this asserts changed with the owner's decision, and it is stricter.**
+   * **What this section asserts, and what it stopped asserting, and why.**
    *
-   * Stage 1 required the reduced-motion gap to be *smaller* than the default's,
-   * because at stage 1 the default deliberately waited 1.02 s for the camera
-   * before opening the record. The owner's decision in
-   * `docs/process/PHASE_1_CONVERSATION_INTERFACE.md` §5b removes that wait
-   * altogether — one tap does both, concurrently — so the thing to require now is
-   * that **neither** setting waits: the window appears in the same sample as the
-   * camera move, at 40 ms of polling resolution, in both. A regression that
-   * reintroduced any delay in either mode fails here.
+   * Until the owner's decision of 10 September it measured one quantity: the
+   * interval between the camera moving and the record appearing, required to be
+   * zero in both motion settings. That was the right measurement for a rule
+   * where one tap did both — the renderer's latency is common to the two events
+   * and cancels out of the interval between them, so the assertion was about the
+   * product rather than about SwiftShader.
+   *
+   * **That quantity no longer exists.** The two events are now in two separate
+   * presses by his instruction, so there is no interval between them to measure,
+   * and any wall-clock figure taken from a single press in this container is the
+   * software renderer's latency — the file's own history records a first sample
+   * returning at 2,518 ms — not the product's. Retaining the old assertion
+   * against the new rule would have measured nothing and passed anyway.
+   *
+   * So what is asserted here now is the rule itself, in both motion settings:
+   * the first tap travels and opens nothing, the second opens and does not
+   * travel. Reduced motion is honoured by arriving rather than by hiding, and
+   * that is checked by requiring it to behave exactly as the default does, not
+   * by a timing figure this machine cannot produce honestly. **No timing claim
+   * is made about either tap**, and the figures below are recorded as this
+   * renderer's, never as the product's.
    */
-  if (normal.gap !== 0) {
-    failures.push(
-      `the window waited ${normal.gap} ms after the camera moved; one tap must do both`,
-    );
-  }
-  if (reduced.gap !== 0) {
-    failures.push(`reduced-motion: the window waited ${reduced.gap} ms after the camera moved`);
-  }
   notes.push(
-    `motion (portrait 390): default — camera at ${normal.movedAt} ms, record at ${normal.openedAt} ms, gap ${normal.gap} ms; reduced — camera at ${reduced.movedAt} ms, record at ${reduced.openedAt} ms, gap ${reduced.gap} ms. Wall-clock figures are this software renderer's, not the product's; the gap is the measurement.`,
+    `motion (portrait 390): default — camera at ${normal?.first.movedAt ?? -1} ms, ${normal?.first.panels ?? -1} record(s) after the first tap, record at ${normal?.second.openedAt ?? -1} ms on the second; reduced — camera at ${reduced?.first.movedAt ?? -1} ms, ${reduced?.first.panels ?? -1} record(s) after the first tap, record at ${reduced?.second.openedAt ?? -1} ms on the second. Every millisecond figure here is this software renderer's latency and is NOT a measurement of the product.`,
   );
   await page.emulateMedia({ reducedMotion: 'no-preference' });
 
