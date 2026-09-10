@@ -3,6 +3,11 @@ import { createRoot } from 'react-dom/client';
 import { HashRouter, Link, Route, Routes, useNavigate } from 'react-router';
 import { FoundrySpike } from '../spikes/foundry/FoundrySpike.js';
 import { MindSpike } from '../spikes/mind/MindSpike.js';
+import {
+  canDecompress,
+  decompressPayloads,
+  NEEDS_DECOMPRESSION_STREAM,
+} from '../world/assets/gzipPayloads.js';
 import { MobileRoom } from '../world/mobile/MobileRoom.js';
 import { VirgilRoom } from '../world/room/VirgilRoom.js';
 import '../ui/app.css';
@@ -172,43 +177,87 @@ function SpikeRoute({ children }: { children: React.ReactNode }) {
   );
 }
 
-createRoot(document.getElementById('root') as HTMLElement).render(
-  <StrictMode>
-    <HashRouter>
-      <RootRelativeLinks />
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <MobileRoom
-              build={{
-                sha: __OWNER_BUILD_SHA__,
-                shortSha: __OWNER_BUILD_SHORT_SHA__,
-                date: __OWNER_BUILD_DATE__,
-                stage: __OWNER_BUILD_STAGE__,
-              }}
-            />
-          }
-        />
-        <Route path="/v10" element={<V10Route />} />
-        <Route path="/s1" element={<Index />} />
-        <Route
-          path="/spike/foundry"
-          element={
-            <SpikeRoute>
-              <FoundrySpike />
-            </SpikeRoute>
-          }
-        />
-        <Route
-          path="/spike/mind"
-          element={
-            <SpikeRoute>
-              <MindSpike />
-            </SpikeRoute>
-          }
-        />
-      </Routes>
-    </HashRouter>
-  </StrictMode>,
-);
+/**
+ * **The world does not mount until its payloads are readable.**
+ *
+ * The owner's decision of 10 September — *"Make it smaller, gzip only"* — puts
+ * every model, texture and font into this document gzipped, and the browser's
+ * own `DecompressionStream` is the decoder, so nothing is shipped to decode
+ * them (`world/assets/gzipPayloads.ts`, `owner-build/gzip-payloads.mjs`). That
+ * decoder is asynchronous and the four decode sites in the world are
+ * synchronous and always were, so the whole set is decompressed once, here,
+ * before anything renders.
+ *
+ * **Nothing is fetched.** The compressed bytes are literals in this document,
+ * exactly as the uncompressed ones were; `verify:owner:v11` counts off-document
+ * requests and fails the build on one.
+ *
+ * **A browser too old to do it is told so, in a sentence.** Without
+ * `DecompressionStream` the payloads cannot be read at all — there is no
+ * fallback copy, because shipping one is what would have cost the saving. That
+ * is Safari before 16.4 (March 2023), Chrome before 80, Firefox before 113. A
+ * blank world would look like a broken file; this says what it is.
+ */
+function tooOld(message: string): void {
+  const root = document.getElementById('root');
+  if (!root) return;
+  root.innerHTML = '';
+  const note = document.createElement('main');
+  note.className = 'owner-index';
+  note.setAttribute('style', 'padding:32px;font:14px/1.6 var(--mono);max-width:640px');
+  const line = document.createElement('p');
+  line.textContent = message;
+  note.appendChild(line);
+  root.appendChild(note);
+}
+
+function mount(): void {
+  createRoot(document.getElementById('root') as HTMLElement).render(
+    <StrictMode>
+      <HashRouter>
+        <RootRelativeLinks />
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <MobileRoom
+                build={{
+                  sha: __OWNER_BUILD_SHA__,
+                  shortSha: __OWNER_BUILD_SHORT_SHA__,
+                  date: __OWNER_BUILD_DATE__,
+                  stage: __OWNER_BUILD_STAGE__,
+                }}
+              />
+            }
+          />
+          <Route path="/v10" element={<V10Route />} />
+          <Route path="/s1" element={<Index />} />
+          <Route
+            path="/spike/foundry"
+            element={
+              <SpikeRoute>
+                <FoundrySpike />
+              </SpikeRoute>
+            }
+          />
+          <Route
+            path="/spike/mind"
+            element={
+              <SpikeRoute>
+                <MindSpike />
+              </SpikeRoute>
+            }
+          />
+        </Routes>
+      </HashRouter>
+    </StrictMode>,
+  );
+}
+
+if (!canDecompress()) {
+  tooOld(NEEDS_DECOMPRESSION_STREAM);
+} else {
+  decompressPayloads().then(mount, (error: unknown) => {
+    tooOld(`This build could not read its own payloads: ${String(error)}`);
+  });
+}
