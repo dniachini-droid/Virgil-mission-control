@@ -65,10 +65,37 @@
 
 name: checks
 
+# ---------------------------------------------------------------------------
+# **What runs when, and why it stopped running everything on every push.**
+#
+# On 2026-09-10 this repository exhausted its 2,000 included Actions minutes and
+# every run after 05:36 UTC failed in two to four seconds with no runner
+# assigned and no logs — a failure that looks exactly like broken code and is
+# nothing of the kind. The arithmetic is not subtle: the four jobs below cost
+# roughly eighty-five machine-minutes per push, because two of them drive a WebGL
+# scene through a software rasteriser, and twenty-five pushes in a day is the
+# whole month's allowance.
+#
+# So the gate moved rather than shrank. **A push runs the fast half** — lint,
+# typecheck and every unit test, about four minutes and no browser. **A pull
+# request runs everything**, which is the moment it matters, because nothing
+# reaches `main` except through one. `workflow_dispatch` runs everything on
+# demand for the times a branch needs the full answer without a pull request.
+#
+# `test/required-checks.test.ts` asserts this arrangement, so the guarantee is
+# still enforced by something that fails rather than by this comment.
+#
+# Documents do not change what any of these checks measure, so a push that
+# touches only prose runs nothing at all.
 on:
   push:
     branches: ['**']
+    paths-ignore:
+      - 'docs/**'
+      - 'knowledge/**'
+      - '**/*.md'
   pull_request:
+  workflow_dispatch:
 
 # Read-only. Nothing here merges, deploys, publishes or touches a credential.
 permissions:
@@ -84,12 +111,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # 0. **The fast half: what every push runs.** No browser, no owner build, no
+  #    verify — those are the expensive parts and they run on the pull request.
+  #    This is the same lint, the same typecheck and the same 1,514 tests a
+  #    session runs before pushing, run again by something with no stake in the
+  #    answer.
+  fast:
+    name: lint, typecheck, tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test
+
   # 1. The whole gate, in one command, exactly as a session runs it — and the
   #    only place `verify:owner:v11` runs **whole** rather than in parts.
   #    Sixty minutes because the measured work is about thirty and a cap has to
   #    have margin over the measurement, not equal it.
   checks:
     name: lint, typecheck, tests, owner build, owner verify
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -128,6 +187,7 @@ jobs:
   #    a browser check timed out is a check nobody has.
   artifacts:
     name: Mind Scan, V10 owner build and verify, committed digests
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -181,6 +241,7 @@ jobs:
   #    That suppresses nothing: every part's own exit code is the job's.
   verify-v11:
     name: V11 owner build and verify (${{ matrix.part.name }})
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -232,6 +293,7 @@ jobs:
 
   reproducibility:
     name: newest Owner Build rebuilds byte for byte
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

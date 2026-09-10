@@ -95,3 +95,68 @@ describe('the checks workflow', () => {
     expect(workflow).not.toContain('if: always()');
   });
 });
+
+/**
+ * **The gate moved on 2026-09-10; these assertions are what stop it moving
+ * further.**
+ *
+ * The repository exhausted its 2,000 included Actions minutes and every run
+ * after 05:36 UTC failed in seconds with no runner and no logs — indistinguish-
+ * able, on the face of it, from broken code. Four jobs at roughly eighty-five
+ * machine-minutes a push, two of them driving a WebGL scene through a software
+ * rasteriser, is a month's allowance in twenty-five pushes.
+ *
+ * So a push now runs the fast half and a pull request runs everything. That is a
+ * real reduction in what a push proves, and the whole of the argument for it is
+ * that **nothing reaches `main` except through a pull request**, where the full
+ * gate still runs. These tests hold that argument to its terms: if the expensive
+ * jobs were ever gated away from pull requests as well, the reduction would stop
+ * being a change of timing and become a hole, and this file would fail.
+ */
+describe('the gate runs in full before anything can merge', () => {
+  const gated = [
+    'lint, typecheck, tests, owner build, owner verify',
+    'Mind Scan, V10 owner build and verify, committed digests',
+    'V11 owner build and verify',
+    'newest Owner Build rebuilds byte for byte',
+  ];
+
+  it('offers a fast half, and it is lint, typecheck and the tests', () => {
+    expect(workflow).toMatch(/^ {4}name: lint, typecheck, tests$/m);
+    expect(workflow).toContain('run: pnpm lint');
+    expect(workflow).toContain('run: pnpm typecheck');
+    expect(workflow).toContain('run: pnpm test');
+  });
+
+  it('can be asked for the whole thing on demand', () => {
+    expect(workflow).toMatch(/^ {2}workflow_dispatch:$/m);
+  });
+
+  it('skips nothing but prose on a push', () => {
+    expect(workflow).toContain('paths-ignore');
+    for (const path of ['docs/**', 'knowledge/**', '**/*.md']) {
+      expect(workflow).toContain(path);
+    }
+    // Source, tests, the workflow itself and the lockfile are all still covered:
+    // nothing that changes what a check measures is in the ignore list.
+    expect(workflow).not.toContain('apps/**');
+    expect(workflow).not.toContain('packages/**');
+  });
+
+  it('holds the expensive jobs back from a push and from nothing else', () => {
+    const conditions = workflow.match(/^ {4}if: .*$/gm) ?? [];
+    expect(conditions.length).toBe(gated.length);
+    for (const condition of conditions) {
+      // The one permitted condition. Anything narrower — excluding pull
+      // requests, or naming a branch — would take the full gate off the only
+      // path into `main`.
+      expect(condition.trim()).toBe("if: github.event_name != 'push'");
+    }
+  });
+
+  it('still declares every expensive job, rather than deleting them', () => {
+    for (const name of gated) {
+      expect(workflow).toContain(name);
+    }
+  });
+});
