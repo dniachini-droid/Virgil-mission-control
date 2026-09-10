@@ -1167,13 +1167,24 @@ if (RUN_TAIL) {
     return { first, second };
   };
 
+  /**
+   * **The reload is the point, not the `goto`.** A navigation that differs only
+   * in the hash is a same-document navigation: the page does not reload and the
+   * app keeps whatever focus and window the section before left it holding.
+   * Under the one-tap rule that cost nothing, because a tap opened the record
+   * either way. Under the two-step rule it is the difference between a first tap
+   * that travels and a first tap that arrives already there and therefore opens —
+   * which is exactly what this check read as a product defect on its first run.
+   */
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${fileUrl}#/`, { waitUntil: 'load' });
+  await page.reload({ waitUntil: 'load' });
   await waitForWorld(page);
   const normal = await bothTaps('default motion');
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(`${fileUrl}#/`, { waitUntil: 'load' });
+  await page.reload({ waitUntil: 'load' });
   await waitForWorld(page);
   const reducedIsOn = await page.evaluate(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -1274,14 +1285,22 @@ if (RUN_TAIL) {
   );
 
   // A window over the world: reduced, not stopped, and the displays halve.
+  // **Two taps, since the owner's decision of 10 September.** The first travels
+  // and opens nothing, so a single press leaves no window here and every
+  // measurement below it would be taken of a world with nothing over it. The
+  // wait between them clears the guard that stops one press being counted twice.
   const virgilTarget = await boxOf(page, '[data-touch-target="virgil"]');
   if (virgilTarget) {
-    await page.mouse.move(
-      virgilTarget.x + virgilTarget.width / 2,
-      virgilTarget.y + virgilTarget.height / 2,
-    );
-    await page.mouse.down();
-    await page.mouse.up();
+    const pressVirgil = async () => {
+      const box = (await boxOf(page, '[data-touch-target="virgil"]')) ?? virgilTarget;
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.mouse.up();
+    };
+    await pressVirgil();
+    await frames(page, 3);
+    await page.waitForTimeout(GUARD_MS);
+    await pressVirgil();
     await frames(page, 3);
   }
   const withWindow = await read();
