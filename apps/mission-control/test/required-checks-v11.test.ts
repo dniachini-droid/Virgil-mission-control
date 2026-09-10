@@ -194,6 +194,34 @@ describe('the V11 verify is a measurement, not a reading', () => {
     }
   });
 
+  /**
+   * **The budget for proving a negative, and the margin that keeps it honest.**
+   *
+   * `WAIT_FRAMES` is spent in full every time a loop waits for something that
+   * must not happen, which is why the motion tail cost twenty minutes of a
+   * thirty-minute CI job and had never once finished there. The first tap is now
+   * watched for `NEGATIVE_FRAMES`, derived from the frame count an opening
+   * actually takes — and a derived number is only derived while something checks
+   * the derivation, so `bothTaps` fails when the positive grows past a quarter
+   * of it. Delete that check and this test fails: shortening a negative wait
+   * without the margin that justifies it is exactly how a check gets weakened to
+   * make a job fit.
+   */
+  it('watches for what must not happen on a budget it can defend', () => {
+    expect(verify).toContain('const NEGATIVE_FRAMES = 12');
+    expect(verify).toContain('const MARGIN = 4');
+    // The negative budget is used where the negative is, and the full budget is
+    // still what a wait for something that must happen gets.
+    expect(verify).toMatch(/const first = await tapAndWatch\([^)]*NEGATIVE_FRAMES,/s);
+    expect(verify).toMatch(/const second = await tapAndWatch\([^)]*WAIT_FRAMES,/s);
+    // The margin, and the failure it raises. Both, because a comparison whose
+    // result goes nowhere is the shape of every guard this repository has
+    // shipped and never wired.
+    expect(verify).toContain('worst * MARGIN > NEGATIVE_FRAMES');
+    expect(verify).toContain('The margin has gone');
+    expect(verify).toMatch(/failures\.push\(\s*`\$\{label\}: the world took \$\{worst\} frames/);
+  });
+
   it('checks that V10’s route inside the V11 build still carries V10’s chrome', () => {
     expect(verify).toContain("'#/v10'");
     expect(verify).toContain('.room-controls');

@@ -236,6 +236,33 @@ async function frames(p: Page, count: number): Promise<void> {
  */
 const WAIT_FRAMES = 90;
 
+/**
+ * **The budget for watching something that must *not* happen, which cannot be
+ * the budget for watching something that must.**
+ *
+ * A wait for a thing that arrives ends when it arrives. A wait for a thing that
+ * must never arrive always runs to the end of its budget — that is what proving
+ * a negative costs — so `WAIT_FRAMES` is spent in full, twice, every run.
+ *
+ * That was invisible until this check was given its own CI job. On a GitHub
+ * runner a frame is **6,678 ms**, roughly ten times this container's, so each of
+ * those two loops costs 601 s and the pair costs twenty minutes of a thirty
+ * minute job. The check had never once completed there — every earlier attempt
+ * was cancelled by the next push before it could time out, so nothing said so.
+ *
+ * **Where 12 comes from.** The same run measures the positive: the record opens
+ * on the second or third sampled frame, and the camera moves on the second or
+ * third, on every machine this has run on — a count of frames does not change
+ * with the machine, which is the whole reason the budgets are in frames. Twelve
+ * is four times the largest of those. It is not a number chosen to make the job
+ * fit: `bothTaps` asserts the margin below and fails if the positive ever needs
+ * more than a quarter of this, because a budget derived from a measurement stops
+ * being derived the moment the measurement moves and nobody looks.
+ */
+const NEGATIVE_FRAMES = 12;
+/** How much of the negative budget the positive may take before it is not a margin. */
+const MARGIN = 4;
+
 type Box = { x: number; y: number; width: number; height: number };
 
 /**
@@ -1110,16 +1137,35 @@ if (RUN_TAIL) {
     await page.mouse.up();
     let movedAt = -1;
     let openedAt = -1;
+    // Which sample saw it, as well as when. The frame is the figure that means
+    // something: the millisecond one is this software renderer's latency and the
+    // line printed below says so, but a count of frames is the same number on a
+    // fast machine and a slow one, and it is what the budgets below are in.
+    let movedFrame = -1;
+    let openedFrame = -1;
     for (let frame = 0; frame <= budgetFrames; frame += 1) {
       const seen = await sampleWorld();
       const at = Date.now() - startedAt;
-      if (movedAt < 0 && seen.focus !== 'all') movedAt = at;
-      if (openedAt < 0 && seen.panels === 1) openedAt = at;
+      if (movedAt < 0 && seen.focus !== 'all') {
+        movedAt = at;
+        movedFrame = frame;
+      }
+      if (openedAt < 0 && seen.panels === 1) {
+        openedAt = at;
+        openedFrame = frame;
+      }
       if (openedAt >= 0) break;
       await frames(page, 1);
     }
     const settled = await sampleWorld();
-    return { movedAt, openedAt, focus: settled.focus, panels: settled.panels };
+    return {
+      movedAt,
+      openedAt,
+      movedFrame,
+      openedFrame,
+      focus: settled.focus,
+      panels: settled.panels,
+    };
   };
 
   /**
@@ -1136,10 +1182,12 @@ if (RUN_TAIL) {
       failures.push(`${label}: the Virgil target was not on the page`);
       return null;
     }
+    // The negative budget: this tap must open nothing, so this loop runs to the
+    // end of whatever it is given. See `NEGATIVE_FRAMES`.
     const first = await tapAndWatch(
       target.x + target.width / 2,
       target.y + target.height / 2,
-      WAIT_FRAMES,
+      NEGATIVE_FRAMES,
     );
     if (first.movedAt < 0) {
       failures.push(`${label}: the first tap never moved the camera`);
@@ -1162,6 +1210,20 @@ if (RUN_TAIL) {
     if (second.focus !== 'virgil') {
       failures.push(
         `${label}: the second tap moved the camera to ${second.focus}; it must open without travelling again`,
+      );
+    }
+    /**
+     * **The margin, checked rather than assumed.** `NEGATIVE_FRAMES` is four
+     * times what an opening and a camera move have ever needed. If either ever
+     * needs more than a quarter of it, the negative budget is no longer long
+     * enough to be evidence that nothing happened, and this says so instead of
+     * passing — which is the failure the old 90-frame budget could not have,
+     * and paid for by never finishing on a slow machine.
+     */
+    const worst = Math.max(second.openedFrame, first.movedFrame);
+    if (worst >= 0 && worst * MARGIN > NEGATIVE_FRAMES) {
+      failures.push(
+        `${label}: the world took ${worst} frames to answer a tap, which is more than a quarter of the ${NEGATIVE_FRAMES}-frame budget the first tap is watched for. The margin has gone: re-derive NEGATIVE_FRAMES from this measurement rather than trusting the negative.`,
       );
     }
     return { first, second };
@@ -1218,7 +1280,7 @@ if (RUN_TAIL) {
    * renderer's, never as the product's.
    */
   notes.push(
-    `motion (portrait 390): default — camera at ${normal?.first.movedAt ?? -1} ms, ${normal?.first.panels ?? -1} record(s) after the first tap, record at ${normal?.second.openedAt ?? -1} ms on the second; reduced — camera at ${reduced?.first.movedAt ?? -1} ms, ${reduced?.first.panels ?? -1} record(s) after the first tap, record at ${reduced?.second.openedAt ?? -1} ms on the second. Every millisecond figure here is this software renderer's latency and is NOT a measurement of the product.`,
+    `motion (portrait 390): default — camera at ${normal?.first.movedAt ?? -1} ms (frame ${normal?.first.movedFrame ?? -1}), ${normal?.first.panels ?? -1} record(s) after the first tap, record at ${normal?.second.openedAt ?? -1} ms (frame ${normal?.second.openedFrame ?? -1}) on the second; reduced — camera at ${reduced?.first.movedAt ?? -1} ms (frame ${reduced?.first.movedFrame ?? -1}), ${reduced?.first.panels ?? -1} record(s) after the first tap, record at ${reduced?.second.openedAt ?? -1} ms (frame ${reduced?.second.openedFrame ?? -1}) on the second. The first tap is watched for ${NEGATIVE_FRAMES} frames, and the frame figures are what that budget is derived from; every millisecond figure here is this software renderer's latency and is NOT a measurement of the product.`,
   );
   await page.emulateMedia({ reducedMotion: 'no-preference' });
 
