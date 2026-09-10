@@ -1,16 +1,16 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-10T12:48:09Z",
-  "aboutCommit": "9f0186f98638e6ccc5e065c25b23ccf4ce5b956d",
+  "reportedAt": "2026-09-10T14:59:02Z",
+  "aboutCommit": "898b7d0af689783b650280e30a4cc3798101968c",
   "branch": "claude/virgil-mobile-v11",
   "candidate": null,
-  "holder": "fabricator",
+  "holder": null,
   "hops": [
     {
       "role": "fabricator",
-      "activity": "REPORTED",
+      "activity": "READY",
       "reported": null,
-      "at": "2026-09-10T12:48:09Z"
+      "at": null
     },
     {
       "role": "prover",
@@ -26,5 +26,5 @@
     }
   ],
   "review": null,
-  "note": "KP3-01 to KP3-05 repaired; the wire check now agrees with the schema over generated cases."
+  "note": "Third Keeper review returned PASS_WITH_NON_BLOCKING_FINDINGS on 898b7d0. Nothing is in flight: KP4-02 puts this run at OWNER_DECISION_REQUIRED, so no session may open a fourth repair round."
 }
