@@ -17,6 +17,15 @@
 [build.environment]
   NODE_VERSION = "22"
 
+# **Order matters here.** Redirect rules are evaluated top to bottom and the
+# catch-all below would otherwise swallow the function's own path, so the API
+# rule is first. `netlify/functions/state.mjs` also declares `config.path`, and
+# the two agree on purpose: neither is relied on alone.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/state"
+  status = 200
+
 # The app is a HashRouter, so every route is one document and no rewrite rule is
 # needed for deep links. This redirect exists only so that a stray path does not
 # return Netlify's own 404 page in place of the world.
@@ -26,9 +35,11 @@
   status = 200
 
 # The Owner Build's promise is that it fetches nothing. This build fetches its
-# own chunks and nothing else, and the policy says so rather than leaving it to
-# be inferred. No third-party origin is permitted, and there are none in the
-# bundle to permit.
+# own chunks and its own state endpoint, and nothing else, and the policy says so
+# rather than leaving it to be inferred. `connect-src 'self'` is what allows the
+# page to ask `/api/state` and what stops it asking anything else — including
+# GitHub, which it must never reach directly, because reaching GitHub needs a
+# token and a page cannot hold one.
 [[headers]]
   for = "/*"
   [headers.values]
