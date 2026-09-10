@@ -77,29 +77,122 @@ async function gh(path, token) {
 }
 
 /**
- * The check runs for one commit, counted in four states that are kept distinct.
- * **A check that has not finished is not a failure**, and a check that finished
- * with no conclusion is not a pass. Each has its own count so that no screen has
- * to guess and none can flatten them.
+ * **Three sources for the same question, tried in order, and the answer says
+ * which one replied.**
+ *
+ * The owner's token could not be given the `Checks` permission — it was not
+ * offered in his account's permission list — so the first source is unavailable
+ * to him and would have left the screen permanently blank about the one thing
+ * worth watching. `Actions` was offered and gives the workflow runs, which are
+ * the CI jobs themselves; commit statuses are the older mechanism and are the
+ * last resort.
+ *
+ * **The source is reported, not hidden.** "Fourteen checks passed" means a
+ * different thing depending on where the number came from, and a screen that
+ * conceals its provenance is one step from a screen that misstates it.
  */
-function countChecks(runs) {
-  const counted = { total: runs.length, passed: 0, failed: 0, running: 0, noResult: 0 };
-  const named = [];
-  for (const run of runs) {
-    const status = run.status;
-    const conclusion = run.conclusion;
-    if (status !== 'completed') counted.running += 1;
-    else if (conclusion === 'success') counted.passed += 1;
-    else if (conclusion === 'failure' || conclusion === 'timed_out') counted.failed += 1;
+
+/** The four states kept apart everywhere: a run that has not finished is not a
+ * failure, and one that finished with no conclusion is not a pass. */
+function tally(entries) {
+  const counted = { total: entries.length, passed: 0, failed: 0, running: 0, noResult: 0 };
+  for (const entry of entries) {
+    if (entry.state === 'passed') counted.passed += 1;
+    else if (entry.state === 'failed') counted.failed += 1;
+    else if (entry.state === 'running') counted.running += 1;
     else counted.noResult += 1;
-    named.push({
-      name: run.name,
-      status,
-      conclusion: conclusion ?? null,
-      url: run.html_url ?? null,
-    });
   }
-  return { counted, named };
+  return counted;
+}
+
+function fromCheckRuns(runs) {
+  return runs.map((run) => ({
+    name: run.name,
+    state:
+      run.status !== 'completed'
+        ? 'running'
+        : run.conclusion === 'success'
+          ? 'passed'
+          : run.conclusion === 'failure' || run.conclusion === 'timed_out'
+            ? 'failed'
+            : 'noResult',
+    detail: run.conclusion ?? run.status,
+    url: run.html_url ?? null,
+  }));
+}
+
+function fromWorkflowRuns(runs) {
+  return runs.map((run) => ({
+    name: run.name ?? run.display_title ?? 'workflow',
+    state:
+      run.status !== 'completed'
+        ? 'running'
+        : run.conclusion === 'success'
+          ? 'passed'
+          : run.conclusion === 'failure' || run.conclusion === 'timed_out'
+            ? 'failed'
+            : 'noResult',
+    detail: run.conclusion ?? run.status,
+    url: run.html_url ?? null,
+  }));
+}
+
+function fromStatuses(statuses) {
+  return statuses.map((status) => ({
+    name: status.context,
+    state:
+      status.state === 'success'
+        ? 'passed'
+        : status.state === 'failure' || status.state === 'error'
+          ? 'failed'
+          : status.state === 'pending'
+            ? 'running'
+            : 'noResult',
+    detail: status.state,
+    url: status.target_url ?? null,
+  }));
+}
+
+/**
+ * Asks each source in turn and returns the first that answers, with its name.
+ * A source that refuses the token is skipped; a source that answers with an
+ * empty list has answered, and "no checks ran on this commit" is a real answer
+ * and is not the same as "could not read".
+ */
+async function readChecks(repo, sha, token) {
+  const attempts = [
+    {
+      source: 'check runs',
+      read: async () => {
+        const body = await gh(`/repos/${repo}/commits/${sha}/check-runs?per_page=100`, token);
+        return fromCheckRuns(body.check_runs ?? []);
+      },
+    },
+    {
+      source: 'workflow runs',
+      read: async () => {
+        const body = await gh(`/repos/${repo}/actions/runs?head_sha=${sha}&per_page=50`, token);
+        return fromWorkflowRuns(body.workflow_runs ?? []);
+      },
+    },
+    {
+      source: 'commit statuses',
+      read: async () => {
+        const body = await gh(`/repos/${repo}/commits/${sha}/status`, token);
+        return fromStatuses(body.statuses ?? []);
+      },
+    },
+  ];
+  const refused = [];
+  for (const attempt of attempts) {
+    try {
+      const entries = await attempt.read();
+      return { source: attempt.source, entries, ...tally(entries) };
+    } catch (error) {
+      refused.push(`${attempt.source} (${error?.status ?? 'no status'})`);
+    }
+  }
+  return { unreadable: `No source could be read: ${refused.join(', ')}.` };
 }
 
 export default async function handler(request) {
@@ -130,8 +223,8 @@ export default async function handler(request) {
     // Either of these may fail on its own without making the rest unknowable, so
     // each failure becomes `null` — "not read" — rather than taking the whole
     // answer down or, worse, becoming a zero.
-    const [checkRuns, pulls] = await Promise.all([
-      gh(`/repos/${repo}/commits/${sha}/check-runs?per_page=100`, token).catch(() => null),
+    const [checkResult, pulls] = await Promise.all([
+      readChecks(repo, sha, token),
       gh(`/repos/${repo}/pulls?state=open&per_page=20`, token).catch(() => null),
     ]);
 
@@ -143,8 +236,6 @@ export default async function handler(request) {
         () => null,
       );
     }
-
-    const checks = checkRuns ? countChecks(checkRuns.check_runs ?? []) : null;
 
     const answer = JSON.stringify({
       ok: true,
@@ -168,7 +259,20 @@ export default async function handler(request) {
             base: pull.base?.ref ?? null,
           }
         : null,
-      checks: checks ? { ...checks.counted, runs: checks.named } : null,
+      checks: checkResult.unreadable
+        ? null
+        : {
+            source: checkResult.source,
+            total: checkResult.total,
+            passed: checkResult.passed,
+            failed: checkResult.failed,
+            running: checkResult.running,
+            noResult: checkResult.noResult,
+            runs: checkResult.entries,
+          },
+      // Why the counts are missing, when they are. A screen may say "not read"
+      // only if it can say what was not read.
+      checksReason: checkResult.unreadable ?? null,
       githubReviews: Array.isArray(reviews)
         ? reviews.map((review) => ({ state: review.state, submittedAt: review.submitted_at }))
         : null,
