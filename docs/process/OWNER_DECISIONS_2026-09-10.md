@@ -1,7 +1,8 @@
 # Owner decisions, 10 September 2026
 
-Answers to the nine items put to him after V11. Recorded because they change what is built next
-and because two of them supersede earlier decisions of his own.
+Answers to the nine items put to him after V11, and one more asked separately the same day
+(item 10). Recorded because they change what is built next and because two of them supersede
+earlier decisions of his own.
 
 ## 1. No demonstration marking is required on a phone [K11-03 closed]
 
@@ -89,3 +90,28 @@ him at the close-up, so the interface was arriving somewhere he had never asked 
 
 What must survive the change: the gesture guard, so a drag still opens nothing; the back path being
 one step per level; and the panel still rendering from data rather than waiting for the camera.
+
+## 10. No plain gloss on the state words — asked separately, the same day
+
+*"Yes leave the state words but I don't know if a plain gloss is needed for the state words. If we
+add a description it should be accurate. Not bullshit."*
+
+**He was right to push back, and the reason is worth keeping.** The gloss proposed to him was
+`READY FOR REVIEW · nobody has checked it yet`. It is **false**: at that beat the checks have run
+and passed. What has not happened is the *review* — a different step, by a different agent, on
+purpose. The gloss would have blurred the exact distinction this project exists to protect, in the
+name of making it clearer.
+
+**So: no glosses.** The state word stands alone and the plain sentence beneath it carries the
+meaning, as it already did. Nothing was shipped and nothing was removed; this records the decision
+so the question is not reopened by the next pass that thinks the words look bare.
+
+An explanation may still be added where a state word would genuinely mislead a reader without one
+**and** the explanation is true. Any candidate is put to the owner rather than shipped.
+
+**What is now checked rather than promised.** `test/plain-language-v11.test.ts` asserts the
+falsity itself: once the demonstration's own verdict is `PASS`, no state word, no sentence beside
+one and no conclusion on any screen or in any window may say that nothing has been checked. The
+conversation is deliberately outside that rule — a turn in it carries a clock stamp and is a record
+of what was said at the second it was said, and rewriting history to agree with the present would
+be a worse defect than the one being prevented.

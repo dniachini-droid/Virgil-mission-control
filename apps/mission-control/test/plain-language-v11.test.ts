@@ -399,6 +399,92 @@ describe('the shared evidence lines are reworded and never rewritten', () => {
   });
 });
 
+/**
+ * **The state words stand alone. The owner's decision of 10 September.**
+ *
+ * He was asked whether the constitution's state words should carry a plain
+ * gloss beside them, and answered: *"Yes leave the state words but I don't know
+ * if a plain gloss is needed for the state words. If we add a description it
+ * should be accurate. Not bullshit."*
+ *
+ * He was right to push back, and it is worth recording why rather than only
+ * that. The gloss proposed to him was `READY FOR REVIEW · nobody has checked it
+ * yet`, and it is **false**: at that beat the checks have run and passed. What
+ * has not happened is the *review*, which is a different thing done by a
+ * different agent — and that distinction is the one this project exists to
+ * protect. A gloss that blurred it would have made the interface less true in
+ * the name of making it clearer.
+ *
+ * So there is no gloss, and the plain sentence beneath each word carries the
+ * meaning, as it already did. What is asserted here is the falsity itself,
+ * because that is the checkable half: **once the checks have run and passed,
+ * nothing anywhere may say they have not.** The condition is the demonstration's
+ * own verdict, not a hard-coded second.
+ */
+describe('a state word is never explained falsely', () => {
+  const passing = () => {
+    const beats: { seconds: number; state: ReturnType<typeof demoAt> }[] = [];
+    for (let seconds = 0; seconds <= loopLength(0); seconds += 0.5) {
+      const state = demoAt(seconds, 0, true);
+      if (state.content.verdict === 'PASS') beats.push({ seconds, state });
+    }
+    return beats;
+  };
+
+  /** The claims that are true before the Prover reports and false after it. */
+  const NOT_CHECKED =
+    /nothing has been checked|nobody has checked|no ?(one|body) has run|not been checked|no checks? (have|has) (run|been run)/i;
+
+  it('reaches the beats where the checks have passed at all', () => {
+    expect(passing().length).toBeGreaterThan(20);
+  });
+
+  /**
+   * **What is checked, and what is deliberately not.**
+   *
+   * The state word, the sentence beside it, and the conclusion — the three
+   * places that speak in the present tense about now. The **conversation is
+   * excluded, and that is not a loophole**: a turn in it carries its own clock
+   * stamp and is a record of what an agent said at the second it said it. The
+   * Fabricator's own line — *"This is my word for it, not proof: nothing has
+   * been checked and nobody has reviewed it"* — was true at 00:14 and stays in
+   * the thread at 00:30, exactly as a sent message does. Rewriting history so
+   * that it agrees with the present would be a far worse defect than the one
+   * this test exists to prevent. Found by this assertion catching it, and left
+   * in on purpose.
+   */
+  it('never says nothing has been checked once every check has passed', () => {
+    const said: string[] = [];
+    for (const { seconds, state } of passing()) {
+      for (const agent of AGENTS) {
+        const doc = windowDoc(state, { agent: agent as Agent });
+        const present = [
+          doc.status.word,
+          doc.status.means,
+          doc.conclusion.headline,
+          doc.conclusion.meaning,
+          doc.conclusion.next,
+        ];
+        for (const text of present) {
+          if (NOT_CHECKED.test(text)) said.push(`${doc.key} @ ${seconds}s: "${text}"`);
+        }
+      }
+      for (const text of screenText(state, seconds, false)) {
+        if (NOT_CHECKED.test(text)) said.push(`screens @ ${seconds}s: "${text}"`);
+      }
+    }
+    expect(unique(said)).toEqual([]);
+  });
+
+  it('still says it while it is true, before anything has been checked', () => {
+    // The other half, so the rule above cannot be satisfied by saying nothing:
+    // the Fabricator's own report is a claim, and the window says so.
+    const doc = windowDoc(demoAt(15, 0, true), { agent: 'fabricator' });
+    const said = [doc.conclusion.headline, doc.conclusion.meaning].join(' ');
+    expect(said).toMatch(/nothing has been checked|not evidence|says/i);
+  });
+});
+
 describe('the labels the constitution owns are untouched by the rule above', () => {
   it('because not one of them contains a word on the list', () => {
     const labels = [
