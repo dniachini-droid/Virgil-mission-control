@@ -209,13 +209,13 @@ export function evidenceLines(outcome: Outcome): string[] {
       return [
         'TESTS 302 PASSED · 0 FAILED',
         'REQUIRED CHECK SKIPPED · 1',
-        'SOURCE LINKS 88 · 88 INTACT',
+        'TETHERS 88 · 88 INTACT',
       ];
     default:
       return [
         'TESTS 302 PASSED · 0 FAILED',
         'REQUESTS 1 · OFF-DOCUMENT 0',
-        'SOURCE LINKS 88 · 88 INTACT',
+        'TETHERS 88 · 88 INTACT',
       ];
   }
 }

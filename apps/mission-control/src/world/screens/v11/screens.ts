@@ -41,7 +41,14 @@ import {
   sweep,
   wellRect,
 } from './chrome.js';
-import { accentOf, colourOf, primaryFor, READY_TO_GO_IN, verdictPrimary } from './content.js';
+import {
+  accentOf,
+  colourOf,
+  plainly,
+  primaryFor,
+  READY_TO_GO_IN,
+  verdictPrimary,
+} from './content.js';
 import { agentMark, statusMark, strokePath } from './marks.js';
 import { archive, arrival, assembly, checkNames, orbits, scanning, star } from './motifs.js';
 import { ARRIVE_SECONDS, clamp01, dim, metrics, STATUS, STRUCTURE, TEXT } from './system.js';
@@ -426,6 +433,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
       returned
         ? (content.evidence ? [...content.evidence] : evidenceLines(outcome))
             .slice(0, 3)
+            .map(plainly)
             .map((line) => {
               const at = line.indexOf(' ');
               return { label: line.slice(0, at), value: line.slice(at + 1) };

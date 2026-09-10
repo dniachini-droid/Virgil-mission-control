@@ -119,6 +119,44 @@ export function primaryFor(role: Role, state: StationState, report: Report): Pri
   };
 }
 
+/**
+ * **Two words the shared evidence lines still carry, said plainly — and said
+ * plainly *here*, in a V11-only module, for the preservation contract's sake.**
+ *
+ * `screens/tally.ts` and `replay/replayTimeline.ts` write the micro-rail's
+ * evidence lines, and V10's world imports both. Rewording them at source is
+ * the obvious change and it was the first one made: it moved V10's clean-tree
+ * Owner Build by **two bytes**, from the 8,528,318 that seven passes and two
+ * independent reviews have measured. V11 is additive
+ * (`docs/process/V11_BRIEF.md`, *The preservation contract*), and two bytes is
+ * as much a breach as ninety-six. `screens/v11/recorded.ts` records the same
+ * lesson from stage 4, when it cost 96.
+ *
+ * So the figures stay exactly as the shared modules produce them and only the
+ * **vocabulary** is translated, on V11's own side of the line:
+ *
+ *  - `TETHERS` is the knowledge graph's word for a claim's link back to the
+ *    source it came from. `SOURCE LINKS` is that, in English, and the count is
+ *    untouched.
+ *  - `DETERMINISTIC` in *"every deterministic check was green"* adds nothing a
+ *    reader can use — the sentence is about checks passing — so it goes, and
+ *    what remains is the same claim in fewer words.
+ *
+ * Nothing here changes a number, a name or a result; a substitution that could
+ * is the one thing this function may never grow into.
+ */
+const PLAINER: readonly (readonly [RegExp, string])[] = [
+  [/\bTETHERS\b/g, 'SOURCE LINKS'],
+  [/\bDETERMINISTIC\s+/g, ''],
+];
+
+/** One shared evidence line, in words a reader has met before. */
+export function plainly(line: string): string {
+  let out = line;
+  for (const [pattern, word] of PLAINER) out = out.replace(pattern, word);
+  return out;
+}
+
 /** The colour a status key resolves to. The only route from state to colour. */
 export function colourOf(status: StatusKey): string {
   return STATUS[status];

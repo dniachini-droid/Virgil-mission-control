@@ -663,7 +663,7 @@ export function evidenceFor(beat: ReplayBeat): string[] {
     return [
       `FINDINGS ${FINDINGS_REVIEW_1.length} · BLOCKING 2`,
       'KR-01 AND KR-02 BLOCKING',
-      'EVERY CHECK HAD PASSED',
+      'EVERY DETERMINISTIC CHECK WAS GREEN',
     ];
   }
   if (beat.verdict === 'PASS_WITH_NON_BLOCKING_FINDINGS') {
@@ -683,7 +683,7 @@ export function evidenceFor(beat: ReplayBeat): string[] {
   return [
     `${CHECKS_CANDIDATE_2.filter((c) => c.result === 'passed').length} CHECKS PASSED · 3 SKIPPED`,
     'TESTS 225 PASSED',
-    'SOURCE LINKS 94 · 94 INTACT',
+    'TETHERS 94 · 94 INTACT',
   ];
 }
 

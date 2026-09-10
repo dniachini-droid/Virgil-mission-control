@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { playbackSchedule, replayAt } from '../src/world/replay/replayTimeline.js';
 import { ROLES, type Role } from '../src/world/room/cast.js';
 import { demoAt, loopLength, OUTCOMES } from '../src/world/room/demo.js';
+import { plainly } from '../src/world/screens/v11/content.js';
 import { contentFor } from '../src/world/screens/v11/recorded.js';
 import { drawConsoleScreen, drawSlab, type SlabKind } from '../src/world/screens/v11/screens.js';
 import { blockText, type Section } from '../src/world/window/blocks.js';
@@ -355,6 +356,46 @@ describe('no sentence anywhere in the interface is written in the repository’s
       COMPOSER_NOTE,
     ];
     expect(offences('furniture', fixed)).toEqual([]);
+  });
+});
+
+/**
+ * **The one translation that reaches shared text, and the line it may not
+ * cross.** `content.ts`'s `plainly` rewords two words in the evidence lines
+ * `tally.ts` and `replayTimeline.ts` produce, because rewording them at source
+ * moves V10's clean-tree Owner Build and V11 is additive. A wording function
+ * that could change a figure would be a much worse thing than the jargon it
+ * removes, so it is held to substituting vocabulary and nothing else.
+ */
+describe('the shared evidence lines are reworded and never rewritten', () => {
+  const lines = [
+    'TESTS 302 PASSED · 0 FAILED',
+    'TETHERS 88 · 88 INTACT',
+    'EVERY DETERMINISTIC CHECK WAS GREEN',
+    'FINDINGS 9 · BLOCKING 2',
+    'MERGED AS cd0981d',
+  ];
+
+  it('says the two words plainly', () => {
+    expect(plainly('TETHERS 88 · 88 INTACT')).toBe('SOURCE LINKS 88 · 88 INTACT');
+    expect(plainly('EVERY DETERMINISTIC CHECK WAS GREEN')).toBe('EVERY CHECK WAS GREEN');
+  });
+
+  it('and changes no number, name or result in any of them', () => {
+    for (const line of lines) {
+      const before = line.match(/\d+|[a-f0-9]{7,}/g) ?? [];
+      const after = plainly(line).match(/\d+|[a-f0-9]{7,}/g) ?? [];
+      expect(after, line).toEqual(before);
+      for (const word of ['PASSED', 'FAILED', 'BLOCKING', 'INTACT', 'MERGED', 'GREEN']) {
+        expect(plainly(line).includes(word), `${line} lost ${word}`).toBe(line.includes(word));
+      }
+    }
+  });
+
+  it('leaves a line with neither word exactly as it was', () => {
+    for (const line of lines.filter((l) => !/TETHERS|DETERMINISTIC/.test(l))) {
+      expect(plainly(line)).toBe(line);
+    }
   });
 });
 
