@@ -1,0 +1,42 @@
+# The hosted build of Virgil Mission Control.
+#
+# The owner's decision of 10 September: he wants this on his phone without
+# carrying a file, and he already pays for Netlify. The Owner Build is untouched
+# by this — it still builds to `dist/owner-build` and `dist/owner-build-v11`,
+# still makes zero network requests, and still opens from `file://` with no
+# server. This publishes a third, separate target.
+#
+# `pnpm/action`-free on purpose: Netlify's own Node image runs corepack, and the
+# lockfile is committed, so the install is the same one `pnpm install` performs
+# here.
+
+[build]
+  command = "corepack enable && pnpm install --frozen-lockfile && pnpm --filter mission-control build:web"
+  publish = "apps/mission-control/dist/web"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# The app is a HashRouter, so every route is one document and no rewrite rule is
+# needed for deep links. This redirect exists only so that a stray path does not
+# return Netlify's own 404 page in place of the world.
+[[redirects]]
+  from = "/*"
+  to = "/owner-v11.html"
+  status = 200
+
+# The Owner Build's promise is that it fetches nothing. This build fetches its
+# own chunks and nothing else, and the policy says so rather than leaving it to
+# be inferred. No third-party origin is permitted, and there are none in the
+# bundle to permit.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' data: blob:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

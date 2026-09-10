@@ -9,6 +9,7 @@
     "build": "vite build",
     "build:owner": "vite build --config vite.owner.config.ts && node owner-build/inline.mjs",
     "build:owner:v11": "vite build --config vite.owner.v11.config.ts && node owner-build/inline-v11.mjs",
+    "build:web": "vite build --config vite.web.config.ts",
     "preview": "vite preview --port 4173 --strictPort",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
