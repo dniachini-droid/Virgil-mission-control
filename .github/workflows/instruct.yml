@@ -1,0 +1,182 @@
+# **The owner types, and this is what runs.**
+#
+# Phase 2 slice three (`docs/process/PHASE_2_SLICE_3_BRIEF.md`). Every other
+# workflow in this repository checks work that already exists. This one *does*
+# work, on his instruction, and it is the first thing in the project that can
+# change the repository without a person at a keyboard.
+#
+# So the limits below are part of the machinery rather than promises about
+# behaviour. An agent that means well and a workflow that refuses are different
+# kinds of guarantee, and only the second survives an agent that does not.
+#
+# **It runs only when he starts it.** `workflow_dispatch` and nothing else: no
+# schedule, no push trigger, no `workflow_run`. There is no path by which this
+# starts itself.
+#
+# **It cannot run against `main`.** The first step fails if the ref is the
+# default branch, before anything is installed and before any agent exists. The
+# rule is in `CLAUDE.md` and in `constitution/authority.json` as an owner-only
+# action; here it is also a job that exits 1.
+#
+# **It cannot merge, deploy or open a pull request.** `permissions` grants
+# `contents: write` and nothing else — no `pull-requests`, no `actions: write`,
+# no `id-token`. A step that tried would be refused by GitHub rather than by
+# anyone's good intentions.
+#
+# **Before this can run at all**, two secrets must exist, and the owner installs
+# both himself: `ANTHROPIC_API_KEY`, which is a real and ongoing cost, and
+# nothing else. No session creates, holds, sees or types either.
+
+name: instruct
+
+on:
+  workflow_dispatch:
+    inputs:
+      instruction:
+        description: What to do, in the owner's own words
+        required: true
+        type: string
+      branch:
+        description: The branch to work on. Never the default branch.
+        required: true
+        type: string
+
+# Contents, and nothing else. Named exhaustively so that adding a permission is a
+# visible edit to this block rather than an inherited default.
+permissions:
+  contents: write
+
+concurrency:
+  group: instruct-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  work:
+    name: A session works on the owner's instruction
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      # 1. **The refusal, first.** Before the checkout, before the install,
+      #    before anything exists that could act. `main` is not reachable from
+      #    this workflow by any input.
+      - name: Refuse the default branch
+        env:
+          TARGET: ${{ inputs.branch }}
+          DEFAULT: ${{ github.event.repository.default_branch }}
+        run: |
+          if [ "$TARGET" = "$DEFAULT" ] || [ "$TARGET" = "main" ] || [ "$TARGET" = "master" ]; then
+            echo "instruct: refusing to work on '$TARGET'. The default branch is the owner's alone."
+            exit 1
+          fi
+          case "$TARGET" in
+            */../*|*..*|-*) echo "instruct: '$TARGET' is not a branch name this workflow accepts."; exit 1 ;;
+          esac
+          echo "instruct: working on '$TARGET'."
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 2. **The room fills in before the agent starts, not after it finishes.**
+      #    Written by the workflow rather than by the agent, so that it happens
+      #    whether or not the agent remembers — which is the failure slice two's
+      #    shelf life exists for. The agent may update it as it goes; this
+      #    guarantees the first and last word.
+      - name: Say that a session has started
+        run: |
+          node scripts/virgil-status.mjs \
+            --holder fabricator --activity WORKING \
+            --note "Working on the owner's instruction. Run ${{ github.run_id }}."
+
+      # 3. **The instruction, written down before it is acted on.** Every change
+      #    this workflow makes has a reason the owner can find, in his own words,
+      #    beside the run that acted on it.
+      - name: Record the instruction
+        env:
+          INSTRUCTION: ${{ inputs.instruction }}
+        run: |
+          mkdir -p .virgil/instructions
+          node -e '
+            const fs = require("node:fs");
+            fs.writeFileSync(
+              ".virgil/instructions/${{ github.run_id }}.json",
+              JSON.stringify(
+                {
+                  runId: "${{ github.run_id }}",
+                  at: new Date().toISOString(),
+                  branch: "${{ inputs.branch }}",
+                  instruction: process.env.INSTRUCTION,
+                },
+                null,
+                2,
+              ) + "\n",
+            );
+          '
+
+      - name: Commit the instruction and the status
+        run: |
+          git config user.email "noreply@anthropic.com"
+          git config user.name "Claude"
+          git add .virgil
+          git diff --staged --quiet || git commit -m "The owner's instruction, and a session picking it up
+
+          Run ${{ github.run_id }}. Written before the work rather than after it, so
+          that every change this run makes has a reason that can be found."
+          git push origin HEAD:${{ inputs.branch }}
+
+      # 4. **The agent.** It works under `CLAUDE.md` like any session here: one
+      #    branch, no merge, no deploy, no other repository.
+      #
+      #    `--dangerously-skip-permissions` is what it sounds like and is named
+      #    rather than hidden. There is no human at this keyboard to answer a
+      #    prompt, so the alternative is a run that stalls until it times out.
+      #    What makes it acceptable is everything above: a disposable container,
+      #    a branch that is not `main`, a token that can only write contents, and
+      #    a repository whose worst case is a branch the owner deletes.
+      - name: Work on the instruction
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          INSTRUCTION: ${{ inputs.instruction }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "instruct: no ANTHROPIC_API_KEY is installed, so no agent can run."
+            echo "instruct: the instruction is recorded and committed; nothing else has happened."
+            exit 1
+          fi
+          npm install -g @anthropic-ai/claude-code
+          claude -p "$INSTRUCTION" --dangerously-skip-permissions
+
+      - name: Commit whatever the session changed
+        if: always()
+        run: |
+          git add -A
+          git diff --staged --quiet || git commit -m "The session's work on run ${{ github.run_id }}
+
+          Made on the owner's instruction, recorded in
+          .virgil/instructions/${{ github.run_id }}.json."
+          git push origin HEAD:${{ inputs.branch }}
+
+      # 5. **And the room is told it stopped**, whatever happened — including
+      #    when the step above failed. A run that ends leaving a Fabricator lit
+      #    is the exact failure the shelf life was built for; this closes it at
+      #    the source rather than waiting twenty minutes for it to go cold.
+      - name: Say that the session has stopped
+        if: always()
+        run: |
+          node scripts/virgil-status.mjs --idle \
+            --note "Run ${{ github.run_id }} finished with ${{ job.status }}. Nothing is in flight."
+          git add .virgil
+          git diff --staged --quiet || git commit -m "The session stopped, and the room says so
+
+          Run ${{ github.run_id }}, ${{ job.status }}."
+          git push origin HEAD:${{ inputs.branch }}

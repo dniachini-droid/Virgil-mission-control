@@ -22,8 +22,16 @@
 # rule is first. `netlify/functions/state.mjs` also declares `config.path`, and
 # the two agree on purpose: neither is relied on alone.
 [[redirects]]
-  from = "/api/*"
+  from = "/api/state"
   to = "/.netlify/functions/state"
+  status = 200
+
+# Slice three's one endpoint that can cause something to happen. Its own rule,
+# above the catch-all and beside the read one, so that neither can shadow the
+# other by accident.
+[[redirects]]
+  from = "/api/instruct"
+  to = "/.netlify/functions/instruct"
   status = 200
 
 # The app is a HashRouter, so every route is one document and no rewrite rule is

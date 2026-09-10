@@ -1,7 +1,7 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-10T07:54:56Z",
-  "aboutCommit": "3e18c1bc1ec996a620c2fa1040357f07d1aaeb1e",
+  "reportedAt": "2026-09-10T08:05:54Z",
+  "aboutCommit": "bd5c9382408bf5de87ccc92d1398a8898d939b7b",
   "branch": "claude/virgil-mobile-v11",
   "candidate": null,
   "holder": "fabricator",
@@ -10,7 +10,7 @@
       "role": "fabricator",
       "activity": "WORKING",
       "reported": null,
-      "at": "2026-09-10T07:54:56Z"
+      "at": "2026-09-10T08:05:54Z"
     },
     {
       "role": "prover",
@@ -26,5 +26,5 @@
     }
   ],
   "review": null,
-  "note": "Building Phase 2 slice three: what a session may be allowed to write."
+  "note": "Slice three: the endpoint and the workflow are in, waiting on the owner's three secrets."
 }
