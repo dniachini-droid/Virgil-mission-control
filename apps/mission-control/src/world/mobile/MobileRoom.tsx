@@ -664,16 +664,17 @@ function DemoBadge({
         <p className={`v11-badge-body${recorded ? ' is-recorded' : ''}`} role="status">
           {recorded ? (
             <>
-              This is the Phase 0 consolidation, a run that actually happened, replayed at{' '}
+              This is the Phase 0 consolidation, a run that really happened, replayed at{' '}
               {compressionOf(speed)}×. It began {recordedClock(RUN.startedAt)} and ran{' '}
-              {recordedDuration(RUN_SECONDS)}. Candidate 3b9a964e was reviewed, passed with
-              non-blocking findings and merged as {RUN.mergeSha.slice(0, 7)}. Every figure is read
-              out of this repository's committed record. It is past fact, not live state.
+              {recordedDuration(RUN_SECONDS)}. The change 3b9a964e was reviewed, passed with
+              non-blocking findings and went into the project as {RUN.mergeSha.slice(0, 7)}. Every
+              figure is read out of this repository's own record. It already happened; none of it is
+              live.
             </>
           ) : (
             <>
-              This is a scripted demonstration. No repository event, check or live session drives
-              the information currently shown.
+              This is a demonstration. Nothing you see here comes from a real project: no work has
+              been done, no check has been run, and nothing is connected.
             </>
           )}
         </p>
@@ -879,9 +880,9 @@ function DevPanel({
         ))}
       </div>
       <p className="v11-dev-keys">
-        Now: <code>{level}</code> at tier <code>{tier}</code> (detected <code>{detectedTier}</code>
-        ), loop <code>{loop}</code>, screens ×<code>{LEVEL_PLANS[level].redrawScale}</code>.
-        Governor:{' '}
+        Now: <code>{level}</code> on a <code>{tier}</code> device (detected{' '}
+        <code>{detectedTier}</code>), loop <code>{loop}</code>, screens ×
+        <code>{LEVEL_PLANS[level].redrawScale}</code>. Governor:{' '}
         {governor.lastMeanMs > 0
           ? `${governor.lastMeanMs} ms a frame. `
           : 'no window sampled yet. '}

@@ -232,7 +232,9 @@ describe('nothing in the window appears to act', () => {
   it('renders the five session controls disabled, with their reason', () => {
     expect(window_).toContain('disabled');
     expect(window_).toContain('title={transport().act(action.id).note}');
-    expect(window_).toContain('Merge is the owner’s alone.');
+    // The property, not the old sentence: the fine print under the dead
+    // controls has to name the owner as the only one who can put a change in.
+    expect(window_).toMatch(/Only you can put a change in\./);
   });
 
   it('offers no merge control at all', () => {

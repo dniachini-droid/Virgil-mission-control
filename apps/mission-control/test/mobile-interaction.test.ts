@@ -192,20 +192,30 @@ describe('the demonstration badge', () => {
     expect(room).toContain('Recorded run');
   });
 
-  it('carries the whole sentence when it is opened, unhedged', () => {
-    expect(room).toContain(
-      'This is a scripted demonstration. No repository event, check or live session drives',
-    );
-    expect(room).toContain('the information currently shown.');
+  /**
+   * **Asserted as a property, not as a fixed string.** It quoted the sentence
+   * verbatim until the plain-language pass, and a quoted sentence is a test
+   * that fails whenever the wording improves rather than whenever the meaning
+   * goes wrong. What the badge has to do is say three things — that it is a
+   * demonstration, that nothing real drove it, and that nothing is connected —
+   * and it may say them in whatever English says them best.
+   */
+  it('carries the whole thing when it is opened, unhedged', () => {
+    const badge = room.slice(room.indexOf('function DemoBadge'), room.indexOf('function TalkBar'));
+    const scripted = badge.slice(badge.indexOf('This is a demonstration'));
+    expect(scripted).toContain('This is a demonstration.');
+    expect(scripted).toMatch(/comes from a real project/);
+    expect(scripted).toMatch(/no check has been run/);
+    expect(scripted).toMatch(/nothing is connected/);
   });
 
   it('never says a demonstration came from a live repository', () => {
     const badge = room.slice(room.indexOf('function DemoBadge'), room.indexOf('function TalkBar'));
     // The two modes make opposite claims and both are stated in the negative:
-    // the scripted one drives nothing from the repository, and the replay is
-    // past fact. Neither may be read as "this is what your repository is doing".
-    expect(badge).toContain('No repository event, check or live session drives');
-    expect(badge).toContain('It is past fact, not live state.');
+    // the scripted one comes from no real project, and the replay already
+    // happened. Neither may be read as "this is what your project is doing".
+    expect(badge).toMatch(/Nothing you see here comes from a real project/);
+    expect(badge).toMatch(/It already happened; none of it is\s+live\./);
     expect(badge).not.toContain('live repository');
     expect(badge).not.toMatch(/\bcurrent state\b/);
   });

@@ -41,7 +41,7 @@ import {
   sweep,
   wellRect,
 } from './chrome.js';
-import { accentOf, colourOf, primaryFor, verdictPrimary } from './content.js';
+import { accentOf, colourOf, primaryFor, READY_TO_GO_IN, verdictPrimary } from './content.js';
 import { agentMark, statusMark, strokePath } from './marks.js';
 import { archive, arrival, assembly, checkNames, orbits, scanning, star } from './motifs.js';
 import { ARRIVE_SECONDS, clamp01, dim, metrics, STATUS, STRUCTURE, TEXT } from './system.js';
@@ -221,8 +221,8 @@ export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScree
         value: `${tally.blocking}`,
         colour: tally.blocking > 0 ? STATUS.red : undefined,
       },
-      { label: 'provenance', value: 'SEALED · 5 LINKS' },
-      { label: 'authority', value: 'TIER 2' },
+      { label: 'sources', value: 'SEALED · 5 LINKS' },
+      { label: 'may not', value: 'CHANGE THE FILES' },
     ];
     picture = () =>
       archive(
@@ -260,8 +260,13 @@ export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScree
  * parameter with it.
  */
 function chipsFor(role: Role, state: StationState): string[] {
-  const hop = role === 'fabricator' ? '1' : role === 'prover' ? '2' : '3';
-  return [`HOP ${hop}/3`, state, 'TIER 2'];
+  const step = role === 'fabricator' ? '1' : role === 'prover' ? '2' : '3';
+  // `CANNOT MERGE` in place of `TIER 2`. The tier is real and it is in
+  // `authority.json`, but the chip has to mean something to a reader who has
+  // never opened that file: what tier 2 comes to, for every one of the three,
+  // is that merging is not among the things it may do. Merge is tier 3 and the
+  // owner's alone, which is the fact worth the chip.
+  return [`STEP ${step} OF 3`, state, 'CANNOT MERGE'];
 }
 
 /**
@@ -385,7 +390,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
       m,
       'Verdict',
       accent.key,
-      ['REVIEW POLICY', content.verdict === '—' ? 'IN FLIGHT' : 'RETURNED'],
+      ['REVIEW', content.verdict === '—' ? 'NOT BACK YET' : 'BACK'],
       agentMark.virgil!,
     );
     const active =
@@ -425,14 +430,15 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
               const at = line.indexOf(' ');
               return { label: line.slice(0, at), value: line.slice(at + 1) };
             })
-            .concat([
-              { label: 'candidate', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) },
-            ])
+            .concat([{ label: 'change', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) }])
         : [
-            { label: 'holder', value: content.active ? content.active.toUpperCase() : 'VIRGIL' },
-            { label: 'candidate', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) },
-            { label: 'authority', value: 'TIER 2' },
-            { label: 'evidence', value: 'NONE RETURNED YET' },
+            {
+              label: 'working on it',
+              value: content.active ? content.active.toUpperCase() : 'VIRGIL',
+            },
+            { label: 'change', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) },
+            { label: 'merge', value: 'YOURS ALONE' },
+            { label: 'evidence', value: 'NONE YET' },
           ],
     );
     edgeLight(ctx, m, colour, t);
@@ -453,7 +459,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
       m,
       'The run',
       accent.key,
-      ['3 HOPS', content.active ? content.active.toUpperCase() : 'AT REST'],
+      ['3 STEPS', content.active ? content.active.toUpperCase() : 'AT REST'],
       agentMark.virgil!,
     );
     const holder = content.active ?? 'VIRGIL';
@@ -463,8 +469,8 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
       body,
       holder.toUpperCase(),
       content.active
-        ? 'HOLDS THE HOP UNDER AN AUTHORITY GRANT'
-        : 'NO HOP IN FLIGHT. VIRGIL HOLDS IT.',
+        ? 'IS DOING THE WORK RIGHT NOW'
+        : 'NOTHING IS BEING WORKED ON. VIRGIL HOLDS IT.',
       content.active ? STATUS.cyan : STATUS.gold,
       clamp01(since / ARRIVE_SECONDS),
       statusMark(content.active ? 'working' : 'standby', t),
@@ -481,9 +487,9 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
       // **One derivation, printed and drawn.** The rail used to count the
       // rows' own `done` states, which is the same answer by luck rather
       // than by construction; both now come from `hopsReturned`.
-      { label: 'hops', value: `${hopsReturned(content)} / ${HOP_ORDER.length} returned` },
-      { label: 'candidate', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) },
-      { label: 'authority', value: 'TIER 2 · TIER 1' },
+      { label: 'steps done', value: `${hopsReturned(content)} / ${HOP_ORDER.length}` },
+      { label: 'change', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) },
+      { label: 'merge', value: 'YOURS ALONE' },
       /**
        * **The Keeper's KS4-02.** This column printed `seconds` in both
        * modes. In the scripted demonstration `seconds` is the script's own
@@ -516,7 +522,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
   }
 
   // The candidate slab.
-  const state = content.candidate ?? 'NO CANDIDATE';
+  const state = content.candidate ?? 'NOTHING YET';
   const status = gate
     ? 'amber'
     : content.candidate === 'BLOCKED'
@@ -530,9 +536,9 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
   headerRail(
     ctx,
     m,
-    'Candidate',
+    'The change',
     accent.key,
-    ['STATE LANGUAGE', content.candidateId ?? CANDIDATE_ID.slice(0, 7)],
+    ['ITS STATE', content.candidateId ?? CANDIDATE_ID.slice(0, 7)],
     agentMark.virgil!,
   );
   const used = heroBand(
@@ -540,7 +546,7 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
     m,
     body,
     state.replace(/_/g, ' '),
-    gate ? 'EVERY GATE PASSES. ELIGIBLE, NOT MERGED.' : 'ITS STATE IN THE CONSTITUTION’S WORDS',
+    gate ? READY_TO_GO_IN : 'THE PROJECT’S OWN WORD FOR WHERE IT IS',
     colour,
     clamp01(since / ARRIVE_SECONDS),
     statusMark(
@@ -559,9 +565,9 @@ export function drawSlab(canvas: HTMLCanvasElement, input: SlabInput) {
   dossier(ctx, m, { ...rest, h: rest.h * 0.5 }, content, t);
   ownerCard(ctx, m, { ...rest, y: rest.y + rest.h * 0.52, h: rest.h * 0.48 }, gate, t);
   microRail(ctx, m, [
-    { label: 'identity', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) },
-    { label: 'lineage', value: 'ONE IMMUTABLE COMMIT' },
-    { label: 'merge', value: 'OWNER ONLY', colour: gate ? STATUS.amber : undefined },
+    { label: 'which change', value: content.candidateId ?? CANDIDATE_ID.slice(0, 7) },
+    { label: 'history', value: 'ONE COMMIT, NEVER REWRITTEN' },
+    { label: 'merge', value: 'YOURS ALONE', colour: gate ? STATUS.amber : undefined },
     {
       label: 'decisions',
       value: gate ? '1 AWAITING' : '0 AWAITING',
@@ -942,9 +948,9 @@ function dossier(
   ctx.fillStyle = dim(0.42);
   ctx.textBaseline = 'top';
   ctx.textAlign = 'left';
-  ctx.fillText('CANDIDATE IDENTITY', x, top);
+  ctx.fillText('WHICH CHANGE', x, top);
   ctx.textAlign = 'right';
-  ctx.fillText('PROVENANCE · 4 LINKS', r.x + r.w - 1.8 * u, top);
+  ctx.fillText('WHERE IT CAME FROM · 4 LINKS', r.x + r.w - 1.8 * u, top);
   ctx.textAlign = 'left';
   spaced(ctx, '0em');
   fit(ctx, mono, m.type.title, id, half - 2 * u);
@@ -1016,8 +1022,8 @@ function ownerCard(
   ctx.textAlign = 'left';
   const textX = x + 4.2 * u;
   const textW = w - 5.6 * u;
-  const label = gate ? 'AWAITING OWNER DECISION' : 'NOTHING AWAITS THE OWNER';
-  const note = gate ? 'MERGE IS OWNER-ONLY IN EVERY PHASE' : 'THE RUN PROCEEDS WITHOUT A GATE';
+  const label = gate ? 'WAITING ON YOUR DECISION' : 'NOTHING IS WAITING ON YOU';
+  const note = gate ? 'ONLY YOU CAN PUT IT IN' : 'THE WORK CARRIES ON';
   // Two lines where the card is tall enough for two, one where it is not.
   const two = cardH >= m.type.data * 1.2 + m.type.micro * 1.5;
   ctx.fillStyle = gate ? STATUS.amber : dim(0.5);

@@ -45,16 +45,16 @@ const VERB: Record<Role, string> = {
 };
 
 const DOING: Record<Role, string> = {
-  fabricator: 'IMPLEMENTING THE PLAN, INSIDE THE PERMITTED PATHS',
-  prover: 'RUNNING THE REQUIRED CHECKS ON THE CANDIDATE SHA',
-  keeper: 'READING THE CANDIDATE AND ITS EVIDENCE',
+  fabricator: 'WRITING THE CODE, ONLY IN THE FILES IT WAS GIVEN',
+  prover: 'RUNNING EVERY CHECK ON THIS EXACT VERSION',
+  keeper: 'READING THE CHANGE AND THE EVIDENCE FOR IT',
 };
 
 export function primaryFor(role: Role, state: StationState, report: Report): Primary {
   if (state === 'RECEIVING')
     return {
       word: 'INBOUND',
-      lead: 'A HAND-OFF IS ARRIVING, WITH ITS AUTHORITY GRANT',
+      lead: 'THE WORK IS BEING PASSED TO IT',
       mark: 'receiving',
       status: 'cyan',
     };
@@ -69,7 +69,7 @@ export function primaryFor(role: Role, state: StationState, report: Report): Pri
         // the verdicts.
         return {
           word: 'REPORTED COMPLETE',
-          lead: 'A CLAIM BY THE BUILDER, NOT EVIDENCE',
+          lead: 'THE BUILDER SAYS SO. NOTHING IS CHECKED YET.',
           mark: 'reported',
           status: 'cyan',
         };
@@ -89,21 +89,21 @@ export function primaryFor(role: Role, state: StationState, report: Report): Pri
       case 'PASS_WITH_NON_BLOCKING_FINDINGS':
         return {
           word: 'PASS WITH NON-BLOCKING FINDINGS',
-          lead: 'EVERY FINDING RECORDED AND CARRIED FORWARD',
+          lead: 'THE ISSUES FOUND ARE WRITTEN DOWN AND KEPT',
           mark: 'passed',
           status: 'green',
         };
       case 'BLOCKED':
         return {
           word: 'BLOCKED',
-          lead: 'A REQUIRED CHECK FAILED. THE CANDIDATE IS REFUSED.',
+          lead: 'A CHECK FAILED. THE CHANGE IS REFUSED.',
           mark: 'blocked',
           status: 'red',
         };
       case 'INSUFFICIENT_EVIDENCE':
         return {
           word: 'INSUFFICIENT EVIDENCE',
-          lead: 'A REQUIRED CHECK COULD NOT RUN. NOT A FAILURE.',
+          lead: 'A CHECK COULD NOT RUN. THAT IS NOT A FAILURE.',
           mark: 'insufficient',
           status: 'amber',
         };
@@ -113,7 +113,7 @@ export function primaryFor(role: Role, state: StationState, report: Report): Pri
   }
   return {
     word: 'STANDBY',
-    lead: 'POWERED AND IDLE. NO HAND-OFF IS IN FLIGHT.',
+    lead: 'ON, AND WAITING. NOTHING TO DO YET.',
     mark: 'standby',
     status: 'cyan',
   };
@@ -130,23 +130,42 @@ export function accentOf(who: string): { key: string; second: string } {
 }
 
 /**
- * The verdict on Virgil's centre slab. **It takes who holds the hop, not
- * how the loop ends**: see the `default` branch below for why the scripted
- * outcome may not reach this display before the review has reported.
+ * **The one sentence that may be said only of `SAFE_TO_MERGE`.**
+ *
+ * It is the owner's own wording. He read the line this used to carry —
+ * *"EVERY GATE PASSES. ELIGIBLE, NOT MERGED."* — and said it was jargon; then
+ * he read a plainer draft that spelled out that the change had not gone in and
+ * rejected that too: *"Is still stupid. 'And hasn't gone in?' Why? Just say
+ * the change is ready to go into the project. And that it's waiting on me for
+ * the decision."*
+ *
+ * So it says the state and what it is waiting on, and nothing else. *Ready to
+ * go in* already tells the reader it has not gone in; saying so again reads as
+ * a disclaimer rather than a sentence. The distinction between **eligible and
+ * merged** is not lost — it is carried by *ready to go into the project* and
+ * by *waiting on you*, which is the same distinction in words a person uses.
+ */
+export const READY_TO_GO_IN = 'READY TO GO INTO THE PROJECT. WAITING ON YOU.';
+
+/**
+ * The verdict on Virgil's centre slab. **It takes who is working on the
+ * change, not how the loop ends**: see the `default` branch below for why the
+ * scripted outcome may not reach this display before the review has reported.
  *
  * **`eligible` is stage 4's third parameter and it exists because of a defect
- * found by looking at a frame.** `EVERY GATE PASSES. ELIGIBLE, NOT MERGED.` is
- * `constitution/STATE_LANGUAGE.md`'s sentence for **`SAFE_TO_MERGE`**, and it
- * was printed under the word `PASS` unconditionally — so at the passing loop's
- * thirtieth second, where the Prover has returned PASS and the candidate is
- * `READY_FOR_REVIEW`, the slab told the reader the candidate was eligible to
- * merge. No merge gate had been evaluated and the Keeper had not reviewed.
+ * found by looking at a frame.** `READY_TO_GO_IN` is
+ * `constitution/STATE_LANGUAGE.md`'s sentence for **`SAFE_TO_MERGE`** said in
+ * English, and its predecessor was printed under the word `PASS`
+ * unconditionally — so at the passing loop's thirtieth second, where the
+ * Prover has returned PASS and the change is `READY_FOR_REVIEW`, the slab told
+ * the reader it was ready to go into the project. Nothing had been evaluated
+ * for that and the Keeper had not reviewed.
  *
  * That is the same family as the two faults stage 2 found and one the audit
  * missed, because the audit looked for verdict *words* appearing early and
  * this is a **state sentence** appearing early. The word `PASS` was never
  * wrong here — the Prover really had returned it. The line under it was. So
- * the caller now says whether the candidate is actually in the state that
+ * the caller now says whether the change is actually in the state that
  * sentence describes, and `test/screen-content-v11.test.ts` holds the sentence
  * to that state.
  */
@@ -156,28 +175,26 @@ export function verdictPrimary(verdict: string, active: string | null, eligible 
       return {
         word: 'PASS',
         lead: eligible
-          ? 'EVERY GATE PASSES. ELIGIBLE, NOT MERGED.'
+          ? READY_TO_GO_IN
           : // Shortened after looking at the slab: the lead is elided to the
             // width it has, and "VERIFICATION PASSED. REVIEW HAS NOT …" can be
-            // read as "review has not passed". This one elides to
-            // "VERIFICATION PASSED. NOT YET …", which cannot.
-            'VERIFICATION PASSED. NOT YET REVIEWED.',
+            // read as "review has not passed". This one elides to "THE CHECKS
+            // PASSED. NOBODY HAS …", which cannot.
+            'THE CHECKS PASSED. NOBODY HAS REVIEWED IT YET.',
         mark: 'passed',
         status: 'green',
       };
     case 'PASS_WITH_NON_BLOCKING_FINDINGS':
       return {
         word: 'PASS WITH NON-BLOCKING FINDINGS',
-        lead: eligible
-          ? 'EVERY GATE PASSES. ELIGIBLE, NOT MERGED.'
-          : 'EVERY FINDING RECORDED AND CARRIED FORWARD',
+        lead: eligible ? READY_TO_GO_IN : 'THE ISSUES FOUND ARE WRITTEN DOWN AND KEPT',
         mark: 'passed',
         status: 'green',
       };
     case 'BLOCKED':
       return {
         word: 'BLOCKED',
-        lead: 'VIRGIL REFUSES. IT DOES NOT PROCEED.',
+        lead: 'VIRGIL HAS STOPPED IT. IT GOES NO FURTHER.',
         mark: 'blocked',
         status: 'red',
       };
@@ -185,7 +202,7 @@ export function verdictPrimary(verdict: string, active: string | null, eligible 
     case 'INSUFFICIENT_EVIDENCE':
       return {
         word: 'INSUFFICIENT EVIDENCE',
-        lead: 'VIRGIL WAITS FOR THE MISSING PROOF.',
+        lead: 'VIRGIL IS WAITING FOR THE MISSING CHECK.',
         mark: 'insufficient',
         status: 'amber',
       };
@@ -226,8 +243,8 @@ export function verdictPrimary(verdict: string, active: string | null, eligible 
       return {
         word: 'NO VERDICT',
         lead: active
-          ? `NO VERDICT HAS RETURNED. ${active.toUpperCase()} HOLDS THE HOP.`
-          : 'NO VERDICT HAS RETURNED FOR THIS CANDIDATE.',
+          ? `NOTHING HAS COME BACK YET. ${active.toUpperCase()} IS WORKING ON IT.`
+          : 'NOTHING HAS COME BACK ON THIS CHANGE YET.',
         mark: 'working',
         status: 'cyan',
       };

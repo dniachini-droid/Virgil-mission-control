@@ -5,7 +5,7 @@ import { playbackSchedule, replayAt } from '../src/world/replay/replayTimeline.j
 import { ROLES, type Role } from '../src/world/room/cast.js';
 import { BEATS, demoAt, loopLength, type Outcome } from '../src/world/room/demo.js';
 import { splitHero } from '../src/world/screens/v11/chrome.js';
-import { primaryFor, verdictPrimary } from '../src/world/screens/v11/content.js';
+import { primaryFor, READY_TO_GO_IN, verdictPrimary } from '../src/world/screens/v11/content.js';
 import { contentFor } from '../src/world/screens/v11/recorded.js';
 import {
   drawConsoleScreen,
@@ -383,9 +383,19 @@ describe('reduced motion arrives; it does not hide', () => {
   });
 });
 
-describe('the merge-eligibility sentence appears only in the state it names', () => {
-  const ELIGIBLE = 'ELIGIBLE, NOT MERGED';
-
+/**
+ * **The same assertion after the plain-language pass, against the property
+ * rather than against the old words.**
+ *
+ * It compared the lead to the literal `ELIGIBLE, NOT MERGED`, which is the
+ * wording the owner rejected as jargon. The sentence it holds is now the
+ * owner's own — `READY_TO_GO_IN`, *"READY TO GO INTO THE PROJECT. WAITING ON
+ * YOU."* — and it is imported rather than quoted, so the sentence may be
+ * reworded again without this test either failing spuriously or, worse,
+ * silently ceasing to guard anything because the string it looked for no
+ * longer exists anywhere.
+ */
+describe('the ready-to-go-in sentence appears only in the state it names', () => {
   it('at every half-second of all three loops', () => {
     for (let loop = 0; loop < 3; loop += 1) {
       for (let seconds = 0; seconds <= loopLength(loop); seconds += 0.5) {
@@ -395,7 +405,7 @@ describe('the merge-eligibility sentence appears only in the state it names', ()
           state.content.active,
           state.content.candidate === 'SAFE_TO_MERGE',
         );
-        const claims = primary.lead.includes(ELIGIBLE);
+        const claims = primary.lead === READY_TO_GO_IN;
         expect(
           claims,
           `loop ${loop} at ${seconds}s: candidate ${state.content.candidate}, lead "${primary.lead}"`,
@@ -404,9 +414,14 @@ describe('the merge-eligibility sentence appears only in the state it names', ()
     }
   });
 
-  it('and a returned PASS that is only a verification says exactly that', () => {
-    expect(verdictPrimary('PASS', null, false).lead).toBe('VERIFICATION PASSED. NOT YET REVIEWED.');
-    expect(verdictPrimary('PASS', null, true).lead).toContain(ELIGIBLE);
+  it('and a returned PASS that is only a check says exactly that', () => {
+    // Checked is not reviewed, and the lead has to keep the two apart. It says
+    // so in English now; what is asserted is that both halves are there and
+    // that the sentence cannot be read the other way round.
+    const checked = verdictPrimary('PASS', null, false).lead;
+    expect(checked).toMatch(/^THE CHECKS PASSED\./);
+    expect(checked).toMatch(/NOBODY HAS REVIEWED IT YET/);
+    expect(verdictPrimary('PASS', null, true).lead).toBe(READY_TO_GO_IN);
   });
 });
 
@@ -579,8 +594,10 @@ describe('no row claims a hop that has not run', () => {
       SLAB_SIZE[0],
       SLAB_SIZE[1],
     );
-    const rail = drawn.filter((line) => / \/ 3 returned$/.test(line));
-    expect(rail, `loop ${loop} at ${seconds}s`).toEqual([`${want} / 3 returned`]);
+    // The rail's column is labelled `STEPS DONE` and its value is the count;
+    // the word *returned* moved out of the value when the vocabulary did.
+    const rail = drawn.filter((line) => /^\d+ \/ 3$/.test(line));
+    expect(rail, `loop ${loop} at ${seconds}s`).toEqual([`${want} / 3`]);
   });
 
   /**

@@ -270,16 +270,20 @@ describe('there is no session, and nothing pretends there is', () => {
     const outcome = NO_SESSION.send('anything at all');
     expect(outcome.sent).toBe(false);
     expect(outcome.kept).toBe(true);
-    expect(outcome.note).toMatch(/no session behind this build/);
+    expect(outcome.note).toMatch(/nothing running behind this build/);
   });
 
-  it('never performs a control, and says merge is the owner’s', () => {
+  it('never performs a control, and says the decision is the owner’s', () => {
     for (const action of SESSION_ACTIONS) {
       const outcome = NO_SESSION.act(action.id);
       expect(outcome.performed).toBe(false);
       expect(outcome.note).toMatch(/not available/);
     }
-    expect(NO_SESSION.act('approve').note).toMatch(/merge is the owner’s alone/);
+    // **The property, not the sentence.** It quoted *"merge is the owner's
+    // alone"* verbatim; the plain-language pass says the same thing without
+    // the word *merge* doing the work — what has to survive is that the note
+    // names the owner as the only one who can put a change into the project.
+    expect(NO_SESSION.act('approve').note).toMatch(/only you can put a change into the project/i);
   });
 
   it('carries the five controls and marks the owner-only ones', () => {

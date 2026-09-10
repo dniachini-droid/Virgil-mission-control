@@ -352,8 +352,8 @@ export function AgentWindow({
                 between flex items is not rendered at all. It came out as
                 "Session controls— none is connected" in the frames. */}
             <summary>
-              <span>Session controls</span>
-              <span className="v11w-fine">— none is connected</span>
+              <span>Controls</span>
+              <span className="v11w-fine">— none of them works</span>
             </summary>
             <div className="v11w-control-row">
               {SESSION_ACTIONS.map((action) => (
@@ -369,7 +369,7 @@ export function AgentWindow({
                 </button>
               ))}
             </div>
-            <p className="v11w-fine">{transport().absence} Merge is the owner’s alone.</p>
+            <p className="v11w-fine">{transport().absence} Only you can put a change in.</p>
           </details>
 
           {/* Always available, always beneath the suggested actions, and always
@@ -386,8 +386,8 @@ export function AgentWindow({
                 two lines inside a one-line box and was clipped — found by
                 looking at the frame, not by reasoning about it. */}
             <label className="v11w-sr" htmlFor="v11w-input">
-              Ask {doc.name} to plan, inspect or explain anything. Nothing is sent: there is no
-              session behind this build.
+              Ask {doc.name} to plan, inspect or explain anything. Nothing is sent — there is
+              nothing running behind this build.
             </label>
             <textarea
               id="v11w-input"

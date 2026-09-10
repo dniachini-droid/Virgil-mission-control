@@ -141,7 +141,15 @@ describe('the status vocabulary', () => {
     expect(primary.status).toBe('cyan');
     expect(primary.mark).toBe('reported');
     expect(primary.status).not.toBe('green');
-    expect(primary.lead).toContain('CLAIM');
+    // **The property, not the word.** This asserted that the lead contained
+    // `CLAIM`, which held the epistemics to one piece of the repository's own
+    // vocabulary; the plain-language pass says the same thing in English —
+    // *"THE BUILDER SAYS SO. NOTHING IS CHECKED YET."* What matters is that
+    // the lead names **who said it** and denies that anything has been
+    // checked, and that it never reads as a result.
+    expect(primary.lead).toMatch(/BUILDER SAYS|CLAIM/);
+    expect(primary.lead).toMatch(/NOTHING IS CHECKED|NOT EVIDENCE/);
+    expect(primary.lead).not.toMatch(/\bPASSED\b|\bVERIFIED\b|\bPROVED\b/);
   });
 
   it('never draws INSUFFICIENT_EVIDENCE as a failure: it is a gap, not a refusal', () => {

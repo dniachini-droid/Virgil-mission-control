@@ -44,26 +44,26 @@ export const SESSION_ACTIONS: readonly SessionActionSpec[] = [
   {
     id: 'approve',
     label: 'Approve',
-    would: 'record the owner’s approval of a candidate. It is never a merge.',
+    would: 'record that you approved a change. It never puts it into the project.',
     ownerOnly: true,
   },
   {
     id: 'reject',
     label: 'Reject',
-    would: 'return a candidate with the owner’s reason attached.',
+    would: 'send a change back with your reason attached.',
     ownerOnly: true,
   },
   { id: 'pause', label: 'Pause', would: 'hold every agent where it stands.', ownerOnly: false },
   {
     id: 'stop',
     label: 'Stop',
-    would: 'end the run and leave the candidate exactly as it is.',
+    would: 'end the run and leave the change exactly as it is.',
     ownerOnly: false,
   },
   {
     id: 'resume',
     label: 'Resume',
-    would: 'let a paused run continue from the hop it was holding.',
+    would: 'let a paused run carry on from the step it stopped at.',
     ownerOnly: false,
   },
 ];
@@ -98,11 +98,11 @@ export interface SessionTransport {
 }
 
 export const NO_SESSION_NOTE =
-  'Kept on this page. Nothing is sent: there is no session behind this build.';
+  'Kept on this page. Nothing is sent — there is nothing running behind this build.';
 
 export const NO_SESSION: SessionTransport = {
   connected: false,
-  absence: 'No session is attached to this build. Nothing here can act on the repository.',
+  absence: 'Nothing is running behind this build. Nothing here can change the project.',
   history: () => [],
   send: (text: string) => ({
     sent: false,
@@ -111,7 +111,7 @@ export const NO_SESSION: SessionTransport = {
   }),
   act: (action: SessionActionId) => ({
     performed: false,
-    note: `${action} is not available: there is no session behind this build, and merge is the owner’s alone in every phase.`,
+    note: `${action} is not available: nothing is running behind this build, and only you can put a change into the project.`,
   }),
   subscribe: () => () => undefined,
 };

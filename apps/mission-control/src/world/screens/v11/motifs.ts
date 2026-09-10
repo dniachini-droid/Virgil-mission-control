@@ -564,7 +564,7 @@ export function scanning(
   gates(ctx, m, r, t, failed, stalled, key, pass);
 }
 
-/** Evidence travelling left to right through three verification gates. */
+/** Evidence travelling left to right, and the way on that shuts behind it. */
 function gates(
   ctx: Ctx,
   m: Metrics,
@@ -580,7 +580,10 @@ function gates(
   const x0 = r.x + 2.2 * u;
   const x1 = r.x + r.w - 2.2 * u;
   hairline(ctx, x0, y, x1, y, TEXT, hair, 0.16);
-  const labels = ['CHECKS', 'EVIDENCE', 'GATE'];
+  // `WAY ON` rather than `GATE`: the third mark is the point past which the
+  // work either goes or does not, and it shuts when a check fails. A reader
+  // who has never met the word *gate* still knows what a way on is.
+  const labels = ['CHECKS', 'EVIDENCE', 'WAY ON'];
   labels.forEach((label, i) => {
     const x = x0 + ((i + 1) / (labels.length + 1)) * (x1 - x0);
     const open = i < 2 || !(failed || stalled);
