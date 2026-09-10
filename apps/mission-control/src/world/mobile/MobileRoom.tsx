@@ -19,6 +19,7 @@ import {
 import { Figure } from '../characters/Figure.js';
 import { VirgilRigged } from '../characters/VirgilRigged.js';
 import type { FaceState } from '../characters/Visor.js';
+import { forgetSecret, rememberSecret, storedSecret } from '../live/liveSession.js';
 import { type Live, liveIsCompiledIn, reportIsCurrent, useLive } from '../live/liveState.js';
 import type { SlabName } from '../panel/panelContent.js';
 import { demoSnapshot, publishDemoState } from '../panel/panelStore.js';
@@ -876,6 +877,66 @@ function TalkBar({ marker, onTalk }: { marker: string; onTalk: () => void }) {
  * `#/?cam=prover`, `#/?view=room`, `#/?state=blocked`), not these buttons, and
  * they are read at mount exactly as V10 reads them.
  */
+/**
+ * **Where the owner gives this page the secret that lets it start work.**
+ *
+ * Phase 2 slice three. `/api/instruct` will not start a run without the shared
+ * secret, and the secret cannot be built into the page: anything the bundle
+ * carries, anyone who opens the page can read. So he types it once, here, and it
+ * is kept in this browser's local storage and nowhere else — not in the
+ * repository, not in the build, and in no answer this app returns.
+ *
+ * It lives behind the development menu rather than in the ordinary interface
+ * because it is a one-time setup step, not a feature. **Forget** is beside it,
+ * because a secret that can be given and not taken back is a trap.
+ */
+function InstructSecret() {
+  const [value, setValue] = useState('');
+  const [held, setHeld] = useState(() => storedSecret() !== null);
+  if (!liveIsCompiledIn()) return null;
+  return (
+    <div className="v11-dev-row v11-dev-secret">
+      <span className="v11-dev-label">Instruct</span>
+      {held ? (
+        <>
+          <span className="v11-dev-fine">This device can start sessions.</span>
+          <button
+            type="button"
+            onClick={() => {
+              forgetSecret();
+              setHeld(false);
+            }}
+          >
+            Forget
+          </button>
+        </>
+      ) : (
+        <>
+          <input
+            type="password"
+            className="v11-dev-input"
+            value={value}
+            placeholder="Your instruct secret"
+            aria-label="The secret that lets this device start sessions"
+            onChange={(event) => setValue(event.target.value)}
+          />
+          <button
+            type="button"
+            disabled={value.trim().length === 0}
+            onClick={() => {
+              rememberSecret(value);
+              setValue('');
+              setHeld(storedSecret() !== null);
+            }}
+          >
+            Keep
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function DevPanel({
   build,
   sharpness,
@@ -933,6 +994,7 @@ function DevPanel({
         Not part of the ordinary experience. Everything below is a switch for looking at the build,
         not a feature of the product.
       </p>
+      <InstructSecret />
       <div className="v11-dev-row">
         <span className="v11-dev-label">Demo</span>
         <button type="button" className={demo ? 'is-active' : ''} onClick={() => setDemo(true)}>

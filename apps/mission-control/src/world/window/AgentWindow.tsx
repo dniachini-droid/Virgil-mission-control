@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { prefersReducedMotion } from '../../ui/settings.js';
+import { canInstruct, instruct, storedSecret } from '../live/liveSession.js';
 import { useDemoState } from '../panel/panelStore.js';
 import { BlockView } from './Blocks.jsx';
 import type { Message, Section } from './blocks.js';
@@ -378,7 +379,28 @@ export function AgentWindow({
             className="v11w-composer"
             onSubmit={(event) => {
               event.preventDefault();
-              setKept(keepTurn(key, memory.draft));
+              /**
+               * **Two behaviours, and the button says which one it is.**
+               *
+               * In the Owner Build there is nothing to send to, and the seam in
+               * `session.ts` implements that as a refusal: the message is kept
+               * on the page and the note says so. In the hosted build, once the
+               * owner has given the page his secret, the same box starts a real
+               * session — and reports exactly what the endpoint answered,
+               * including a refusal. A composer that said *sent* on a 409 would
+               * be the same class of lie as a verdict nobody returned.
+               */
+              const secret = canInstruct() ? storedSecret() : null;
+              if (!secret) {
+                setKept(keepTurn(key, memory.draft));
+                return;
+              }
+              const text = memory.draft;
+              setKept('Sending…');
+              void instruct(text, secret).then((outcome) => {
+                if (outcome.sent) keepTurn(key, text);
+                setKept(outcome.note);
+              });
             }}
           >
             {/* The long invitation is the label a screen reader reads; the
@@ -386,8 +408,9 @@ export function AgentWindow({
                 two lines inside a one-line box and was clipped — found by
                 looking at the frame, not by reasoning about it. */}
             <label className="v11w-sr" htmlFor="v11w-input">
-              Ask {doc.name} to plan, inspect or explain anything. Nothing is sent — there is
-              nothing running behind this build.
+              {canInstruct()
+                ? `Tell ${doc.name} what to do. This starts a real session on the working branch.`
+                : `Ask ${doc.name} to plan, inspect or explain anything. Nothing is sent — there is nothing running behind this build.`}
             </label>
             <textarea
               id="v11w-input"
@@ -401,9 +424,13 @@ export function AgentWindow({
               type="submit"
               className="v11w-keep"
               data-touch-target="composer-keep"
-              aria-label="Save your message on this page. It will not be sent."
+              aria-label={
+                canInstruct()
+                  ? 'Send this instruction and start a session.'
+                  : 'Save your message on this page. It will not be sent.'
+              }
             >
-              Keep
+              {canInstruct() ? 'Send' : 'Keep'}
             </button>
           </form>
           <p className="v11w-composer-note" role="status">

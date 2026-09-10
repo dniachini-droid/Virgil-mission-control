@@ -210,7 +210,13 @@ describe('accessibility', () => {
   });
 
   it('names every control a screen reader reaches', () => {
-    expect(window_).toContain('aria-label="Save your message on this page. It will not be sent."');
+    // **Both of the composer's names, because it now has two.** In the Owner
+    // Build there is nothing to send to and the button keeps the message on the
+    // page; in the hosted build, once the owner has given it his secret, the
+    // same button starts a real session. A screen reader is told which it is,
+    // and asserting only one of the two would let the other go unnamed.
+    expect(window_).toContain("'Save your message on this page. It will not be sent.'");
+    expect(window_).toContain("'Send this instruction and start a session.'");
     expect(window_).toContain('aria-expanded={open}');
     expect(window_).toContain('aria-disabled="true"');
     expect(window_).toContain('className="v11w-sr"');

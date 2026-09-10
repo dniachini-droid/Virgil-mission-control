@@ -656,3 +656,23 @@
   text-align: center;
   z-index: 6;
 }
+
+/**
+ * **The instruct secret field**, in the development menu. A one-time setup
+ * step rather than a feature, and it is styled to look like one.
+ */
+.v11-dev-secret .v11-dev-input {
+  flex: 1 1 8rem;
+  min-width: 0;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.35);
+  color: inherit;
+  font: inherit;
+}
+.v11-dev-secret .v11-dev-fine {
+  flex: 1 1 auto;
+  opacity: 0.7;
+  font-size: 0.8em;
+}
