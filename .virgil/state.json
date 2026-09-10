@@ -1,16 +1,16 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-10T08:05:54Z",
-  "aboutCommit": "bd5c9382408bf5de87ccc92d1398a8898d939b7b",
+  "reportedAt": "2026-09-10T08:53:42Z",
+  "aboutCommit": "5b9676390c2cfbc565272ae691600679b1e5664d",
   "branch": "claude/virgil-mobile-v11",
   "candidate": null,
-  "holder": "fabricator",
+  "holder": "keeper",
   "hops": [
     {
       "role": "fabricator",
-      "activity": "WORKING",
+      "activity": "READY",
       "reported": null,
-      "at": "2026-09-10T08:05:54Z"
+      "at": null
     },
     {
       "role": "prover",
@@ -20,11 +20,11 @@
     },
     {
       "role": "keeper",
-      "activity": "READY",
+      "activity": "WORKING",
       "reported": null,
-      "at": null
+      "at": "2026-09-10T08:53:42Z"
     }
   ],
   "review": null,
-  "note": "Slice three: the endpoint and the workflow are in, waiting on the owner's three secrets."
+  "note": "An independent Keeper is reviewing candidate 5b96763 for pull request 8. It did not write any of what it is reading."
 }
