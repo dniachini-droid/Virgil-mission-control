@@ -1,0 +1,273 @@
+{
+  "$id": "https://virgil.local/schemas/session-status-report.schema.json",
+  "title": "session-status-report",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "virgil.session-status.v1"
+    },
+    "reportedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+      "description": "ISO-8601 timestamp with offset"
+    },
+    "aboutCommit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "Immutable full commit SHA"
+    },
+    "branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidate": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "sha": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$",
+              "description": "Immutable full commit SHA"
+            },
+            "shortSha": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{7,12}$"
+            },
+            "state": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "BUILDING",
+                    "BUILDER_REPORTED_COMPLETE",
+                    "VERIFICATION_INCOMPLETE",
+                    "READY_FOR_REVIEW",
+                    "REVIEW_IN_PROGRESS",
+                    "PASS_WITH_NON_BLOCKING_FINDINGS",
+                    "BLOCKED",
+                    "INSUFFICIENT_EVIDENCE",
+                    "REPAIR_AUTHORISED",
+                    "RE_REVIEW_REQUIRED",
+                    "SAFE_TO_MERGE",
+                    "MERGED",
+                    "DEPLOYED",
+                    "QUARANTINED",
+                    "OWNER_DECISION_REQUIRED"
+                  ],
+                  "description": "A candidate state from constitution/authority.json"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "sha",
+            "shortSha",
+            "state"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "holder": {
+      "anyOf": [
+        {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "virgil",
+                "cartographer",
+                "architect",
+                "fabricator",
+                "prover",
+                "keeper",
+                "arbiter",
+                "domain-verifier",
+                "breaker",
+                "integrator",
+                "interface-keeper",
+                "security-sentinel",
+                "transport-inspector",
+                "performance-examiner"
+              ],
+              "description": "Agent role identifier from constitution/permission-matrix.json"
+            },
+            {
+              "type": "string",
+              "const": "virgil"
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "hops": {
+      "maxItems": 16,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "virgil",
+              "cartographer",
+              "architect",
+              "fabricator",
+              "prover",
+              "keeper",
+              "arbiter",
+              "domain-verifier",
+              "breaker",
+              "integrator",
+              "interface-keeper",
+              "security-sentinel",
+              "transport-inspector",
+              "performance-examiner"
+            ],
+            "description": "Agent role identifier from constitution/permission-matrix.json"
+          },
+          "activity": {
+            "type": "string",
+            "enum": [
+              "READY",
+              "RECEIVING",
+              "WORKING",
+              "REPORTED"
+            ]
+          },
+          "reported": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "const": "COMPLETE"
+                  },
+                  {
+                    "type": "string",
+                    "enum": [
+                      "PASS",
+                      "PASS_WITH_NON_BLOCKING_FINDINGS",
+                      "BLOCKED",
+                      "INSUFFICIENT_EVIDENCE"
+                    ],
+                    "description": "A review verdict from constitution/authority.json"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "ISO-8601 timestamp with offset"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "role",
+          "activity",
+          "reported",
+          "at"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "review": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "PASS",
+                "PASS_WITH_NON_BLOCKING_FINDINGS",
+                "BLOCKED",
+                "INSUFFICIENT_EVIDENCE"
+              ],
+              "description": "A review verdict from constitution/authority.json"
+            },
+            "recordPath": {
+              "type": "string",
+              "minLength": 1
+            },
+            "recordCommit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$",
+              "description": "Immutable full commit SHA"
+            },
+            "findings": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "blocking": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "verdict",
+            "recordPath",
+            "recordCommit",
+            "findings",
+            "blocking"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "note": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 300
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "reportedAt",
+    "aboutCommit",
+    "branch",
+    "candidate",
+    "holder",
+    "hops",
+    "review",
+    "note"
+  ],
+  "additionalProperties": false,
+  "description": "A session’s own report of what it is doing, written to .virgil/state.json. A claim, not evidence."
+}

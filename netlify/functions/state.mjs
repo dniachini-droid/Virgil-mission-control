@@ -195,6 +195,74 @@ async function readChecks(repo, sha, token) {
   return { unreadable: `No source could be read: ${refused.join(', ')}.` };
 }
 
+/**
+ * **The sessions' own report, and the commit it was committed in.**
+ *
+ * Phase 2 slice two. GitHub cannot see an agent, so what the agents are doing is
+ * reported into `.virgil/state.json` by the sessions doing the work
+ * (`packages/agent-contracts/src/live.ts`, schema `virgil.session-status.v1`).
+ *
+ * **It is returned as a claim and labelled as one.** `CLAUDE.md`: a builder's
+ * success report is not evidence. So this does not merge the report into the
+ * facts above it — the two travel separately in the answer, under different
+ * names, and the surfaces are required to draw them differently. What makes the
+ * claim worth carrying at all is that it is traceable: `reportedIn` is the
+ * commit the file was last changed in, so the owner can open exactly the version
+ * the screen is drawing.
+ *
+ * A file that is missing, unreadable, not JSON, or of a schema version this
+ * function does not recognise is **not** a reason to show nothing else. It comes
+ * back null with a reason, and the room stays at rest, which is what it looks
+ * like when nobody has said anything.
+ */
+async function readSessionReport(repo, ref, token) {
+  let file;
+  try {
+    file = await gh(
+      `/repos/${repo}/contents/.virgil/state.json?ref=${encodeURIComponent(ref)}`,
+      token,
+    );
+  } catch (error) {
+    return {
+      report: null,
+      reason:
+        error?.status === 404
+          ? 'No session has written .virgil/state.json on this branch.'
+          : `.virgil/state.json could not be read (${error?.status ?? 'no status'}).`,
+    };
+  }
+
+  let report;
+  try {
+    report = JSON.parse(Buffer.from(file.content ?? '', 'base64').toString('utf8'));
+  } catch {
+    return { report: null, reason: '.virgil/state.json is not readable JSON.' };
+  }
+
+  // A reader that does not recognise the version refuses the file rather than
+  // guessing at it. Guessing is how a field means one thing to the writer and
+  // another to the screen.
+  if (report?.schema !== 'virgil.session-status.v1') {
+    return {
+      report: null,
+      reason: `.virgil/state.json declares schema "${report?.schema ?? '(none)'}", which this build does not read.`,
+    };
+  }
+
+  let reportedIn = null;
+  try {
+    const commits = await gh(
+      `/repos/${repo}/commits?path=.virgil/state.json&sha=${encodeURIComponent(ref)}&per_page=1`,
+      token,
+    );
+    reportedIn = Array.isArray(commits) && commits[0]?.sha ? commits[0].sha : null;
+  } catch {
+    reportedIn = null;
+  }
+
+  return { report, reason: null, reportedIn };
+}
+
 export default async function handler(request) {
   const token = process.env.GITHUB_TOKEN;
   const repo = process.env.GITHUB_REPO;
@@ -223,9 +291,10 @@ export default async function handler(request) {
     // Either of these may fail on its own without making the rest unknowable, so
     // each failure becomes `null` — "not read" — rather than taking the whole
     // answer down or, worse, becoming a zero.
-    const [checkResult, pulls] = await Promise.all([
+    const [checkResult, pulls, session] = await Promise.all([
       readChecks(repo, sha, token),
       gh(`/repos/${repo}/pulls?state=open&per_page=20`, token).catch(() => null),
+      readSessionReport(repo, ref, token),
     ]);
 
     const pull = Array.isArray(pulls) ? pulls.find((entry) => entry.head?.ref === ref) : undefined;
@@ -285,6 +354,17 @@ export default async function handler(request) {
        */
       keeperVerdict: null,
       keeperVerdictReason: 'No Keeper review record is published where this function can read it.',
+      /**
+       * **A claim, kept apart from the facts above it.** Everything under
+       * `sessionReport` was written by a session about itself, which `CLAUDE.md`
+       * says is not evidence. It travels under its own name so that no surface
+       * can show it as though GitHub had said it, and `reportedIn` names the
+       * commit the file was last changed in so the owner can read the exact
+       * version any screen is drawing.
+       */
+      sessionReport: session.report,
+      sessionReportedIn: session.reportedIn ?? null,
+      sessionReportReason: session.reason,
     });
     cached = { at: Date.now(), body: answer };
     return new Response(answer, {

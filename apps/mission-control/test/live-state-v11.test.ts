@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { SessionStatusReport } from '@virgil/agent-contracts';
 import { describe, expect, it } from 'vitest';
 import authority from '../../../constitution/authority.json' with { type: 'json' };
 import { type LiveAnswer, stateFromAnswer } from '../src/world/live/liveState.js';
@@ -128,5 +129,98 @@ describe('neither side translates GitHub’s vocabulary into the constitution’
   it('the function never returns the token, and never logs it', () => {
     expect(FUNCTION).not.toMatch(/console\.(log|info|warn|error)/);
     expect(FUNCTION).not.toMatch(/JSON\.stringify\([^)]*token/);
+  });
+});
+
+/**
+ * **Slice two: the agents appear, and what they say stays a claim.**
+ *
+ * The room can now show a Fabricator working, and everything that makes it do so
+ * was written by a session about itself — which `CLAUDE.md` says is not evidence.
+ * These hold the line between the two sources.
+ */
+
+const REPORT = {
+  schema: 'virgil.session-status.v1',
+  reportedAt: '2026-09-10T07:09:46Z',
+  aboutCommit: 'eb71672e6d26d905a38eb14d2ee1a195ad88bdbd',
+  branch: 'claude/virgil-mobile-v11',
+  candidate: null,
+  holder: 'fabricator',
+  hops: [
+    { role: 'fabricator', activity: 'WORKING', reported: null, at: '2026-09-10T07:09:46Z' },
+    { role: 'prover', activity: 'READY', reported: null, at: null },
+    { role: 'keeper', activity: 'READY', reported: null, at: null },
+  ],
+  review: null,
+  note: 'A session is building.',
+};
+
+describe('the sessions’ own report reaches the room', () => {
+  it('lights the role the report says holds the work', () => {
+    const state = stateFromAnswer({ ...FULL, sessionReport: { ...REPORT } });
+    expect(state?.content.active).toBe('fabricator');
+    expect(state?.cast.fabricator.activity).toBe('working');
+    expect(state?.cast.prover.activity).toBe('rest');
+  });
+
+  it('ignores a report about a different branch', () => {
+    const state = stateFromAnswer({
+      ...FULL,
+      sessionReport: { ...REPORT, branch: 'some-other-branch' },
+    });
+    expect(state?.content.active).toBeNull();
+    expect(state?.cast.fabricator.activity).toBe('rest');
+  });
+
+  it('still shows no verdict when the report names no review record', () => {
+    const state = stateFromAnswer({ ...FULL, sessionReport: { ...REPORT } });
+    expect(state?.content.verdict).toBe('—');
+  });
+
+  it('never claims an owner gate, which nothing here can observe', () => {
+    const state = stateFromAnswer({
+      ...FULL,
+      sessionReport: { ...REPORT, holder: 'virgil' },
+    });
+    expect(state?.content.ownerGate).toBe(false);
+    // `virgil` means between roles, and is not a role standing at a station.
+    expect(state?.content.active).toBeNull();
+  });
+});
+
+describe('the committed report is the shape the contract says', () => {
+  it('.virgil/state.json parses against `virgil.session-status.v1`', () => {
+    const raw = JSON.parse(
+      readFileSync(new URL('../../../.virgil/state.json', import.meta.url), 'utf8'),
+    );
+    const parsed = SessionStatusReport.safeParse(raw);
+    expect(parsed.success ? null : parsed.error.issues).toBeNull();
+  });
+
+  it('the schema will not carry a verdict without the record it came from', () => {
+    const withBareVerdict = {
+      ...REPORT,
+      review: { verdict: 'PASS' },
+    };
+    expect(SessionStatusReport.safeParse(withBareVerdict).success).toBe(false);
+  });
+
+  it('the schema will not carry a report that does not say which commit it is about', () => {
+    const { aboutCommit, ...withoutCommit } = REPORT;
+    expect(aboutCommit).toBeTruthy();
+    expect(SessionStatusReport.safeParse(withoutCommit).success).toBe(false);
+  });
+});
+
+describe('the function keeps the claim apart from the facts', () => {
+  it('returns the report under its own name, never merged into the rest', () => {
+    expect(FUNCTION).toContain('sessionReport: session.report');
+    expect(FUNCTION).toContain('sessionReportedIn');
+    expect(FUNCTION).toContain('sessionReportReason');
+  });
+
+  it('refuses a schema version it does not read, rather than guessing', () => {
+    expect(FUNCTION).toContain("!== 'virgil.session-status.v1'");
   });
 });

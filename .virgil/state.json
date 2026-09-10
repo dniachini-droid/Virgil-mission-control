@@ -1,0 +1,15 @@
+{
+  "schema": "virgil.session-status.v1",
+  "reportedAt": "2026-09-10T07:09:46Z",
+  "aboutCommit": "eb71672e6d26d905a38eb14d2ee1a195ad88bdbd",
+  "branch": "claude/virgil-mobile-v11",
+  "candidate": null,
+  "holder": "fabricator",
+  "hops": [
+    { "role": "fabricator", "activity": "WORKING", "reported": null, "at": "2026-09-10T07:09:46Z" },
+    { "role": "prover", "activity": "READY", "reported": null, "at": null },
+    { "role": "keeper", "activity": "READY", "reported": null, "at": null }
+  ],
+  "review": null,
+  "note": "A session is building Phase 2 slice two on this branch. No candidate lineage has been declared, and no review has been performed."
+}

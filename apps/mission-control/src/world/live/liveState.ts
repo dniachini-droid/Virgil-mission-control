@@ -44,6 +44,23 @@ import { type DemoState, demoAt } from '../room/demo.js';
 
 declare const __LIVE__: boolean;
 
+type ScreenVerdict = DemoState['content']['verdict'];
+type CandidateName = DemoState['content']['candidate'];
+
+/** The report's words for what a station is doing, in the world's own words. */
+const ACTIVITY: Record<string, 'rest' | 'receiving' | 'working' | 'reported'> = {
+  READY: 'rest',
+  RECEIVING: 'receiving',
+  WORKING: 'working',
+  REPORTED: 'reported',
+};
+const STATION: Record<string, 'READY' | 'RECEIVING' | 'WORKING' | 'REPORTED'> = {
+  READY: 'READY',
+  RECEIVING: 'RECEIVING',
+  WORKING: 'WORKING',
+  REPORTED: 'REPORTED',
+};
+
 /** How often the page asks again. The function caches for 25 s; this is not tighter. */
 const POLL_MS = 30_000;
 
@@ -66,6 +83,33 @@ export interface LiveAnswer {
   githubReviews?: { state: string; submittedAt: string | null }[] | null;
   keeperVerdict?: null;
   keeperVerdictReason?: string;
+  /**
+   * **A claim, and it arrives under its own name so it cannot be mistaken for
+   * one.** Written by the sessions doing the work into `.virgil/state.json`
+   * (`@virgil/agent-contracts`, `virgil.session-status.v1`). `CLAUDE.md` says a
+   * builder's success report is not evidence, and this is exactly that: it is
+   * carried because it is traceable — committed, at a commit the answer names —
+   * not because it is proven.
+   */
+  sessionReport?: {
+    schema: string;
+    reportedAt: string;
+    aboutCommit: string;
+    branch: string;
+    candidate: { sha: string; shortSha: string; state: string | null } | null;
+    holder: string | null;
+    hops: { role: string; activity: string; reported: string | null; at: string | null }[];
+    review: {
+      verdict: string;
+      recordPath: string;
+      recordCommit: string;
+      findings: number;
+      blocking: number;
+    } | null;
+    note: string | null;
+  } | null;
+  sessionReportedIn?: string | null;
+  sessionReportReason?: string | null;
 }
 
 export interface Live {
@@ -98,18 +142,57 @@ export function stateFromAnswer(answer: LiveAnswer): DemoState | null {
   const known: { candidateId?: string; branch?: string } = {};
   if (answer.head?.shortSha) known.candidateId = answer.head.shortSha;
   if (answer.branch) known.branch = answer.branch;
+  /**
+   * **The sessions' report, applied only where it is about this branch.**
+   *
+   * A report naming a different branch is not this branch's news, and applying
+   * it would put one branch's agents on another's stage. The staleness question —
+   * a report about an older commit — is answered by showing when it was written
+   * and which commit it was committed in, rather than by a boolean: the file is
+   * committed, so it can never name the commit that contains it, and any rule
+   * phrased as "the head must equal aboutCommit" would call every report stale.
+   */
+  const report =
+    answer.sessionReport && answer.sessionReport.branch === answer.branch
+      ? answer.sessionReport
+      : null;
+
+  const cast = { ...base.cast };
+  if (report) {
+    for (const hop of report.hops) {
+      const role = hop.role as keyof typeof cast;
+      if (!(role in cast)) continue;
+      const activity = ACTIVITY[hop.activity] ?? 'rest';
+      cast[role] = {
+        ...cast[role],
+        activity,
+        station: STATION[hop.activity] ?? 'READY',
+        report: (hop.reported ?? '—') as (typeof cast)[typeof role]['report'],
+        face: activity === 'working' ? 'working' : 'idle',
+      };
+    }
+  }
+
   return {
     ...base,
     mode: 'live',
     running: false,
+    cast,
     content: {
       ...base.content,
       ...known,
-      // Not known, and left saying so. See the header for why each of these is
-      // a refusal rather than an omission.
-      verdict: '—',
-      active: null,
-      candidate: null,
+      /**
+       * **The verdict comes from a named record or not at all.** The schema will
+       * not represent a verdict without the record it was read from and the
+       * commit that record was read at, so a session cannot claim one into this
+       * slab by writing a word. With no record, this stays what it was: no
+       * verdict, because none has been reported.
+       */
+      verdict: (report?.review?.verdict ?? '—') as ScreenVerdict,
+      /** Who holds it. `virgil` is between roles, and the slabs draw that already. */
+      active: report?.holder && report.holder !== 'virgil' ? report.holder : null,
+      candidate: (report?.candidate?.state ?? null) as CandidateName,
+      // Nothing here can observe an owner gate, and a report may not assert one.
       ownerGate: false,
     },
   };

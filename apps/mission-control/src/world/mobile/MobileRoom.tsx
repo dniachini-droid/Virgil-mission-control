@@ -796,9 +796,25 @@ function DemoBadge({
           ) : isLive ? (
             <>
               This is {live.answer?.repo ?? 'this repository'}, branch {live.answer?.branch ?? '—'},
-              read from GitHub {live.asOf ? readClock(live.asOf) : 'never yet'}. It shows what
-              GitHub reports and nothing more. No agent is running, no Keeper has reviewed this
-              commit, and the review slab says so rather than guessing.{' '}
+              read from GitHub {live.asOf ? readClock(live.asOf) : 'never yet'}. The branch, the
+              commit and the check results come from GitHub, which no session can write to.{' '}
+              {live.answer?.sessionReport ? (
+                <>
+                  Who is working comes from the agents’ own report in{' '}
+                  <code>.virgil/state.json</code>
+                  {live.answer.sessionReportedIn
+                    ? `, committed as ${live.answer.sessionReportedIn.slice(0, 7)}`
+                    : ''}
+                  , written {readClock(live.answer.sessionReport.reportedAt)}. That is their word
+                  for it, not proof — you can open the file and read exactly what this screen is
+                  drawing.
+                </>
+              ) : (
+                <>
+                  No session has written a report, so nobody is shown working.{' '}
+                  {live.answer?.sessionReportReason ?? ''}
+                </>
+              )}{' '}
               {live.error ? `Last attempt: ${live.error}` : ''}
             </>
           ) : (
