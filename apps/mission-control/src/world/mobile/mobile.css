@@ -394,6 +394,29 @@
   color: var(--ice);
 }
 
+/*
+ * The way to V10, as a control rather than a string to be typed. V11 is the
+ * version the owner opens as of 10 September, and the condition he put on that
+ * is that V10 stays reachable — on a phone, reachable means pressable. Held to
+ * the same 44 px as everything else a thumb has to find.
+ */
+.v11-dev-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(207, 228, 255, 0.38);
+  border-radius: 999px;
+  color: var(--ice);
+  text-decoration: none;
+  letter-spacing: 0.06em;
+}
+
+.v11-dev-link:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
 .v11-dev-row {
   display: flex;
   flex-wrap: wrap;

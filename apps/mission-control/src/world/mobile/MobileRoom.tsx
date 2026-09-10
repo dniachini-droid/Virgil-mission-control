@@ -316,6 +316,21 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
     );
   };
   /**
+   * The same two steps from the keyboard, which is the hidden menu's own path
+   * and not the product's.
+   *
+   * It clears the repeat guard first, and that is not a loophole: the guard
+   * exists because one *press* can be answered twice, by the world's raycast
+   * and by the DOM hit test at once. A keystroke has one handler and cannot be
+   * doubled, so leaving the guard in its way would only make the second press
+   * of `2` do nothing for 700 ms — which is a version of exactly the thing this
+   * pass is removing.
+   */
+  const selectByKey = (id: string) => {
+    lastSelection.current = { id: '', at: 0 };
+    selectAnchor(id);
+  };
+  /**
    * Another agent's window, without going back to the world first.
    *
    * **This one still moves the camera, and that is not the two-step rule being
@@ -376,11 +391,11 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target && ['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(target.tagName)) return;
-      if (event.key === '1') selectAnchor('virgil');
-      else if (event.key === '2') selectAnchor('fabricator');
-      else if (event.key === '3') selectAnchor('prover');
-      else if (event.key === '4') selectAnchor('keeper');
-      else if (event.key === '5') selectAnchor('board-verdict');
+      if (event.key === '1') selectByKey('virgil');
+      else if (event.key === '2') selectByKey('fabricator');
+      else if (event.key === '3') selectByKey('prover');
+      else if (event.key === '4') selectByKey('keeper');
+      else if (event.key === '5') selectByKey('board-verdict');
       else if (event.key === '0' || event.key === 'Escape') toOverview();
       else if (event.key === 'd' || event.key === 'D') setDev((open) => !open);
     };
@@ -983,12 +998,25 @@ function DevPanel({
         ))}
       </div>
       <p className="v11-dev-keys">
-        Keys: 1–4 the cast, 5 the board, 0 or Esc the overview, D this menu. Drag to look around;
-        pinch or scroll to move closer. Ordinary navigation does not need any of it.
+        Keys: 1–4 the cast, 5 the board — once to travel there, again to open the record; 0 or Esc
+        the overview, D this menu. Drag to look around; pinch or scroll to move closer. Ordinary
+        navigation does not need any of it.
       </p>
+      {/*
+       * **V10 is one press away, and since 10 September that matters more than
+       * it did.** The owner made V11 the version he opens
+       * (`docs/process/OWNER_DECISIONS_2026-09-10.md` item 2) on the condition
+       * that V10 stays reachable and unchanged. It was reachable before only by
+       * typing `#/v10` into an address bar, which on the phone this build is
+       * for means a keyboard and an exact string. The route, the component and
+       * V10's own footer are all untouched: this is a link to them.
+       */}
       <p className="v11-dev-keys">
-        V10, unchanged, is at <code>#/v10</code> in this same file. The rejected Phase 0 spikes are
-        at <code>#/spike/foundry</code> and <code>#/spike/mind</code>.
+        <a className="v11-dev-link" href="#/v10">
+          Open V10
+        </a>{' '}
+        — unchanged, in this same file, at <code>#/v10</code>. The rejected Phase 0 spikes are at{' '}
+        <code>#/spike/foundry</code> and <code>#/spike/mind</code>.
       </p>
       <footer className="v11-dev-foot">
         <span>

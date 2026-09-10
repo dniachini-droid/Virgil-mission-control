@@ -26,6 +26,15 @@ V11 is additive: its own entry, route, build config, build and verify scripts, a
 V11's build also reaches V10's world at a route of its own, so the two can be compared without two
 downloads. **The default approved version does not change without the owner saying so.**
 
+**He has said so, on 10 September 2026:** *"Yes it's V11."*
+(`docs/process/OWNER_DECISIONS_2026-09-10.md`, item 2.) The version he opens is now V11 — the
+newest `v11-*.html` under `docs/process/PHASE_1_owner-builds/v11/`. **Nothing else in this contract
+is relaxed by that.** V10 is still not to be edited, renamed or refactored; its entry, its routes,
+its config, its scripts and every committed artifact stay exactly as they are; it remains inside the
+V11 build at `#/v10`, now with a control in the hidden menu rather than only a hash to type; and its
+clean-tree build is still the number every pass measures and must still be **8,528,318 bytes**. A
+default is which file he opens first. It is not permission to touch the other one.
+
 ## What V11 must preserve, in the owner's words
 
 The living 3D celestial command centre; Virgil and the three specialists; their individual workstations;
