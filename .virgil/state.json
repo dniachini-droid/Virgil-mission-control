@@ -1,10 +1,10 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-10T08:53:42Z",
-  "aboutCommit": "5b9676390c2cfbc565272ae691600679b1e5664d",
+  "reportedAt": "2026-09-10T09:37:25Z",
+  "aboutCommit": "d7380455d51b4d1c28ac9179a555255e861ff512",
   "branch": "claude/virgil-mobile-v11",
   "candidate": null,
-  "holder": "keeper",
+  "holder": null,
   "hops": [
     {
       "role": "fabricator",
@@ -20,11 +20,11 @@
     },
     {
       "role": "keeper",
-      "activity": "WORKING",
+      "activity": "READY",
       "reported": null,
-      "at": "2026-09-10T08:53:42Z"
+      "at": null
     }
   ],
   "review": null,
-  "note": "An independent Keeper is reviewing candidate 5b96763 for pull request 8. It did not write any of what it is reading."
+  "note": "The Keeper returned BLOCKED on candidate 5b96763. Five blocking findings. Nothing is in flight."
 }
