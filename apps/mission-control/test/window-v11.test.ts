@@ -247,11 +247,35 @@ describe('nothing in the window appears to act', () => {
     expect(window_.toLowerCase()).not.toContain('>merge<');
   });
 
+  /**
+   * **Narrowed to the build it is about, after the Keeper's KP2-03.**
+   *
+   * This asserted the composer note was `COMPOSER_NOTE` unconditionally, which
+   * held while nothing could send and became the enforcement of a lie once
+   * something could: the hosted build printed *"It is not sent because no agents
+   * are actually running"* beneath a button that sent. The note is now chosen by
+   * `canInstruct()`, which is a compile-time false in both file builds.
+   *
+   * So the property this test exists for — **the Owner Build claims nothing was
+   * sent** — is asserted as exactly that, and the live branch is asserted
+   * separately rather than banned.
+   */
   it('keeps what is typed and says so, in the transport’s own words', () => {
     expect(window_).toContain('setKept(keepTurn(key, memory.draft));');
-    expect(window_).toContain("{kept === '' ? COMPOSER_NOTE : kept}");
+    expect(window_).toContain('canInstruct() ? LIVE_COMPOSER_NOTE : COMPOSER_NOTE');
     expect(app('src/world/window/windowStore.ts')).toContain(
       'export const COMPOSER_NOTE = NO_SESSION_NOTE',
     );
+  });
+
+  it('never shows the refusal beside a button that sends', () => {
+    // The two sentences the Keeper found on one screen. Neither may be reachable
+    // without the condition that distinguishes the builds.
+    const session = app('src/world/live/liveSession.ts');
+    expect(session).toContain('export function liveTransport');
+    // Wired, not merely written: KP2-03 was that it existed and nothing called
+    // it. A repository-wide search found only its own definition.
+    expect(window_).toContain('liveTransport(transport()).absence');
+    expect(session).toContain('if (!canInstruct()) return base;');
   });
 });

@@ -85,15 +85,28 @@ name: checks
 # `test/required-checks.test.ts` asserts this arrangement, so the guarantee is
 # still enforced by something that fails rather than by this comment.
 #
-# Documents do not change what any of these checks measure, so a push that
-# touches only prose runs nothing at all.
+# **There is no `paths-ignore`, and the Keeper's KP2-02 is why.**
+#
+# This block used to skip pushes touching only `docs/**`, `knowledge/**` or
+# `**/*.md`, on the stated ground that *"documents do not change what any of
+# these checks measure"*. That sentence was false, and it was false about this
+# repository specifically. `packages/knowledge-graph/src/derive.ts` walks
+# `docs/decisions/**/(OD|ADR)-NNNN*.md`, `knowledge/raw/**.source.md` and
+# `knowledge/wiki/**.md`, and `test/seed-graph.test.ts` asserts the committed
+# graph matches a fresh derivation **byte for byte**. Every one of the three
+# ignored patterns was an input to that test.
+#
+# What it cost: commit `3e18c1b` added an owner decision record and nothing else,
+# so no check ran, and the suite was broken from that commit until an independent
+# review re-ran it with the cache forced off and found it. A skip rule is only as
+# good as the claim underneath it, and that claim had never been checked.
+#
+# So the rule is gone rather than narrowed. A prose-only push now costs the four
+# minutes of the fast job, which is the correct price for not having to be right
+# about which files feed which test.
 on:
   push:
     branches: ['**']
-    paths-ignore:
-      - 'docs/**'
-      - 'knowledge/**'
-      - '**/*.md'
   pull_request:
   workflow_dispatch:
 

@@ -135,16 +135,37 @@ export async function instruct(text: string, secret: string): Promise<SendOutcom
 }
 
 /**
- * The seam's live implementation. `connected` is true only when this build can
- * send **and** the owner has given it the secret, because a composer that says
- * it is connected and then refuses every message is worse than one that says it
- * is not.
+ * **What the composer says when it can actually send.**
+ *
+ * The Keeper's KP2-03: the page showed `NO_SESSION_NOTE` — *"It is not sent
+ * because no agents are actually running"* — beneath a button labelled **Send**
+ * that starts a real session. This is what stands there instead, and it makes
+ * the same distinction the rest of the app makes: what happens is stated, what
+ * is only claimed is not.
+ */
+export const LIVE_COMPOSER_NOTE =
+  'This starts a real session on the working branch. It writes code and commits; it cannot merge, deploy, or touch the default branch.';
+
+/**
+ * The seam's live implementation.
+ *
+ * **It was written and never wired**, which is how the page came to say *"No
+ * agents are running"* next to a button that starts agents. `AgentWindow` calls
+ * it now.
+ *
+ * `connected` is true only when this build can send **and** the owner has given
+ * it the secret, because a composer that says it is connected and then refuses
+ * every message is worse than one that says it is not. Where it cannot, the
+ * refusal is returned unchanged: the Owner Build says exactly what it has always
+ * said, and `verify:owner:v11`'s requirement that the file build claims nothing
+ * was sent still holds.
  */
 export function liveTransport(base: SessionTransport): SessionTransport {
   if (!canInstruct()) return base;
   return {
     ...base,
     connected: true,
-    absence: '',
+    absence:
+      'A session can be started from here. It works on the working branch and cannot merge or deploy.',
   };
 }

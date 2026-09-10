@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { prefersReducedMotion } from '../../ui/settings.js';
-import { canInstruct, instruct, storedSecret } from '../live/liveSession.js';
+import {
+  canInstruct,
+  instruct,
+  LIVE_COMPOSER_NOTE,
+  liveTransport,
+  storedSecret,
+} from '../live/liveSession.js';
 import { useDemoState } from '../panel/panelStore.js';
 import { BlockView } from './Blocks.jsx';
 import type { Message, Section } from './blocks.js';
@@ -370,7 +376,21 @@ export function AgentWindow({
                 </button>
               ))}
             </div>
-            <p className="v11w-fine">{transport().absence} Only you can put a change in.</p>
+            {/**
+             * **The Keeper's KP2-03.** This printed `NO_SESSION.absence` —
+             * *"No agents are running. Nothing here can change your project."* —
+             * unconditionally, on the same screen as a button labelled **Send**
+             * that starts a real session. `liveTransport` existed to prevent
+             * exactly that and was never wired to anything; a repository-wide
+             * search for it found only the file defining it.
+             *
+             * It is wired now. In the Owner Build `liveTransport` returns the
+             * refusal unchanged, so that build says what it has always said and
+             * `verify:owner:v11`'s requirement of *"is not sent"* still holds.
+             */}
+            <p className="v11w-fine">
+              {liveTransport(transport()).absence} Only you can put a change in.
+            </p>
           </details>
 
           {/* Always available, always beneath the suggested actions, and always
@@ -434,7 +454,10 @@ export function AgentWindow({
             </button>
           </form>
           <p className="v11w-composer-note" role="status">
-            {kept === '' ? COMPOSER_NOTE : kept}
+            {/* Also KP2-03: this was `COMPOSER_NOTE`, which is `NO_SESSION_NOTE`
+                — "It is not sent because no agents are actually running" — shown
+                beneath a Send button that sends. */}
+            {kept === '' ? (canInstruct() ? LIVE_COMPOSER_NOTE : COMPOSER_NOTE) : kept}
           </p>
         </div>
       </section>

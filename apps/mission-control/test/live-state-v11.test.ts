@@ -1,6 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import authority from '../../../constitution/authority.json' with { type: 'json' };
+// @ts-expect-error — a standalone Netlify function, deliberately outside this
+// app's TypeScript program: it is deployed on its own, with no bundler and no
+// workspace resolution, which is exactly why its shape check is written by hand
+// rather than in Zod. It is imported here so the two can be held against each
+// other; see the drift tests at the foot of this file.
+import { shapeComplaint } from '../../../netlify/functions/state.mjs';
 import { SessionStatusReport } from '../../../packages/agent-contracts/src/live.js';
 import {
   type LiveAnswer,
@@ -287,4 +293,119 @@ describe('a report that has gone cold is not drawn as now', () => {
     expect(state?.content.candidateId).toBe('b5660f3');
     expect(state?.content.branch).toBe('claude/virgil-mobile-v11');
   });
+});
+
+/**
+ * **The Keeper's KP2-04, and the tests that would have caught it.**
+ *
+ * The reviewer fed `stateFromAnswer` a report whose `review` named a file that
+ * does not exist and a commit that does not exist, and `PASS` arrived on the
+ * verdict slab as *"The Keeper has finished its review"*, marked `verified`. The
+ * schema forbidding that ran only in unit tests, against fixtures; on the wire
+ * the function checked one version string and returned the file verbatim.
+ *
+ * The old test asserted the property over an input carrying no report at all.
+ * These assert it over the input that broke it.
+ */
+describe('no verdict reaches the slab from a session’s word', () => {
+  const NOW = Date.parse(REPORT.reportedAt) + 60_000;
+  const FABRICATED = {
+    ...REPORT,
+    review: {
+      verdict: 'PASS',
+      recordPath: 'docs/made-up.md',
+      recordCommit: '0'.repeat(40),
+      findings: 0,
+      blocking: 0,
+    },
+  };
+
+  it('refuses a well-formed review that names a record nothing has read', () => {
+    const state = stateFromAnswer({ ...FULL, sessionReport: FABRICATED }, NOW);
+    expect(state?.content.verdict).toBe('—');
+  });
+
+  it('refuses every one of the four, not merely the one that was tried', () => {
+    for (const verdict of authority.reviewVerdicts) {
+      const state = stateFromAnswer(
+        { ...FULL, sessionReport: { ...FABRICATED, review: { ...FABRICATED.review, verdict } } },
+        NOW,
+      );
+      expect(state?.content.verdict, verdict).toBe('—');
+    }
+  });
+
+  it('carries no path by which a report’s verdict reaches the content at all', () => {
+    // The property, at the source. KP2-04 was that the comment claimed this and
+    // the code did the opposite one line below it.
+    const source = SOURCE.slice(SOURCE.indexOf('export function stateFromAnswer'));
+    expect(source).not.toContain('report?.review?.verdict');
+    expect(source).not.toContain('review.verdict');
+  });
+});
+
+describe('the function checks the report’s shape on the wire, not only in tests', () => {
+  const wellFormed = {
+    schema: 'virgil.session-status.v1',
+    reportedAt: REPORT.reportedAt,
+    aboutCommit: REPORT.aboutCommit,
+    branch: REPORT.branch,
+    candidate: null,
+    holder: 'fabricator',
+    hops: REPORT.hops,
+    review: null,
+    note: null,
+  };
+
+  it('accepts what the schema accepts', () => {
+    expect(shapeComplaint(wellFormed)).toBeNull();
+    expect(SessionStatusReport.safeParse(wellFormed).success).toBe(true);
+  });
+
+  const refusals: [string, unknown][] = [
+    ['no commit', { ...wellFormed, aboutCommit: undefined }],
+    ['a commit that is not a SHA', { ...wellFormed, aboutCommit: 'HEAD' }],
+    ['no branch', { ...wellFormed, branch: '' }],
+    ['a holder that is not a role', { ...wellFormed, holder: 'owner' }],
+    [
+      'a hop for an unknown role',
+      { ...wellFormed, hops: [{ role: 'virgil', activity: 'WORKING', reported: null, at: null }] },
+    ],
+    [
+      'a hop in an unknown state',
+      { ...wellFormed, hops: [{ role: 'prover', activity: 'THINKING', reported: null, at: null }] },
+    ],
+    [
+      'a hop reporting a non-verdict',
+      {
+        ...wellFormed,
+        hops: [{ role: 'keeper', activity: 'REPORTED', reported: 'LOOKS FINE', at: null }],
+      },
+    ],
+    [
+      'a verdict that is not one of the four',
+      {
+        ...wellFormed,
+        review: {
+          verdict: 'GREAT',
+          recordPath: 'a.md',
+          recordCommit: '0'.repeat(40),
+          findings: 0,
+          blocking: 0,
+        },
+      },
+    ],
+    ['a verdict naming no record', { ...wellFormed, review: { verdict: 'PASS' } }],
+  ];
+
+  for (const [what, report] of refusals) {
+    it(`refuses ${what}, and so does the schema`, () => {
+      // **Held against each other on purpose.** The wire check is written out by
+      // hand because Zod is not reachable from a standalone Netlify function, so
+      // it is a second implementation of the same intent and free to drift. This
+      // is what stops it drifting quietly.
+      expect(shapeComplaint(report), `wire check accepted ${what}`).not.toBeNull();
+      expect(SessionStatusReport.safeParse(report).success, `schema accepted ${what}`).toBe(false);
+    });
+  }
 });

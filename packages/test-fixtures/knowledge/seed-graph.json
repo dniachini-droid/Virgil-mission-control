@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:ab87c0459d0698a66ff6a01d67f4882bb901bf2bb4335b284a2888c91e6e3edf",
+  "graphHash": "sha256:4656f6300d0fb77dbc7fea52733583247613fbcf4d9aad8cedbb782862201d1b",
   "nodes": [
     {
       "id": "agent-roster",
@@ -117,6 +117,16 @@
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0009 — Netlify authorised, and Phase 2 authorised (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0010-v10-retired-as-a-viewing-point.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0010 — V10 is retired as a viewing point, and its byte count is no longer a contract (Tier 3)",
       "epistemicClass": "owner_approved_decision",
       "authorityClass": "owner_decision",
       "status": null,

@@ -215,6 +215,62 @@ async function readChecks(repo, sha, token) {
  * back null with a reason, and the room stays at rest, which is what it looks
  * like when nobody has said anything.
  */
+/**
+ * **The shape check the Keeper's KP2-04 found missing.**
+ *
+ * `packages/agent-contracts/src/live.ts` defines this file's schema in Zod, and
+ * the schema ran **only in unit tests, against fixtures**. On the wire this
+ * function checked one version string and returned the file verbatim, so
+ * anything at all could travel to the page under a name the page trusts.
+ *
+ * Zod is not reachable from here — this runs as a standalone function with no
+ * bundler and no workspace resolution — so the check is written out by hand and
+ * kept deliberately narrow: **structure, types and vocabulary, and nothing
+ * about meaning.** It is a smaller guarantee than the schema's and is not
+ * recorded as the same one. `apps/mission-control/test/live-state-v11.test.ts`
+ * holds the two against each other so they cannot drift apart silently.
+ *
+ * Returns a complaint, or `null` when the shape is right.
+ */
+export function shapeComplaint(report) {
+  const isString = (value) => typeof value === 'string' && value.length > 0;
+  const isSha = (value) => typeof value === 'string' && /^[0-9a-f]{40}$/.test(value);
+  const ROLES = ['fabricator', 'prover', 'keeper'];
+  const ACTIVITIES = ['READY', 'RECEIVING', 'WORKING', 'REPORTED'];
+  const VERDICTS = ['PASS', 'PASS_WITH_NON_BLOCKING_FINDINGS', 'BLOCKED', 'INSUFFICIENT_EVIDENCE'];
+
+  if (!isString(report.reportedAt)) return 'has no time on it.';
+  if (!isSha(report.aboutCommit)) return 'does not say which commit it is about.';
+  if (!isString(report.branch)) return 'names no branch.';
+  if (report.holder !== null && !ROLES.includes(report.holder) && report.holder !== 'virgil') {
+    return `names a holder this build does not know: ${String(report.holder)}.`;
+  }
+  if (!Array.isArray(report.hops) || report.hops.length > 16) return 'has no readable hops.';
+  for (const hop of report.hops) {
+    if (!hop || typeof hop !== 'object') return 'has a hop that is not an object.';
+    if (!ROLES.includes(hop.role)) return `has a hop for an unknown role: ${String(hop.role)}.`;
+    if (!ACTIVITIES.includes(hop.activity)) {
+      return `has a hop in an unknown state: ${String(hop.activity)}.`;
+    }
+    if (hop.reported !== null && hop.reported !== 'COMPLETE' && !VERDICTS.includes(hop.reported)) {
+      return `has a hop reporting something that is not a verdict: ${String(hop.reported)}.`;
+    }
+  }
+  if (report.review !== null && report.review !== undefined) {
+    const review = report.review;
+    if (typeof review !== 'object') return 'has a review that is not an object.';
+    if (!VERDICTS.includes(review.verdict)) {
+      return `claims a verdict that is not one of the four: ${String(review.verdict)}.`;
+    }
+    // Required even though nothing follows them yet. A report that names no
+    // record is refused here rather than admitted and then ignored downstream.
+    if (!isString(review.recordPath) || !isSha(review.recordCommit)) {
+      return 'claims a verdict without naming the record it came from and the commit it was read at.';
+    }
+  }
+  return null;
+}
+
 async function readSessionReport(repo, ref, token) {
   let file;
   try {
@@ -248,6 +304,9 @@ async function readSessionReport(repo, ref, token) {
       reason: `.virgil/state.json declares schema "${report?.schema ?? '(none)'}", which this build does not read.`,
     };
   }
+
+  const wrong = shapeComplaint(report);
+  if (wrong) return { report: null, reason: `.virgil/state.json ${wrong}` };
 
   let reportedIn = null;
   try {

@@ -132,15 +132,47 @@ describe('the gate runs in full before anything can merge', () => {
     expect(workflow).toMatch(/^ {2}workflow_dispatch:$/m);
   });
 
-  it('skips nothing but prose on a push', () => {
-    expect(workflow).toContain('paths-ignore');
-    for (const path of ['docs/**', 'knowledge/**', '**/*.md']) {
-      expect(workflow).toContain(path);
+  /**
+   * **This assertion was the Keeper's KP2-02 and is replaced by its inverse.**
+   *
+   * It required `paths-ignore` to list `docs/**`, `knowledge/**` and a glob
+   * covering every markdown file,
+   * and then claimed — in a comment — that *"nothing that changes what a check
+   * measures is in the ignore list"*, while checking only that two unrelated
+   * strings were absent. The claim was false: `knowledge-graph/src/derive.ts`
+   * walks `docs/decisions`, `knowledge/raw` and `knowledge/wiki`, and
+   * `seed-graph.test.ts` asserts a byte-for-byte match against a fresh
+   * derivation. All three ignored patterns were inputs to it. A push touching
+   * only an owner decision record broke the suite and ran no check at all.
+   *
+   * **The property is now enforced by deriving it rather than by naming it.**
+   * The deriver's own source is read, every path literal it walks is extracted,
+   * and each one is required not to be covered by any ignore pattern. If someone
+   * adds `paths-ignore` back, this fails unless the deriver reads none of what
+   * it ignores. A comment cannot drift away from that, because there is no
+   * comment doing the work.
+   */
+  it('ignores no path that any check actually reads', () => {
+    const deriver = readFileSync(
+      resolve(repoRoot, 'packages/knowledge-graph/src/derive.ts'),
+      'utf8',
+    );
+    // The directories the graph is derived from, taken from the deriver itself.
+    const read = [...deriver.matchAll(/join\((?:root|kdir), '([^']+)'\)/g)].map((m) => m[1] ?? '');
+    const roots = new Set(read.map((path) => path.split('/')[0] ?? ''));
+    // `kdir` is `knowledge/`, which the join hides; it is added by name because
+    // the deriver's own variable makes it invisible to the pattern above.
+    roots.add('knowledge');
+    expect(roots.size).toBeGreaterThan(1);
+
+    const ignored = [...workflow.matchAll(/^ {6}- '([^']+)'$/gm)].map((m) => m[1] ?? '');
+    for (const pattern of ignored) {
+      const top = pattern.split('/')[0] ?? '';
+      expect(
+        roots.has(top) || pattern.startsWith('**'),
+        `the workflow ignores ${pattern}, which a check reads`,
+      ).toBe(false);
     }
-    // Source, tests, the workflow itself and the lockfile are all still covered:
-    // nothing that changes what a check measures is in the ignore list.
-    expect(workflow).not.toContain('apps/**');
-    expect(workflow).not.toContain('packages/**');
   });
 
   it('holds the expensive jobs back from a push and from nothing else', () => {

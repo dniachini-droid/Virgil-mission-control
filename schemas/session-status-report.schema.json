@@ -121,22 +121,10 @@
           "role": {
             "type": "string",
             "enum": [
-              "virgil",
-              "cartographer",
-              "architect",
               "fabricator",
               "prover",
-              "keeper",
-              "arbiter",
-              "domain-verifier",
-              "breaker",
-              "integrator",
-              "interface-keeper",
-              "security-sentinel",
-              "transport-inspector",
-              "performance-examiner"
-            ],
-            "description": "Agent role identifier from constitution/permission-matrix.json"
+              "keeper"
+            ]
           },
           "activity": {
             "type": "string",

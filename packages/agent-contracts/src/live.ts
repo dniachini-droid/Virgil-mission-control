@@ -47,9 +47,26 @@ import {
 /** What a station is doing, in the words the world already draws. */
 export const StationActivity = z.enum(['READY', 'RECEIVING', 'WORKING', 'REPORTED']);
 
+/**
+ * **The three roles that have a station, which is narrower than `RoleId`.**
+ *
+ * A hop is a station's state, and the room has three stations. `RoleId` is the
+ * constitution's whole cast — Virgil, the Architect, the Arbiter and the
+ * conditional specialists among them — and a hop naming one of those describes a
+ * station there is nothing to draw.
+ *
+ * Narrowed after a drift test caught it on its first run: the wire check in
+ * `netlify/functions/state.mjs` accepted only these three while this accepted
+ * any role, and the two are now held against each other by
+ * `apps/mission-control/test/live-state-v11.test.ts`. Who *holds* the work is a
+ * separate field and still admits `virgil`, because between roles is a real
+ * place for it to be.
+ */
+export const StationRole = z.enum(['fabricator', 'prover', 'keeper']);
+
 export const SessionHop = z
   .object({
-    role: RoleId,
+    role: StationRole,
     activity: StationActivity,
     /**
      * What this role has reported, if anything. `COMPLETE` is the Fabricator's

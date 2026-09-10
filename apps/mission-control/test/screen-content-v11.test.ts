@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { stateFromAnswer } from '../src/world/live/liveState.js';
 import { playbackSchedule, replayAt } from '../src/world/replay/replayTimeline.js';
 import { ROLES, type Role } from '../src/world/room/cast.js';
 import { BEATS, demoAt, loopLength, type Outcome } from '../src/world/room/demo.js';
@@ -141,6 +142,90 @@ function drawnText(
   draw(canvas);
   return text;
 }
+
+/**
+ * **No fixture may reach a live screen. The Keeper's KP2-05, as a rule rather
+ * than a patch.**
+ *
+ * `stateFromAnswer` built on `demoAt(0, 0, false)` and never set `work`, and
+ * `drawConsoleScreen` reaches for `tally.ts`'s fixtures whenever `work` is
+ * absent. So a hosted page reporting this repository drew `FILES 8 · COMMITS 3`,
+ * `PASSED 14` and `FINDINGS 3` — every one a constant in the demonstration —
+ * while the badge on the same screen said the figures came from GitHub. The
+ * owner found it by opening the app and reading it, before any test did.
+ *
+ * This is the test that would have. It draws each console from a live state and
+ * fails if any of the fixture's numbers appear, whatever the route by which they
+ * arrived. A future field wired to a fixture fails here without anyone having to
+ * remember this happened.
+ */
+describe('no fixture value reaches a live screen', () => {
+  const REPORT = {
+    schema: 'virgil.session-status.v1',
+    reportedAt: new Date().toISOString(),
+    aboutCommit: 'b5660f364c6e36572003f9dc2e4fb5c3a46b0ed3',
+    branch: 'claude/virgil-mobile-v11',
+    candidate: null,
+    holder: 'fabricator',
+    hops: [
+      { role: 'fabricator', activity: 'WORKING', reported: null, at: null },
+      { role: 'prover', activity: 'WORKING', reported: null, at: null },
+      { role: 'keeper', activity: 'WORKING', reported: null, at: null },
+    ],
+    review: null,
+    note: null,
+  };
+
+  const live = stateFromAnswer({
+    ok: true,
+    asOf: new Date().toISOString(),
+    repo: 'owner/repo',
+    branch: 'claude/virgil-mobile-v11',
+    head: {
+      sha: 'b5660f364c6e36572003f9dc2e4fb5c3a46b0ed3',
+      shortSha: 'b5660f3',
+      message: 'a real commit',
+      committedAt: null,
+    },
+    sessionReport: REPORT,
+  });
+
+  for (const role of ROLES) {
+    it(`draws no fixture number on the ${role}’s console`, () => {
+      expect(live).not.toBeNull();
+      const [width, height] = CONSOLE_SIZE[role];
+      const member = live?.cast[role];
+      const drawn = drawnText(
+        (canvas) =>
+          drawConsoleScreen(canvas, {
+            role,
+            label: role,
+            state: member?.station ?? 'READY',
+            report: member?.report ?? '—',
+            outcome: live?.outcome ?? 'PASS',
+            quiet: 0,
+            corner: 20,
+            t: 4,
+            since: 4,
+            showBand: false,
+            work: member?.work,
+            branch: live?.content.branch,
+            candidateId: live?.content.candidateId,
+          }),
+        width,
+        height,
+      ).join(' | ');
+
+      // The demonstration's own constants, from `screens/tally.ts`. None of them
+      // may appear on a screen that claims to be reporting a real repository.
+      for (const fixture of ['8', '14', 'EVIDENCE LOCKED']) {
+        expect(drawn.includes(fixture), `${role} drew the fixture value ${fixture}`).toBe(false);
+      }
+      // And what it draws instead is the absence, said out loud.
+      expect(drawn).toMatch(/—|NOT READ/);
+    });
+  }
+});
 
 const CONSOLE_SIZE: Record<Role, [number, number]> = {
   fabricator: [1024, 603],

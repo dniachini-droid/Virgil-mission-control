@@ -176,9 +176,23 @@ export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScree
         : state === 'REPORTED'
           ? 1
           : clamp01(since / 6);
+    /**
+     * **The Keeper's KP2-05.** These fell back to `FABRICATOR_FILES` and
+     * `FABRICATOR_COMMITS` — the demonstration's fixtures — whenever `work` was
+     * absent, and live mode never set `work`. So a hosted page reporting this
+     * repository counted up to `FILES 8 · COMMITS 3`, the script's numbers,
+     * beside a badge saying the figures came from GitHub.
+     *
+     * Live mode now passes an empty schedule, which cannot fall back. An empty
+     * schedule is not zero work: it is **nothing read**, and it draws as `—`.
+     */
+    const unknownBuild = files.length === 0 && commits.length === 0;
     rail = [
-      { label: 'Files changed', value: `${tally.files} / ${files.length}` },
-      { label: 'commits', value: `${tally.commits} / ${commits.length}` },
+      {
+        label: 'Files changed',
+        value: unknownBuild ? '—' : `${tally.files} / ${files.length}`,
+      },
+      { label: 'commits', value: unknownBuild ? '—' : `${tally.commits} / ${commits.length}` },
       { label: 'branch', value: branch ?? 'claude/…-v11' },
       { label: 'head', value: (candidateId ?? CANDIDATE_ID).slice(0, 7) },
     ];
@@ -187,23 +201,26 @@ export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScree
   } else if (role === 'prover') {
     const schedule = work?.kind === 'checks' ? work.checks : proverChecks(outcome);
     const tally = proverTally(working, outcome, schedule);
+    // KP2-05 again: `proverChecks(outcome)` is the scripted schedule, and an
+    // empty one means no check result has been read rather than no check exists.
+    const unknownChecks = schedule.length === 0;
     rail = [
       {
         label: 'passed',
-        value: `${tally.passed}`,
-        colour: tally.passed > 0 ? STATUS.green : undefined,
+        value: unknownChecks ? '—' : `${tally.passed}`,
+        colour: !unknownChecks && tally.passed > 0 ? STATUS.green : undefined,
       },
       {
         label: 'failed',
-        value: `${tally.failed}`,
-        colour: tally.failed > 0 ? STATUS.red : undefined,
+        value: unknownChecks ? '—' : `${tally.failed}`,
+        colour: !unknownChecks && tally.failed > 0 ? STATUS.red : undefined,
       },
       {
         label: 'skipped',
-        value: `${tally.skipped}`,
-        colour: tally.skipped > 0 ? STATUS.amber : undefined,
+        value: unknownChecks ? '—' : `${tally.skipped}`,
+        colour: !unknownChecks && tally.skipped > 0 ? STATUS.amber : undefined,
       },
-      { label: 'of', value: `${tally.total} required` },
+      { label: 'of', value: unknownChecks ? 'NOT READ' : `${tally.total} required` },
     ];
     picture = () =>
       scanning(
@@ -221,14 +238,22 @@ export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScree
     const review = work?.kind === 'review' ? work : null;
     const tally = keeperTally(working, review?.findings, review?.readSeconds ?? 5.6);
     const sealing = state === 'REPORTED' ? clamp01(since / 1.6) : 0;
+    // KP2-05 again. `keeperTally` falls back to the script's three findings, and
+    // an empty list means no review record has been read — which is not the same
+    // as a review that found nothing, and is the distinction this whole surface
+    // is about. The sources line was a hard-coded constant either way.
+    const unknownReview = review !== null && review.findings.length === 0;
     rail = [
-      { label: 'findings', value: `${tally.findings}` },
+      { label: 'findings', value: unknownReview ? '—' : `${tally.findings}` },
       {
         label: 'blocking',
-        value: `${tally.blocking}`,
-        colour: tally.blocking > 0 ? STATUS.red : undefined,
+        value: unknownReview ? '—' : `${tally.blocking}`,
+        colour: !unknownReview && tally.blocking > 0 ? STATUS.red : undefined,
       },
-      { label: 'sources', value: 'EVIDENCE LOCKED · 5 LINKS' },
+      {
+        label: 'sources',
+        value: unknownReview ? 'NOT READ' : 'EVIDENCE LOCKED · 5 LINKS',
+      },
       { label: 'MAY NOT', value: 'CHANGE THE FILES' },
     ];
     picture = () =>

@@ -48,6 +48,19 @@ type ScreenVerdict = DemoState['content']['verdict'];
 type CandidateName = DemoState['content']['candidate'];
 
 /** The report's words for what a station is doing, in the world's own words. */
+/**
+ * **What each station is given when nothing about its work has been read.**
+ *
+ * Empty rather than absent: absent is what let the demonstration's fixtures in.
+ * Each is the right `kind` for its role, so the console takes this branch rather
+ * than the fallback, and every list in it is empty, which the rails draw as `—`.
+ */
+const EMPTY_WORK = {
+  fabricator: { kind: 'build', files: [], commits: [], counts: [] },
+  prover: { kind: 'checks', checks: [], counts: [] },
+  keeper: { kind: 'review', findings: [], readSeconds: 0, counts: [] },
+} as const;
+
 const ACTIVITY: Record<string, 'rest' | 'receiving' | 'working' | 'reported'> = {
   READY: 'rest',
   RECEIVING: 'receiving',
@@ -208,6 +221,21 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
         station: STATION[hop.activity] ?? 'READY',
         report: (hop.reported ?? '—') as (typeof cast)[typeof role]['report'],
         face: activity === 'working' ? 'working' : 'idle',
+        /**
+         * **An empty schedule, so the console cannot fall back to the script.
+         * The Keeper's KP2-05.**
+         *
+         * `screens/v11/screens.ts` reaches for `tally.ts`'s fixtures whenever
+         * `work` is absent, and live mode never set it. A hosted page reporting
+         * this repository therefore drew `FILES 8 · COMMITS 3`, `PASSED 14` and
+         * `FINDINGS 3` — every one a constant in the demonstration — on the same
+         * screen that says the figures come from GitHub.
+         *
+         * Passing an empty one is not a claim that the work is empty. The rails
+         * read an empty schedule as **nothing read** and draw `—` and `NOT READ`,
+         * which is what is true until a real source is wired to each of them.
+         */
+        work: EMPTY_WORK[role],
       };
     }
   }
@@ -221,13 +249,26 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
       ...base.content,
       ...known,
       /**
-       * **The verdict comes from a named record or not at all.** The schema will
-       * not represent a verdict without the record it was read from and the
-       * commit that record was read at, so a session cannot claim one into this
-       * slab by writing a word. With no record, this stays what it was: no
-       * verdict, because none has been reported.
+       * **No verdict reaches this slab from a session's report. The Keeper's
+       * KP2-04, and the comment that used to stand here was the defect.**
+       *
+       * It said the schema would not represent a verdict without the record it
+       * came from, *"so a session cannot claim one into this slab by writing a
+       * word"*. Two things were wrong with that. The schema never ran on the live
+       * path — `state.mjs` checks one version string and returns the file
+       * verbatim — and `recordPath` and `recordCommit` were read by nothing at
+       * all: no fetch, no resolution, no comparison. A reviewer fed a report
+       * naming a file that does not exist and a commit that does not exist, and
+       * `PASS` arrived on the slab as *"The Keeper has finished its review"*,
+       * marked `verified`.
+       *
+       * So the verdict is not carried. Not narrowed, not validated harder —
+       * **not carried**, until something actually reads the record at the commit
+       * and can say the verdict is the record's. A pointer nothing follows is
+       * decoration, and this project has no business drawing decoration as
+       * evidence on the one surface whose whole subject is the difference.
        */
-      verdict: (report?.review?.verdict ?? '—') as ScreenVerdict,
+      verdict: '—' as ScreenVerdict,
       /** Who holds it. `virgil` is between roles, and the slabs draw that already. */
       active: report?.holder && report.holder !== 'virgil' ? report.holder : null,
       candidate: (report?.candidate?.state ?? null) as CandidateName,
