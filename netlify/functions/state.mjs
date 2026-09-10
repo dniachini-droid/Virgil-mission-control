@@ -474,6 +474,13 @@ async function readSessionReport(repo, ref, token) {
   } catch (error) {
     return {
       report: null,
+      // **Which of the three it is, not only what to say about it.** The page has
+      // to tell "nobody has written one" from "one was written and refused":
+      // they are different facts about the project and drawing either as the
+      // other is a false statement on the owner's screen. It was one, briefly —
+      // a repair for KP4-03 read any reason as a refusal, and the reason field
+      // carries all three.
+      status: error?.status === 404 ? 'absent' : 'unreadable',
       reason:
         error?.status === 404
           ? 'No session has written .virgil/state.json on this branch.'
@@ -485,7 +492,11 @@ async function readSessionReport(repo, ref, token) {
   try {
     report = JSON.parse(Buffer.from(file.content ?? '', 'base64').toString('utf8'));
   } catch {
-    return { report: null, reason: '.virgil/state.json is not readable JSON.' };
+    return {
+      report: null,
+      status: 'unreadable',
+      reason: '.virgil/state.json is not readable JSON.',
+    };
   }
 
   // A reader that does not recognise the version refuses the file rather than
@@ -494,7 +505,7 @@ async function readSessionReport(repo, ref, token) {
   // not here, so that what the tests hold against the schema is the whole of
   // what the wire refuses rather than most of it.
   const wrong = shapeComplaint(report);
-  if (wrong) return { report: null, reason: `.virgil/state.json ${wrong}` };
+  if (wrong) return { report: null, status: 'refused', reason: `.virgil/state.json ${wrong}` };
 
   let reportedIn = null;
   try {
@@ -507,7 +518,7 @@ async function readSessionReport(repo, ref, token) {
     reportedIn = null;
   }
 
-  return { report, reason: null, reportedIn };
+  return { report, status: 'read', reason: null, reportedIn };
 }
 
 export default async function handler(request) {
@@ -612,6 +623,7 @@ export default async function handler(request) {
       sessionReport: session.report,
       sessionReportedIn: session.reportedIn ?? null,
       sessionReportReason: session.reason,
+      sessionReportStatus: session.status ?? null,
     });
     cached = { at: Date.now(), body: answer };
     return new Response(answer, {

@@ -32,6 +32,32 @@ import { extname, join, resolve } from 'node:path';
 import { chromium } from '@playwright/test';
 
 const outDir = resolve(import.meta.dirname, '../dist/web');
+const netlifyToml = resolve(import.meta.dirname, '../../../netlify.toml');
+
+/**
+ * **The production Content-Security-Policy, read from `netlify.toml` and served
+ * here — the Keeper's KP2-19.**
+ *
+ * The policy allowed `script-src 'unsafe-inline'` on the one page that holds the
+ * credential for starting sessions. The build has no inline script, so the
+ * allowance bought nothing and cost the protection it exists to give. Removing
+ * it is easy; knowing it stays removed *and* that the page still runs under it
+ * is not, and was previously checked by nobody — a stricter policy that breaks
+ * the app would be found by the owner opening it on his phone.
+ *
+ * So the header the site actually sends is applied to the page this check drives.
+ * A violation surfaces as a console error, which this already fails on.
+ */
+const CSP =
+  /Content-Security-Policy\s*=\s*"([^"]+)"/.exec(readFileSync(netlifyToml, 'utf8'))?.[1] ?? '';
+if (!CSP.includes('script-src')) {
+  throw new Error('no Content-Security-Policy found in netlify.toml');
+}
+if (/script-src[^;]*unsafe-inline/.test(CSP)) {
+  throw new Error(
+    "netlify.toml allows script-src 'unsafe-inline' on the page that holds the instruct secret",
+  );
+}
 const failures: string[] = [];
 const startedAt = Date.now();
 
@@ -89,6 +115,7 @@ function serve(
       if (statSync(onDisk).isFile()) {
         response.writeHead(200, {
           'content-type': TYPES[extname(onDisk)] ?? 'application/octet-stream',
+          'content-security-policy': CSP,
         });
         response.end(readFileSync(onDisk));
         return;
@@ -96,7 +123,10 @@ function serve(
     } catch {
       // Falls through to the page, as the hosted redirect does.
     }
-    response.writeHead(200, { 'content-type': TYPES['.html'] as string });
+    response.writeHead(200, {
+      'content-type': TYPES['.html'] as string,
+      'content-security-policy': CSP,
+    });
     response.end(readFileSync(join(outDir, 'owner-v11.html')));
   });
   return new Promise((done) => {
@@ -113,6 +143,7 @@ if (!built.includes('owner-v11.html')) {
   throw new Error(`no hosted build in ${outDir}: run build:web first`);
 }
 console.log(`web build verify: directory ${outDir}, ${built.length} entries`);
+console.log(`web build verify: serving under the site's own CSP — ${CSP}`);
 
 /**
  * **The mirror of the Owner Build's string check.** There these strings must be

@@ -798,7 +798,34 @@ function DemoBadge({
             <>
               This is {live.answer?.repo ?? 'this repository'}, branch {live.answer?.branch ?? '—'},
               read from GitHub {live.asOf ? readClock(live.asOf) : 'never yet'}. The branch, the
-              commit and the check results come from GitHub, which no session can write to.{' '}
+              commit and the check results come from GitHub, which no session can write to. {/**
+               * **KP2-16: the sentence above names three things and the screen
+               * drew two.** The check results were read by `state.mjs`, returned
+               * in the answer, and displayed nowhere — so the claim was true of
+               * the data and false of the screen, which is the same defect as a
+               * screen showing what it never read, pointing the other way.
+               *
+               * They are drawn here rather than on the Prover's console because
+               * the console's `Check` is a playback shape — a start time and a
+               * duration — and GitHub returns neither. Putting live results
+               * through it would mean inventing the timing, which is the thing
+               * this project exists not to do. A count and a source are what was
+               * actually read, so a count and a source are what it says.
+               */}
+              {live.answer?.checks ? (
+                <>
+                  Of {live.answer.checks.total} check
+                  {live.answer.checks.total === 1 ? '' : 's'} on this commit,{' '}
+                  {live.answer.checks.passed} passed, {live.answer.checks.failed} failed,{' '}
+                  {live.answer.checks.running} still running and {live.answer.checks.noResult}{' '}
+                  returned no result. A check that has not finished is not a pass.{' '}
+                </>
+              ) : isLive ? (
+                <>
+                  The check results could not be read this time, so none are shown — not zero, which
+                  would be a different claim.{' '}
+                </>
+              ) : null}
               {live.answer?.sessionReport &&
               reportIsCurrent(live.answer.sessionReport.reportedAt) &&
               live.answer.sessionReport.branch !== live.answer.branch ? (
@@ -839,7 +866,8 @@ function DemoBadge({
                   session last wrote down, and a report left standing would look exactly like one
                   still true.
                 </>
-              ) : live.answer?.sessionReportReason ? (
+              ) : live.answer?.sessionReportStatus === 'refused' ||
+                live.answer?.sessionReportStatus === 'unreadable' ? (
                 /**
                  * **KP4-03.** A report the wire check refuses arrives as
                  * `sessionReport: null` with a reason beside it, and fell to the
@@ -849,10 +877,13 @@ function DemoBadge({
                  * first of them false.
                  */
                 <>
-                  A session did write a report and this build refused it, so nobody is shown
-                  working: {live.answer.sessionReportReason} Nothing is being guessed at in its
-                  place — a report that cannot be read is not the same as no report, and neither is
-                  drawn as work.
+                  A session did write a report and this build{' '}
+                  {live.answer.sessionReportStatus === 'refused'
+                    ? 'refused it'
+                    : 'could not read it'}
+                  , so nobody is shown working: {live.answer.sessionReportReason} Nothing is being
+                  guessed at in its place — a report that cannot be read is not the same as no
+                  report, and neither is drawn as work.
                 </>
               ) : (
                 <>No session has written a report, so nobody is shown working.</>

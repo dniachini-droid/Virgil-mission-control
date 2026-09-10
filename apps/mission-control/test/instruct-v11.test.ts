@@ -190,13 +190,56 @@ describe('nothing an input carries reaches a command', () => {
   });
 });
 
+/**
+ * **KP2-12: an acceptance criterion of the brief, unmet and not retired.**
+ *
+ * `PHASE_2_SLICE_3_BRIEF.md` — *"slice three is not finished until the page
+ * tells him a run costs something before he starts it"*. There was no cost text.
+ * A layer-4 criterion is not a session's to retire, so it is met instead, and
+ * this holds it met: the sentence beneath the Send button has to name a cost.
+ */
+describe('the composer says what a run costs before it is started', () => {
+  const SESSION = readFileSync(
+    new URL('../src/world/live/liveSession.ts', import.meta.url),
+    'utf8',
+  );
+
+  it('names both the metered minute and the charged run', () => {
+    const note = /LIVE_COMPOSER_NOTE =\s*\n?\s*'([^']+)'/.exec(SESSION)?.[1] ?? '';
+    expect(note.length).toBeGreaterThan(0);
+    expect(note).toMatch(/Actions minutes/);
+    expect(note).toMatch(/charged/);
+    // And still says what it does, which was the sentence's first job.
+    expect(note).toMatch(/cannot merge, deploy, or touch the default branch/);
+  });
+
+  it('is the sentence the composer actually shows when it can send', () => {
+    const window = readFileSync(
+      new URL('../src/world/window/AgentWindow.tsx', import.meta.url),
+      'utf8',
+    );
+    expect(window).toContain('canInstruct() ? LIVE_COMPOSER_NOTE : COMPOSER_NOTE');
+  });
+});
+
 describe('the workflow that does the work', () => {
+  /**
+   * **KP2-17, the trigger half.** The list named four triggers and GitHub has
+   * more; `repository_dispatch:` in particular lets anything holding a token
+   * start this workflow over the API, which is the one trigger that most defeats
+   * the sentence *"starts only when the owner starts it"*. Naming a few and
+   * calling the set closed is how a deny-list always fails, so this reads what
+   * the `on:` block actually contains and requires it to be one key.
+   */
   it('starts only when the owner starts it', () => {
     expect(WORKFLOW).toContain('workflow_dispatch:');
-    // No path by which it starts itself.
-    for (const trigger of ['schedule:', 'push:', 'pull_request:', 'workflow_run:']) {
-      expect(WORKFLOW.includes(trigger), trigger).toBe(false);
-    }
+    const onAt = WORKFLOW.search(/^on:$/m);
+    expect(onAt).toBeGreaterThan(-1);
+    const after = WORKFLOW.slice(onAt + 3);
+    const endsAt = after.search(/^\S/m);
+    const block = endsAt === -1 ? after : after.slice(0, endsAt);
+    const triggers = [...block.matchAll(/^ {2}([a-z_]+):/gm)].map((m) => m[1] ?? '');
+    expect(triggers).toEqual(['workflow_dispatch']);
   });
 
   it('refuses the default branch before anything is checked out', () => {
@@ -207,12 +250,28 @@ describe('the workflow that does the work', () => {
     expect(WORKFLOW).toContain('github.event.repository.default_branch');
   });
 
+  /**
+   * **KP2-17, the permissions half.** The old assertion listed four scopes that
+   * must be absent — and would have passed `permissions: write-all`, which
+   * grants every one of them and more in six characters. Again a deny-list where
+   * the property is a whitelist: the block must grant `contents: write` and
+   * nothing else at all, so it is read and every key in it is checked.
+   */
   it('is granted contents and nothing else', () => {
-    const block = WORKFLOW.slice(WORKFLOW.indexOf('permissions:'));
-    expect(block).toContain('contents: write');
-    for (const extra of ['pull-requests:', 'id-token:', 'actions: write', 'packages:']) {
-      expect(block.includes(extra), extra).toBe(false);
-    }
+    const at = WORKFLOW.indexOf('permissions:');
+    expect(at).toBeGreaterThan(-1);
+    const after = WORKFLOW.slice(at + 'permissions:'.length);
+    // The block runs to the next line at column zero. (First written as
+    // `/\n {0,2}\S/`, which matched the block's own first entry and made it
+    // empty — a test that passed nothing and would have reported no grants at
+    // all as compliant.)
+    const endsAt = after.search(/\n\S/);
+    const block = endsAt === -1 ? after : after.slice(0, endsAt);
+    const granted = [...block.matchAll(/^\s*([a-z-]+):\s*(\S+)/gm)].map((m) => `${m[1]}: ${m[2]}`);
+    expect(granted).toEqual(['contents: write']);
+    // And the shorthand that grants everything at once, which the list of
+    // forbidden scopes could never have caught.
+    expect(WORKFLOW).not.toMatch(/permissions:\s*(write-all|read-all)/);
   });
 
   it('writes the instruction down before acting on it', () => {

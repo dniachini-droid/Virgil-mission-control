@@ -174,8 +174,24 @@ export async function instruct(text: string, secret: string): Promise<SendOutcom
  * the same distinction the rest of the app makes: what happens is stated, what
  * is only claimed is not.
  */
+/**
+ * **The cost sentence — `PHASE_2_SLICE_3_BRIEF.md`, and the Keeper's KP2-12.**
+ *
+ * The brief says slice three *"is not finished until the page tells him a run
+ * costs something before he starts it"*, and there was no cost text at all. The
+ * argument for leaving it out was that the owner installed a subscription token,
+ * so a run is not charged per use — but the workflow still accepts an API key,
+ * in which case runs are metered and the page said nothing. And an Actions
+ * minute is spent either way, against a budget he set himself and has already
+ * exhausted once, on the day this was written.
+ *
+ * So it says both, in the order he needs them: what it does, then what it costs.
+ * A criterion in a layer-4 document is met by meeting it; retiring it would have
+ * been his decision and not a session's, which is why this is the repair rather
+ * than an amendment to the brief.
+ */
 export const LIVE_COMPOSER_NOTE =
-  'This starts a real session on the working branch. It writes code and commits; it cannot merge, deploy, or touch the default branch.';
+  'This starts a real session on the working branch. It writes code and commits; it cannot merge, deploy, or touch the default branch. It spends GitHub Actions minutes, and if this repository runs on an API key rather than a subscription, the run is charged.';
 
 /**
  * The seam's live implementation.

@@ -1,16 +1,16 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-10T22:42:22Z",
-  "aboutCommit": "45a41c2366bf1a90c4e5ca04b5638d323ceff745",
+  "reportedAt": "2026-09-10T22:51:28Z",
+  "aboutCommit": "6c69a7ba130b4241a9a75fad385a598ca23afae3",
   "branch": "claude/virgil-mobile-v11",
   "candidate": null,
-  "holder": "fabricator",
+  "holder": null,
   "hops": [
     {
       "role": "fabricator",
-      "activity": "WORKING",
+      "activity": "READY",
       "reported": null,
-      "at": "2026-09-10T22:42:22Z"
+      "at": null
     },
     {
       "role": "prover",
@@ -26,5 +26,5 @@
     }
   ],
   "review": null,
-  "note": "Fourth round: KP2-09 and KP2-10 closed. KP2-11, 12, 15, 16, 17, 19 remain."
+  "note": "Fourth round complete. Every finding a session may repair is repaired; KP2-08 and KP3-06 remain the owner's."
 }

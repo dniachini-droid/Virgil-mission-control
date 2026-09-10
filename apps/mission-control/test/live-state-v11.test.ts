@@ -254,7 +254,10 @@ describe('the function keeps the claim apart from the facts', () => {
    */
   it('calls the shape check, rather than merely defining it', () => {
     expect(FUNCTION).toContain('const wrong = shapeComplaint(report);');
-    expect(FUNCTION).toContain('if (wrong) return { report: null, reason:');
+    // The exact call site, including the status it returns with the refusal.
+    // This assertion caught its own repair: adding `status: 'refused'` changed
+    // the line and the test said so, which is what a text assertion is for.
+    expect(FUNCTION).toContain("if (wrong) return { report: null, status: 'refused', reason:");
   });
 
   /**
@@ -461,6 +464,44 @@ describe('the function checks the report’s shape on the wire, not only in test
       expect(SessionStatusReport.safeParse(report).success, `schema accepted ${what}`).toBe(false);
     });
   }
+});
+
+/**
+ * **The three ways there can be no report, which are three different facts.**
+ *
+ * KP4-03 was that a refused report was announced as *"No session has written a
+ * report"* with the refusal printed after it — two statements about one fact,
+ * the first false. The repair read any reason as a refusal, which made the
+ * opposite error on the commonest case of all: no `.virgil/state.json` at all
+ * would have read as *"a session did write a report and this build refused it"*.
+ * Found by running the built page against a stub, not by reading the diff.
+ *
+ * So the reader says which of the three it is and the page branches on that,
+ * rather than on prose it would have to parse.
+ */
+describe('the endpoint says which kind of nothing it found', () => {
+  it('distinguishes absent, unreadable and refused, and marks a good read', () => {
+    const reader = FUNCTION.slice(FUNCTION.indexOf('async function readSessionReport'));
+    expect(reader).toContain("status: error?.status === 404 ? 'absent' : 'unreadable'");
+    expect(reader).toContain("status: 'unreadable'");
+    expect(reader).toContain("status: 'refused'");
+    expect(reader).toContain("status: 'read'");
+  });
+
+  it('carries the status out to the page beside the reason', () => {
+    expect(FUNCTION).toContain('sessionReportStatus: session.status');
+  });
+
+  it('the page decides from the status, never from the words of the reason', () => {
+    const page = readFileSync(
+      new URL('../src/world/mobile/MobileRoom.tsx', import.meta.url),
+      'utf8',
+    );
+    expect(page).toContain("sessionReportStatus === 'refused'");
+    // The repair that made the opposite error: a bare truthiness test on the
+    // reason, which is true for all three kinds.
+    expect(page).not.toMatch(/\?\.sessionReportReason \?\s*\(/);
+  });
 });
 
 /**

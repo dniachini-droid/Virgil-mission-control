@@ -119,9 +119,20 @@ jobs:
       #    guarantees the first and last word.
       - name: Say that a session has started
         run: |
+          # **Virgil, not the Fabricator — the Keeper's KP2-15.** This wrote
+          # `--holder fabricator` and then started an unscoped `claude -p` with
+          # no work order, no permitted-paths contract and no acceptance
+          # criteria. A Fabricator is a role with a boundary; what runs here is a
+          # session. Reporting it as a Fabricator was the same mechanism, at the
+          # same shelf life, saying something the run cannot support.
+          #
+          # `virgil` is the honest word the schema already has: the work is in
+          # flight and is held between roles rather than at a station. The room
+          # draws no station lit, which is true — no role has been given this —
+          # and the note says what is actually happening.
           node scripts/virgil-status.mjs \
-            --holder fabricator --activity WORKING \
-            --note "Working on the owner's instruction. Run $RUN_ID."
+            --holder virgil --activity WORKING \
+            --note "An unscoped session is working on the owner's instruction. It holds no work order and is not a Fabricator. Run $RUN_ID."
 
       # 3. **The instruction, written down before it is acted on.** Every change
       #    this workflow makes has a reason the owner can find, in his own words,

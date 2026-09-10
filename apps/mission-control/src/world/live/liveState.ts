@@ -190,6 +190,12 @@ export interface LiveAnswer {
   } | null;
   sessionReportedIn?: string | null;
   sessionReportReason?: string | null;
+  /**
+   * Which of three situations the reason describes: nobody has written a report,
+   * one exists and could not be read, or one was read and refused. The page says
+   * different things about each and cannot tell them apart from the prose.
+   */
+  sessionReportStatus?: 'read' | 'absent' | 'unreadable' | 'refused' | null;
 }
 
 export interface Live {
