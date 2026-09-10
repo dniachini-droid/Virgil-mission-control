@@ -1,10 +1,10 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-10T10:55:52Z",
-  "aboutCommit": "32b7c60b82ddd108b81f04104b9455dc0aa6b174",
+  "reportedAt": "2026-09-10T11:31:34Z",
+  "aboutCommit": "1185034d8aeac627e16c6ed63ebb31806d3244f4",
   "branch": "claude/virgil-mobile-v11",
   "candidate": null,
-  "holder": "keeper",
+  "holder": null,
   "hops": [
     {
       "role": "fabricator",
@@ -20,11 +20,11 @@
     },
     {
       "role": "keeper",
-      "activity": "WORKING",
+      "activity": "READY",
       "reported": null,
-      "at": "2026-09-10T10:55:52Z"
+      "at": null
     }
   ],
   "review": null,
-  "note": "A second, independent Keeper is reviewing the repairs to the five blocking findings."
+  "note": "Second review: BLOCKED on 1185034. Three findings closed, two moved rather than closed."
 }
