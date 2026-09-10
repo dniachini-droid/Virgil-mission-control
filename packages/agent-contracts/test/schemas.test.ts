@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest';
 import authority from '../../../constitution/authority.json' with { type: 'json' };
 import matrix from '../../../constitution/permission-matrix.json' with { type: 'json' };
 import { candidateScenarios, foundryRuns, mindSequence } from '../../test-fixtures/src/index.js';
-import { AuthorityConfig, DomainEvent, PermissionMatrix, schemaRegistry } from '../src/index.js';
+import { exportedSchemas } from '../src/exported-schemas.js';
+import { AuthorityConfig, DomainEvent, PermissionMatrix } from '../src/index.js';
 
 const schemasDir = resolve(import.meta.dirname, '../../../schemas');
 
@@ -14,7 +15,7 @@ describe('schema registry and exported JSON Schema', () => {
   it('exports every registry schema to /schemas', () => {
     const files = readdirSync(schemasDir).filter((f) => f.endsWith('.schema.json'));
     expect(files.sort()).toEqual(
-      Object.keys(schemaRegistry)
+      Object.keys(exportedSchemas)
         .map((n) => `${n}.schema.json`)
         .sort(),
     );
@@ -28,7 +29,7 @@ describe('schema registry and exported JSON Schema', () => {
     }
   });
   it('every schema rejects an empty object', () => {
-    for (const [name, schema] of Object.entries(schemaRegistry)) {
+    for (const [name, schema] of Object.entries(exportedSchemas)) {
       expect(schema.safeParse({}).success, name).toBe(false);
     }
   });

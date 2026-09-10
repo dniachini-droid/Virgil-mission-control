@@ -1,21 +1,15 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import { schemaRegistry } from '../src/index.js';
-// Imported straight from the module rather than through the barrel: the barrel is
-// what V10's Owner Build compiles, and adding this schema to it moved V10 by 914
-// bytes. See the note at the foot of `src/index.ts`.
-import { SessionStatusReport } from '../src/live.js';
+// The published set, which is deliberately not the barrel's set. See
+// `src/exported-schemas.ts` for why, and for the 914 bytes that taught it.
+import { exportedSchemas } from '../src/exported-schemas.js';
 
 const outDir = resolve(import.meta.dirname, '../../../schemas');
 mkdirSync(outDir, { recursive: true });
-const registry = {
-  ...schemaRegistry,
-  'session-status-report': SessionStatusReport,
-};
-const names = Object.keys(registry).sort();
+const names = Object.keys(exportedSchemas).sort();
 for (const name of names) {
-  const schema = registry[name as keyof typeof registry];
+  const schema = exportedSchemas[name as keyof typeof exportedSchemas];
   const json = z.toJSONSchema(schema, {
     target: 'draft-2020-12',
     unrepresentable: 'any',
