@@ -250,14 +250,20 @@ const WAIT_FRAMES = 90;
  * minute job. The check had never once completed there — every earlier attempt
  * was cancelled by the next push before it could time out, so nothing said so.
  *
- * **Where 12 comes from.** The same run measures the positive: the record opens
- * on the second or third sampled frame, and the camera moves on the second or
- * third, on every machine this has run on — a count of frames does not change
- * with the machine, which is the whole reason the budgets are in frames. Twelve
- * is four times the largest of those. It is not a number chosen to make the job
- * fit: `bothTaps` asserts the margin below and fails if the positive ever needs
- * more than a quarter of this, because a budget derived from a measurement stops
- * being derived the moment the measurement moves and nobody looks.
+ * **Where 12 comes from, corrected after the first run measured it.** The number
+ * was first justified here as four times an opening's cost, from the milliseconds
+ * the run prints divided by the frame period — about two and a half frames. That
+ * was wrong, and the instrumentation added alongside it is what said so: the
+ * frame each event is *seen* on is **0**, on every tap, on both machines this has
+ * run on. Those milliseconds are the cost of Playwright's own move/down/up
+ * round-trip before the first sample, not the world's latency; by the time the
+ * first sample happens the camera has moved and the record is open.
+ *
+ * So the honest statement is the weaker-sounding and truer one: twelve frames is
+ * twelve times longer than any positive has ever needed, and what makes it a
+ * budget rather than a guess is that `bothTaps` fails if a positive ever takes
+ * four or more — because a number derived from a measurement stops being derived
+ * the moment the measurement moves and nobody looks.
  */
 const NEGATIVE_FRAMES = 12;
 /** How much of the negative budget the positive may take before it is not a margin. */
@@ -1213,12 +1219,13 @@ if (RUN_TAIL) {
       );
     }
     /**
-     * **The margin, checked rather than assumed.** `NEGATIVE_FRAMES` is four
-     * times what an opening and a camera move have ever needed. If either ever
-     * needs more than a quarter of it, the negative budget is no longer long
-     * enough to be evidence that nothing happened, and this says so instead of
-     * passing — which is the failure the old 90-frame budget could not have,
-     * and paid for by never finishing on a slow machine.
+     * **The margin, checked rather than assumed.** An opening and a camera move
+     * have been seen on frame 0 of every tap on every machine this has run on.
+     * If either ever needs four frames or more — a quarter of the budget the
+     * first tap is watched for — the negative budget is no longer long enough to
+     * be evidence that nothing happened, and this says so instead of passing.
+     * That is the failure the old 90-frame budget could not have, and what it
+     * paid for the impossibility with was never finishing on a slow machine.
      */
     const worst = Math.max(second.openedFrame, first.movedFrame);
     if (worst >= 0 && worst * MARGIN > NEGATIVE_FRAMES) {
