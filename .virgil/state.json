@@ -1,10 +1,10 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-10T10:50:56Z",
-  "aboutCommit": "0c3b4aac3a9137290c4b9351ea5fabb4b0a3aa79",
+  "reportedAt": "2026-09-10T10:55:52Z",
+  "aboutCommit": "32b7c60b82ddd108b81f04104b9455dc0aa6b174",
   "branch": "claude/virgil-mobile-v11",
   "candidate": null,
-  "holder": null,
+  "holder": "keeper",
   "hops": [
     {
       "role": "fabricator",
@@ -20,11 +20,11 @@
     },
     {
       "role": "keeper",
-      "activity": "READY",
+      "activity": "WORKING",
       "reported": null,
-      "at": null
+      "at": "2026-09-10T10:55:52Z"
     }
   ],
   "review": null,
-  "note": "The five blocking findings are repaired. A fresh review is needed before this is merged."
+  "note": "A second, independent Keeper is reviewing the repairs to the five blocking findings."
 }
