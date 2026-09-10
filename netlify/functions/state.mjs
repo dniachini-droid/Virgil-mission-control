@@ -216,57 +216,228 @@ async function readChecks(repo, sha, token) {
  * like when nobody has said anything.
  */
 /**
- * **The shape check the Keeper's KP2-04 found missing.**
+ * **The shape check that runs on the wire, and the whole of it.**
  *
- * `packages/agent-contracts/src/live.ts` defines this file's schema in Zod, and
- * the schema ran **only in unit tests, against fixtures**. On the wire this
- * function checked one version string and returned the file verbatim, so
- * anything at all could travel to the page under a name the page trusts.
+ * `.virgil/state.json` is written by a session about itself, which makes it a
+ * claim rather than evidence, and the surfaces draw it. Zod is not reachable
+ * from here — a Netlify function is deployed on its own, with no bundler and no
+ * workspace resolution — so `SessionStatusReport` is re-implemented by hand, and
+ * a second implementation of an intent is free to drift from the first.
  *
- * Zod is not reachable from here — this runs as a standalone function with no
- * bundler and no workspace resolution — so the check is written out by hand and
- * kept deliberately narrow: **structure, types and vocabulary, and nothing
- * about meaning.** It is a smaller guarantee than the schema's and is not
- * recorded as the same one. `apps/mission-control/test/live-state-v11.test.ts`
- * holds the two against each other so they cannot drift apart silently.
+ * **The Keeper's KP3-05.** The drift test that guarded this used nine cases
+ * written by hand, which proved the two agreed on nine reports and was described
+ * as though it proved they agreed. It did not: when the pairing was replaced by
+ * cases generated from the report's own shape, the two disagreed on **106** of
+ * them. Every field below carries the repair for one family of those — the
+ * timestamps that were any string at all, the counts and the note that were
+ * unchecked, the record path that could be `/etc/passwd`, the keys that could be
+ * missing, the unknown keys that travelled through a schema declared `.strict()`,
+ * and a `holder` this refused while the schema allowed it.
  *
- * Returns a complaint, or `null` when the shape is right.
+ * The generator is `apps/mission-control/test/live-state-v11.test.ts`. It is not
+ * a proof of equivalence either — it tests the values it generates — but it is
+ * the difference between agreeing on nine reports and agreeing on some hundreds,
+ * and it fails the moment one side moves without the other.
  */
 export function shapeComplaint(report) {
   const isString = (value) => typeof value === 'string' && value.length > 0;
   const isSha = (value) => typeof value === 'string' && /^[0-9a-f]{40}$/.test(value);
-  const ROLES = ['fabricator', 'prover', 'keeper'];
+  /**
+   * ISO-8601 with an offset, which is what `Timestamp` in `common.ts` is. Not a
+   * formality: `liveState.ts` decides from `reportedAt` whether the report is
+   * still current, and any other string parses to `NaN` — which compares false
+   * against every threshold and so reads as *fresh*, not as *unreadable*.
+   */
+  const isInstant = (value) =>
+    typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d+)?(Z|[+-]([01]\d|2[0-3]):[0-5]\d)$/.test(
+      value,
+    ) &&
+    !Number.isNaN(Date.parse(value));
+  const isCount = (value) => Number.isInteger(value) && value >= 0;
+  /**
+   * `normaliseRepoPath` from `packages/agent-contracts/src/paths.ts`, ported
+   * rather than imported for the reason at the head of this function. It refuses
+   * what that refuses: absolute, home-relative, drive-lettered, URL, backslashed,
+   * percent-encoded, whitespaced, traversing, globbed, or resolving to the root.
+   */
+  const isRepoPath = (value) => {
+    if (typeof value !== 'string' || value.length === 0 || value.length > 4096) return false;
+    if (value.includes('\0') || value.includes('\\')) return false;
+    if (/%(2e|2f|5c|00)/i.test(value)) return false;
+    if (/^[A-Za-z]:/.test(value)) return false;
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) return false;
+    if (value.startsWith('/') || value.startsWith('~')) return false;
+    if (/\s/.test(value)) return false;
+    let segments = 0;
+    for (const segment of value.split('/')) {
+      if (segment === '' || segment === '.') continue;
+      if (segment === '..' || /^\.{3,}$/.test(segment) || segment.includes('*')) return false;
+      segments += 1;
+    }
+    return segments > 0;
+  };
+  /** The key a `.strict()` object would refuse, or undefined if there is none. */
+  const stray = (object, keys) => Object.keys(object).find((key) => !keys.includes(key));
+
+  // The three roles with a station, which is what a hop is. Narrower than the
+  // cast on purpose: a hop naming the Architect describes a station there is
+  // nothing to draw. `StationRole` in `packages/agent-contracts/src/live.ts`.
+  const STATION_ROLES = ['fabricator', 'prover', 'keeper'];
+  // Who may *hold* the work, which is the whole cast: between roles is a real
+  // place for it to be. Copied from `constitution/permission-matrix.json`,
+  // because this file is deployed alone; held against the real list by a test.
+  const HOLDER_ROLES = [
+    'virgil',
+    'cartographer',
+    'architect',
+    'fabricator',
+    'prover',
+    'keeper',
+    'arbiter',
+    'domain-verifier',
+    'breaker',
+    'integrator',
+    'interface-keeper',
+    'security-sentinel',
+    'transport-inspector',
+    'performance-examiner',
+  ];
   const ACTIVITIES = ['READY', 'RECEIVING', 'WORKING', 'REPORTED'];
   const VERDICTS = ['PASS', 'PASS_WITH_NON_BLOCKING_FINDINGS', 'BLOCKED', 'INSUFFICIENT_EVIDENCE'];
+  // The fifteen of `constitution/authority.json`, written out for the same
+  // reason as the roles above, and held against the real list by the same test.
+  const CANDIDATE_STATES = [
+    'BUILDING',
+    'BUILDER_REPORTED_COMPLETE',
+    'VERIFICATION_INCOMPLETE',
+    'READY_FOR_REVIEW',
+    'REVIEW_IN_PROGRESS',
+    'PASS_WITH_NON_BLOCKING_FINDINGS',
+    'BLOCKED',
+    'INSUFFICIENT_EVIDENCE',
+    'REPAIR_AUTHORISED',
+    'RE_REVIEW_REQUIRED',
+    'SAFE_TO_MERGE',
+    'MERGED',
+    'DEPLOYED',
+    'QUARANTINED',
+    'OWNER_DECISION_REQUIRED',
+  ];
 
-  if (!isString(report.reportedAt)) return 'has no time on it.';
+  if (!report || typeof report !== 'object' || Array.isArray(report)) {
+    return 'is not an object.';
+  }
+  /**
+   * The version, checked here rather than beside the call. It was checked in
+   * `readSessionReport` and not in this function, so the generated cases found
+   * the two disagreeing about a report declaring another schema — the wire
+   * refused it, this said nothing, and which was true depended on which one you
+   * asked. There is one implementation now and this is it.
+   */
+  if (report.schema !== 'virgil.session-status.v1') {
+    return `declares schema "${String(report.schema ?? '(none)')}", which this build does not read.`;
+  }
+  // Every key is required. A nullable field is not an optional one: `review:
+  // null` says a review has not happened, and a missing `review` says the writer
+  // and this reader disagree about what a report is.
+  for (const key of ['candidate', 'holder', 'hops', 'review', 'note']) {
+    if (!(key in report)) return `leaves out "${key}", which every report carries.`;
+  }
+  const strayKey = stray(report, [
+    'schema',
+    'reportedAt',
+    'aboutCommit',
+    'branch',
+    'candidate',
+    'holder',
+    'hops',
+    'review',
+    'note',
+  ]);
+  if (strayKey) return `carries "${strayKey}", which this build does not know how to read.`;
+
+  if (!isInstant(report.reportedAt)) return 'has no readable time on it.';
   if (!isSha(report.aboutCommit)) return 'does not say which commit it is about.';
   if (!isString(report.branch)) return 'names no branch.';
-  if (report.holder !== null && !ROLES.includes(report.holder) && report.holder !== 'virgil') {
+  if (report.holder !== null && !HOLDER_ROLES.includes(report.holder)) {
     return `names a holder this build does not know: ${String(report.holder)}.`;
   }
   if (!Array.isArray(report.hops) || report.hops.length > 16) return 'has no readable hops.';
   for (const hop of report.hops) {
-    if (!hop || typeof hop !== 'object') return 'has a hop that is not an object.';
-    if (!ROLES.includes(hop.role)) return `has a hop for an unknown role: ${String(hop.role)}.`;
+    if (!hop || typeof hop !== 'object' || Array.isArray(hop)) {
+      return 'has a hop that is not an object.';
+    }
+    const strayHopKey = stray(hop, ['role', 'activity', 'reported', 'at']);
+    if (strayHopKey) return `has a hop carrying "${strayHopKey}", which this build does not read.`;
+    if (!STATION_ROLES.includes(hop.role))
+      return `has a hop for an unknown role: ${String(hop.role)}.`;
     if (!ACTIVITIES.includes(hop.activity)) {
       return `has a hop in an unknown state: ${String(hop.activity)}.`;
     }
     if (hop.reported !== null && hop.reported !== 'COMPLETE' && !VERDICTS.includes(hop.reported)) {
       return `has a hop reporting something that is not a verdict: ${String(hop.reported)}.`;
     }
+    if (hop.at !== null && !isInstant(hop.at)) return 'has a hop with an unreadable time on it.';
   }
-  if (report.review !== null && report.review !== undefined) {
+  /**
+   * **`candidate`, which the first version of this check did not look at — the
+   * Keeper's KP3-02.**
+   *
+   * The check was added to stop a session writing a verdict onto the verdict
+   * slab and did not cover the field beside it feeding the slab beside it, so
+   * `{"state": "APPROVED BY THE OWNER"}` travelled through and was printed under
+   * *"THE STATUS RECORDED BY THE PROJECT"*. The client refuses it now as well;
+   * both refuse it, because one of them being enough is what was assumed last
+   * time.
+   */
+  if (report.candidate !== null) {
+    const candidate = report.candidate;
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+      return 'has a candidate that is not an object.';
+    }
+    const strayCandidateKey = stray(candidate, ['sha', 'shortSha', 'state']);
+    if (strayCandidateKey) {
+      return `names a candidate carrying "${strayCandidateKey}", which this build does not read.`;
+    }
+    if (!isSha(candidate.sha)) return 'names a candidate with no commit.';
+    if (typeof candidate.shortSha !== 'string' || !/^[0-9a-f]{7,12}$/.test(candidate.shortSha)) {
+      return 'names a candidate whose short commit is not a short commit.';
+    }
+    if (!('state' in candidate)) return 'names a candidate that does not say what state it is in.';
+    if (candidate.state !== null && !CANDIDATE_STATES.includes(candidate.state)) {
+      return `claims a candidate state that is not one of the fifteen: ${String(candidate.state)}.`;
+    }
+  }
+  if (report.review !== null) {
     const review = report.review;
-    if (typeof review !== 'object') return 'has a review that is not an object.';
+    if (!review || typeof review !== 'object' || Array.isArray(review)) {
+      return 'has a review that is not an object.';
+    }
+    const strayReviewKey = stray(review, [
+      'verdict',
+      'recordPath',
+      'recordCommit',
+      'findings',
+      'blocking',
+    ]);
+    if (strayReviewKey) {
+      return `claims a review carrying "${strayReviewKey}", which this build does not read.`;
+    }
     if (!VERDICTS.includes(review.verdict)) {
       return `claims a verdict that is not one of the four: ${String(review.verdict)}.`;
     }
     // Required even though nothing follows them yet. A report that names no
     // record is refused here rather than admitted and then ignored downstream.
-    if (!isString(review.recordPath) || !isSha(review.recordCommit)) {
+    if (!isRepoPath(review.recordPath) || !isSha(review.recordCommit)) {
       return 'claims a verdict without naming the record it came from and the commit it was read at.';
     }
+    if (!isCount(review.findings) || !isCount(review.blocking)) {
+      return 'claims a review whose findings do not count.';
+    }
+  }
+  if (report.note !== null && (typeof report.note !== 'string' || report.note.length > 300)) {
+    return 'carries a note that is not one sentence of readable text.';
   }
   return null;
 }
@@ -297,14 +468,9 @@ async function readSessionReport(repo, ref, token) {
 
   // A reader that does not recognise the version refuses the file rather than
   // guessing at it. Guessing is how a field means one thing to the writer and
-  // another to the screen.
-  if (report?.schema !== 'virgil.session-status.v1') {
-    return {
-      report: null,
-      reason: `.virgil/state.json declares schema "${report?.schema ?? '(none)'}", which this build does not read.`,
-    };
-  }
-
+  // another to the screen. The version check lives inside `shapeComplaint` and
+  // not here, so that what the tests hold against the schema is the whole of
+  // what the wire refuses rather than most of it.
   const wrong = shapeComplaint(report);
   if (wrong) return { report: null, reason: `.virgil/state.json ${wrong}` };
 

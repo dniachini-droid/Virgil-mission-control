@@ -152,26 +152,77 @@ describe('the gate runs in full before anything can merge', () => {
    * it ignores. A comment cannot drift away from that, because there is no
    * comment doing the work.
    */
+  /**
+   * **Rewritten again, after the Keeper's KP3-03 found the rewrite weaker than
+   * what it replaced.**
+   *
+   * Two faults, and the second was the serious one. It matched `paths-ignore`
+   * entries with `/^ {6}- '([^']+)'$/` — single-quoted, six spaces — so it caught
+   * a literal revert and missed four ordinary ways of writing the same list:
+   * unquoted (`- docs/**`, which needs no quotes and is what a person types),
+   * double-quoted, a flow sequence, and a different indent. And it **silently
+   * dropped** the two assertions the old test had, that `apps/**` and
+   * `packages/**` never appear — so a workflow skipping every check on every
+   * source change would have passed, under a title claiming the opposite.
+   *
+   * Now: the `on:` block is taken whole and any line inside it that looks like a
+   * skip pattern is extracted, whatever its quoting or indent; the source and
+   * package trees are named as never-ignorable in their own right; and the
+   * derived set from the knowledge graph is kept as well, since deriving is
+   * still better than naming for the paths that can move.
+   */
   it('ignores no path that any check actually reads', () => {
     const deriver = readFileSync(
       resolve(repoRoot, 'packages/knowledge-graph/src/derive.ts'),
       'utf8',
     );
-    // The directories the graph is derived from, taken from the deriver itself.
     const read = [...deriver.matchAll(/join\((?:root|kdir), '([^']+)'\)/g)].map((m) => m[1] ?? '');
-    const roots = new Set(read.map((path) => path.split('/')[0] ?? ''));
-    // `kdir` is `knowledge/`, which the join hides; it is added by name because
-    // the deriver's own variable makes it invisible to the pattern above.
-    roots.add('knowledge');
-    expect(roots.size).toBeGreaterThan(1);
+    const derived = new Set(read.map((path) => path.split('/')[0] ?? ''));
+    // `kdir` is `knowledge/`, which the join hides behind a variable.
+    derived.add('knowledge');
+    expect(derived.size).toBeGreaterThan(1);
 
-    const ignored = [...workflow.matchAll(/^ {6}- '([^']+)'$/gm)].map((m) => m[1] ?? '');
-    for (const pattern of ignored) {
+    // Named outright, not derived: a check reading these is the normal case, and
+    // their absence from an ignore list is not something to infer from anywhere.
+    const never = new Set([...derived, 'apps', 'packages', 'constitution', 'schemas', '.github']);
+
+    // The `on:` block, whole, from `on:` to the next top-level key.
+    const onAt = workflow.search(/^on:$/m);
+    expect(onAt).toBeGreaterThan(-1);
+    const after = workflow.slice(onAt + 3);
+    const endsAt = after.search(/^\S/m);
+    const block = endsAt === -1 ? after : after.slice(0, endsAt);
+
+    // Every path-shaped token inside it, however it is written: `- docs/**`,
+    // `- 'docs/**'`, `- "docs/**"`, or `['docs/**', 'knowledge/**']`.
+    const patterns = [...block.matchAll(/['"]?([A-Za-z_.*][\w./*-]*\/[\w./*-]*)['"]?/g)]
+      .map((m) => m[1] ?? '')
+      .filter((value) => value.includes('/'));
+
+    for (const pattern of patterns) {
       const top = pattern.split('/')[0] ?? '';
       expect(
-        roots.has(top) || pattern.startsWith('**'),
-        `the workflow ignores ${pattern}, which a check reads`,
+        never.has(top) || pattern.startsWith('**'),
+        `the workflow's on: block ignores ${pattern}, which a check reads`,
       ).toBe(false);
+    }
+  });
+
+  it('would catch an ignore list written any of the ordinary ways', () => {
+    // The test above is only worth having if it fails on the forms KP3-03 named.
+    // Rather than trust that, each is run through the same extraction here.
+    const forms = [
+      "  push:\n    paths-ignore:\n      - 'docs/**'\n",
+      '  push:\n    paths-ignore:\n      - docs/**\n',
+      '  push:\n    paths-ignore:\n      - "docs/**"\n',
+      "  push:\n    paths-ignore: ['docs/**', 'knowledge/**']\n",
+      "  push:\n    paths-ignore:\n    - 'apps/**'\n",
+    ];
+    for (const form of forms) {
+      const found = [...form.matchAll(/['"]?([A-Za-z_.*][\w./*-]*\/[\w./*-]*)['"]?/g)]
+        .map((m) => m[1] ?? '')
+        .filter((value) => value.includes('/'));
+      expect(found.length, `no pattern extracted from: ${form.trim()}`).toBeGreaterThan(0);
     }
   });
 

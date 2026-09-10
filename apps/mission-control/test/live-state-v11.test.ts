@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import authority from '../../../constitution/authority.json' with { type: 'json' };
+import matrix from '../../../constitution/permission-matrix.json' with { type: 'json' };
 // @ts-expect-error — a standalone Netlify function, deliberately outside this
 // app's TypeScript program: it is deployed on its own, with no bundler and no
 // workspace resolution, which is exactly why its shape check is written by hand
@@ -174,7 +175,11 @@ describe('the sessions’ own report reaches the room', () => {
 
   it('lights the role the report says holds the work', () => {
     const state = stateFromAnswer({ ...FULL, sessionReport: { ...REPORT } }, JUST_AFTER);
-    expect(state?.content.active).toBe('fabricator');
+    // `Fabricator`, not `fabricator`: this assertion was written against the raw
+    // word the report carries, which is precisely the defect the block below
+    // ("the holder is drawn under the name the rest of the room uses") is about.
+    // A test can encode a bug as confidently as it encodes a rule.
+    expect(state?.content.active).toBe('Fabricator');
     expect(state?.cast.fabricator.activity).toBe('working');
     expect(state?.cast.prover.activity).toBe('rest');
   });
@@ -237,6 +242,36 @@ describe('the function keeps the claim apart from the facts', () => {
 
   it('refuses a schema version it does not read, rather than guessing', () => {
     expect(FUNCTION).toContain("!== 'virgil.session-status.v1'");
+  });
+
+  /**
+   * **The Keeper's KP3-04.** The shape check was tested only as a pure function,
+   * so deleting its call site left the whole suite green and the finding it was
+   * written to close fully reopened. This repository had by then shipped the
+   * same failure twice — `liveTransport` written and never wired, Zod written
+   * and never wired — and the check meant to end that pattern was itself
+   * unwired-detectable. One line.
+   */
+  it('calls the shape check, rather than merely defining it', () => {
+    expect(FUNCTION).toContain('const wrong = shapeComplaint(report);');
+    expect(FUNCTION).toContain('if (wrong) return { report: null, reason:');
+  });
+
+  /**
+   * **The copy of the constitution's fifteen states, held against the original.**
+   *
+   * `state.mjs` is deployed alone, with no bundler and no way to import
+   * `constitution/authority.json`, so the list is written out there. A second
+   * copy of a vocabulary is free to drift from the first, which is the failure
+   * the contracts package exists to prevent; this is what stops it happening
+   * quietly.
+   */
+  it('carries the constitution’s fifteen candidate states, exactly', () => {
+    for (const state of authority.candidateStates) {
+      expect(FUNCTION.includes(`'${state}'`), `the wire check has no ${state}`).toBe(true);
+    }
+    const listed = [...FUNCTION.matchAll(/^ {4}'([A-Z_]+)',$/gm)].map((m) => m[1] ?? '');
+    expect(new Set(listed)).toEqual(new Set(authority.candidateStates));
   });
 });
 
@@ -408,4 +443,299 @@ describe('the function checks the report’s shape on the wire, not only in test
       expect(SessionStatusReport.safeParse(report).success, `schema accepted ${what}`).toBe(false);
     });
   }
+});
+
+/**
+ * **The Keeper's KP3-05: the pairing proved less than it was described as
+ * proving, and now it generates its cases instead of listing them.**
+ *
+ * What was here was nine reports written by hand, each broken in one named way,
+ * each required to be refused by both the wire check and the schema. The comment
+ * above them said the pairing was what stopped the hand-written check drifting
+ * from the contract. It stopped it drifting *in nine places*. When these
+ * generated cases were run against the check as it then stood, the two disagreed
+ * about **106** of them: `reportedAt` was any non-empty string, `hops[].at` and
+ * the review's counts were not looked at, `recordPath` could be `/etc/passwd`,
+ * `note` could be a number or a novel, a missing key read as a null one, unknown
+ * keys travelled through a schema declared `.strict()`, and a `holder` of
+ * `architect` — valid by the contract — was refused. All 106 are closed.
+ *
+ * **What this still does not establish.** It is not a proof of equivalence. It
+ * takes the well-formed report, walks every field in it, and substitutes each of
+ * a battery of hostile values, which is a large finite sample of one shape and
+ * not the infinite set of possible reports. A divergence over a value nobody
+ * thought to put in the battery would still pass. It is recorded that way here
+ * rather than described as a proof, because describing a sample as a proof is
+ * the exact thing this finding was about.
+ */
+describe('the wire check and the schema agree about generated reports, not only named ones', () => {
+  /** Every field position in a report, including nested ones, as a path. */
+  function positions(node: unknown, prefix: string[] = []): string[][] {
+    if (node === null || typeof node !== 'object') return [prefix];
+    if (Array.isArray(node)) {
+      const out: string[][] = [prefix];
+      node.forEach((value, index) => out.push(...positions(value, [...prefix, String(index)])));
+      return out;
+    }
+    const out: string[][] = prefix.length ? [prefix] : [];
+    for (const [key, value] of Object.entries(node))
+      out.push(...positions(value, [...prefix, key]));
+    return out;
+  }
+
+  function withValueAt(root: unknown, path: string[], value: unknown): unknown {
+    const clone = structuredClone(root) as Record<string, unknown>;
+    let node = clone as Record<string, unknown>;
+    for (const key of path.slice(0, -1)) node = node[key] as Record<string, unknown>;
+    const last = path[path.length - 1] as string;
+    if (value === undefined) delete node[last];
+    else node[last] = value;
+    return clone;
+  }
+
+  /**
+   * A full report, so that every position has something to substitute into: a
+   * candidate, a review and a note, none of which the well-formed report above
+   * carries. Both sides must accept it before anything is made of what they do
+   * with the mutations of it.
+   */
+  const COMPLETE = {
+    schema: 'virgil.session-status.v1',
+    reportedAt: '2026-09-10T06:00:00.000Z',
+    aboutCommit: 'a'.repeat(40),
+    branch: 'claude/virgil-phase-2',
+    candidate: { sha: 'b'.repeat(40), shortSha: 'bbbbbbb', state: 'BUILDING' },
+    holder: 'fabricator',
+    hops: [
+      { role: 'prover', activity: 'WORKING', reported: null, at: '2026-09-10T06:00:00.000Z' },
+      { role: 'keeper', activity: 'REPORTED', reported: 'PASS', at: null },
+    ],
+    review: {
+      verdict: 'PASS',
+      recordPath: 'docs/process/V11_KEEPER_REVIEW_PHASE2.md',
+      recordCommit: '0'.repeat(40),
+      findings: 3,
+      blocking: 0,
+    },
+    note: 'One sentence a person wrote.',
+  };
+
+  /**
+   * The values substituted at every position. Wrong types, wrong vocabularies,
+   * near-misses on each format, and the shapes that have actually got past a
+   * hand-written check in this repository before: a plausible word in an enum
+   * position, a commit that is not a commit, a path that leaves the repository.
+   */
+  const BATTERY: unknown[] = [
+    undefined,
+    null,
+    42,
+    -1,
+    0,
+    1.5,
+    true,
+    false,
+    '',
+    ' ',
+    'NOPE',
+    'HEAD',
+    'virgil.session-status.v2',
+    '/etc/passwd',
+    '../secrets',
+    'a/../b',
+    './a',
+    'a//b',
+    'a/./b',
+    '..',
+    'a/..',
+    'a/',
+    'docs/**',
+    'docs/*',
+    '~/x',
+    'C:/x',
+    'https://x/y',
+    'a\\b',
+    'a b',
+    'a%2e%2e/b',
+    '/',
+    'A'.repeat(40),
+    'a'.repeat(39),
+    'a'.repeat(41),
+    '2026-09-10 06:00:00',
+    '2026-09-10T06:00:00',
+    '2026-09-10T99:00:00Z',
+    '2026-13-45T06:00:00Z',
+    '2026-09-10T06:00:00+00:00',
+    '2026-09-10T06:00:00.123456Z',
+    'x'.repeat(300),
+    'x'.repeat(301),
+    'x'.repeat(5000),
+    'architect',
+    'owner',
+    'virgil',
+    'COMPLETE',
+    'PASS',
+    'BUILDING',
+    {},
+    [],
+    [1],
+    { sha: 1 },
+  ];
+
+  it('accepts the complete report on both sides, or the rest of this proves nothing', () => {
+    expect(shapeComplaint(COMPLETE)).toBeNull();
+    expect(SessionStatusReport.safeParse(COMPLETE).success).toBe(true);
+  });
+
+  it('agrees about every value of the battery at every position of the report', () => {
+    const disagreements: string[] = [];
+    let cases = 0;
+    for (const path of positions(COMPLETE)) {
+      for (const value of BATTERY) {
+        const mutant = withValueAt(COMPLETE, path, value);
+        cases += 1;
+        const refusedOnTheWire = shapeComplaint(mutant) !== null;
+        const refusedByTheSchema = !SessionStatusReport.safeParse(mutant).success;
+        if (refusedOnTheWire === refusedByTheSchema) continue;
+        disagreements.push(
+          `${path.join('.')} = ${JSON.stringify(value)?.slice(0, 60) ?? String(value)} — ` +
+            `wire ${refusedOnTheWire ? 'refused' : 'ACCEPTED'}, schema ${refusedByTheSchema ? 'refused' : 'ACCEPTED'}`,
+        );
+      }
+    }
+    // The count is asserted so that a generator which silently stopped walking
+    // the report — the failure mode of every derived test in this repository so
+    // far — fails here rather than passing over nothing.
+    expect(cases).toBeGreaterThan(1000);
+    expect(disagreements, `${disagreements.length} of ${cases} generated reports`).toEqual([]);
+  });
+
+  it('agrees about an unknown key added at any object in the report', () => {
+    const disagreements: string[] = [];
+    let cases = 0;
+    for (const path of [[], ...positions(COMPLETE)]) {
+      const at = path.reduce<unknown>(
+        (node, key) => (node as Record<string, unknown>)?.[key],
+        COMPLETE,
+      );
+      if (at === null || typeof at !== 'object' || Array.isArray(at)) continue;
+      const mutant = withValueAt(COMPLETE, [...path, 'surprise'], 1);
+      cases += 1;
+      const refusedOnTheWire = shapeComplaint(mutant) !== null;
+      const refusedByTheSchema = !SessionStatusReport.safeParse(mutant).success;
+      if (refusedOnTheWire === refusedByTheSchema) continue;
+      disagreements.push(
+        `${[...path, 'surprise'].join('.')} — wire ${refusedOnTheWire ? 'refused' : 'ACCEPTED'}`,
+      );
+    }
+    expect(cases).toBeGreaterThan(3);
+    expect(disagreements).toEqual([]);
+  });
+
+  /**
+   * **The second copy of a vocabulary, held against the first.** The same reason
+   * as the candidate states above: `state.mjs` is deployed alone and cannot
+   * import `constitution/permission-matrix.json`, so the cast is written out
+   * there, and a copy nothing checks is a copy that drifts. This is what caught
+   * the wire refusing `architect` while the contract admitted it.
+   */
+  it('carries the constitution’s whole cast as possible holders, exactly', () => {
+    const listed = [
+      ...(FUNCTION.match(/const HOLDER_ROLES = \[[^\]]*\]/s)?.[0] ?? '').matchAll(/'([a-z-]+)'/g),
+    ].map((match) => match[1] ?? '');
+    expect(new Set(listed)).toEqual(new Set(matrix.roles.map((role) => role.id)));
+  });
+});
+
+/**
+ * **The holder reaches the room under the name the room knows, or not at all.**
+ *
+ * Found while closing KP3-05, and it is the same class of defect as KP3-02: a
+ * value carried straight through from the wire into a position where something
+ * downstream compares it against a fixed vocabulary. `windowContent.ts` asks
+ * whether the holder is `Fabricator`, `Prover` or `Keeper` and, when it is none
+ * of them, offers *"Go to the Fabricator"*. The report says `keeper`. So the
+ * slab read KEEPER and the button under it went to the Fabricator — the
+ * interface saying two different things about the same fact, which is the one
+ * thing this project treats as fatal.
+ */
+describe('the holder is drawn under the name the rest of the room uses', () => {
+  const NOW = Date.parse(REPORT.reportedAt) + 60_000;
+  const held = (holder: unknown) =>
+    stateFromAnswer({ ...FULL, sessionReport: { ...REPORT, holder } } as never, NOW);
+
+  it('names the three stations the way every other surface names them', () => {
+    expect(held('fabricator')?.content.active).toBe('Fabricator');
+    expect(held('prover')?.content.active).toBe('Prover');
+    expect(held('keeper')?.content.active).toBe('Keeper');
+  });
+
+  it('draws no station for a role that has none, rather than the wrong one', () => {
+    // Valid by the contract — the whole cast may hold the work — and undrawable
+    // by this build, which has three stations. Nothing is better than the
+    // Fabricator, which is what the default used to give.
+    for (const role of ['virgil', 'architect', 'arbiter', 'security-sentinel', null]) {
+      expect(held(role)?.content.active, String(role)).toBeNull();
+    }
+  });
+
+  it('is never the raw word from the report', () => {
+    // The failure was that `active` was whatever the report said. If it ever is
+    // again, one of these is the word that comes back.
+    for (const role of matrix.roles.map((r) => r.id)) {
+      expect(held(role)?.content.active, role).not.toBe(role);
+    }
+  });
+});
+
+/**
+ * **KP3-02, from both sides.** A session may not put a word of its own choosing
+ * into a candidate-state position, and the fix is on the wire *and* in the page:
+ * one of them being enough is exactly what was assumed when the verdict path was
+ * closed and this one was left open.
+ */
+describe('no invented candidate state reaches the slab', () => {
+  const NOW = Date.parse(REPORT.reportedAt) + 60_000;
+  const withCandidate = (state: unknown) => ({
+    ...FULL,
+    sessionReport: {
+      ...REPORT,
+      candidate: { sha: 'b'.repeat(40), shortSha: 'bbbbbbb', state },
+    },
+  });
+
+  it('drops a word that is not one of the fifteen', () => {
+    const state = stateFromAnswer(withCandidate('APPROVED BY THE OWNER') as never, NOW);
+    expect(state?.content.candidate).toBeNull();
+  });
+
+  it('drops a candidate state that is not a string at all', () => {
+    for (const value of [42, true, {}, []]) {
+      expect(stateFromAnswer(withCandidate(value) as never, NOW)?.content.candidate).toBeNull();
+    }
+  });
+
+  it('keeps every one of the fifteen the constitution does name', () => {
+    for (const state of authority.candidateStates) {
+      expect(stateFromAnswer(withCandidate(state) as never, NOW)?.content.candidate, state).toBe(
+        state,
+      );
+    }
+  });
+
+  it('is refused on the wire as well, not only in the page', () => {
+    const report = {
+      schema: 'virgil.session-status.v1',
+      reportedAt: REPORT.reportedAt,
+      aboutCommit: REPORT.aboutCommit,
+      branch: REPORT.branch,
+      candidate: { state: 'APPROVED BY THE OWNER' },
+      holder: null,
+      hops: [],
+      review: null,
+      note: null,
+    };
+    expect(shapeComplaint(report)).not.toBeNull();
+    expect(SessionStatusReport.safeParse(report).success).toBe(false);
+  });
 });

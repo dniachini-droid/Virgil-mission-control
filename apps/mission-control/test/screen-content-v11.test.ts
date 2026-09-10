@@ -160,25 +160,22 @@ function drawnText(
  * remember this happened.
  */
 describe('no fixture value reaches a live screen', () => {
-  const REPORT = {
+  const BASE = {
     schema: 'virgil.session-status.v1',
-    reportedAt: new Date().toISOString(),
     aboutCommit: 'b5660f364c6e36572003f9dc2e4fb5c3a46b0ed3',
     branch: 'claude/virgil-mobile-v11',
     candidate: null,
     holder: 'fabricator',
-    hops: [
-      { role: 'fabricator', activity: 'WORKING', reported: null, at: null },
-      { role: 'prover', activity: 'WORKING', reported: null, at: null },
-      { role: 'keeper', activity: 'WORKING', reported: null, at: null },
-    ],
     review: null,
     note: null,
   };
+  const hop = (role: string, activity: string) => ({ role, activity, reported: null, at: null });
+  const fresh = () => new Date().toISOString();
+  const stale = () => new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
 
-  const live = stateFromAnswer({
-    ok: true,
-    asOf: new Date().toISOString(),
+  const answer = (sessionReport: unknown) => ({
+    ok: true as const,
+    asOf: fresh(),
     repo: 'owner/repo',
     branch: 'claude/virgil-mobile-v11',
     head: {
@@ -187,44 +184,117 @@ describe('no fixture value reaches a live screen', () => {
       message: 'a real commit',
       committedAt: null,
     },
-    sessionReport: REPORT,
+    ...(sessionReport === undefined ? {} : { sessionReport }),
   });
 
-  for (const role of ROLES) {
-    it(`draws no fixture number on the ${role}’s console`, () => {
-      expect(live).not.toBeNull();
-      const [width, height] = CONSOLE_SIZE[role];
-      const member = live?.cast[role];
-      const drawn = drawnText(
-        (canvas) =>
-          drawConsoleScreen(canvas, {
-            role,
-            label: role,
-            state: member?.station ?? 'READY',
-            report: member?.report ?? '—',
-            outcome: live?.outcome ?? 'PASS',
-            quiet: 0,
-            corner: 20,
-            t: 4,
-            since: 4,
-            showBand: false,
-            work: member?.work,
-            branch: live?.content.branch,
-            candidateId: live?.content.candidateId,
-          }),
-        width,
-        height,
-      ).join(' | ');
+  /**
+   * **The four states the page is actually in, not the one the first repair was
+   * tested against. The Keeper's KP3-01.**
+   *
+   * `EMPTY_WORK` was assigned inside the loop over the report's hops, so it
+   * covered a station named in a current report and nothing else. Reports go
+   * cold after twenty minutes by design and `.virgil/state.json` changes only
+   * when a session commits, so *no current report* is the ordinary condition of
+   * the page — and in that condition every console fell through to `tally.ts`
+   * and drew the demonstration's numbers under a badge saying the figures came
+   * from GitHub.
+   */
+  const CASES: [string, unknown][] = [
+    ['no session report at all', undefined],
+    ['a report with no hops', { ...BASE, reportedAt: fresh(), hops: [] }],
+    [
+      'a report naming only one station',
+      { ...BASE, reportedAt: fresh(), hops: [hop('fabricator', 'WORKING')] },
+    ],
+    [
+      'a report that has gone cold',
+      {
+        ...BASE,
+        reportedAt: stale(),
+        hops: [hop('fabricator', 'WORKING'), hop('prover', 'WORKING'), hop('keeper', 'WORKING')],
+      },
+    ],
+    [
+      'a report about another branch',
+      {
+        ...BASE,
+        reportedAt: fresh(),
+        branch: 'some-other-branch',
+        hops: [hop('fabricator', 'WORKING')],
+      },
+    ],
+    [
+      'a report naming all three',
+      {
+        ...BASE,
+        reportedAt: fresh(),
+        hops: [hop('fabricator', 'WORKING'), hop('prover', 'WORKING'), hop('keeper', 'WORKING')],
+      },
+    ],
+  ];
 
-      // The demonstration's own constants, from `screens/tally.ts`. None of them
-      // may appear on a screen that claims to be reporting a real repository.
-      for (const fixture of ['8', '14', 'EVIDENCE LOCKED']) {
-        expect(drawn.includes(fixture), `${role} drew the fixture value ${fixture}`).toBe(false);
-      }
-      // And what it draws instead is the absence, said out loud.
-      expect(drawn).toMatch(/—|NOT READ/);
-    });
+  /**
+   * The demonstration's own constants, from `screens/tally.ts`, as whole tokens.
+   * The first version of this list held the bare digit `'8'`, which matches any
+   * SHA or coordinate containing an eight — simultaneously fragile and
+   * coincidental, as KP3-10 said.
+   */
+  const FIXTURES = [
+    /(^|\W)0 \/ 8(\W|$)/,
+    /(^|\W)0 \/ 3(\W|$)/,
+    /(^|\W)14 required(\W|$)/,
+    /EVIDENCE LOCKED/,
+    /NON-BLOCKING PERSIST/,
+  ];
+
+  for (const [what, sessionReport] of CASES) {
+    for (const role of ROLES) {
+      it(`draws no fixture on the ${role}’s console: ${what}`, () => {
+        const live = stateFromAnswer(answer(sessionReport) as never);
+        expect(live, what).not.toBeNull();
+        const [width, height] = CONSOLE_SIZE[role];
+        const member = live?.cast[role];
+        const drawn = drawnText(
+          (canvas) =>
+            drawConsoleScreen(canvas, {
+              role,
+              label: role,
+              state: member?.station ?? 'READY',
+              report: member?.report ?? '—',
+              outcome: live?.outcome ?? 'PASS',
+              quiet: 0,
+              corner: 20,
+              t: 4,
+              since: 4,
+              showBand: false,
+              work: member?.work,
+              branch: live?.content.branch,
+              candidateId: live?.content.candidateId,
+            }),
+          width,
+          height,
+        ).join(' | ');
+
+        for (const fixture of FIXTURES) {
+          expect(fixture.test(drawn), `${role} drew ${fixture} with ${what}`).toBe(false);
+        }
+        expect(drawn, what).toMatch(/—|NOT READ/);
+      });
+    }
   }
+
+  it('every live cast member carries a schedule, whatever the report said', () => {
+    // The property under the six cases above, stated once: `work` is never
+    // absent in live mode, so `screens.ts` has no branch in which to reach for
+    // a fixture. This is what the first repair got wrong by putting the
+    // assignment inside a loop.
+    for (const [what, sessionReport] of CASES) {
+      const live = stateFromAnswer(answer(sessionReport) as never);
+      for (const role of ROLES) {
+        expect(live?.cast[role].work, `${role} has no schedule with ${what}`).toBeDefined();
+      }
+    }
+  });
 });
 
 const CONSOLE_SIZE: Record<Role, [number, number]> = {

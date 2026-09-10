@@ -1,16 +1,16 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-10T11:31:34Z",
-  "aboutCommit": "1185034d8aeac627e16c6ed63ebb31806d3244f4",
+  "reportedAt": "2026-09-10T12:48:09Z",
+  "aboutCommit": "9f0186f98638e6ccc5e065c25b23ccf4ce5b956d",
   "branch": "claude/virgil-mobile-v11",
   "candidate": null,
-  "holder": null,
+  "holder": "fabricator",
   "hops": [
     {
       "role": "fabricator",
-      "activity": "READY",
+      "activity": "REPORTED",
       "reported": null,
-      "at": null
+      "at": "2026-09-10T12:48:09Z"
     },
     {
       "role": "prover",
@@ -26,5 +26,5 @@
     }
   ],
   "review": null,
-  "note": "Second review: BLOCKED on 1185034. Three findings closed, two moved rather than closed."
+  "note": "KP3-01 to KP3-05 repaired; the wire check now agrees with the schema over generated cases."
 }

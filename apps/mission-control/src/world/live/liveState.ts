@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import authority from '../../../../../constitution/authority.json' with { type: 'json' };
 import { type DemoState, demoAt } from '../room/demo.js';
 
 /**
@@ -61,6 +62,25 @@ const EMPTY_WORK = {
   keeper: { kind: 'review', findings: [], readSeconds: 0, counts: [] },
 } as const;
 
+/**
+ * **A word is a candidate state only if the constitution says so.**
+ *
+ * `constitution/authority.json` names fifteen. Anything else is not a state this
+ * project has, whoever wrote it into the report, and the slab shows no state
+ * rather than showing a word — which is what `null` already means there and what
+ * the demonstration already draws for a beat with no lineage.
+ *
+ * The list is imported rather than retyped: a second copy of the constitution's
+ * vocabulary is free to drift from the first, which is the failure the schema in
+ * `agent-contracts` exists to prevent and which a hand-written check here would
+ * reintroduce.
+ */
+function candidateStateOf(word: unknown): CandidateName {
+  if (typeof word !== 'string') return null;
+  const known: readonly string[] = authority.candidateStates;
+  return known.includes(word) ? (word as CandidateName) : null;
+}
+
 const ACTIVITY: Record<string, 'rest' | 'receiving' | 'working' | 'reported'> = {
   READY: 'rest',
   RECEIVING: 'receiving',
@@ -72,6 +92,20 @@ const STATION: Record<string, 'READY' | 'RECEIVING' | 'WORKING' | 'REPORTED'> = 
   RECEIVING: 'RECEIVING',
   WORKING: 'WORKING',
   REPORTED: 'REPORTED',
+};
+
+/**
+ * **The role as the constitution writes it, mapped to the name the room draws.**
+ *
+ * Three entries because the room has three stations. Everything else the cast
+ * contains — the Architect, the Arbiter, the specialists, and `virgil`, which
+ * means between roles — has no station here and maps to nothing, which the room
+ * draws as at rest.
+ */
+const STATION_NAME: Record<string, string> = {
+  fabricator: 'Fabricator',
+  prover: 'Prover',
+  keeper: 'Keeper',
 };
 
 /** How often the page asks again. The function caches for 25 s; this is not tighter. */
@@ -209,7 +243,35 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
   const report =
     onThisBranch && reportIsCurrent(onThisBranch.reportedAt, now) ? onThisBranch : null;
 
+  /**
+   * **Every station gets an empty schedule, always, before anything else. The
+   * Keeper's KP3-01, and the reason its predecessor KP2-05 was only narrowed.**
+   *
+   * `screens/v11/screens.ts` reaches for `tally.ts`'s fixtures whenever `work`
+   * is absent, so a hosted page reporting this repository drew `FILES 8 ·
+   * COMMITS 3`, `PASSED 14` and `FINDINGS 3` — every one a constant in the
+   * demonstration — on the same screen that says the figures come from GitHub.
+   *
+   * **The first repair assigned this inside the loop over the report's hops**,
+   * which fixed the case it was tested against and left three that occur more
+   * often than it: a station with no hop in the report, every station when the
+   * report has gone cold — twenty minutes, by design — and every station when
+   * there is no report at all. The page has a paragraph written specially for
+   * the last two, so the contradiction sat next to its own explanation. A fourth
+   * route was created by the repair itself: a report the wire check refuses
+   * arrives as no report, which drew fixtures.
+   *
+   * So it is unconditional and it is first. A live cast member cannot reach the
+   * console with `work` absent by any path, including paths nobody has thought
+   * of yet, because there is no branch to miss. An empty schedule is not a claim
+   * that the work is empty: the rails read it as **nothing read** and draw `—`
+   * and `NOT READ`, which is what is true until a real source is wired to each.
+   */
   const cast = { ...base.cast };
+  for (const role of Object.keys(cast) as (keyof typeof cast)[]) {
+    cast[role] = { ...cast[role], work: EMPTY_WORK[role] };
+  }
+
   if (report) {
     for (const hop of report.hops) {
       const role = hop.role as keyof typeof cast;
@@ -221,21 +283,6 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
         station: STATION[hop.activity] ?? 'READY',
         report: (hop.reported ?? '—') as (typeof cast)[typeof role]['report'],
         face: activity === 'working' ? 'working' : 'idle',
-        /**
-         * **An empty schedule, so the console cannot fall back to the script.
-         * The Keeper's KP2-05.**
-         *
-         * `screens/v11/screens.ts` reaches for `tally.ts`'s fixtures whenever
-         * `work` is absent, and live mode never set it. A hosted page reporting
-         * this repository therefore drew `FILES 8 · COMMITS 3`, `PASSED 14` and
-         * `FINDINGS 3` — every one a constant in the demonstration — on the same
-         * screen that says the figures come from GitHub.
-         *
-         * Passing an empty one is not a claim that the work is empty. The rails
-         * read an empty schedule as **nothing read** and draw `—` and `NOT READ`,
-         * which is what is true until a real source is wired to each of them.
-         */
-        work: EMPTY_WORK[role],
       };
     }
   }
@@ -269,9 +316,39 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
        * evidence on the one surface whose whole subject is the difference.
        */
       verdict: '—' as ScreenVerdict,
-      /** Who holds it. `virgil` is between roles, and the slabs draw that already. */
-      active: report?.holder && report.holder !== 'virgil' ? report.holder : null,
-      candidate: (report?.candidate?.state ?? null) as CandidateName,
+      /**
+       * **Who holds it, in the words the rest of the room already uses.**
+       *
+       * The report names a role the way the constitution does — `fabricator` —
+       * and every surface downstream compares against `Fabricator`: the window
+       * that highlights the station, and the action that offers *"Go to the
+       * ..."*. So the raw string went in, matched nothing, and the action fell
+       * through to its default, which is the Fabricator: the slab said KEEPER
+       * and the button beneath it took the owner to the Fabricator. Found by the
+       * generated wire cases of KP3-05, which is also why the wire now accepts
+       * the whole cast rather than three of it.
+       *
+       * A role with no station is drawn as no station rather than as the wrong
+       * one. That loses something true — the Architect holding the work reads
+       * here as nobody at a station — and it is the honest half of the loss:
+       * this build has three stations and cannot draw a fourth. Named in
+       * `docs/architecture/ENFORCEMENT_BOUNDARIES.md` rather than left here.
+       */
+      active: STATION_NAME[report?.holder ?? ''] ?? null,
+      /**
+       * **The Keeper's KP3-02: the same defect as the verdict, one field over.**
+       *
+       * This was a bare cast, so a session writing `"APPROVED BY THE OWNER"`
+       * into `candidate.state` had it printed on the slab under the caption
+       * *"THE STATUS RECORDED BY THE PROJECT"*. The wire check added to close the
+       * verdict path never looked at this field at all, which is what makes it
+       * the same finding rather than a new one: the repair covered the field it
+       * was pointed at and not the one beside it.
+       *
+       * A cast is not a check. The word must be one of the fifteen the
+       * constitution names, or there is no word.
+       */
+      candidate: candidateStateOf(report?.candidate?.state),
       // Nothing here can observe an owner gate, and a report may not assert one.
       ownerGate: false,
     },

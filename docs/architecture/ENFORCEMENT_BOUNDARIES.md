@@ -252,3 +252,13 @@ Recorded here under the owner's authorisation of the second repair round, which 
 | KR-06 | The protected-boundary overlap check is case-sensitive; symlinks are outside the normaliser | design-level only | Repository paths are compared as recorded; case-folding and symlink resolution need a file system, which is Phase 3 hook territory. A grant naming `Constitution/**` is refused only on a case-sensitive file system |
 | KR-07 | An owner grant may hand an agent write authority over a protected boundary (`validation.ts` owner exemption) | design-level only | Whether the owner may delegate a protected boundary is an owner decision on `AUTHORITY_TIERS.md` invariant 3; reported, not decided by a session |
 | KR-09 | Gate `reviewer_independence` takes builder and Prover session ids but no repairer ids | deferred to a privileged runtime | The Phase 2 evidence adapter must fold repairer sessions into `builderSessionIds`; the reducer already covers repairers |
+
+## What the room cannot draw about a report it accepts (Phase 2 slice two)
+
+The wire check in `netlify/functions/state.mjs` and `SessionStatusReport` in `packages/agent-contracts/src/live.ts` now agree about what a session's report may say, and the pairing is held by generated cases rather than named ones (`apps/mission-control/test/live-state-v11.test.ts`). Agreeing about what may be *said* is not the same as being able to *draw* it. One gap is open and is named here rather than in a comment beside the code that has it.
+
+| Gap | Status | What happens now |
+|---|---|---|
+| The contract admits the whole cast as a holder — fourteen roles — and the room has three stations | drawn as at rest, deliberately | `world/live/liveState.ts` maps `fabricator`, `prover` and `keeper` to the names every other surface uses and maps every other role to nothing. A report saying the Architect holds the work is accepted, is true, and reaches the owner's screen as *no agent is working on it*. That is a loss of a true fact, and it replaces a worse one: the raw role name went through unmapped until 2026-09-10, so the slab read KEEPER while the action beneath it read *"Go to the Fabricator"* and went there |
+
+Closing it needs a surface for a role with no station — a fourth thing for the room to draw — which is a slice of its own and is not one this build has.
