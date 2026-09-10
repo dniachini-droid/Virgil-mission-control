@@ -13,9 +13,17 @@ test-results/
 playwright-report/
 apps/mission-control/.vite/
 
-# Scratch frames and sweep logs. The 86 files already tracked here stay, by the
-# owner's decision of 9 September ("leave them and stop the bleeding"): removing them
-# from HEAD would not shrink the history. Anything new is ignored, so no later pass is
-# nagged into committing scratch by the stop hook again. Write scratch to the session
+# Scratch frames and sweep logs. Anything new is ignored, so no later pass is nagged
+# into committing scratch by the stop hook again. Write scratch to the session
 # scratchpad outside the repository instead.
+#
+# The 86 files that were tracked here are down to 20, by the owner's decision of
+# 10 September ("purge if not needed"), which reverses his own of 9 September
+# ("leave them and stop the bleeding") — that one was about stopping new scratch
+# arriving, not about keeping what was there. The 20 that stay are the frames
+# `docs/process/V11_RUN_RECORD.md` cites by name as the evidence for a claim, plus
+# the measuring script that produced one set of them, because this project has
+# already paid once for throwing a measuring script away (V9's). Removing files
+# from HEAD does not shrink the history and the branch is not rewritten for
+# housekeeping.
 /scratchpad/
