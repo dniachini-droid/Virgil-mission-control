@@ -496,7 +496,21 @@ export function heroBlock(
   // narrower per line but each line is half as tall.
   const top = cy + radius + 2.2 * u;
   spaced(ctx, '0.015em');
-  const roomBelow = r.y + r.h - top;
+  /**
+   * **The conclusion's space is reserved before the word takes what it likes.**
+   *
+   * The word used to size itself into everything below the mark, so on the
+   * longest verdict it took three lines and left the sentence one — and the
+   * owner's plainer English needs two. Shown the cut sentences, he chose which
+   * of the two should give way: *"lets shrink the verdict word."*
+   *
+   * So two lines of conclusion are taken out of the column first and the term
+   * is sized in what remains. It still takes the largest type that fits, and it
+   * is still the biggest thing on the screen; it is simply no longer the only
+   * thing the column is for.
+   */
+  const leadReserve = 2 * m.type.lead * 1.34 + 1.1 * u;
+  const roomBelow = Math.max(r.h * 0.3, r.y + r.h - top - leadReserve);
   let parts = [word];
   let chosen = 0;
   for (let lines = 1; lines <= 3; lines += 1) {
@@ -680,7 +694,9 @@ export function heroBand(
   for (const parts of candidates) {
     const byWidth = Math.min(...parts.map((part) => fit(ctx, display, h * 0.3, part, width)));
     const stack = 1.24 + 1.02 * (parts.length - 1);
-    const byHeight = (budget - 0.4 * u - leadPitch) / stack;
+    // Two lines of conclusion, not one: the owner's wording needs the second,
+    // and he chose the term as the thing that gives way.
+    const byHeight = (budget - 0.4 * u - 2 * leadPitch) / stack;
     const size = Math.min(byWidth, byHeight);
     if (size > best.size) best = { parts, size };
   }

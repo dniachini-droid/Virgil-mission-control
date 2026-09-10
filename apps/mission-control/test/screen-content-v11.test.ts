@@ -218,17 +218,27 @@ describe('no display names a verdict before its review has reported', () => {
       // fourteen required checks have passed so far* — which is the work
       // happening and is not a verdict. A substring match would have
       // banned it and taught the wrong lesson.
-      const whole = (word: string) => new RegExp(`(^|[^A-Z])${word}([^A-Z]|$)`).test(joined);
+      //
+      // **And the handover idiom is not a verdict either.** The owner's plain
+      // wording for a station between agents is *"NO AGENT IS WORKING ON IT.
+      // VIRGIL IS WAITING TO PASS IT ON."* — `PASS` as the ordinary verb, about
+      // handing the work to the next role. It was invisible to this test while
+      // that sentence was still being cut off mid-way, and appeared the moment
+      // the slab had room to finish it. Exactly that phrase is removed before
+      // the scan; every other occurrence of the word is still caught, so a
+      // display that really did name the verdict early still fails here.
+      const scanned = joined.replace(/\bPASS IT ON\b/g, '');
+      const whole = (word: string) => new RegExp(`(^|[^A-Z])${word}([^A-Z]|$)`).test(scanned);
       // The outcome's own word may not appear anywhere, in any field, on
       // any of the six displays, until a verdict has returned.
       expect(
         whole(outcomeWord),
-        `loop ${loop} at ${seconds}s named ${outcomeWord}: ${joined}`,
+        `loop ${loop} at ${seconds}s named ${outcomeWord}: ${scanned}`,
       ).toBe(false);
       // Nor may any of the other three, which would be worse.
       for (const verdict of authority.reviewVerdicts) {
         const word = spaced(verdict);
-        expect(whole(word), `loop ${loop} at ${seconds}s named ${word}: ${joined}`).toBe(false);
+        expect(whole(word), `loop ${loop} at ${seconds}s named ${word}: ${scanned}`).toBe(false);
       }
     }
   });
