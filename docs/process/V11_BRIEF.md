@@ -35,6 +35,17 @@ V11 build at `#/v10`, now with a control in the hidden menu rather than only a h
 clean-tree build is still the number every pass measures and must still be **8,528,318 bytes**. A
 default is which file he opens first. It is not permission to touch the other one.
 
+> **Superseded on 2026-09-10, in part, by
+> `docs/decisions/OD-0010-v10-retired-as-a-viewing-point.md`.** The owner: *"V10 is retired as a
+> viewing point. Its byte count is no longer a contract."* The sentence above is left exactly as
+> written, because it is the record of what this brief required at the time and because everything
+> else in it still stands: V10 is still not to be edited, renamed or refactored, its protected files
+> are still fingerprinted by `test/owner-build-v11.test.ts`, and it remains in the build at `#/v10`.
+> **Only the byte count is retired.** A build that differs from 8,528,318 is no longer a breach; the
+> number is still measured and recorded, as an observation of what the build weighs rather than as a
+> promise. `docs/process/PRESERVATION_CONTRACT_CONTRADICTION.md` is why, and OD-0010 records what
+> that costs.
+
 ## What V11 must preserve, in the owner's words
 
 The living 3D celestial command centre; Virgil and the three specialists; their individual workstations;

@@ -37,7 +37,7 @@ Named, because the temptation to widen is the failure mode this repository keeps
 - **It writes nothing.** No merge, no pull request, no comment, no label, no branch. Read-only, at the level of the token as well as the code.
 - **It starts no agents.** Typing into Virgil and having work happen is the owner's item 3 and is a later slice.
 - **It replaces no history.** The recorded replay stays exactly as it is and stays reachable. A world with nothing happening in it is a poor demonstration, and the recording is the thing that shows what a full run looks like.
-- **It does not touch the Owner Build.** V10 is 8,528,318 bytes and stays there. The single-file build makes zero network requests and must keep making zero: it is the artefact that works with no server at all, and this slice is the reason a separate hosted target exists.
+- **It does not touch the Owner Build.** V10's source is unedited and its protected files are still fingerprinted. (Its byte count was 8,528,318 when this was written and was a contract then; `OD-0010` retired that on 2026-09-10 and it is now an observation, not a promise.) The single-file build makes zero network requests and must keep making zero: it is the artefact that works with no server at all, and this slice is the reason a separate hosted target exists.
 
 ## Where the data comes from, and where the token lives
 

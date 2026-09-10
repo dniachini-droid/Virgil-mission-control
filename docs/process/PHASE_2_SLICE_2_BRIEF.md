@@ -40,7 +40,7 @@ The Fabricator's console already says `REPORTED COMPLETE — THE FABRICATOR SAYS
 - **It writes nothing to GitHub from the page.** The function stays read-only. The file is written by sessions, in the ordinary way, as part of their commits.
 - **It starts no agents and accepts no instructions.** Typing into Virgil remains the owner's item 3 and a later slice.
 - **It does not make a session's word into evidence.** If the file claimed a verdict the review record does not support, the screen shows the claim as a claim and the two disagreeing.
-- **It does not touch the Owner Build.** V10 stays at 8,528,318 bytes, both file builds keep making zero network requests, and the live module stays compiled out of them.
+- **It does not touch the Owner Build.** V10's source is unedited, both file builds keep making zero network requests, and the live module stays compiled out of them. (This said V10 stays at 8,528,318 bytes; `OD-0010` retired that number as a contract on the day this slice was built, for reasons `PRESERVATION_CONTRACT_CONTRADICTION.md` records.)
 - **It does not replace the recording.** The replay stays reachable and stays the fixture the honesty tests run against.
 
 ## What could go wrong, said in advance

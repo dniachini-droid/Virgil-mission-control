@@ -1,6 +1,8 @@
 # The preservation contract and the seed graph cannot both hold
 
-**Status: reported, not resolved.** `CLAUDE.md`, *Authority order*: "A session that finds a contradiction reports it; it does not resolve it silently." This is the report. Nothing here changes a rule, and the owner's decision is what closes it.
+**Status: reported, and closed by the owner on 2026-09-10 — `docs/decisions/OD-0010-v10-retired-as-a-viewing-point.md`. He chose none of the three options below, on the ground that the contract was protecting something he no longer needs: *"V10 is retired as a viewing point. Its byte count is no longer a contract."* The report is left exactly as written, because it is the evidence the decision was made on.**
+
+**Originally: reported, not resolved.** `CLAUDE.md`, *Authority order*: "A session that finds a contradiction reports it; it does not resolve it silently." This is the report. Nothing here changes a rule, and the owner's decision is what closes it.
 
 ## The two rules
 
