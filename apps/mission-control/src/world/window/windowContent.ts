@@ -1247,9 +1247,8 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
   const verdictWord = state.content.verdict === '—' ? null : verdict.word;
   const conclusion: Conclusion = gate
     ? {
-        headline:
-          'The checks and independent review passed. You can now choose whether to add the change to your project.',
-        meaning: 'Choose whether to add this change to your project.',
+        headline: 'Everything passed. The change is ready to go into the project.',
+        meaning: 'It is waiting on your decision.',
         next: 'If you choose to add it, you must do that yourself outside this app.',
       }
     : verdictWord !== null

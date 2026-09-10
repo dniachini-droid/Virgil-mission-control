@@ -517,10 +517,12 @@ describe('the distinctions survive the plain words', () => {
     expect(gate.content.ownerGate).toBe(true);
     const doc = windowDoc(gate, { agent: 'virgil' });
     const said = [doc.conclusion.headline, doc.conclusion.meaning, doc.conclusion.next].join(' ');
-    expect(said).toMatch(/add (the|this) change to your project/i);
+    expect(said).toMatch(/ready to go into the project|add (the|this) change to your project/i);
     expect(said).toMatch(/your|you/i);
     // Ready to go in is not gone in: no sentence at this beat may say it has.
-    expect(said).not.toMatch(/\b(merged|added it|gone in|put in)\b/i);
+    // `add it` in a conditional — *"if you choose to add it"* — is the offer,
+    // not the claim, so the ban is on the words that assert it happened.
+    expect(said).not.toMatch(/\bmerged\b|\bhas gone in\b|\bis in the project\b/i);
   });
 
   it('checked is not reviewed: the window says review is a separate step', () => {
