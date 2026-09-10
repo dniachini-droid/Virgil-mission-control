@@ -555,3 +555,34 @@
 .v11-stage.has-window .v11-perf {
   display: none;
 }
+
+/*
+ * **The second step, named where the reader is standing.**
+ *
+ * The owner's decision of 10 September made tapping a station two moves — the
+ * camera first, the record on the next tap — and a phone has no hover with
+ * which to advertise the second one. One line, above the badge and the dock so
+ * it collides with neither, in the world's own ice rather than a warning
+ * colour, because nothing is wrong. It carries no action, so it takes no
+ * pointer events and is not held to 44 px, exactly as `.v11-perf` is not.
+ */
+.v11-step-hint {
+  position: absolute;
+  left: var(--v11-left);
+  right: var(--v11-right);
+  bottom: calc(var(--v11-bottom) + 122px);
+  margin: 0;
+  text-align: center;
+  pointer-events: none;
+  font: 500 12px / 1.2 var(--mono);
+  letter-spacing: 0.08em;
+  color: rgba(207, 228, 255, 0.66);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
+}
+
+/* Landscape has 390 px of height in total. The badge is 48 px tall and sits at
+   +58, so it ends at +106; the hint clears it by the same 10 px the portrait
+   strip leaves and no more. */
+.v11-stage[data-orientation="landscape"] .v11-step-hint {
+  bottom: calc(var(--v11-bottom) + 116px);
+}

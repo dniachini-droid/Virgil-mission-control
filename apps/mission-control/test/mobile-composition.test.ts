@@ -11,6 +11,7 @@ import {
   orientationFor,
   overviewPose,
   PORTRAIT_MAX_ASPECT,
+  stepFor,
 } from '../src/world/mobile/composition.js';
 import { bustPoints, screenKept } from '../src/world/mobile/stationCloseUp.js';
 import { figurePlacement, ROLES } from '../src/world/room/cast.js';
@@ -226,6 +227,72 @@ describe('what a tap can reach', () => {
       const points = listFor(aspect).map((anchor) => anchor.point);
       expect(fits(pose, points, aspect), `${name}: an anchor is outside the frame`).toBeLessThan(1);
     }
+  });
+});
+
+/**
+ * **The two steps, as the owner decided them on 10 September**, reversing his
+ * own decision of 8 September: *"first zoom in to their close up view. And THEN
+ * when you click their screen, that's when it should open the window."*
+ *
+ * `stepFor` is the whole rule and these are its cases. The behaviour itself is
+ * driven in a browser at three viewports by `e2e/verify-owner-build-v11.ts`,
+ * which presses twice and measures each step; a source-level test cannot tell
+ * whether a real thumb reaches a real target.
+ */
+describe('tapping a station is two steps', () => {
+  const list = anchors();
+  const at = (id: string) => {
+    const found = list.find((anchor) => anchor.id === id);
+    if (!found) throw new Error(`no anchor ${id}`);
+    return found;
+  };
+
+  it('travels and opens nothing on the first tap, from the overview', () => {
+    for (const anchor of list) {
+      const step = stepFor(anchor, 'all');
+      expect(step.window, `${anchor.id} opened a window on the first tap`).toBeNull();
+      expect(step.focus, anchor.id).toBe(anchor.focus);
+    }
+  });
+
+  it('opens on the second tap, and does not move the camera again', () => {
+    for (const anchor of list) {
+      const step = stepFor(anchor, anchor.focus);
+      expect(step.window, `${anchor.id} did not open on the second tap`).toEqual(anchor.window);
+      expect(step.focus, `${anchor.id} moved the camera on the tap that opened`).toBe(anchor.focus);
+    }
+  });
+
+  it('treats a character and their own screen as one station, in both orders', () => {
+    for (const role of ROLES) {
+      // Screen first: it travels, exactly as the character would.
+      expect(stepFor(at(`${role}-screen`), 'all').window).toBeNull();
+      // Then either part of the station opens it.
+      expect(stepFor(at(`${role}-screen`), role).window).toEqual({ agent: role });
+      expect(stepFor(at(role), role).window).toEqual({ agent: role });
+    }
+  });
+
+  it('travels to another station rather than opening it, from a station', () => {
+    expect(stepFor(at('keeper'), 'fabricator')).toEqual({ focus: 'keeper', window: null });
+    expect(stepFor(at('prover-screen'), 'virgil')).toEqual({ focus: 'prover', window: null });
+    // Virgil's slabs are their own station: they are above the frame at his
+    // close-up and project to nothing there, so a tap that reaches one has come
+    // from somewhere else and is a first step.
+    expect(stepFor(at('board-verdict'), 'virgil')).toEqual({ focus: 'board', window: null });
+    expect(stepFor(at('board-verdict'), 'board').window).toEqual({ agent: 'virgil', at: 'truth' });
+  });
+
+  it('gives Virgil a second step of his own, because he has no screen', () => {
+    // His console is a bare ring (`room/Models.tsx`) and his displays are the
+    // three slabs, out of frame at his close-up. The station is the unit, so
+    // the second tap on him is what opens his conversation.
+    expect(stepFor(at('virgil'), 'all')).toEqual({ focus: 'virgil', window: null });
+    expect(stepFor(at('virgil'), 'virgil')).toEqual({
+      focus: 'virgil',
+      window: { agent: 'virgil' },
+    });
   });
 });
 

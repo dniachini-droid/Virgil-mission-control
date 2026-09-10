@@ -364,12 +364,20 @@ export interface Anchor {
   label: string;
   /** Where in the world the target follows. */
   point: Vec3;
-  /** Where the camera goes when it is tapped. */
+  /**
+   * **Which station this target belongs to**, and therefore where the camera
+   * goes on the first tap. Two anchors sharing a focus are two parts of one
+   * station: the Fabricator and the Fabricator's screen are both `fabricator`,
+   * and the three slabs are all `board`.
+   */
   focus: MobileFocus;
   /**
-   * Which window opens — **in the same event**, not once the camera has
-   * arrived. The owner's decision of 8 September: one tap does both,
-   * concurrently (`MobileRoom.tsx`, `select`).
+   * Which window opens on the **second** tap — the one taken once the reader is
+   * already at this station. The owner's decision of 10 September, which
+   * reverses his own of 8 September (`OWNER_DECISIONS_2026-09-10.md` item 9,
+   * `PHASE_1_CONVERSATION_INTERFACE.md` §5c): *"first zoom in to their close up
+   * view. And THEN when you click their screen, that's when it should open the
+   * window."* Nothing here opens on the first tap; `stepFor` is the whole rule.
    *
    * The three slabs open **Virgil's** window at the section each of them
    * summarises, because his is the central operating interface and the owner's
@@ -378,6 +386,48 @@ export interface Anchor {
    * window is the read.
    */
   window: WindowTarget;
+}
+
+/**
+ * **The two steps, as one function, so that the rule has exactly one home.**
+ *
+ * The owner's decision of 10 September: *"When you click each agent, the window
+ * opens straight away… What should happen when you click them is first zoom in
+ * to their close up view. And THEN when you click their screen, that's when it
+ * should open the window. It's better that way."*
+ *
+ * So a tap on a station the reader is not at **travels there and opens
+ * nothing**; a tap on a station the reader is already at **opens that target's
+ * window and does not move the camera**. Two consequences worth stating, both
+ * chosen rather than fallen into:
+ *
+ *  - **Step two does not move the camera at all.** The reader asked for this
+ *    station on the first tap and is looking at it; moving again on the tap
+ *    that opens the window would be a second unrequested arrival, which is the
+ *    whole of what he objected to. It is also what keeps *back is one step per
+ *    level* true: dismissing the window returns him to the station the first
+ *    tap flew to, exactly where he left.
+ *  - **The second tap counts wherever it lands on that station**, on the screen
+ *    or on the character. His sentence names the screen, and the screen is what
+ *    carries the content — but **Virgil has no screen of his own**: his console
+ *    is a bare ring and his displays are the three slabs, which are above the
+ *    frame at his close-up and project to nothing there (measured, three
+ *    viewports). A rule that only screens open would leave him with no second
+ *    step at all, and a rule that made the character inert would put a dead
+ *    target under a thumb at every close-up. So the station is the unit. Tapping
+ *    his screen opens the window, which is what he asked for; tapping the
+ *    character he is already standing in front of does too.
+ */
+export interface Step {
+  /** Where the camera should be after this tap. */
+  focus: MobileFocus;
+  /** Which window should be open after it, or none. */
+  window: WindowTarget | null;
+}
+
+export function stepFor(anchor: Anchor, focus: MobileFocus): Step {
+  if (focus === anchor.focus) return { focus, window: anchor.window };
+  return { focus: anchor.focus, window: null };
 }
 
 function slabAnchor(id: string, label: string, point: Vec3, at: string): Anchor {

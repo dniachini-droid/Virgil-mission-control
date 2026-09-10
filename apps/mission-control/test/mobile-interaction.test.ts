@@ -124,26 +124,40 @@ describe('the targets themselves', () => {
 });
 
 /**
- * **Stage 3 replaced this contract, on the owner's own instruction, and the
- * three assertions here changed with it.**
+ * **The owner has reversed this contract twice, and the assertions have moved
+ * with him both times rather than being deleted.**
  *
  * Stage 1 asserted that the record waits out the camera's flight — built to the
  * V11 brief's stage-1 line, *"tapping triggers a deliberate camera transition
- * before the interface opens."* The owner had already decided the opposite in
- * `docs/process/PHASE_1_CONVERSATION_INTERFACE.md` §5b, and against this
- * session's own recommendation: *"tapping a screen opens the panel straight
- * away and takes you there … So you arent waiting to be taken there first."*
- * His decision governs. So the assertion is inverted rather than deleted, and
- * nothing is left untested: the window must be set in the same event as the
- * camera, and the delay must be gone.
+ * before the interface opens."* Stage 3 inverted it on his decision of 8
+ * September (§5b), taken from a description: one tap doing both concurrently,
+ * *"So you arent waiting to be taken there first."*
+ *
+ * He has now used it, and on 10 September decided against his own decision:
+ * *"When you click each agent, the window opens straight away… What should
+ * happen when you click them is first zoom in to their close up view. And THEN
+ * when you click their screen, that's when it should open the window. It's
+ * better that way."* (`docs/process/OWNER_DECISIONS_2026-09-10.md` item 9;
+ * §5c of the interface record supersedes §5b and neither is deleted.)
+ *
+ * So: the wiring is asserted here, the rule itself in
+ * `test/mobile-composition.test.ts` (`stepFor`), and the behaviour is driven in
+ * a browser by `e2e/verify-owner-build-v11.ts`. **Nothing is left untested by
+ * the reversal**, and one thing is asserted harder than before — there is still
+ * no timer anywhere between a press and a window.
  */
-describe('one tap opens the window and moves the camera, concurrently', () => {
-  it('sets the window and the focus in the same event', () => {
+describe('tapping a station is two steps, and the second opens the window', () => {
+  it('applies the rule from one place, and only there', () => {
     expect(room).toContain('export const FLIGHT_SECONDS = 0.9');
-    expect(room).toContain('setFocus(to);\n    setWin(target);');
+    expect(room).toContain('const step = stepFor(anchor, focus);');
+    expect(room).toContain('setFocus(step.focus);');
+    // The first step closes nothing over the world and opens nothing.
+    expect(room).toContain(
+      'if (step.window === null) {\n      setWin(null);\n      return;\n    }',
+    );
   });
 
-  it('has no delay left between the press and the window', () => {
+  it('has no delay left between the press that opens and the window', () => {
     expect(room).not.toContain('OPEN_AFTER_MS');
     expect(room).not.toContain('window.setTimeout(() => setWin');
   });
@@ -153,8 +167,32 @@ describe('one tap opens the window and moves the camera, concurrently', () => {
     expect(room).toContain('setOrigin(');
   });
 
-  it('is one deliberate move even when two handlers answer the same press', () => {
+  it('is one step even when two handlers answer the same press', () => {
+    // With two steps this guard stops a press being counted twice, which would
+    // travel and open at once — the behaviour the owner asked to be rid of.
     expect(room).toContain('now - lastSelection.current.at < 700');
+    const select = room.slice(room.indexOf('const selectAnchor = ('));
+    const body = select.slice(0, select.indexOf('\n  };'));
+    expect(body.indexOf('lastSelection.current.at < 700')).toBeLessThan(
+      body.indexOf('const step = stepFor'),
+    );
+  });
+
+  it('keeps the one labelled control that opens in a single press, and stops it moving the camera', () => {
+    expect(room).toContain("onTalk={() => openWindow('virgil', { agent: 'virgil' })}");
+    const open = room.slice(room.indexOf('const openWindow = ('));
+    const body = open.slice(0, open.indexOf('\n  };'));
+    expect(body).toContain('setWin(target);');
+    expect(body).not.toContain('setFocus(');
+  });
+
+  it('names the second step on screen, since a phone has no hover to do it', () => {
+    expect(room).toContain('function StepHint(');
+    expect(room).toContain('<StepHint shown={showBack} />');
+    expect(room).toContain('Tap again to open');
+    // It carries no action, so it must not be a touch target.
+    const hint = room.slice(room.indexOf('function StepHint('));
+    expect(hint.slice(0, hint.indexOf('\n}'))).not.toContain('data-touch-target');
   });
 });
 

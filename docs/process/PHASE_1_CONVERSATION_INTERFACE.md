@@ -11,6 +11,13 @@ This is the owner's direction as given, transcribed. Nothing below is implemente
 Nothing below has been costed. The one judgment added by this session is the
 sequencing note at the end, marked as such.
 
+**Added later, and the two sentences above no longer describe the whole file.**
+§5c was written on 10 September 2026, after V11 built §5b and the owner used it.
+It records his reversal of his own decision of 8 September and is what the build
+follows; §5b is kept exactly as it was written. Sections 1 to 5b are the
+8 September record and are unedited apart from the one pointer in §5b that says
+where to read on.
+
 ## 1. What the conversation is
 
 Clicking Virgil opens a text box. That box is not a status panel — it is the actual
@@ -144,7 +151,11 @@ neither has to compromise.
   detail set in clean HTML is far more believable than a small glowing screen in a 3D scene, so
   the marking matters more there, not less. This is the one new risk the feature carries.
 
-**Decided by the owner, 8 September**, and against this session's recommendation, which had the
+**Decided by the owner, 8 September** — and **superseded by his own decision of 10 September; see
+§5c below, which governs.** The paragraph is kept as written because it is the record of what was
+decided and why, and because two of its three consequences survive the reversal intact.
+
+Decided against this session's recommendation, which had the
 reader waiting for a camera flight before anything could be read: *"tapping a screen opens the
 panel straight away and takes you there — but the panel opens up so you can see it instantly,
 while you are being taken there. So you arent waiting to be taken there first."* One tap does
@@ -165,6 +176,91 @@ constrain the build:
 Consequence for sequencing: the panel is the first piece of this interface, so the flat mock
 offered to the owner should cover both — the expanded screen panel and the full-conversation
 split are the same layout at two sizes.
+
+## 5c. Tapping a station is two steps — the owner's decision of 10 September, which reverses §5b
+
+His words, in full, from `docs/process/OWNER_DECISIONS_2026-09-10.md` item 9:
+
+> *"When you click each agent, the window opens straight away. And then when you exit their window
+> it has the close up of them. What should happen when you click them is first zoom in to their
+> close up view. And THEN when you click their screen, that's when it should open the window. It's
+> better that way."*
+
+**This supersedes the decision recorded in §5b.** It does not delete it. §5b stands as the record of
+what he decided on 8 September and of the reasoning both sides put; this section is what the build
+follows.
+
+**Why it reversed, and it is worth being exact about this.** §5b was chosen from a description of
+the interface, before one existed. §5c is chosen from using the thing. The argument he gives for it
+is the consequence he noticed himself: leaving a window put him at a close-up, because the tap had
+flown the camera there while the window covered it — so the interface kept arriving somewhere he
+had never asked to go. One tap doing two things is what produced that, and it is why the fix is to
+separate them rather than to change what dismissal does. **Use beat description**, and that is the
+whole of the justification; no session found a defect here.
+
+### The rule
+
+- **The first tap on a station takes the camera to it and opens nothing.**
+- **A tap on that same station once you are there opens its record, and does not move the camera
+  again.**
+- A tap on a *different* station from a station is a first tap: it travels there and opens nothing.
+
+The rule lives in exactly one function, `stepFor` in
+`apps/mission-control/src/world/mobile/composition.ts`, so that no surface can disagree with
+another about it.
+
+### What a station is, and what this means for Virgil
+
+A station is a character and the screens that belong to them: the Fabricator and the Fabricator's
+display are one station, and the three slabs are one station of their own. **The second tap counts
+wherever it lands on that station — on the screen or on the character.** His sentence names the
+screen, and the screen is what carries the content, but the rule is stated over the station for a
+reason that is specific and measured rather than tidy:
+
+**Virgil has no screen.** His console is a bare oval ring (`world/room/Models.tsx`), and his
+displays are the three floating slabs, which hang above the whole set. At his close-up they are
+**above the frame and project to nothing** — measured in a browser at 390 × 844, 430 × 932 and
+844 × 390, in which the only world targets that appear at his close-up are Virgil himself and
+whichever specialists stand behind him. A rule that only screens open would therefore leave the
+central character of the product with no second step at all; and a rule that made characters inert
+would put a dead target under a thumb at every close-up, which reads as a broken interface.
+
+So: **tap Virgil → his close-up; tap him again → his conversation.** That is the same two-step
+grammar the specialists have, applied to the one member of the cast whose interface *is* the
+conversation rather than a display.
+
+**The `TALK TO VIRGIL` control keeps opening the conversation in a single press, and it no longer
+moves the camera.** It is a control with its name written on it: pressing something that says
+`TALK TO VIRGIL` can hold no surprise, which is exactly what a tap on a character in the world
+could. Removing the camera move from it is the other half of his complaint answered — dismissing a
+conversation opened from the dock now returns him precisely where he was, rather than to a close-up
+he never asked for.
+
+### What survives the reversal, unchanged
+
+1. **The gesture guard.** A drag still opens nothing and still travels nowhere; a tap still works.
+   `wasTap()` guards every press, and the guard against one press being answered twice — by the
+   world's raycast and by the DOM hit test — matters *more* under two steps, because a press counted
+   twice would travel and open at once, which is the behaviour being removed.
+2. **Back is one step per level.** Record → station → overview, matching the three distances.
+   Dismissing a record still leaves the reader at the station rather than snapping back; under two
+   steps that is no longer a special provision but simply where he was.
+3. **The record renders from data, never from the camera arriving** (§5b's first consequence, and
+   the reason the one-source rule is not merely tidiness). There is no timer anywhere between the
+   press and the window: the tap that opens it opens it in its own event.
+
+§5b's second consequence — *"the tap did two things and neither is thrown away"* — is the one the
+reversal retires, because the tap now does one thing.
+
+### What it cost, said plainly
+
+**A record is now two taps instead of one**, which is the trade he chose knowingly and from use. And
+**the second step is not discoverable on a phone**, because there is no hover with which to advertise
+it. `e2e/verify-owner-build-v11.ts` drives both taps at three simulated viewports and measures each
+step separately, so the check and the interaction changed together — but no check can tell whether a
+reader finds the second tap. One discreet line at a station, *"Tap again to open"*, is this session's
+answer to that and **this session's judgment, not his instruction**: it is one element, deleting it
+is the whole of removing it, and it is recorded here so he can.
 
 ## 6. What this costs, stated plainly
 

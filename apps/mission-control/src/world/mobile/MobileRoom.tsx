@@ -55,6 +55,7 @@ import {
   type MobileFocus,
   mobilePose,
   orientationFor,
+  stepFor,
 } from './composition.js';
 import {
   FRAME_BUDGET_MS,
@@ -87,9 +88,10 @@ import './mobile.css';
  *     first and landscape as an intentional secondary, not the desktop camera
  *     widened until the sides fall off;
  *  2. **the interface is reachable with a thumb**: every character and every
- *     important screen carries a 48 px target (`TouchTargets.tsx`), a tap flies
- *     the camera there *and then* opens the record, and there is one obvious
- *     way back;
+ *     important screen carries a 48 px target (`TouchTargets.tsx`), one tap
+ *     flies the camera to that station and a second tap opens its record — the
+ *     owner's decision of 10 September, `stepFor` in `composition.ts` — and
+ *     there is one obvious way back;
  *  3. **the development chrome is out of the ordinary experience** and behind a
  *     hidden menu, with one discreet version marker left in the open;
  *  4. **the demonstration says what it is** in a refined persistent badge that
@@ -108,12 +110,13 @@ export type View = 'room' | 'tabletop';
 /**
  * How long the camera's travel into a selection lasts, in seconds.
  *
- * **Stage 3 removed the delay that used to follow it.** Stage 1 opened the
- * record `FLIGHT_SECONDS * 1000 + 120` ms after the press, so the move read
- * first; the owner's binding decision is that one tap does both concurrently,
- * so the window now opens in the same event and the flight runs underneath it
- * (`select`, below). The travel itself is unchanged, because the second half of
- * his sentence — *"and takes you there"* — still has to happen.
+ * **The travel is now the whole of the first tap**, and nothing waits on it.
+ * Stage 1 opened the record `FLIGHT_SECONDS * 1000 + 120` ms after the press;
+ * stage 3 opened it in the same event, under the owner's decision of 8
+ * September; his decision of 10 September separates them into two taps
+ * (`selectAnchor`, below, and `stepFor` in `mobile/composition.ts`). The travel
+ * itself has never changed. There is still no timer anywhere in the path: the
+ * second tap opens the window in its own event, from data.
  */
 export const FLIGHT_SECONDS = 0.9;
 
@@ -241,39 +244,45 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
   }, []);
 
   /**
-   * **One tap does both, concurrently** — and this is stage 3 reversing a
-   * stage-1 decision on the owner's own instruction, recorded rather than
-   * quietly changed.
+   * **Tapping a station is two steps, and this pass reverses the owner's own
+   * earlier decision on his own instruction, recorded rather than quietly
+   * changed.**
    *
    * Stage 1 built the brief's stage-1 line — *"tapping triggers a deliberate
    * camera transition before the interface opens"* — as a 1.02 s delay before
-   * the record appeared. The owner had already decided otherwise, in
-   * `docs/process/PHASE_1_CONVERSATION_INTERFACE.md` §5b, against this
-   * session's own recommendation: *"tapping a screen opens the panel straight
-   * away and takes you there — but the panel opens up so you can see it
-   * instantly, while you are being taken there. So you arent waiting to be
-   * taken there first."* That decision governs, so the window is set and the
-   * camera is set in the same event: **the window is up immediately and the
-   * flight runs underneath it.**
+   * the record appeared. Stage 3 replaced that with one tap doing both
+   * concurrently, on his decision of 8 September (§5b), taken from a
+   * description. He has now used it, and on 10 September decided against it:
+   * *"When you click each agent, the window opens straight away… What should
+   * happen when you click them is first zoom in to their close up view. And
+   * THEN when you click their screen, that's when it should open the window."*
+   * (`docs/process/OWNER_DECISIONS_2026-09-10.md` item 9, and §5c of the
+   * interface record, which supersedes §5b rather than deleting it.)
    *
-   * The window renders from data and never waits for a frame
-   * (`window/AgentWindow.tsx`), so there is nothing here that could make it
-   * wait. `verify:owner:v11` drives the press and measures that the window is
-   * already open while the camera is still moving — the inverse of the
-   * assertion stage 1 made, changed deliberately and not relaxed.
+   * So the rule lives in `stepFor` (`mobile/composition.ts`) and this is the
+   * one place that applies it: the first tap travels, the second opens, and the
+   * second never moves the camera. Two things it deliberately does not change,
+   * because he named them as what must survive:
+   *
+   *  - **The window still renders from data and never waits for a frame**
+   *    (`window/AgentWindow.tsx`). Nothing here defers it — when it opens, it
+   *    opens in the same event as the press.
+   *  - **`wasTap()` still guards every press**, so a drag still opens nothing
+   *    and still travels nowhere.
+   *
+   * `verify:owner:v11` drives both presses at three viewports and measures each
+   * step separately, so the check and the interaction changed together.
    */
   const lastSelection = useRef({ id: '', at: 0 });
-  const select = (id: string, to: MobileFocus, target: WindowTarget) => {
-    const now = performance.now();
-    // The world's own raycast handler and this layer's hit test can both
-    // answer one press. Whichever arrives first wins; the other is ignored.
-    if (lastSelection.current.id === id && now - lastSelection.current.at < 700) return;
-    lastSelection.current = { id, at: now };
+  /**
+   * Sets the window without moving the camera. The deliberate, labelled way in
+   * — the `TALK TO VIRGIL` control — and the in-window jump between agents.
+   */
+  const openWindow = (id: string, target: WindowTarget) => {
     // Where the character's display is on screen at the moment of the tap, so
     // the window can expand out of it rather than appear over it.
     const projected = projections()[id];
     setOrigin(projected && projected.visible ? { x: projected.x, y: projected.y } : null);
-    setFocus(to);
     setWin(target);
   };
   const toOverview = () => {
@@ -284,13 +293,38 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
   const selectAnchor = (id: string, row?: number) => {
     const anchor = anchors.find((candidate) => candidate.id === id);
     if (!anchor) return;
+    const now = performance.now();
+    // The world's own raycast handler and this layer's hit test can both
+    // answer one press. Whichever arrives first wins; the other is ignored.
+    // **This matters more than it did**: with two steps, a press counted twice
+    // would travel and open at once, which is precisely the behaviour the
+    // owner asked to be rid of.
+    if (lastSelection.current.id === id && now - lastSelection.current.at < 700) return;
+    lastSelection.current = { id, at: now };
+    const step = stepFor(anchor, focus);
+    setFocus(step.focus);
+    if (step.window === null) {
+      setWin(null);
+      return;
+    }
     // A ledger row opens that hop's own agent, which is the owner's decision
     // of 8 September: the row carries shape and colour at distance and the
     // window carries the whole of it.
-    const target = row === undefined ? anchor.window : windowForLedgerRow(demoSnapshot(), row);
-    select(anchor.id, anchor.focus, target);
+    openWindow(
+      anchor.id,
+      row === undefined ? step.window : windowForLedgerRow(demoSnapshot(), row),
+    );
   };
-  /** Another agent's window, without going back to the world first. */
+  /**
+   * Another agent's window, without going back to the world first.
+   *
+   * **This one still moves the camera, and that is not the two-step rule being
+   * broken.** The reader is inside a window and has pressed a control that
+   * names where it goes — *"Read the review"* — so the destination was asked
+   * for in words, not guessed from a tap on the world; and when the window is
+   * dismissed the world behind it has to be the station whose record was open,
+   * or `back` would be lying about where it goes.
+   */
   const goToAgent = (agent: Agent, at?: string) => {
     const anchor = anchors.find((candidate) => candidate.id === agent);
     lastSelection.current = { id: '', at: 0 };
@@ -524,6 +558,23 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
           onPointerUp={(event) => event.stopPropagation()}
         >
           <BackControl shown={showBack} onBack={toOverview} label={backLabel(focus, anchors)} />
+          {/*
+           * **The second step, said once, where the reader is standing.**
+           *
+           * With one tap there was nothing to discover. With two there is: a
+           * reader who has just been flown to a station has no way of knowing
+           * that another tap opens the record, and a phone has no hover to tell
+           * him. §5b asked for a persistent cue on the screens themselves; this
+           * is the cheap version of that — one line, in the world's own ice
+           * rather than a colour that claims something is wrong, present only
+           * at a station with nothing open, and carrying no action, so it is
+           * not a touch target.
+           *
+           * **This is the coordinator's judgment, not the owner's
+           * instruction**, in the same class as the version marker. Deleting
+           * this one element is the whole of removing it.
+           */}
+          <StepHint shown={showBack} />
           <DevEntry open={dev} onToggle={() => setDev((value) => !value)} />
           <DemoBadge
             mode={mode}
@@ -532,9 +583,19 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
             onToggle={() => setBadgeOpen((value) => !value)}
           />
           <PerformanceNotice level={level} forced={forcedLevel !== 'auto'} />
+          {/*
+           * **The one control that still opens a window in a single press, and
+           * it says so on its face.** The owner's objection was to a tap on a
+           * character doing two things at once and leaving him somewhere he had
+           * not asked to be. A control labelled `TALK TO VIRGIL` is a request in
+           * words: pressing it can hold no surprise. So it opens the
+           * conversation immediately — and, unlike before, **it does not move
+           * the camera**, so dismissing the conversation puts the reader back
+           * exactly where he was rather than at a close-up he never asked for.
+           */}
           <TalkBar
             marker={`V11 · stage 4 · ${build.shortSha}`}
-            onTalk={() => select('virgil', 'virgil', { agent: 'virgil' })}
+            onTalk={() => openWindow('virgil', { agent: 'virgil' })}
           />
           {dev ? (
             <DevPanel
@@ -595,6 +656,20 @@ function BackControl({
       </span>
       <span className="v11-back-word">{label}</span>
     </button>
+  );
+}
+
+/**
+ * The second step, named. Shown under exactly the same condition as the way
+ * back — at a station, with no window over it — because those are precisely the
+ * moments when another tap does something the reader cannot see.
+ */
+function StepHint({ shown }: { shown: boolean }) {
+  if (!shown) return null;
+  return (
+    <p className="v11-step-hint" role="status">
+      Tap again to open
+    </p>
   );
 }
 
@@ -1490,11 +1565,13 @@ function initialFocus(): MobileFocus {
   if (cam === 'virgil' || cam === 'board' || (ROLES as readonly string[]).includes(cam ?? ''))
     return cam as MobileFocus;
   /**
-   * `#/?win=<agent>` also takes the camera there, so the entry point produces
-   * the same state a tap produces rather than a window hanging over an
-   * overview. It is the reader's own decision of §5b — *"the panel opens up so
-   * you can see it instantly, while you are being taken there"* — expressed as
-   * a URL.
+   * `#/?win=<agent>` also takes the camera there, and it still does under the
+   * two-step rule. **A URL is not a tap.** It names one state outright — this
+   * reader, at this station, with this record open — which is exactly the state
+   * the two taps arrive at, so the entry point lands on the end of the path
+   * rather than skipping a step of it. It is what makes the twelve review
+   * states reproducible from a string, and it is the only reason the second
+   * step did not force those frames to be recaptured.
    */
   const win = query().get('win');
   if (win === 'virgil' || (ROLES as readonly string[]).includes(win ?? ''))

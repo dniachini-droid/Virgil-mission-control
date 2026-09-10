@@ -67,6 +67,16 @@ const fileUrl = pathToFileURL(file).href;
 const MIN_TOUCH_PX = 44;
 
 /**
+ * How long `selectAnchor` ignores a repeat of the same target, in milliseconds
+ * (`world/mobile/MobileRoom.tsx`). One press can be answered by both the
+ * world's own raycast and the DOM hit test, and under the two-step rule a press
+ * counted twice would travel and open at once. A check that drives two
+ * deliberate taps has to clear it, and has to clear it in the same units it is
+ * written in.
+ */
+const GUARD_MS = 750;
+
+/**
  * The simulated viewports. **Simulated**: these are CSS pixel sizes given to a
  * headless Chromium, not devices. The two portrait widths are the ones the
  * brief names; the landscape one is an iPhone held sideways.
@@ -306,14 +316,22 @@ async function calibrate(p: Page): Promise<void> {
  * kind of accident K11-04 is about. So the press is **repeated against a new
  * measurement** until the condition it is supposed to cause holds, and it fails
  * only when a bounded number of honest attempts have all missed.
+ *
+ * **Since the owner's decision of 10 September it also has to press twice on
+ * purpose**, because reaching a record is two taps: the first travels, the
+ * second opens. Retrying the same target means clearing the 700 ms guard that
+ * stops one press being counted twice, so a retry waits `GUARD_MS` — and waits
+ * it in milliseconds, since a frame-counted wait clears it on this software
+ * renderer and not on a fast machine.
  */
 async function pressUntil(
   p: Page,
   selector: string,
   condition: () => boolean,
-  attempts = 4,
+  attempts = 5,
 ): Promise<boolean> {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (attempt > 0) await p.waitForTimeout(GUARD_MS);
     const box = await boxOf(p, selector);
     if (!box) return false;
     await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -504,32 +522,68 @@ for (const viewport of VIEWPORTS) {
     const cx = virgil.x + virgil.width / 2;
     const cy = virgil.y + virgil.height / 2;
 
-    // 3a. **A tap opens the window and moves the camera in the same event.**
-    //     The owner's decision, and the inverse of what stage 1 asserted here.
+    // 3a. **Two taps, measured one at a time.** The owner's decision of 10
+    //     September, which reverses his own of 8 September and therefore
+    //     reverses what this check asserted at stage 3: *"first zoom in to
+    //     their close up view. And THEN when you click their screen, that's
+    //     when it should open the window."* The interaction and its check
+    //     changed together; neither half of it is left unmeasured.
+    //
+    //     **The first tap travels and opens nothing.**
     await press(cx, cy);
-    const atPress = await state();
+    const atFirst = await state();
     await frames(page, 3);
-    const afterTap = await state();
-    if (afterTap.panel !== 1) {
+    const afterFirst = await state();
+    if (afterFirst.focus !== 'virgil') {
       failures.push(
-        `${viewport.name}: a tap on the Virgil target opened ${afterTap.panel} windows, expected 1`,
+        `${viewport.name}: the first tap left the focus at ${afterFirst.focus}, expected virgil`,
       );
     }
-    if (afterTap.focus !== 'virgil') {
-      failures.push(`${viewport.name}: a tap left the focus at ${afterTap.focus}, expected virgil`);
-    }
-    if (atPress.panel !== 1) {
+    if (atFirst.panel !== 0 || afterFirst.panel !== 0) {
       failures.push(
-        `${viewport.name}: the window was not open at the press — it opened ${atPress.panel} windows, and the owner's decision is that it is up immediately`,
+        `${viewport.name}: the first tap opened ${afterFirst.panel} windows (${atFirst.panel} at the press); the owner's decision is that it only travels`,
       );
     }
-    if (atPress.focus !== 'virgil') {
+    if (atFirst.focus !== 'virgil') {
       failures.push(
-        `${viewport.name}: the camera had not begun to move at the press (focus ${atPress.focus})`,
+        `${viewport.name}: the camera had not begun to move at the press (focus ${atFirst.focus})`,
       );
     }
     notes.push(
-      `${viewport.name}: tap on Virgil — window and camera together (windows ${atPress.panel}, focus ${atPress.focus} at the press; ${afterTap.window} after)`,
+      `${viewport.name}: first tap on Virgil — travels only (focus ${atFirst.focus} at the press, ${afterFirst.panel} windows after)`,
+    );
+
+    //     **The second tap opens, in its own event, without moving again.**
+    //     The wait is in milliseconds rather than frames because what it has to
+    //     clear is stated in milliseconds: `selectAnchor` ignores a repeat of
+    //     the same target inside 700 ms, so that the world's raycast and the
+    //     DOM hit test cannot answer one press twice. A frame-counted wait
+    //     would clear it on this software renderer and not on a fast machine.
+    await page.waitForTimeout(GUARD_MS);
+    const second = await boxOf(page, '[data-touch-target="virgil"]');
+    const sx = (second ?? virgil).x + (second ?? virgil).width / 2;
+    const sy = (second ?? virgil).y + (second ?? virgil).height / 2;
+    await press(sx, sy);
+    const atSecond = await state();
+    await frames(page, 3);
+    const afterSecond = await state();
+    if (afterSecond.panel !== 1) {
+      failures.push(
+        `${viewport.name}: the second tap on the Virgil target opened ${afterSecond.panel} windows, expected 1`,
+      );
+    }
+    if (atSecond.panel !== 1) {
+      failures.push(
+        `${viewport.name}: the window was not open at the press that opened it — ${atSecond.panel} windows; it renders from data and may not wait for a frame`,
+      );
+    }
+    if (afterSecond.focus !== 'virgil') {
+      failures.push(
+        `${viewport.name}: the tap that opened the window moved the camera to ${afterSecond.focus}; it must not move again`,
+      );
+    }
+    notes.push(
+      `${viewport.name}: second tap on Virgil — opens from data (${atSecond.panel} windows at the press, ${afterSecond.window}), camera still at ${afterSecond.focus}`,
     );
 
     // 3b. The record's own dismissal leaves the reader at the station, as the
@@ -757,8 +811,32 @@ for (const viewport of VIEWPORTS) {
 
   {
     // The Prover's window, opened through the world by tapping his console's
-    // own screen — the same path the reader takes.
+    // own screen — the same path the reader takes, and since 10 September that
+    // path is **two presses**: the first flies to his station, the second opens
+    // the record. `pressUntil` presses until the record is up, so the count is
+    // not asserted here; what is asserted is that one press is not enough.
     await settle();
+    //     A press can be swallowed before it counts — the gesture guard refuses
+    //     one taken while the camera is still easing, which is a property of
+    //     this instrument and not of the product — so the first step is pressed
+    //     until it *lands*, and what is asserted is the state once it has: the
+    //     camera has travelled and no record is open.
+    const travelledAt = await pressUntil(
+      page,
+      '[data-touch-target="prover-screen"]',
+      () => (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus !== 'all',
+    );
+    const travelled = await state();
+    if (!travelledAt) {
+      failures.push(`${viewport.name}: pressing the Prover's screen moved the camera nowhere`);
+    } else if (travelled.panel !== 0) {
+      failures.push(
+        `${viewport.name}: the press that travelled to the Prover's station also opened ${travelled.panel} windows; the first press opens nothing`,
+      );
+    }
+    notes.push(
+      `${viewport.name}: first press on the Prover's screen — travelled to ${travelled.focus}, ${travelled.panel} windows`,
+    );
     const opened = await pressUntil(
       page,
       '[data-touch-target="prover-screen"]',
