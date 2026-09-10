@@ -116,8 +116,17 @@ describe('the workflow that does the work', () => {
     expect(stopped).toContain('if: always()');
   });
 
-  it('stops rather than pretending when no key is installed', () => {
-    expect(WORKFLOW).toContain('if [ -z "$ANTHROPIC_API_KEY" ]; then');
+  it('prefers the subscription token, which carries no per-run charge', () => {
+    expect(WORKFLOW).toContain('CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}');
+    expect(WORKFLOW).toContain('if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then');
+    // And it says which one it used, because one of them costs money per run
+    // and the owner should never have to guess which he is spending.
+    expect(WORKFLOW).toContain('No per-run charge');
+    expect(WORKFLOW).toContain('This run is charged');
+  });
+
+  it('stops rather than pretending when no credential is installed', () => {
+    expect(WORKFLOW).toContain('no credential is installed, so no agent can run');
     expect(WORKFLOW).toContain(
       'the instruction is recorded and committed; nothing else has happened',
     );

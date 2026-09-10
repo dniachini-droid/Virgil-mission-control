@@ -23,9 +23,16 @@
 # no `id-token`. A step that tried would be refused by GitHub rather than by
 # anyone's good intentions.
 #
-# **Before this can run at all**, two secrets must exist, and the owner installs
-# both himself: `ANTHROPIC_API_KEY`, which is a real and ongoing cost, and
-# nothing else. No session creates, holds, sees or types either.
+# **Before this can run at all**, the owner installs a credential himself, and it
+# may be either of two. `CLAUDE_CODE_OAUTH_TOKEN` is a long-lived token he
+# generates from his own Claude subscription with `claude setup-token`, and it
+# carries **no per-run charge**: the work runs on what he already pays for.
+# `ANTHROPIC_API_KEY` is the metered alternative and is charged per run. The
+# subscription token is preferred where both exist, because the cheaper of two
+# equivalent things should not need to be chosen deliberately every time.
+#
+# He installed the subscription token on 2026-09-10. No session creates, holds,
+# sees or types either credential.
 
 name: instruct
 
@@ -145,11 +152,21 @@ jobs:
       #    a repository whose worst case is a branch the owner deletes.
       - name: Work on the instruction
         env:
+          # Both are passed and neither is required. The subscription token is
+          # what the owner installed; the API key is the metered fallback for
+          # anyone who has one instead. Whichever is absent is an empty string,
+          # which the CLI ignores.
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           INSTRUCTION: ${{ inputs.instruction }}
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "instruct: no ANTHROPIC_API_KEY is installed, so no agent can run."
+          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "instruct: running on the owner's Claude subscription. No per-run charge."
+            unset ANTHROPIC_API_KEY
+          elif [ -n "$ANTHROPIC_API_KEY" ]; then
+            echo "instruct: running on a metered API key. This run is charged."
+          else
+            echo "instruct: no credential is installed, so no agent can run."
             echo "instruct: the instruction is recorded and committed; nothing else has happened."
             exit 1
           fi
