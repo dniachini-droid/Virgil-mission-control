@@ -53,11 +53,26 @@ const cached = new Map();
 const CACHE_BRANCHES = 16;
 
 /**
- * How many branches the list carries. The count of what exists is reported
- * beside it, so a repository with forty branches shows eight and says forty
- * rather than showing eight and implying eight.
+ * How many branches the list carries.
+ *
+ * **It was eight, and the owner found the defect within minutes of the slice
+ * going live: "I can see the branches. But not the most recent slice."**
+ *
+ * This repository has nine branches. The list is ordered default-first, then the
+ * branches whose time is known, then by name — and alphabetically the ninth,
+ * the one that fell off the end, was `claude/virgil-phase-2-slice-4`: the slice
+ * he had just merged and was looking for. A cap chosen for tidiness hid exactly
+ * the row the whole feature existed to show him.
+ *
+ * Twenty is not a better guess than eight; it is a number large enough that this
+ * repository, and most repositories a person reads on a phone, have nothing
+ * hidden at all. The count of what exists still travels beside the list, so a
+ * repository that does exceed it is told the truth rather than shown a tidy lie.
+ * The real fix is an ordering that puts what is happening at the top, and that
+ * needs commit dates the branch list does not carry — recorded rather than
+ * pretended away.
  */
-const WATCHED_BRANCHES = 8;
+const WATCHED_BRANCHES = 20;
 
 function remember(key, body) {
   if (cached.size >= CACHE_BRANCHES && !cached.has(key)) {
@@ -785,8 +800,17 @@ export default async function handler(request) {
      * `GITHUB_BRANCH` is now what it was demoted to be: the branch shown when
      * nobody has said which. The row sends its own name explicitly
      * (`MobileRoom.tsx`), so the interface never depends on this precedence at
-     * all — but the precedence is wrong on its own terms and is fixed here too,
-     * because two defences against one defect is the point.
+     * all.
+     *
+     * **The Keeper's KP9-01, and it was about this comment rather than the
+     * code.** An earlier version of this paragraph said the precedence "is fixed
+     * here too". It was not: the line below is byte-identical to the one the
+     * previous review read, and `git diff` shows it as unchanged context. The
+     * commit message said the same thing. The behaviour is right — it is what
+     * `PHASE_2_SLICE_5_BRIEF.md` approved, `GITHUB_BRANCH` as the default
+     * selection — but a comment asserting an edit that does not exist is the
+     * species of artefact this file has been the subject of twice before, and
+     * the correction belongs where the false claim stood.
      */
     const wanted = asked || branch || repository.default_branch;
 
