@@ -1,6 +1,12 @@
 # Phase 2, slice four — the Prover's window shows the real checks
 
-**Status: proposed. Not started. Nothing in this document is authority.** `OD-0009` authorises Phase 2 and says that Phase 2 has no written brief, that no session may decide for itself what the phase contains, and that each slice's scope is written down and seen by the owner before it is built. This is that document for slice four, and it is deliberately one page.
+**Status: accepted by the owner on 2026-09-11, and being built.** He read this page and answered:
+
+> "yes build it"
+
+That instruction is the authority for this slice, under the mechanism `OD-0006` records; this document is the scope he approved, and the Keeper reviews the result against it. What follows is unchanged from what he read — nothing has been added to the scope after the yes.
+
+**Originally filed as: proposed, not started, nothing in this document is authority.** `OD-0009` authorises Phase 2 and says that Phase 2 has no written brief, that no session may decide for itself what the phase contains, and that each slice's scope is written down and seen by the owner before it is built. This is that document for slice four, and it is deliberately one page.
 
 ## The problem, in one sentence
 
