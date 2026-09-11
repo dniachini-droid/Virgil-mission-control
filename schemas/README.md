@@ -38,6 +38,7 @@ Generated from `packages/agent-contracts/src` by `pnpm --filter @virgil/agent-co
 - `risk-classification.schema.json`
 - `role-performance-bible.schema.json`
 - `run-record.schema.json`
+- `session-status-report.schema.json`
 - `stage-assignment.schema.json`
 - `telemetry-signal.schema.json`
 - `work-order.schema.json`

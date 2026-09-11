@@ -144,7 +144,7 @@ export function Orrery({
           face, as the console does in the reference. */}
       <pointLight
         color={room.warm.amber}
-        intensity={5}
+        intensity={3}
         distance={5}
         decay={2}
         position={[0, -0.35, 1.0]}

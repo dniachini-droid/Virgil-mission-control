@@ -1,23 +1,32 @@
-import { MeshReflectorMaterial } from '@react-three/drei';
+import { ContactShadows } from '@react-three/drei';
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
+import { createFloorTexture } from './floorGraphic.js';
 import { layout, room } from './palette.js';
 
 /**
- * The room itself: the reflective floor with its inlaid rings and star, the
- * back wall with the circular aperture the owner's porthole frame sits in,
- * the sill under the glass, side walls, ceiling, and the warm coves that make
- * the room's own light.
+ * The room itself: the floor with its inlaid rings and star, the back wall
+ * with the circular aperture the owner's porthole frame sits in, the sill
+ * under the glass, side walls, ceiling, and the warm coves that make the
+ * room's own light.
  *
- * Surfaces are cream, gold and brass only. Teal and magenta never appear here
- * as a material colour; they arrive through the aperture from `WindowView`.
+ * Surfaces are cream, gold, navy and brass only. Teal and magenta never
+ * appear here as a material colour; they arrive through the aperture from
+ * `WindowView`.
  *
- * The floor is where the reference earns its warmth: polished stone carrying
- * the amber of the consoles and the coves back up into the frame, with the
- * window's blue laid over it in the distance. So the floor is a real planar
- * reflection, not a roughness trick, and the coves are emissive geometry the
- * reflection can see rather than lights alone.
+ * V6 (`docs/process/PHASE_1_STYLISED_SPEC.md` §3): **matte throughout, and
+ * the mirror floor is gone.** The planar reflection was both the strongest
+ * realism signal and the most expensive thing drawn, since it re-rendered
+ * the scene; a contact shadow under the cast replaces it, and the floor's
+ * inlay — the star from the approved reference, previously lost competing
+ * with the reflection — is drawn bigger and bolder as a graphic shape.
+ *
+ * **V7: the room is retired, not removed.** The owner: "Room retired for
+ * now. No window. I might go back to it." It is reachable behind the `V`
+ * key and `#/?view=room`, is not the default, and is not offered for
+ * judgement. Its floor inlay is drawn as one texture like the tabletop's
+ * (`floorGraphic.ts`), so the retired view does not keep the z-fight.
  */
 export function RoomShell() {
   const { tier } = useSettings();
@@ -26,7 +35,7 @@ export function RoomShell() {
   return (
     <group>
       <Floor coarse={coarse} />
-      <FloorInlay coarse={coarse} />
+      <Contact coarse={coarse} centre={[0, 0, -1.6]} />
       <BackWall coarse={coarse} />
       <Sill />
       <SideWallsAndCeiling />
@@ -36,117 +45,69 @@ export function RoomShell() {
 }
 
 function Floor({ coarse }: { coarse: boolean }) {
+  const depth = layout.backWallZ - layout.wallZ;
+  const width = 2 * layout.sideWallX;
+  const size = Math.max(width, depth);
+  const zMid = (layout.backWallZ + layout.wallZ) / 2;
+  const texture = useMemo(
+    () =>
+      createFloorTexture({
+        centre: [0, zMid],
+        size,
+        console: [layout.consoleCentre[0], layout.consoleCentre[2]],
+        star: layout.tabletop.starAt,
+        pixels: coarse ? 1024 : 2048,
+      }),
+    [size, zMid, coarse],
+  );
+  // The plane is cut from the square texture's middle so metres map alike
+  // on both axes.
+  const geometry = useMemo(() => {
+    const g = new THREE.PlaneGeometry(width, depth);
+    const uv = g.getAttribute('uv');
+    for (let i = 0; i < uv.count; i += 1) {
+      uv.setXY(
+        i,
+        0.5 + (uv.getX(i) - 0.5) * (width / size),
+        0.5 + (uv.getY(i) - 0.5) * (depth / size),
+      );
+    }
+    return g;
+  }, [width, depth, size]);
   return (
-    <mesh
-      position={[0, 0, (layout.backWallZ + layout.wallZ) / 2]}
-      rotation={[-Math.PI / 2, 0, 0]}
-      receiveShadow
-    >
+    <mesh position={[0, 0, zMid]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow geometry={geometry}>
       {/* A rectangle inside the walls, not a disc: a floor that ran on past
           the wall showed through the aperture in V1. */}
-      <planeGeometry args={[2 * layout.sideWallX, layout.backWallZ - layout.wallZ]} />
-      {/* Cream stone, polished. `mirror` short of 1 keeps the base colour in
-          the surface; the blur spreads the reflection the way a waxed floor
-          does rather than a mirror. The depth-driven blur is what stops the
-          bright lower window reflecting as a hard hot patch (V1's flaw): the
-          further the reflected thing is from the floor, the softer it gets. */}
-      <MeshReflectorMaterial
-        color={room.surface.creamShadow}
-        resolution={coarse ? 512 : 1024}
-        mirror={0.35}
-        mixBlur={2.2}
-        mixStrength={0.55}
-        blur={[700, 260]}
-        depthScale={1.4}
-        minDepthThreshold={0.4}
-        maxDepthThreshold={1.2}
-        depthToBlurRatioBias={0.6}
-        roughness={0.45}
-        metalness={0.05}
-      />
+      <meshStandardMaterial map={texture} roughness={0.92} metalness={0} />
     </mesh>
   );
 }
 
 /**
- * Gold rings around the console foot and the four-point star in front of it,
- * inlaid a hair above the stone so they sit in the reflection instead of
- * fighting it.
+ * The contact shadow that replaces the reflection: a soft dark pool under
+ * everything on the floor, rendered from below at a low resolution. It is
+ * what seats the cast on the floor now that nothing reflects them.
  */
-function FloorInlay({ coarse }: { coarse: boolean }) {
-  const star = useMemo(() => {
-    const shape = new THREE.Shape();
-    const points = 4;
-    const outer = 1.15;
-    const inner = 0.22;
-    for (let i = 0; i < points * 2; i += 1) {
-      const r = i % 2 === 0 ? outer : inner;
-      const a = (i / (points * 2)) * Math.PI * 2;
-      const x = Math.cos(a) * r;
-      const y = Math.sin(a) * r;
-      if (i === 0) shape.moveTo(x, y);
-      else shape.lineTo(x, y);
-    }
-    shape.closePath();
-    return new THREE.ShapeGeometry(shape);
-  }, []);
-
-  const gold = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: room.surface.gold,
-        roughness: 0.3,
-        metalness: 0.9,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-      }),
-    [],
-  );
-  const brass = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: room.surface.brass,
-        roughness: 0.4,
-        metalness: 0.85,
-        polygonOffset: true,
-        polygonOffsetFactor: -1,
-      }),
-    [],
-  );
-
-  const segments = coarse ? 64 : 160;
-  const [cx, , cz] = layout.consoleCentre;
+export function Contact({
+  coarse,
+  centre = [0, 0, -1.6] as const,
+  scale = 16,
+}: {
+  coarse: boolean;
+  centre?: readonly [number, number, number];
+  scale?: number;
+}) {
   return (
-    <group>
-      {/* Concentric inlays around the console, as in the reference's floor. */}
-      {[
-        { r: 1.55, w: 0.05, m: gold },
-        { r: 2.35, w: 0.03, m: brass },
-        { r: 3.3, w: 0.06, m: gold },
-        { r: 5.2, w: 0.04, m: brass },
-      ].map(({ r, w, m }) => (
-        <mesh
-          key={r}
-          position={[cx, 0.004, cz]}
-          rotation={[-Math.PI / 2, 0, 0]}
-          material={m}
-          receiveShadow
-        >
-          <ringGeometry args={[r, r + w, segments]} />
-        </mesh>
-      ))}
-      {/* The star, in the foreground where the camera sees it. */}
-      <mesh
-        geometry={star}
-        material={gold}
-        position={[0, 0.004, 0.9]}
-        rotation={[-Math.PI / 2, 0, Math.PI / 4]}
-        receiveShadow
-      />
-      <mesh position={[0, 0.004, 0.9]} rotation={[-Math.PI / 2, 0, 0]} material={brass}>
-        <ringGeometry args={[1.35, 1.39, segments]} />
-      </mesh>
-    </group>
+    <ContactShadows
+      position={[centre[0], centre[1] + 0.012, centre[2]]}
+      scale={scale}
+      blur={2.4}
+      far={3.2}
+      opacity={coarse ? 0.4 : 0.55}
+      resolution={coarse ? 256 : 512}
+      color={room.surface.navy}
+      frames={Number.POSITIVE_INFINITY}
+    />
   );
 }
 
@@ -182,19 +143,19 @@ function BackWall({ coarse }: { coarse: boolean }) {
   return (
     <group>
       <mesh geometry={geometry} position={[0, 0, layout.wallZ]} receiveShadow>
-        <meshStandardMaterial color={room.surface.cream} roughness={0.75} metalness={0.02} />
+        <meshStandardMaterial color={room.surface.cream} roughness={0.85} metalness={0} />
       </mesh>
-      {/* Pilasters either side of the porthole, floor to ceiling, so the wall
-          has the vertical rhythm of the reference's arches. */}
+      {/* Pilasters either side of the porthole, floor to ceiling, thicker
+          than V5's: every fitting is thickened in this style. */}
       {[-1, 1].map((side) => (
-        <group key={side} position={[side * (layout.apertureRadius + 2.6), 0, wz + 0.25]}>
+        <group key={side} position={[side * (layout.apertureRadius + 2.6), 0, wz + 0.3]}>
           <mesh position={[0, layout.ceilingY / 2, 0]} castShadow receiveShadow>
-            <boxGeometry args={[0.42, layout.ceilingY, 0.42]} />
-            <meshStandardMaterial color={room.surface.ivory} roughness={0.6} metalness={0.05} />
+            <boxGeometry args={[0.6, layout.ceilingY, 0.6]} />
+            <meshStandardMaterial color={room.surface.ivory} roughness={0.8} metalness={0} />
           </mesh>
-          <mesh position={[0, layout.ceilingY / 2, 0.22]}>
-            <boxGeometry args={[0.08, layout.ceilingY, 0.02]} />
-            <meshStandardMaterial color={room.surface.gold} roughness={0.3} metalness={0.95} />
+          <mesh position={[0, layout.ceilingY / 2, 0.31]}>
+            <boxGeometry args={[0.16, layout.ceilingY, 0.03]} />
+            <meshStandardMaterial color={room.surface.gold} roughness={0.7} metalness={0} />
           </mesh>
         </group>
       ))}
@@ -210,16 +171,14 @@ function Sill() {
     <group position={[0, 0, layout.parapetZ - depth / 2]}>
       <mesh position={[0, layout.parapetHeight / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[width, layout.parapetHeight, depth]} />
-        <meshStandardMaterial color={room.surface.creamShadow} roughness={0.7} metalness={0.03} />
+        <meshStandardMaterial color={room.surface.creamShadow} roughness={0.85} metalness={0} />
       </mesh>
-      <mesh position={[0, layout.parapetHeight + 0.03, 0.02]}>
-        <boxGeometry args={[width + 0.1, 0.06, depth + 0.1]} />
-        <meshStandardMaterial color={room.surface.goldBright} roughness={0.45} metalness={0.6} />
+      <mesh position={[0, layout.parapetHeight + 0.04, 0.02]}>
+        <boxGeometry args={[width + 0.1, 0.09, depth + 0.1]} />
+        <meshStandardMaterial color={room.surface.goldBright} roughness={0.7} metalness={0} />
       </mesh>
-      <mesh position={[0, layout.parapetHeight - 0.07, depth / 2 + 0.01]}>
-        <boxGeometry args={[width - 0.3, 0.03, 0.02]} />
-        {/* Tone-mapped and only moderately over 1.0: untone-mapped this
-            strip reflected in the floor as a white flare. */}
+      <mesh position={[0, layout.parapetHeight - 0.08, depth / 2 + 0.01]}>
+        <boxGeometry args={[width - 0.3, 0.05, 0.02]} />
         <meshStandardMaterial color="#000000" emissive={room.warm.cove} emissiveIntensity={2.4} />
       </mesh>
     </group>
@@ -236,46 +195,44 @@ function SideWallsAndCeiling() {
         rotation={[0, Math.PI / 2, 0]}
       >
         <planeGeometry args={[depth, layout.ceilingY]} />
-        <meshStandardMaterial color={room.surface.creamShadow} roughness={0.8} />
+        <meshStandardMaterial color={room.surface.creamShadow} roughness={0.9} />
       </mesh>
       <mesh
         position={[layout.sideWallX, layout.ceilingY / 2, zMid]}
         rotation={[0, -Math.PI / 2, 0]}
       >
         <planeGeometry args={[depth, layout.ceilingY]} />
-        <meshStandardMaterial color={room.surface.creamShadow} roughness={0.8} />
+        <meshStandardMaterial color={room.surface.creamShadow} roughness={0.9} />
       </mesh>
       <mesh position={[0, layout.ceilingY, zMid]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[2 * layout.sideWallX, depth]} />
-        <meshStandardMaterial color={room.surface.slateDark} roughness={0.9} />
+        <meshStandardMaterial color={room.surface.slateDark} roughness={0.95} />
       </mesh>
-      {/* Behind the camera: a wall so the floor has something warm to reflect
-          when the owner orbits round. */}
       <mesh position={[0, layout.ceilingY / 2, layout.backWallZ]} rotation={[0, Math.PI, 0]}>
         <planeGeometry args={[2 * layout.sideWallX, layout.ceilingY]} />
-        <meshStandardMaterial color={room.surface.creamShadow} roughness={0.8} />
+        <meshStandardMaterial color={room.surface.creamShadow} roughness={0.9} />
       </mesh>
     </group>
   );
 }
 
 /**
- * The warm coves: a ring in the ceiling and two strips along the side walls.
- * Emissive, so the bloom and the floor reflection both read them as light.
- * The lights in `LightingRig` are what actually light the room; these are
- * what the owner sees as the source.
+ * The warm coves: a ring in the ceiling and two strips along the side walls,
+ * thicker than before. Emissive, so the bloom reads them as light. The
+ * lights in `LightingRig` are what actually light the room; these are what
+ * the owner sees as the source.
  */
 function Coves({ coarse }: { coarse: boolean }) {
   const segments = coarse ? 48 : 128;
   return (
     <group>
       <mesh position={[0, layout.ceilingY - 0.25, -2.4]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[5.4, 0.07, 8, segments]} />
+        <torusGeometry args={[5.4, 0.11, 8, segments]} />
         <meshBasicMaterial color={room.warm.cove} toneMapped={false} />
       </mesh>
       {[-1, 1].map((side) => (
         <mesh key={side} position={[side * (layout.sideWallX - 0.06), 2.7, -1.5]}>
-          <boxGeometry args={[0.04, 0.05, 9]} />
+          <boxGeometry args={[0.06, 0.08, 9]} />
           <meshBasicMaterial color={room.warm.amber} toneMapped={false} />
         </mesh>
       ))}

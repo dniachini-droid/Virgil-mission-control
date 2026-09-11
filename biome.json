@@ -13,7 +13,8 @@
       "!**/pnpm-lock.yaml",
       "!**/*.md",
       "!schemas/**",
-      "!constitution/**"
+      "!constitution/**",
+      "!docs/process/PHASE_1_owner-builds/**"
     ]
   },
   "formatter": {

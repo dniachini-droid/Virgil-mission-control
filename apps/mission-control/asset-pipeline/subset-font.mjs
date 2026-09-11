@@ -42,24 +42,32 @@ const UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const LOWER = 'abcdefghijklmnopqrstuvwxyz';
 const DIGITS = '0123456789';
 
-/** Source digests as recorded in `assets/licenses/ASSET_PROVENANCE.md`. */
+/**
+ * Source digests as recorded in `assets/licenses/ASSET_PROVENANCE.md`.
+ *
+ * V6 (`docs/process/PHASE_1_STYLISED_SPEC.md` §4.1): Tektur and Geist Mono
+ * Regular are retired — Tektur is squarish and technical, reads as realistic
+ * sci-fi, and has no bold weight — and the screens are set in Outfit Bold
+ * (headlines: geometric, round, chunky) and Geist Mono Bold (anything
+ * data-shaped). Their licence texts are read and committed the same way.
+ */
 const FONTS = [
   {
-    name: 'tektur-medium',
-    family: 'Tektur',
-    source: 'assets/fonts/Tektur-Medium.ttf',
-    sourceSha256: '52bbe8c9b057b3d2da4eeace31a524b1ea26a1375ae34319cf6900ccc57a4c82',
-    licence: 'assets/licenses/TEKTUR-OFL.txt',
+    name: 'outfit-bold',
+    family: 'Outfit',
+    source: 'assets/fonts/Outfit-Bold.ttf',
+    sourceSha256: '6654b93d21301ec61887d3cedd6c11d9df1b1dfb63f9cf45ac7995f6e2235ab1',
+    licence: 'assets/licenses/OUTFIT-OFL.txt',
     // Display: the screens set it in capitals only.
     characters: UPPER + DIGITS + PUNCTUATION,
   },
   {
-    name: 'geist-mono-regular',
+    name: 'geist-mono-bold',
     family: 'Geist Mono',
-    source: 'assets/fonts/GeistMono-Regular.ttf',
-    sourceSha256: 'a55c1b51cda4afeab9e471e7947b85a20f7c8831d7e6b1470c1b7fbdc0f0f15e',
+    source: 'assets/fonts/GeistMono-Bold.ttf',
+    sourceSha256: '75c0828d5c1ee44b9ef9f4df577bf41595ec362e2ea3f1e558590c9e92c7949d',
     licence: 'assets/licenses/GEISTMONO-OFL.txt',
-    // Data: hashes, counts and small labels, upper and lower case.
+    // Data: counts and short words, upper and lower case.
     characters: UPPER + LOWER + DIGITS + PUNCTUATION,
   },
 ];

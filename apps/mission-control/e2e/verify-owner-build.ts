@@ -18,7 +18,7 @@ import { pathToFileURL } from 'node:url';
 import { chromium } from '@playwright/test';
 
 const outDir = resolve(import.meta.dirname, '../dist/owner-build');
-const built = readdirSync(outDir).filter((n) => n.startsWith('virgil-') && n.endsWith('.html'));
+const built = readdirSync(outDir).filter((n) => /virgil-[0-9a-f]{10}\.html$/.test(n));
 if (built.length !== 1) {
   throw new Error(`expected exactly one built Owner Build in ${outDir}, found ${built.length}`);
 }
@@ -34,9 +34,8 @@ const requests: string[] = [];
 // @playwright/test. Point Playwright at the installed binary rather than
 // downloading one, per the environment's own instruction.
 const preinstalled = process.env.CHROMIUM_EXECUTABLE ?? '/opt/pw-browsers/chromium';
-const browser = await chromium.launch(
-  existsSync(preinstalled) ? { executablePath: preinstalled } : {},
-);
+const substituted = existsSync(preinstalled);
+const browser = await chromium.launch(substituted ? { executablePath: preinstalled } : {});
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 page.on('console', (m) => {
   if (m.type() === 'error') consoleErrors.push(m.text());
@@ -50,11 +49,13 @@ page.on('pageerror', (e) => pageErrors.push(String(e)));
 page.on('request', (r) => requests.push(r.url()));
 
 const visited: string[] = [];
-for (const route of ['', '#/s1', '#/spike/foundry', '#/spike/mind']) {
+// The default route is the tabletop; `#/?view=room` is the retired room,
+// visited so that a retirement never silently becomes a removal.
+for (const route of ['', '#/?view=room', '#/s1', '#/spike/foundry', '#/spike/mind']) {
   await page.goto(`${fileUrl}${route}`, { waitUntil: 'load' });
-  if (route === '') {
-    // The room: wait until all three models and the window layers have
-    // decoded and a frame has drawn, not merely until a canvas exists.
+  if (route === '' || route === '#/?view=room') {
+    // The set: wait until every model and the window layers have decoded
+    // and a frame has drawn, not merely until a canvas exists.
     await page.locator('canvas').waitFor({ timeout: 30_000 });
     await page.waitForFunction(() => '__virgilRoomReady' in window, undefined, {
       timeout: 120_000,
@@ -66,7 +67,7 @@ for (const route of ['', '#/s1', '#/spike/foundry', '#/spike/mind']) {
     await page.waitForFunction(() => '__virgilRenderer' in window, undefined, { timeout: 30_000 });
   }
   await page.waitForTimeout(1500);
-  visited.push(route === '' ? '(room)' : route);
+  visited.push(route === '' ? '(tabletop)' : route === '#/?view=room' ? '(retired room)' : route);
 }
 
 const footer = (await page.locator('.owner-footer').first().innerText()).replace(/\s+/g, ' ');
@@ -75,9 +76,20 @@ const renderer = await page.evaluate(
 );
 const offDocument = requests.filter((url) => url.split('#')[0] !== fileUrl);
 
+// Which browser said so. A pass here means nothing unless a reader can tell
+// whether CI and a local run used the same build: this container substitutes a
+// preinstalled Chromium that lags the pinned @playwright/test, and CI installs
+// the one the lockfile resolves. Both are legitimate; a silent difference
+// between them is not, so the run states which it was.
+const browserBuild = `${browser.browserType().name()} ${browser.version()}`;
+const browserPath = substituted ? preinstalled : (chromium.executablePath() ?? '(default)');
+
 await browser.close();
 
 console.log(`owner build verify: file ${file}`);
+console.log(
+  `owner build verify: browser ${browserBuild} — ${browserPath}${substituted ? ' (preinstalled, substituted for the pinned build)' : ' (as pinned by the lockfile)'}`,
+);
 console.log(`owner build verify: routes ${visited.join(', ')}`);
 console.log(`owner build verify: requests ${requests.length}, off-document ${offDocument.length}`);
 console.log(`owner build verify: renderer ${renderer ?? '(none)'}`);

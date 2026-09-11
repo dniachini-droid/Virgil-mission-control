@@ -1,13 +1,15 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import { schemaRegistry } from '../src/index.js';
+// The published set, which is deliberately not the barrel's set. See
+// `src/exported-schemas.ts` for why, and for the 914 bytes that taught it.
+import { exportedSchemas } from '../src/exported-schemas.js';
 
 const outDir = resolve(import.meta.dirname, '../../../schemas');
 mkdirSync(outDir, { recursive: true });
-const names = Object.keys(schemaRegistry).sort();
+const names = Object.keys(exportedSchemas).sort();
 for (const name of names) {
-  const schema = schemaRegistry[name as keyof typeof schemaRegistry];
+  const schema = exportedSchemas[name as keyof typeof exportedSchemas];
   const json = z.toJSONSchema(schema, {
     target: 'draft-2020-12',
     unrepresentable: 'any',

@@ -1,200 +1,355 @@
 import { useFrame } from '@react-three/fiber';
+import type { CandidateState } from '@virgil/domain';
 import { use, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useSettings } from '../../ui/settings.js';
-import type { StationState } from '../room/demo.js';
+import { createGlassMaterial, createRoundedConvexGlassGeometry } from '../glass.js';
+import type { SlabName } from '../panel/panelContent.js';
+import type { ReplaySpeed } from '../replay/replayTimeline.js';
+import { LONGEST_RECORDED_HOP, replayLedgerAt } from '../replay/replayTimeline.js';
+import type { Outcome, RunMode, ScreenContent } from '../room/demo.js';
+import { wasTap } from '../room/gesture.js';
 import { layout, room } from '../room/palette.js';
-import { DISPLAY, loadScreenFonts, MONO } from './fonts.js';
+import { RETURNING, SLAB_ARRIVAL } from './arrival.js';
+import { CANDIDATE_ID } from './candidate.js';
+import {
+  BAND_HEIGHT,
+  bigWord,
+  brackets,
+  type Ctx,
+  DIM,
+  dataLine,
+  display,
+  FAINT,
+  finish,
+  fitFont,
+  frame,
+  mono,
+  OWNER_GOLD,
+  quieten,
+  RULE,
+  roundRect,
+  spaced,
+  TEXT,
+} from './draw.js';
+import { loadScreenFonts } from './fonts.js';
+import {
+  elapsedOf,
+  inFlight,
+  isSettled,
+  LEDGER_HEAD_PX,
+  LEDGER_ROWS,
+  LONGEST_HOP,
+  ledgerAt,
+  ledgerRowHeight,
+  rowAtUv,
+} from './ledger.js';
+import { clamp01, drift, easeOut, landing } from './motion.js';
+import { drawReturn, withdrawal } from './returning.js';
+import { evidenceLines } from './tally.js';
+import { drawVerdictMark, verdictLook } from './verdicts.js';
 
 /**
- * Readable screens, drawn onto canvas textures in the `ADR-0010` pattern:
- * no font fetch, no `data:` URI, nothing outside the document. V5 sets them
- * in two bundled faces (`fonts.ts`), which the ADR's own Consequences line
- * anticipates.
+ * Virgil's three slabs, above him: the owner's one exception to the
+ * consoles carrying their own screens (`docs/process/PHASE_1_STYLISED_SPEC.md`
+ * §0.9, §0.10.2), because his ring console's screens face inward and are
+ * unreadably small. They are drawn onto canvas textures in the `ADR-0010`
+ * pattern — no font fetch, no `data:` URI — in two bundled faces
+ * (`fonts.ts`), and they stay **on**: he is always conducting, where the
+ * three agents' screens wake when summoned and go dark when done
+ * (`ConsoleScreen.tsx`).
  *
- * Three upright panels stand behind Virgil on the far arc of his console,
- * facing the camera — the front-to-back read the owner asked for is his face,
- * then the screens, then the window. The console model's own screens are
- * low, tilted inward and a few dozen pixels tall from the authored camera,
- * below the ~96 px at which text stays legible, so they keep their baked
- * glow and the readable content lives on these. **This is geometry the
- * owner did not supply**, added for that reason and reported as such.
+ * Left, **ROLES**: who holds the hop. Centre, **VERDICT**: the latest
+ * verdict, arriving as a convergence (`returning.ts`) with the
+ * deterministic evidence beneath it, and until there is one, what the
+ * candidate is doing instead — never a fixed word. Right, **CANDIDATE**:
+ * the candidate's state in the constitution's own vocabulary, driven from
+ * the demonstration's beat, and its identity, which does not change while
+ * judgement proceeds. During the owner gate (§0.10.10) the right slab is
+ * the one thing lit and the other two go quiet.
  *
- * V5, on the owner's V4 verdict:
- *
- *  - **The stands are gone.** They hung from each panel and touched nothing;
- *    the panels float, which the owner approved.
- *  - **Each panel is a slab**, not a plane: a rounded-rectangle frame with
- *    real thickness and bevelled edges that catch the room's warm light and
- *    the window's cool light, a back plate, and the display recessed inside
- *    the bezel (`Slab`).
- *  - **Two typefaces.** Tektur for titles, headlines and the honesty band;
- *    Geist Mono for anything data-shaped. One face doing both jobs is what
- *    made V4 read as basic.
- *  - **The station's panel has states of its own** — a receiving beat where
- *    the hand-off visibly arrives, and a working state with progress that
- *    ticks in rhythm (`drawStation`).
- *
- * Everything drawn here is **illustrative** — role names from
- * `.claude/agents/`, the state vocabulary of `constitution/STATE_LANGUAGE.md`,
- * the verdicts of `constitution/REVIEW_POLICY.md`, a scrolling abbreviated
- * SHA, check names that are categories and not results — and is labelled so
- * on every panel, on the amber band along its foot. None of it is this
- * repository's real state, and it never claims to be.
+ * Everything drawn here is **illustrative** and is labelled so on every
+ * panel, on the thick amber stripe along its foot.
  */
 
-export interface ScreenContent {
-  /** The verdict currently shown on the review panel. */
-  verdict: 'PASS' | 'PASS_WITH_NON_BLOCKING_FINDINGS' | 'BLOCKED' | 'INSUFFICIENT_EVIDENCE' | '—';
-  /** Which role is active, if any. */
-  active: string | null;
-  /** The phase label shown on the candidate panel. */
-  phase: string;
-}
-
-const ROLES = ['Virgil', 'Fabricator', 'Prover', 'Keeper', 'Arbiter'];
-const STATES = [
-  'ASSIGNED',
-  'IN_PROGRESS',
-  'BUILDER_REPORTED_COMPLETE',
-  'CHECKS_PASSED',
-  'REVIEWED',
-];
-/**
- * Illustrative check categories for the station's working state. They are
- * the kinds of deterministic check this repository runs, not any run of
- * them; nothing here is looked up, and every count is a fixed number from
- * the timeline.
- */
-const CHECKS = ['LINT', 'TYPES', 'TESTS', 'SCHEMA', 'TETHER'];
-
-// Tektur ships as Medium (500) and Geist Mono as Regular (400); asking for
-// other weights would get a synthetic bold, so hierarchy is size and colour.
-const display = (px: number) => `500 ${px}px ${DISPLAY}`;
-const mono = (px: number) => `400 ${px}px ${MONO}`;
-/** The honesty band along the foot of every panel, in canvas pixels. */
-const BAND_HEIGHT = 72;
-const DIM = 'rgba(207,228,255,0.5)';
-const TEXT = 'rgba(214,232,255,0.92)';
-const PASS_GREEN = '#b6ff5c';
-const BLOCK_RED = '#ff3b5c';
-
-export function ScreenBank({ content }: { content: ScreenContent }) {
-  const [cx, , cz] = layout.consoleCentre;
-  // Behind the outer track (1.72 m + band) so no planet passes through a panel.
-  const y = 1.42;
-  const z = cz - 1.95;
+export function ScreenBank({
+  content,
+  outcome,
+  seconds,
+  mode,
+  speed,
+  onOpen,
+}: {
+  content: ScreenContent;
+  outcome: Outcome;
+  /** The demonstration's own clock: the ledger's elapsed column is time. */
+  seconds: number;
+  /** Which mode is running: the two bands and the two ledgers differ. */
+  mode: RunMode;
+  /** The replay's speed, which decides where its playback clock is. */
+  speed: ReplaySpeed;
+  /** Clicking a slab opens that slab's own record in the panel (V9). */
+  onOpen: (slab: SlabName, row?: number) => void;
+}) {
+  const { y, z, spread, splay } = layout.screenBank;
+  const since = useRef({ verdict: '' as string, at: 0, candidate: '' as string, candidateAt: 0 });
+  /*
+   * The demonstration's clock, carried between phase boundaries. `useDemo`
+   * re-renders React only when a beat changes, so `seconds` is the time of
+   * the last boundary; the slab's own clock advances every frame, and the
+   * elapsed column has to be time and not a step. This is the whole of the
+   * arithmetic that makes the bar grow.
+   */
+  const demoClock = useRef({ seconds: -1, atT: 0 });
   return (
     <group>
       <Panel
-        position={[cx - 1.5, y, z + 0.25]}
-        rotation={[0, 0.22, 0]}
-        draw={(c, t) => drawRoles(c, t, content)}
+        position={[-spread, y - 0.08, z + 0.35]}
+        rotation={[-0.1, splay, 0]}
+        fps={24}
+        onOpen={() => onOpen('roles')}
+        onOpenRow={(row) => onOpen('roles', row)}
+        draw={(c, t, corner) => {
+          const dc = demoClock.current;
+          if (dc.seconds !== seconds) {
+            dc.seconds = seconds;
+            dc.atT = t;
+          }
+          drawLedger(c, t, seconds + (t - dc.atT), content, outcome, corner, mode, speed);
+        }}
       />
       <Panel
-        position={[cx, y + 0.05, z - 0.08]}
-        rotation={[0, 0, 0]}
-        draw={(c, t) => drawReview(c, t, content)}
+        position={[0, y, z]}
+        rotation={[-0.1, 0, 0]}
+        fps={24}
+        onOpen={() => onOpen('verdict')}
+        draw={(c, t, corner) => {
+          const s = since.current;
+          if (s.verdict !== content.verdict) {
+            s.verdict = content.verdict;
+            s.at = t;
+          }
+          drawVerdict(c, t, t - s.at, content, outcome, corner);
+        }}
       />
       <Panel
-        position={[cx + 1.5, y, z + 0.25]}
-        rotation={[0, -0.22, 0]}
-        draw={(c, t) => drawCandidate(c, t, content)}
+        position={[spread, y - 0.08, z + 0.35]}
+        rotation={[-0.1, -splay, 0]}
+        onOpen={() => onOpen('candidate')}
+        draw={(c, t, corner) => {
+          const s = since.current;
+          const key = `${content.candidate}:${content.ownerGate}`;
+          if (s.candidate !== key) {
+            s.candidate = key;
+            s.candidateAt = t;
+          }
+          drawCandidate(c, t, t - s.candidateAt, content, corner);
+        }}
       />
     </group>
   );
 }
 
 /**
- * The panel on a side station. It knows the station's state and, once a
- * verdict is reported, the verdict; it keeps its own note of when the state
- * last changed so the receiving and working drawings can run from that
- * moment.
+ * The screen as an **object** (V7, §0.3). The owner, of V6: "it just
+ * looks cheap and everything else looks really nice … I don't want richer
+ * details. I just want it to look nicer … More like a screen. Shiny and a
+ * bit of light reflecting off it." And, precisely: a slight curve
+ * outwards, the text sitting below the glass, and a case in the
+ * characters' own cream that bulges out like the old Macs.
+ *
+ * So, front to back: a **convex sheet of glass** with a CRT's profile
+ * (`glass.ts`), rising `bulge` at its centre; behind it, recessed `recess`
+ * under the case's front plane, the **display** — the canvas, unlit and
+ * untone-mapped, with the honesty band baked into it; round the opening a
+ * pillowy **front plate** with a deep bevel; and behind that the
+ * **swollen shell**, a half-ellipsoid, in the cream sampled from the
+ * cast's own textures (`room.surface.castCream`).
  */
-export function StationPanel({
-  position,
-  rotation,
-  occupant,
-  state,
-  verdict,
-}: {
-  position: [number, number, number];
-  rotation: [number, number, number];
-  occupant: string | null;
-  state: StationState;
-  verdict: ScreenContent['verdict'];
-}) {
-  const since = useRef({ state: '' as string, at: 0 });
-  return (
-    <Panel
-      position={position}
-      rotation={rotation}
-      width={0.9}
-      height={0.6}
-      fps={20}
-      draw={(c, t) => {
-        if (since.current.state !== state) since.current = { state, at: t };
-        drawStation(c, t, t - since.current.at, occupant, state, verdict);
-      }}
-    />
-  );
+/**
+ * A slab's authored proportions, in one place because the front plate,
+ * the glass over it and the canvas drawn behind it all have to agree —
+ * and, since V8.2, because the layout of the picture has to know where the
+ * rounded corner of the opening is. See `frame` and `band` in `draw.ts`.
+ */
+export function slabPlan(width: number, height: number) {
+  const bezel = 0.09 * (width / 1.3) + 0.03;
+  const radius = 0.16 * (width / 1.3) + 0.02;
+  const openingRadius = Math.max(0.03, radius - bezel);
+  // The display plane is wider than the opening, so its own edge hides
+  // behind the plate's lip; that overhang is how much of the canvas is
+  // never seen.
+  const overhang = SLAB_OVERHANG_M;
+  const displayWidth = width + 2 * overhang;
+  const displayHeight = height + 2 * overhang;
+  return {
+    bezel,
+    plate: 0.05,
+    // Shallow, and the lip thin: a 14 mm recess under a 22 mm lip hid the
+    // display's edge — and part of the honesty band — from oblique angles
+    // in the first V7 capture. 8 mm under 10 mm keeps the parallax and
+    // keeps the band whole.
+    recess: 0.008,
+    bulge: 0.03 * (width / 1.3),
+    radius,
+    openingRadius,
+    displayWidth,
+    displayHeight,
+    /**
+     * The corner radius the picture is laid out inside, in the canvas's own
+     * pixels, measured from the **canvas's** edge rather than the opening's:
+     * the opening's radius plus the overhang the plate hides. That is a
+     * little more than the opening's own curve asks for, deliberately — it
+     * is the conservative direction, and `test/console-screens.test.ts`
+     * checks the band's words against the real opening.
+     */
+    cornerPixels: ((openingRadius + overhang) / displayWidth) * SLAB_CANVAS_PIXELS,
+    /**
+     * **The canvas is drawn at the display plane's aspect, not the
+     * opening's (V8.3).** It is mapped onto a plane `displayWidth` by
+     * `displayHeight`, and it was sized `width` by `height` — the opening's
+     * — so a 1.3 × 0.8 m opening behind a 1.36 × 0.86 m plane stretched the
+     * whole picture horizontally by **2.78 %**: every letter, the verdict
+     * ring out of round, the honesty band's four words wider than they were
+     * set. V8.1 fixed exactly this fault for the consoles' screens
+     * (`screenPlane.ts`); V8.2 measured it here, recorded it in the run
+     * record and left it as outside its two items. It is inside this one,
+     * because it is the same surface.
+     */
+    canvasWidthPixels: SLAB_CANVAS_PIXELS,
+    canvasHeightPixels: Math.max(
+      64,
+      Math.round((SLAB_CANVAS_PIXELS * displayHeight) / displayWidth),
+    ),
+  };
 }
 
+/** The width of a slab's canvas, in pixels. Its height follows the display plane's aspect. */
+export const SLAB_CANVAS_PIXELS = 1024;
+
 /**
- * A slab with a display recessed in it: a rounded-rectangle frame with real
- * depth and bevelled edges, a back plate, and the canvas set 12 mm behind
- * the frame's front face inside the bezel. Slate body, so the warm key and
- * the cool window each catch on a different edge; nothing on it is teal or
- * magenta, which are only ever emitted.
+ * **How far the display plane stands outside the opening, in metres**
+ * (V9, item 8). The owner: *"Virgil's screen doesn't go all the way to
+ * the bottom - there's a gap and it's awkward. Fix that too."*
+ *
+ * The plane has to be a little larger than the opening so that its own
+ * cut edge is hidden behind the plate's lip rather than showing as a hard
+ * line inside the picture. From V7 to V8.3 that margin was `bezel / 4` —
+ * **30 mm on a 1.3 × 0.8 m slab**, which is 3.49 % of the plane's height
+ * at the top and the same again at the bottom, and therefore **22.6 of
+ * the honesty band's 118 canvas pixels, a fifth of the band, permanently
+ * behind the bezel.** The picture stopped short of the frame, and the
+ * band's own words sat higher in the opening than they were set to.
+ *
+ * It is now **6 mm**: the smallest margin that still hides the plane's
+ * edge behind a lip 50 mm deep at every angle the board camera reaches,
+ * and the same 6 mm the glass has stood off the opening's own curve
+ * since V8.2, so the two are one number instead of two. The hidden share
+ * of each edge goes from 3.49 % to 0.73 %, and 116 of the band's 118
+ * pixels are now inside the opening. `test/console-screens.test.ts`
+ * computes both fractions rather than quoting them.
+ *
+ * **This is authored geometry — ours, not Meshy's** — so unlike a
+ * console's screen there is no irregular opening to fit and no excuse for
+ * a mismatch: the opening, the plane, the canvas, the corner radius and
+ * the glass all now come from this one number and the two the slab is
+ * authored at.
  */
+export const SLAB_OVERHANG_M = 0.006;
+
 function Slab({
   width,
   height,
   texture,
+  onOpen,
+  onOpenRow,
+  canvasHeight,
 }: {
   width: number;
   height: number;
   texture: THREE.Texture;
+  onOpen: () => void;
+  /** A click inside the ledger's rows, if this slab has any. */
+  onOpenRow?: ((row: number) => void) | undefined;
+  canvasHeight: number;
 }) {
-  const bezel = 0.04;
-  const depth = 0.05;
-  const recess = 0.012;
-  const radius = 0.07;
-  const { frame, back } = useMemo(() => {
+  const { bezel, plate, recess, bulge, radius, openingRadius, displayWidth, displayHeight } =
+    slabPlan(width, height);
+  const { front, shell, glass } = useMemo(() => {
     const outer = roundedRect(width + 2 * bezel, height + 2 * bezel, radius);
-    outer.holes.push(roundedRectPath(width, height, radius - bezel));
-    const frame = new THREE.ExtrudeGeometry(outer, {
-      depth,
+    outer.holes.push(roundedRectPath(width, height, openingRadius));
+    const front = new THREE.ExtrudeGeometry(outer, {
+      depth: plate,
       bevelEnabled: true,
-      bevelThickness: 0.006,
-      bevelSize: 0.006,
-      bevelSegments: 3,
-      curveSegments: 12,
+      bevelThickness: 0.03,
+      bevelSize: 0.01,
+      bevelSegments: 4,
+      curveSegments: 14,
     });
-    const back = new THREE.ExtrudeGeometry(
-      roundedRect(width + 2 * bezel, height + 2 * bezel, radius),
-      {
-        depth: 0.01,
-        bevelEnabled: false,
-        curveSegments: 12,
-      },
+    // The back half of a sphere, scaled to the case: rim toward the plate.
+    const shell = new THREE.SphereGeometry(1, 36, 18, 0, Math.PI);
+    // The glass is a little wider than the opening and starts a few
+    // millimetres inside the plate, so its edge is under the lip. **V8.2:
+    // it follows the opening's curve.** It was a rectangle, and its square
+    // corners stood 17 mm out over the plate's rounded corners — the same
+    // fault as the console screens', on the authored geometry that is
+    // supposed to be their reference. Its radius is the opening's plus the
+    // 6 mm it overhangs by, so the two curves are concentric.
+    const glass = createRoundedConvexGlassGeometry(
+      width + 2 * SLAB_OVERHANG_M,
+      height + 2 * SLAB_OVERHANG_M,
+      openingRadius + SLAB_OVERHANG_M,
+      bulge + 0.004,
+      160,
     );
-    return { frame, back };
-  }, [width, height]);
+    return { front, shell, glass };
+  }, [width, height, bezel, radius, bulge, openingRadius, plate]);
+  const glassMaterial = useMemo(() => createGlassMaterial(), []);
   return (
     <group>
-      {/* The frame is extruded from z = -depth to z = 0, so its front face is the panel's plane. */}
-      <mesh geometry={frame} position={[0, 0, -depth]} castShadow receiveShadow>
-        <meshStandardMaterial color={room.surface.slateDark} roughness={0.32} metalness={0.7} />
+      {/* The front plate: extruded from z = −plate to 0, bevelled both ways. */}
+      <mesh geometry={front} position={[0, 0, -plate]} castShadow receiveShadow>
+        <meshStandardMaterial color={room.surface.castCream} roughness={0.55} metalness={0} />
       </mesh>
-      <mesh geometry={back} position={[0, 0, -depth - 0.004]}>
-        <meshStandardMaterial color={room.surface.slate} roughness={0.5} metalness={0.5} />
+      {/* The shell, swelling backwards from just inside the plate. */}
+      <mesh
+        geometry={shell}
+        position={[0, -height * 0.04, -plate + 0.01]}
+        rotation={[0, Math.PI, 0]}
+        scale={[width / 2 + bezel * 0.92, height / 2 + bezel * 0.92, 0.42 * height + 0.06]}
+        castShadow
+      >
+        <meshStandardMaterial color={room.surface.castCream} roughness={0.55} metalness={0} />
       </mesh>
-      {/* The display, a little wider than the bezel's hole so its corners hide behind it. */}
-      <mesh position={[0, 0, -recess]}>
-        <planeGeometry args={[width + bezel * 0.5, height + bezel * 0.5]} />
+      {/* The display, under the glass: a little wider than the opening so its
+          edges hide behind the lip. Its plane's own size, which the canvas
+          is now drawn at (V8.3). */}
+      <mesh
+        position={[0, 0, -recess]}
+        onClick={(event) => {
+          event.stopPropagation();
+          // A drag, a pinch or a wheel is navigation, not a press on this
+          // screen (V10, defect A). React Three Fiber's click fires on any
+          // pointer-up that began on the same object, however far it
+          // travelled, so orbiting the camera opened a window every time.
+          if (!wasTap()) return;
+          // A ledger row, if the point is in one: the owner's *"clicking a
+          // row opens that hop"*. The row is derived from the texture
+          // coordinate the raycast returned, through the same layout the
+          // drawing uses (`ledger.ts`), so the two cannot disagree.
+          const row =
+            onOpenRow && event.uv
+              ? rowAtUv(event.uv.y, canvasHeight, canvasHeight - BAND_HEIGHT)
+              : null;
+          if (onOpenRow && row !== null) onOpenRow(row);
+          else onOpen();
+        }}
+      >
+        <planeGeometry args={[displayWidth, displayHeight]} />
         <meshBasicMaterial map={texture} toneMapped={false} />
       </mesh>
+      {/* The glass, curved outwards. */}
+      <mesh geometry={glass} material={glassMaterial} position={[0, 0, -0.004]} renderOrder={1} />
     </group>
   );
 }
@@ -231,674 +386,426 @@ function Panel({
   rotation,
   width = 1.3,
   height = 0.8,
-  fps = 10,
+  fps = 12,
   draw,
+  onOpen,
+  onOpenRow,
 }: {
   position: [number, number, number];
   rotation: [number, number, number];
   width?: number;
   height?: number;
-  /** How often the canvas is redrawn; screens tick, they do not need to be smooth. */
+  /** How often the canvas is redrawn. */
   fps?: number;
-  draw: (canvas: HTMLCanvasElement, t: number) => void;
+  draw: (canvas: HTMLCanvasElement, t: number, corner: number) => void;
+  onOpen: () => void;
+  onOpenRow?: ((row: number) => void) | undefined;
 }) {
   // Suspends until both faces are registered, so the first frame is set in
   // them and never in the fallback.
   use(loadScreenFonts());
   const { reducedMotion } = useSettings();
+  const plan = useMemo(() => slabPlan(width, height), [width, height]);
   const { canvas, texture } = useMemo(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = Math.round((1024 * height) / width);
+    // The display plane's aspect, not the opening's: see `slabPlan`.
+    canvas.width = plan.canvasWidthPixels;
+    canvas.height = plan.canvasHeightPixels;
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = false;
     return { canvas, texture };
-  }, [width, height]);
+  }, [plan]);
   const clock = useRef({ t: 0, last: -1 });
 
   useFrame((_, delta) => {
     const c = clock.current;
-    if (!reducedMotion) c.t += delta;
+    if (!reducedMotion) c.t += Math.min(delta, 0.1);
     if (c.last >= 0 && c.t - c.last < 1 / fps) return;
     c.last = c.t;
-    draw(canvas, c.t);
+    draw(canvas, c.t, plan.cornerPixels);
     texture.needsUpdate = true;
   });
 
   return (
     <group position={position} rotation={rotation}>
-      <Slab width={width} height={height} texture={texture} />
+      <Slab
+        width={width}
+        height={height}
+        texture={texture}
+        onOpen={onOpen}
+        onOpenRow={onOpenRow}
+        canvasHeight={plan.canvasHeightPixels}
+      />
     </group>
   );
 }
 
 // ------------------------------------------------------------- drawing
 
-type Ctx = CanvasRenderingContext2D;
-
-function spaced(ctx: Ctx, em: string) {
-  // Chromium, Safari 17.4 and Firefox 130 honour it; elsewhere it is ignored.
-  (ctx as Ctx & { letterSpacing?: string }).letterSpacing = em;
-}
-
-/** Sets `font` at the largest size, at most `px`, at which `text` fits `maxWidth`. */
-function fitFont(
-  ctx: Ctx,
-  kind: (px: number) => string,
-  px: number,
-  text: string,
-  maxWidth: number,
-) {
-  let size = px;
-  ctx.font = kind(size);
-  while (size > 24 && ctx.measureText(text).width > maxWidth) {
-    size -= 4;
-    ctx.font = kind(size);
-  }
-  return size;
-}
-
-function roundRect(ctx: Ctx, x: number, y: number, w: number, h: number, r: number) {
-  const rr = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + rr, y);
-  ctx.lineTo(x + w - rr, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
-  ctx.lineTo(x + w, y + h - rr);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
-  ctx.lineTo(x + rr, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
-  ctx.lineTo(x, y + rr);
-  ctx.quadraticCurveTo(x, y, x + rr, y);
-  ctx.closePath();
-}
-
 /**
- * The frame every panel shares: dark glass with a faint wash of its tint,
- * corner marks, the title in Tektur with a rule under it, a small mono tag
- * naming the whole thing scripted, and the band along the foot that keeps
- * it honest — solid amber, dark letter-spaced Tektur, every panel, every
- * frame. Returns the height left above the band.
+ * **The ledger** (V9, item 2). The owner: *"the screen on the far left
+ * (virgils far left screen) should really have a list of the agents used,
+ * and next to it the outcome, and that updates (with fancy animations) as
+ * it happens, but also remains on the screen so at a glance you can see
+ * where its up to."*
+ *
+ * `ledger.ts` derives the board; this draws it. Every row is drawn so
+ * that it reads at three distances, which is what "at a glance" has to
+ * mean on a 0.9 m slab at eleven metres:
+ *
+ *  - **at distance**, the role's glyph in a heavy box, the verdict's own
+ *    shape from `verdicts.ts`, its colour, and the elapsed bar's length;
+ *  - **up close**, the role's name and the elapsed seconds as text;
+ *  - **in the panel**, the whole hop — one click on the row.
+ *
+ * The returning convergence lands into its row: a row's mark seals over
+ * the same `RETURNING` window the console and the verdict slab use, so
+ * the beat and the record are one event and there is no second source of
+ * truth about when a verdict arrived.
  */
-function frame(ctx: Ctx, w: number, h: number, title: string, tint: string): number {
-  const bg = ctx.createLinearGradient(0, 0, 0, h);
-  bg.addColorStop(0, '#0a1028');
-  bg.addColorStop(1, '#04060f');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, w, h);
-  const wash = ctx.createRadialGradient(w * 0.15, 0, 0, w * 0.15, 0, w * 0.9);
-  wash.addColorStop(0, tint);
-  wash.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.globalAlpha = 0.1;
-  ctx.fillStyle = wash;
-  ctx.fillRect(0, 0, w, h);
-  ctx.globalAlpha = 1;
-  // A hairline inset and corner marks.
-  ctx.strokeStyle = tint;
-  ctx.globalAlpha = 0.28;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(14, 14, w - 28, h - 28);
-  ctx.globalAlpha = 0.9;
-  ctx.lineWidth = 4;
-  const m = 26;
-  for (const [sx, sy] of [
-    [1, 1],
-    [-1, 1],
-    [1, -1],
-    [-1, -1],
-  ] as const) {
-    const x = sx > 0 ? 14 : w - 14;
-    const y = sy > 0 ? 14 : h - 14;
-    ctx.beginPath();
-    ctx.moveTo(x, y + sy * m);
-    ctx.lineTo(x, y);
-    ctx.lineTo(x + sx * m, y);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-  // Title.
-  ctx.fillStyle = tint;
-  ctx.font = display(44);
-  spaced(ctx, '0.22em');
-  ctx.textBaseline = 'top';
-  ctx.textAlign = 'left';
-  ctx.fillText(title, 48, 40);
-  spaced(ctx, '0em');
-  // The tag, top right, in mono.
-  ctx.font = mono(24);
-  spaced(ctx, '0.12em');
-  ctx.fillStyle = DIM;
-  ctx.textAlign = 'right';
-  ctx.fillText('SCRIPTED · ILLUSTRATIVE', w - 48, 52);
-  spaced(ctx, '0em');
-  ctx.textAlign = 'left';
-  // The rule under the title: a bright lead-in, then faint.
-  ctx.fillStyle = tint;
-  ctx.globalAlpha = 0.3;
-  ctx.fillRect(48, 102, w - 96, 2);
-  ctx.globalAlpha = 1;
-  ctx.fillRect(48, 101, 140, 4);
-  // The honesty band.
-  ctx.fillStyle = room.warm.amber;
-  ctx.fillRect(0, h - BAND_HEIGHT, w, BAND_HEIGHT);
-  ctx.fillStyle = room.warm.amberDeep;
-  ctx.fillRect(0, h - BAND_HEIGHT, w, 3);
-  ctx.fillStyle = '#1a1206';
-  ctx.font = display(36);
-  spaced(ctx, '0.26em');
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('ILLUSTRATIVE · NOT REAL STATE', w / 2 + 6, h - BAND_HEIGHT / 2 + 2);
-  spaced(ctx, '0em');
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  return h - BAND_HEIGHT;
-}
-
-/** A small mono field label. */
-function label(ctx: Ctx, text: string, x: number, y: number) {
-  ctx.font = mono(26);
-  spaced(ctx, '0.16em');
-  ctx.fillStyle = DIM;
-  ctx.fillText(text, x, y);
-  spaced(ctx, '0em');
-}
-
-/** A ring lamp: an outline that fills when lit. */
-function lamp(ctx: Ctx, x: number, y: number, r: number, colour: string, lit: boolean) {
-  ctx.strokeStyle = colour;
-  ctx.fillStyle = colour;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  if (lit) {
-    ctx.shadowColor = colour;
-    ctx.shadowBlur = 16;
-    ctx.fill();
-    ctx.shadowBlur = 0;
-  } else {
-    ctx.globalAlpha = 0.5;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-  }
-}
-
-/** A tick, drawn in a 24 px box at (x, y). */
-function tick(ctx: Ctx, x: number, y: number, colour: string) {
-  ctx.strokeStyle = colour;
-  ctx.lineWidth = 5;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.beginPath();
-  ctx.moveTo(x, y + 12);
-  ctx.lineTo(x + 9, y + 21);
-  ctx.lineTo(x + 24, y + 3);
-  ctx.stroke();
-}
-
-function cross(ctx: Ctx, x: number, y: number, colour: string) {
-  ctx.strokeStyle = colour;
-  ctx.lineWidth = 5;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(x + 2, y + 2);
-  ctx.lineTo(x + 22, y + 22);
-  ctx.moveTo(x + 22, y + 2);
-  ctx.lineTo(x + 2, y + 22);
-  ctx.stroke();
-}
-
-function drawRoles(canvas: HTMLCanvasElement, t: number, content: ScreenContent) {
+function drawLedger(
+  canvas: HTMLCanvasElement,
+  t: number,
+  seconds: number,
+  content: ScreenContent,
+  outcome: Outcome,
+  corner: number,
+  mode: RunMode,
+  speed: ReplaySpeed,
+) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const { width: w, height: h } = canvas;
-  const floor = frame(ctx, w, h, 'ROLES', room.emit.cyan);
-  const top = 126;
-  const rowHeight = Math.floor((floor - top - 12) / ROLES.length);
-  ROLES.forEach((role, i) => {
-    const y = top + i * rowHeight;
-    const active = content.active === role;
-    if (active) {
-      ctx.fillStyle = room.warm.amber;
-      ctx.globalAlpha = 0.12 + 0.05 * Math.sin(t * 6);
-      roundRect(ctx, 30, y, w - 60, rowHeight - 8, 10);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.fillRect(30, y, 8, rowHeight - 8);
-    } else {
-      ctx.fillStyle = 'rgba(207,228,255,0.07)';
-      ctx.fillRect(48, y + rowHeight - 10, w - 96, 1);
-    }
-    ctx.font = display(50);
-    spaced(ctx, '0.06em');
-    ctx.fillStyle = active ? room.warm.amber : TEXT;
+  // One board, two sources. The replay's rows carry **recorded** time and
+  // the demonstration's carry the demonstration's own clock; the drawing
+  // below is the same for both and reads which it has from the row.
+  const rows = mode === 'replay' ? replayLedgerAt(seconds, speed) : ledgerAt(seconds, outcome);
+  const settled = isSettled(rows, outcome);
+  const open = inFlight(rows);
+  const tint = open ? room.warm.amber : settled ? room.emit.teal : room.emit.cyan;
+  const floor = frame(ctx, w, h, 'LEDGER', tint, 0, corner);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, w, floor);
+  ctx.clip();
+
+  // The candidate this board belongs to. It clears per candidate (the
+  // owner's decision), so its identity has to be on it or a new run
+  // cannot be told from a continuation of the old one. On its own line,
+  // clear of the title above and the first row below.
+  const head = LEDGER_HEAD_PX;
+  dataLine(
+    ctx,
+    content.candidate ? `CANDIDATE ${content.candidateId ?? CANDIDATE_ID}` : 'NO CANDIDATE',
+    64,
+    head - 58,
+    w - 128,
+    content.candidate ? room.emit.magenta : DIM,
+    44,
+  );
+
+  const rowHeight = ledgerRowHeight(floor);
+  for (let i = 0; i < LEDGER_ROWS; i += 1) {
+    const y = head + i * rowHeight;
+    const row = rows[i];
+    // The rule under every slot, whether or not a hop has reached it: the
+    // board's shape does not change as it fills, so nothing jumps.
+    ctx.strokeStyle = FAINT;
+    ctx.lineWidth = RULE - 4;
+    ctx.beginPath();
+    ctx.moveTo(64, y + rowHeight - 12);
+    ctx.lineTo(w - 64, y + rowHeight - 12);
+    ctx.stroke();
+    if (!row) continue;
+
+    const look = verdictLook(row.report ?? '—');
+    const colour = row.report ? look.tint : room.warm.amber;
+    const centre = y + rowHeight / 2 - 8;
+    // 1. The glyph, in a heavy box: the role, at any distance.
+    ctx.strokeStyle = colour;
+    ctx.lineWidth = RULE;
+    ctx.strokeRect(64, centre - 46, 92, 92);
+    ctx.fillStyle = colour;
+    ctx.font = display(72);
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(role.toUpperCase(), 62, y + rowHeight / 2 - 4);
-    spaced(ctx, '0em');
-    const state = active ? 'IN_PROGRESS' : (STATES[(i + Math.floor(t / 7)) % STATES.length] ?? '');
-    lamp(ctx, 560, y + rowHeight / 2 - 4, 9, active ? room.warm.amber : room.emit.cyan, active);
-    ctx.font = mono(30);
-    spaced(ctx, '0.04em');
-    ctx.fillStyle = active ? room.warm.amber : DIM;
-    ctx.fillText(state, 590, y + rowHeight / 2 - 4);
-    spaced(ctx, '0em');
+    ctx.fillText(row.glyph, 64 + 46, centre + 4);
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-  });
+
+    // 2. The name, up close.
+    ctx.fillStyle = row.report ? TEXT : DIM;
+    ctx.font = display(52);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(row.label, 188, centre - 18);
+    ctx.textBaseline = 'top';
+
+    // 3. The time column.
+    //
+    //    In the demonstration it is the elapsed bar: its length is the
+    //    time, against the longest hop any of them takes, so two rows can
+    //    be compared.
+    //
+    //    **In the replay it is recorded time and never playback time.**
+    //    Exactly one of this run's hops has a duration in the repository;
+    //    for the other eight the column prints `NOT RECORDED` and **no
+    //    bar is drawn at all**, because a bar is a length and a length
+    //    would be a claim the record cannot support. A compressed clock
+    //    reporting compressed durations would be a lie about how long the
+    //    work took, and this is where that lie is refused.
+    const barX = 188;
+    // The number sits between the bar and the mark, so the three never
+    // overlap however long the number gets; the replay's words need more.
+    const numberW = row.recorded ? 300 : 140;
+    const markW = 150;
+    const barW = w - 64 - markW - numberW - barX;
+    const bar = row.recorded ? row.recorded.seconds : elapsedOf(row, seconds);
+    const longest = row.recorded ? LONGEST_RECORDED_HOP : LONGEST_HOP;
+    if (bar !== null) {
+      ctx.fillStyle = FAINT;
+      roundRect(ctx, barX, centre + 16, barW, 22, 6);
+      ctx.fill();
+      ctx.fillStyle = colour;
+      const fraction = clamp01(bar / longest);
+      roundRect(ctx, barX, centre + 16, Math.max(6, barW * fraction), 22, 6);
+      ctx.fill();
+      // A live row's bar carries a bright head, so "still running" reads
+      // without waiting to see whether the bar grows.
+      if (!row.report && !row.recorded) {
+        ctx.fillStyle = room.emit.ice;
+        const headX = barX + Math.max(6, barW * fraction);
+        ctx.globalAlpha = 0.5 + 0.5 * (0.5 + 0.5 * drift(t, 1.4));
+        roundRect(ctx, headX - 14, centre + 14, 14, 26, 5);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+    ctx.font = mono(row.recorded ? 34 : 40);
+    ctx.fillStyle = row.recorded
+      ? row.recorded.seconds === null
+        ? DIM
+        : TEXT
+      : row.report
+        ? DIM
+        : room.emit.ice;
+    ctx.textAlign = 'right';
+    ctx.fillText(
+      row.recorded ? row.recorded.text : `${elapsedOf(row, seconds).toFixed(1)}S`,
+      barX + barW + numberW - 16,
+      centre + 16,
+    );
+    ctx.textAlign = 'left';
+
+    // 4. The verdict's own shape, in its own colour — and while the hop
+    //    is unresolved, an open mark, never a blank. The seal is driven
+    //    from the report's own arrival, so the convergence on the
+    //    console and the mark on this row are the same event.
+    // Small enough that a mark and its findings sit inside their own row:
+    // the notches ride 26 px outside the ring, so 34 + 26 is under half a
+    // row's height and two rows' marks cannot touch.
+    const markX = w - 64 - 46;
+    const since = row.endedAt === null ? 0 : seconds - row.endedAt;
+    const seal =
+      row.report === null
+        ? 0.42 + 0.14 * drift(t, 0.5)
+        : clamp01((since - RETURNING.converge) / (RETURNING.land - RETURNING.converge));
+    const mark = row.report === null ? 0 : clamp01((since - RETURNING.land) / 0.5);
+    drawVerdictMark(
+      ctx,
+      markX,
+      centre,
+      34,
+      row.report ?? 'INSUFFICIENT_EVIDENCE',
+      seal,
+      mark,
+      row.report === 'PASS_WITH_NON_BLOCKING_FINDINGS' ? 3 : 0,
+    );
+  }
+  ctx.restore();
+  finish(ctx, w, h, t);
+  if (content.ownerGate) quieten(ctx, w, h, 0.72);
 }
 
-function drawReview(canvas: HTMLCanvasElement, t: number, content: ScreenContent) {
+/**
+ * The candidate's state, in words the constitution defines, split for a
+ * screen. Underscores become spaces; a long state breaks into two lines.
+ */
+export function stateLines(state: CandidateState | null): [string] | [string, string] {
+  if (state === null) return ['NO CANDIDATE'];
+  const words = state.split('_');
+  if (words.length <= 2) return [words.join(' ')];
+  const cut = Math.ceil(words.length / 2);
+  return [words.slice(0, cut).join(' '), words.slice(cut).join(' ')];
+}
+
+/**
+ * The verdict slab. With a verdict: the return, converging, and the
+ * evidence beneath. Without one: what the candidate is doing instead,
+ * from its state — "NO VERDICT", then BUILDING, or VERIFICATION
+ * INCOMPLETE — never a fixed word that could drift out of step.
+ */
+function drawVerdict(
+  canvas: HTMLCanvasElement,
+  t: number,
+  since: number,
+  content: ScreenContent,
+  outcome: Outcome,
+  corner: number,
+) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const { width: w, height: h } = canvas;
   const verdict = content.verdict;
-  const tint =
-    verdict === 'BLOCKED'
-      ? BLOCK_RED
-      : verdict === 'PASS'
-        ? PASS_GREEN
-        : verdict === '—'
-          ? room.emit.cyan
-          : room.warm.amber;
-  const floor = frame(ctx, w, h, 'REVIEW', tint);
-  label(ctx, 'VERDICT', 48, 126);
-  const text = verdict === '—' ? 'AWAITING REVIEW' : verdict.replace(/_/g, ' ');
-  const size = fitFont(ctx, display, 136, text, w - 96);
-  spaced(ctx, '0.03em');
-  ctx.fillStyle = tint;
-  ctx.shadowColor = tint;
-  ctx.shadowBlur = 26;
-  ctx.fillText(text, 48, 164 + (136 - size) / 2);
-  ctx.shadowBlur = 0;
-  spaced(ctx, '0em');
-  label(ctx, 'EVIDENCE', 48, 330);
-  const bars = ['checks', 'tethers', 'review'];
-  const barTop = 378;
-  const pitch = Math.floor((floor - barTop - 12) / bars.length);
-  bars.forEach((name, i) => {
-    const y = barTop + i * pitch;
-    ctx.font = mono(30);
-    ctx.fillStyle = TEXT;
-    ctx.fillText(name, 48, y + 2);
-    const fill =
-      verdict === '—'
-        ? (0.5 + 0.5 * Math.sin(t * 2 + i)) * 0.6
-        : verdict === 'BLOCKED' && i === 2
-          ? 0.3
-          : 1;
-    const x0 = 250;
-    const x1 = w - 48;
-    ctx.fillStyle = 'rgba(207,228,255,0.12)';
-    roundRect(ctx, x0, y + 8, x1 - x0, 20, 10);
-    ctx.fill();
+  const look = verdictLook(verdict);
+  const tint = look.tint;
+  const lift = verdict !== '—' ? clamp01(1 - (since - 1.5) / 2.5) : 0;
+  const floor = frame(ctx, w, h, 'VERDICT', tint, lift, corner);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, w, floor);
+  ctx.clip();
+  if (verdict === '—') {
+    const gone = 1 - withdrawal(since);
+    void gone;
+    bigWord(ctx, 'NO VERDICT', 64, 150, w - 128 - 40, DIM, clamp01(since / 0.5), 150);
+    const lines = stateLines(content.candidate);
+    spaced(ctx, '0.04em');
+    fitFont(ctx, display, 60, lines.join(' '), w - 128);
     ctx.fillStyle = tint;
-    ctx.shadowColor = tint;
-    ctx.shadowBlur = 10;
-    roundRect(ctx, x0, y + 8, (x1 - x0) * fill, 20, 10);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-  });
-}
-
-function drawCandidate(canvas: HTMLCanvasElement, t: number, content: ScreenContent) {
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  const { width: w, height: h } = canvas;
-  const floor = frame(ctx, w, h, 'CANDIDATE', room.emit.magenta);
-  label(ctx, 'PHASE', 48, 126);
-  ctx.font = display(84);
-  spaced(ctx, '0.04em');
-  ctx.fillStyle = room.emit.ice;
-  ctx.fillText(content.phase.split(' · ')[0]?.toUpperCase() ?? '', 48, 160);
-  spaced(ctx, '0em');
-  label(ctx, 'HEAD (ILLUSTRATIVE)', 48, 272);
-  // A scrolling abbreviated SHA. Deterministic from time so it never reads as
-  // a real commit: hex digits walk, they are not looked up anywhere.
-  ctx.font = mono(104);
-  ctx.fillStyle = room.emit.magenta;
-  ctx.shadowColor = room.emit.magenta;
-  ctx.shadowBlur = 18;
-  let sha = '';
-  for (let i = 0; i < 10; i += 1) {
-    sha += ((Math.floor(t * 1.5) * 7 + i * 13 + Math.floor(t / 3) * 5) % 16).toString(16);
+    ctx.textBaseline = 'top';
+    ctx.globalAlpha = easeOut(clamp01((since - 0.2) / 0.5));
+    ctx.fillText(lines.join(' '), 64, 330);
+    ctx.globalAlpha = 1;
+    spaced(ctx, '0em');
+    // A slow scan across the foot: something is happening, elsewhere.
+    const x = 64 + ((t * 0.5) % 1) * (w - 128);
+    ctx.fillStyle = tint;
+    ctx.globalAlpha = 0.35;
+    ctx.fillRect(x - 60, floor - 60, 120, RULE);
+    ctx.globalAlpha = 1;
+  } else {
+    const findings = verdict === 'PASS_WITH_NON_BLOCKING_FINDINGS' ? 3 : 0;
+    drawReturn(
+      ctx,
+      w,
+      floor,
+      since,
+      SLAB_ARRIVAL,
+      verdict,
+      {
+        cx: w - 64 - 150,
+        cy: 150 + (floor - 150) / 2 - 30,
+        r: 118,
+        wordX: 64,
+        wordY: 130,
+        wordWidth: w - 128 - 330,
+        linesX: 64,
+        linesY: floor - 30 - 3 * 48,
+        linesWidth: w - 128 - 330,
+        pitch: 48,
+      },
+      // The replay carries the run's own counts under the verdict; the
+      // demonstration falls back to `tally.ts`'s illustrative lines.
+      content.evidence ? [...content.evidence] : evidenceLines(outcome),
+      findings,
+    );
   }
-  ctx.fillText(sha, 48, 306);
-  ctx.shadowBlur = 0;
-  label(ctx, 'PROVENANCE TETHER', 48, 436);
-  const lineY = Math.min(508, floor - 44);
-  ctx.strokeStyle = room.emit.teal;
-  ctx.lineWidth = 4;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  for (let x = 48; x < w - 48; x += 8) {
-    const y = lineY + Math.sin(x * 0.03 + t * 2) * 10;
-    if (x === 48) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.stroke();
-  ctx.fillStyle = room.emit.teal;
-  ctx.shadowColor = room.emit.teal;
-  ctx.shadowBlur = 14;
-  ctx.beginPath();
-  const dotX = 48 + ((t * 90) % (w - 96));
-  ctx.arc(dotX, lineY + Math.sin(dotX * 0.03 + t * 2) * 10, 10, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.shadowBlur = 0;
+  ctx.restore();
+  finish(ctx, w, h, t);
+  if (content.ownerGate) quieten(ctx, w, h, 0.72);
 }
-
-// ------------------------------------------------------------- the station
-
-/** Deterministic "hex" from integers: a texture, not a value. */
-function hex(seed: number, length: number): string {
-  let out = '';
-  for (let i = 0; i < length; i += 1) out += ((seed * 31 + i * 17 + (seed >> 3)) % 16).toString(16);
-  return out;
-}
-
-const ease = (x: number) => 1 - (1 - x) ** 3;
-const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
-
-/** Receiving: eight packets travel in along a channel and seal a manifest. */
-const PACKETS = 8;
-const PACKET_GAP = 0.26;
-const PACKET_FLIGHT = 0.5;
-const RECEIVING_LOOP = 3.4;
-/** Working: five checks, each ticking through eight steps. */
-const CHECK_SECONDS = 1.05;
-const CHECK_STEPS = 8;
-const WORKING_LOOP = 8.5;
-const BEAT = CHECK_SECONDS / 2;
 
 /**
- * The station panel: occupant, state, and a field that is different in
- * each state. In RECEIVING the field is an arrival — packets travelling in
- * along a channel, each one sealing a segment of a manifest, while the word
- * itself resolves out of hex as they land. In WORKING it is a run of five
- * illustrative checks with bars that advance in quantised steps to a beat,
- * a pulse line that keeps the same beat, and a count. In REPORTED it is the
- * verdict with the run's ticks under it. Nothing is measured; `since` is
- * seconds since the state last changed.
+ * The candidate slab: its state, in the constitution's words, landing
+ * with weight on each change; beneath it an identity-shaped string that
+ * **does not change** while the candidate is judged — review is of one
+ * exact immutable SHA, and V6's hex walked every 0.7 s, which was the
+ * wrong picture. During the owner gate this is the one thing lit.
  */
-function drawStation(
+function drawCandidate(
   canvas: HTMLCanvasElement,
   t: number,
   since: number,
-  occupant: string | null,
-  state: StationState,
-  verdict: ScreenContent['verdict'],
+  content: ScreenContent,
+  corner: number,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const { width: w, height: h } = canvas;
-  const stateColour =
-    state === 'RECEIVING'
-      ? room.emit.ice
-      : state === 'WORKING'
-        ? room.warm.amber
-        : state === 'REPORTED'
-          ? verdict === 'BLOCKED'
-            ? BLOCK_RED
-            : PASS_GREEN
-          : room.emit.cyan;
-  const tint = occupant ? stateColour : room.emit.cyan;
-  const floor = frame(ctx, w, h, 'STATION', tint);
-  label(ctx, 'OCCUPANT', 48, 126);
-  ctx.font = display(78);
+  if (content.ownerGate) {
+    drawOwnerGate(ctx, w, h, t, since, corner);
+    return;
+  }
+  const floor = frame(ctx, w, h, 'CANDIDATE', room.emit.magenta, 0, corner);
+  const lines = stateLines(content.candidate);
+  const arrive = clamp01(since / 0.5);
+  bigWord(ctx, lines[0], 64, 130, w - 128, content.candidate ? room.emit.ice : DIM, arrive, 150);
+  if (lines[1]) {
+    ctx.save();
+    ctx.globalAlpha = easeOut(clamp01((since - 0.2) / 0.45));
+    spaced(ctx, '0.04em');
+    fitFont(ctx, display, 72, lines[1], w - 128);
+    ctx.fillStyle = room.emit.ice;
+    ctx.textBaseline = 'top';
+    ctx.fillText(lines[1], 64, 300 + (1 - landing(clamp01((since - 0.2) / 0.45), 0.1)) * 30);
+    spaced(ctx, '0em');
+    ctx.restore();
+  }
+  // The identity: fixed for the candidate. In the demonstration it is
+  // data-shaped and is never a real commit; in the replay it is the run's
+  // own candidate SHA, and the band says which of the two you are reading.
+  if (content.candidate) {
+    ctx.font = mono(84);
+    ctx.fillStyle = room.emit.magenta;
+    ctx.textBaseline = 'top';
+    ctx.fillText(content.candidateId ?? CANDIDATE_ID, 64, floor - 124);
+    ctx.strokeStyle = room.emit.magenta;
+    ctx.lineWidth = RULE;
+    ctx.globalAlpha = 0.5;
+    ctx.strokeRect(48, floor - 142, w - 96, 118);
+    ctx.globalAlpha = 1;
+  }
+  finish(ctx, w, h, t);
+}
+
+/**
+ * The owner gate (§0.10.10, candidate 3): SAFE_TO_MERGE — "every merge
+ * gate passes. Eligible. Not merged." — and merge is owner-only. The
+ * system has stopped and turned to the owner. Gold, used nowhere else; a
+ * frame breathing slowly; the state's words; and what it is not.
+ */
+function drawOwnerGate(ctx: Ctx, w: number, h: number, t: number, since: number, corner: number) {
+  const floor = frame(
+    ctx,
+    w,
+    h,
+    'OWNER',
+    OWNER_GOLD,
+    0.6 + 0.4 * (0.5 + 0.5 * drift(t, 0.25)),
+    corner,
+  );
+  const arrive = clamp01(since / 0.7);
+  const breath = 0.5 + 0.5 * drift(t, 0.25);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, w, floor);
+  ctx.clip();
+  // The frame breathing: an inner bracket that swells and settles.
+  brackets(ctx, 40, 40, w - 80, floor - 80, OWNER_GOLD, 0.6 + 0.4 * breath);
+  bigWord(ctx, 'SAFE TO MERGE', 64, 140, w - 128, OWNER_GOLD, arrive, 150);
+  ctx.globalAlpha = easeOut(clamp01((since - 0.35) / 0.5));
   spaced(ctx, '0.05em');
-  ctx.fillStyle = occupant ? TEXT : DIM;
-  ctx.fillText(occupant ? occupant.toUpperCase() : 'UNASSIGNED', 48, 154);
+  fitFont(ctx, display, 64, 'ELIGIBLE · NOT MERGED', w - 128);
+  ctx.fillStyle = OWNER_GOLD;
+  ctx.textBaseline = 'top';
+  ctx.fillText('ELIGIBLE · NOT MERGED', 64, 320);
   spaced(ctx, '0em');
-  label(ctx, 'STATE', 560, 126);
-  // The state word; in RECEIVING it resolves out of hex, letter by letter,
-  // as the packets land.
-  let word = state as string;
-  if (state === 'RECEIVING') {
-    const s = since % RECEIVING_LOOP;
-    word = [...state]
-      .map((ch, i) => (s > 0.35 + i * 0.24 ? ch : hex(Math.floor(t * 18) + i * 7, 1).toUpperCase()))
-      .join('');
-  }
-  // Fitted to its column: RECEIVING is the widest word and must not be cut.
-  spaced(ctx, '0.06em');
-  fitFont(ctx, display, 60, 'RECEIVING', w - 560 - 48);
-  ctx.fillStyle = stateColour;
-  ctx.shadowColor = stateColour;
-  ctx.shadowBlur = 18;
-  ctx.fillText(word, 560, 164);
-  ctx.shadowBlur = 0;
-  spaced(ctx, '0em');
-
-  const top = 262;
-  const bottom = floor - 20;
-  if (state === 'READY' || !occupant) {
-    ctx.font = mono(28);
-    ctx.fillStyle = DIM;
-    ctx.fillText(occupant ? 'awaiting hand-off' : 'no occupant', 48, top + 8);
-    for (let i = 0; i < 16; i += 1) {
-      const lit = i < 3;
-      ctx.fillStyle = tint;
-      ctx.globalAlpha = lit ? 0.85 : 0.14;
-      roundRect(ctx, 48 + i * 58, top + 70, 42, 16, 5);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-    return;
-  }
-
-  if (state === 'RECEIVING') {
-    const s = since % RECEIVING_LOOP;
-    const channelY = top + 60;
-    const boxX = 690;
-    const boxW = w - 48 - boxX;
-    const boxY = top;
-    const boxH = bottom - top;
-    // The channel.
-    const reach = ease(clamp01(s / 0.4));
-    ctx.strokeStyle = room.emit.ice;
-    ctx.globalAlpha = 0.45;
-    ctx.lineWidth = 5;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(48, channelY);
-    ctx.lineTo(48 + (boxX - 48) * reach, channelY);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-    // The manifest box.
-    let landed = 0;
-    for (let k = 0; k < PACKETS; k += 1) {
-      const start = 0.3 + k * PACKET_GAP;
-      if (s >= start + PACKET_FLIGHT) landed += 1;
-    }
-    const sealed = landed === PACKETS;
-    ctx.strokeStyle = sealed ? PASS_GREEN : room.emit.ice;
-    ctx.globalAlpha = sealed ? 0.95 : 0.6;
-    ctx.lineWidth = 3;
-    roundRect(ctx, boxX, boxY, boxW, boxH, 14);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-    ctx.font = mono(24);
-    spaced(ctx, '0.12em');
-    ctx.fillStyle = DIM;
-    ctx.fillText('MANIFEST', boxX + 18, boxY + 14);
-    ctx.textAlign = 'right';
-    ctx.fillStyle = sealed ? PASS_GREEN : room.emit.ice;
-    ctx.fillText(sealed ? 'SEALED' : `${landed}/${PACKETS}`, boxX + boxW - 18, boxY + 14);
-    ctx.textAlign = 'left';
-    spaced(ctx, '0em');
-    // Segments inside the box, one per packet.
-    const segW = (boxW - 36 - (PACKETS - 1) * 6) / PACKETS;
-    for (let k = 0; k < PACKETS; k += 1) {
-      const lit = k < landed;
-      ctx.fillStyle = lit ? (sealed ? PASS_GREEN : room.emit.ice) : 'rgba(207,228,255,0.12)';
-      if (lit) {
-        ctx.shadowColor = ctx.fillStyle;
-        ctx.shadowBlur = 12;
-      }
-      roundRect(ctx, boxX + 18 + k * (segW + 6), boxY + 52, segW, 24, 5);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    }
-    // The landed chunks, listed.
-    ctx.font = mono(26);
-    for (let k = 0; k < landed; k += 1) {
-      ctx.fillStyle = k === landed - 1 ? room.emit.ice : DIM;
-      ctx.fillText(`${hex(k + 3, 8)}  ${hex(k * 5 + 1, 4)}`, boxX + 18, boxY + 96 + k * 30);
-    }
-    // The packets in flight, with a trail.
-    for (let k = 0; k < PACKETS; k += 1) {
-      const start = 0.3 + k * PACKET_GAP;
-      const p = (s - start) / PACKET_FLIGHT;
-      if (p < 0 || p >= 1) continue;
-      const x = 48 + (boxX - 48) * ease(p);
-      const trail = 160 * (1 - p) + 50;
-      const grad = ctx.createLinearGradient(x - trail, 0, x, 0);
-      grad.addColorStop(0, 'rgba(207,228,255,0)');
-      grad.addColorStop(1, room.emit.ice);
-      ctx.fillStyle = grad;
-      ctx.fillRect(x - trail, channelY - 6, trail, 12);
-      ctx.font = mono(32);
-      ctx.fillStyle = room.emit.ice;
-      ctx.shadowColor = room.emit.ice;
-      ctx.shadowBlur = 18;
-      ctx.fillText(hex(k + 3, 4), x - 40, channelY - 56);
-      // The packet: a bright bar, not a dot, so it reads from across the room.
-      roundRect(ctx, x - 22, channelY - 14, 44, 28, 6);
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    }
-    // A landing flash on the box edge.
-    for (let k = 0; k < PACKETS; k += 1) {
-      const land = 0.3 + k * PACKET_GAP + PACKET_FLIGHT;
-      const f = (s - land) / 0.25;
-      if (f < 0 || f >= 1) continue;
-      ctx.globalAlpha = 1 - f;
-      ctx.fillStyle = room.emit.ice;
-      ctx.shadowColor = room.emit.ice;
-      ctx.shadowBlur = 28;
-      ctx.fillRect(boxX - 5, boxY + 8 + f * 10, 10, boxH - 16 - f * 20);
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = 1;
-    }
-    ctx.font = mono(24);
-    ctx.fillStyle = DIM;
-    ctx.fillText(
-      sealed ? 'hand-off landed · scripted' : 'hand-off arriving · scripted',
-      48,
-      bottom - 26,
-    );
-    return;
-  }
-
-  const runFor = CHECKS.length * CHECK_SECONDS;
-  if (state === 'WORKING') {
-    const s = since % WORKING_LOOP;
-    const done = Math.min(CHECKS.length, Math.floor(s / CHECK_SECONDS));
-    const complete = s >= runFor;
-    // The pulse line: a beat every half check, travelling right. Once the
-    // run is complete it gives way to the report line.
-    const pulseY = top + 8;
-    if (complete) {
-      ctx.font = mono(26);
-      ctx.fillStyle = room.warm.amber;
-      ctx.globalAlpha = 0.7 + 0.3 * Math.sin(s * 5);
-      ctx.fillText('run complete · reporting · scripted', 48, pulseY + 2);
-      ctx.globalAlpha = 1;
-    } else {
-      ctx.strokeStyle = room.warm.amber;
-      ctx.lineWidth = 5;
-      ctx.lineCap = 'round';
-      ctx.globalAlpha = 0.85;
-      ctx.beginPath();
-      for (let x = 48; x <= 640; x += 4) {
-        const phase = ((x - 48) / 592) * 3 - ((s / BEAT) % 3);
-        const frac = ((phase % 1) + 1) % 1;
-        const spike = frac < 0.12 ? Math.sin((frac / 0.12) * Math.PI) : 0;
-        const y = pulseY + 14 - spike * 22;
-        if (x === 48) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
-    // The count.
-    ctx.font = display(64);
-    ctx.textAlign = 'right';
-    ctx.fillStyle = room.warm.amber;
-    ctx.shadowColor = room.warm.amber;
-    ctx.shadowBlur = 14;
-    ctx.fillText(`${done}/${CHECKS.length}`, w - 48, top - 12);
-    ctx.shadowBlur = 0;
-    ctx.textAlign = 'left';
-    // The checks.
-    const listTop = top + 56;
-    const pitch = Math.floor((bottom - listTop) / CHECKS.length);
-    CHECKS.forEach((name, i) => {
-      const y = listTop + i * pitch;
-      const local = (s - i * CHECK_SECONDS) / CHECK_SECONDS;
-      const running = local >= 0 && local < 1 && !complete;
-      const finished = local >= 1 || complete;
-      const steps = finished ? CHECK_STEPS : running ? Math.floor(local * CHECK_STEPS) : 0;
-      ctx.font = mono(28);
-      spaced(ctx, '0.1em');
-      ctx.fillStyle = running ? room.warm.amber : finished ? TEXT : DIM;
-      ctx.fillText(name, 48, y + 2);
-      spaced(ctx, '0em');
-      const x0 = 250;
-      const x1 = w - 130;
-      const stepW = (x1 - x0 - (CHECK_STEPS - 1) * 6) / CHECK_STEPS;
-      for (let k = 0; k < CHECK_STEPS; k += 1) {
-        const lit = k < steps;
-        ctx.fillStyle = lit ? room.warm.amber : 'rgba(207,228,255,0.1)';
-        if (lit && running && k === steps - 1) {
-          ctx.shadowColor = room.warm.amber;
-          ctx.shadowBlur = 14;
-        }
-        roundRect(ctx, x0 + k * (stepW + 6), y + 6, stepW, 24, 5);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      }
-      if (finished) tick(ctx, w - 92, y + 4, room.warm.amber);
-      else if (running) {
-        ctx.font = mono(24);
-        ctx.fillStyle = room.warm.amber;
-        ctx.globalAlpha = 0.6 + 0.4 * Math.sin((s / BEAT) * Math.PI * 2);
-        ctx.fillText('run', w - 96, y + 6);
-        ctx.globalAlpha = 1;
-      }
-    });
-    return;
-  }
-
-  // REPORTED: the verdict, and the run's marks under it.
-  const passed = verdict !== 'BLOCKED';
-  const colour = passed ? PASS_GREEN : BLOCK_RED;
-  const text = verdict === '—' ? 'REPORTED' : verdict.replace(/_/g, ' ');
-  const size = fitFont(ctx, display, 120, text, w - 96);
-  spaced(ctx, '0.04em');
-  ctx.fillStyle = colour;
-  ctx.shadowColor = colour;
-  ctx.shadowBlur = 24;
-  ctx.fillText(text, 48, top + (120 - size) / 2);
-  ctx.shadowBlur = 0;
-  spaced(ctx, '0em');
-  const rowY = top + 150;
-  const colW = (w - 96) / CHECKS.length;
-  CHECKS.forEach((name, i) => {
-    const x = 48 + i * colW;
-    // On BLOCKED the last category carries the cross — a fixed choice of
-    // the timeline, not a finding of anything.
-    const failed = !passed && i === CHECKS.length - 1;
-    if (failed) cross(ctx, x, rowY, BLOCK_RED);
-    else tick(ctx, x, rowY, colour);
-    ctx.font = mono(24);
-    spaced(ctx, '0.1em');
-    ctx.fillStyle = failed ? BLOCK_RED : DIM;
-    ctx.fillText(name, x + 36, rowY + 2);
-    spaced(ctx, '0em');
-  });
-  ctx.font = mono(24);
-  ctx.fillStyle = DIM;
-  ctx.fillText('verdict returned · scripted', 48, bottom - 26);
+  ctx.globalAlpha = easeOut(clamp01((since - 0.7) / 0.5));
+  dataLine(ctx, 'WAITING ON THE OWNER', 64, floor - 100, w - 128, TEXT, 52);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+  finish(ctx, w, h, t);
 }

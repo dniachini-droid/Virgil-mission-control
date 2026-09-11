@@ -171,28 +171,57 @@ describe('how the screens use them', () => {
     expect(fonts).not.toContain('fetch(');
   });
 
+  // Every file that draws onto a screen: the faces come from `draw.ts`.
+  const drawing = [
+    'world/screens/ScreenBank.tsx',
+    'world/screens/ConsoleScreen.tsx',
+    'world/screens/draw.ts',
+    'world/screens/stationScreen.ts',
+    'world/screens/returning.ts',
+    'world/screens/verdicts.ts',
+    'world/screens/tally.ts',
+  ];
+
   it('sets the screens in the two bundled families and no other', () => {
-    const screens = src('world/screens/ScreenBank.tsx');
+    const screens = src('world/screens/draw.ts');
     expect(screens).toContain("from './fonts.js'");
-    expect(screens).not.toMatch(/px (ui-monospace|Menlo|sans-serif|serif|Arial|Helvetica)/);
+    for (const file of drawing) {
+      expect(src(file)).not.toMatch(/px (ui-monospace|Menlo|sans-serif|serif|Arial|Helvetica)/);
+    }
     const families = SCREEN_FONTS.map((f) => f.metadata.family);
     expect(families).toEqual([DISPLAY_FAMILY, MONO_FAMILY]);
     expect(families).toHaveLength(2);
   });
 
-  it('draws no literal the mono subset cannot set', () => {
-    const screens = src('world/screens/ScreenBank.tsx');
+  it('draws no literal the mono subset cannot set, in any file that draws', () => {
     const mono = SCREEN_FONTS.find((f) => f.metadata.family === MONO_FAMILY);
     const kept = new Set(mono?.metadata.subset.characters ?? '');
-    const literals = screens.match(/'[^'\n]*'/g) ?? [];
-    for (const literal of literals) {
-      // Colour values, CSS-ish tokens and paths are not drawn.
-      if (/^'(#|rgba?\(|\.\/|\.\.\/|@|\d+(\.\d+)?em)/.test(literal)) continue;
-      const text = literal.slice(1, -1);
-      if (/[a-z]/.test(text) === false && /[A-Z]/.test(text) === false) continue;
-      for (const ch of text) {
-        if (ch === '\\') continue;
-        expect(kept.has(ch), `"${ch}" in ${literal}`).toBe(true);
+    for (const file of drawing) {
+      const screens = src(file);
+      const literals = screens.match(/'[^'\n]*'/g) ?? [];
+      for (const literal of literals) {
+        // Colour values, CSS-ish tokens and paths are not drawn.
+        if (/^'(#|rgba?\(|\.\/|\.\.\/|@|\d+(\.\d+)?em)/.test(literal)) continue;
+        const text = literal.slice(1, -1);
+        if (/[a-z]/.test(text) === false && /[A-Z]/.test(text) === false) continue;
+        for (const ch of text) {
+          if (ch === '\\') continue;
+          expect(kept.has(ch), `"${ch}" in ${literal} (${file})`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('draws every upper-case word in the display subset, which has no lower case', () => {
+    const displayFont = SCREEN_FONTS.find((f) => f.metadata.family === DISPLAY_FAMILY);
+    const kept = new Set(displayFont?.metadata.subset.characters ?? '');
+    // The words the screens set in the display face: every literal that is all caps.
+    for (const file of drawing) {
+      const literals = src(file).match(/'[^'\n]*'/g) ?? [];
+      for (const literal of literals) {
+        const text = literal.slice(1, -1);
+        if (!/^[A-Z][A-Z0-9 ·\-–—_]*$/.test(text) || text.length < 3) continue;
+        for (const ch of text) expect(kept.has(ch), `"${ch}" in ${literal} (${file})`).toBe(true);
       }
     }
   });

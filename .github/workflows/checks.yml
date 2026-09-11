@@ -1,0 +1,378 @@
+# The repository's required checks, run by something with no interest in the answer.
+#
+# Why this file exists. Until now every check this repository has ever reported
+# was run by hand, inside the session that also wrote the code, and the report
+# of it was prose. `CLAUDE.md` says plainly that a builder's success report is
+# not evidence; this workflow is the part that can be evidence. Two review
+# findings name the specific hole it closes:
+#
+#   KR-50/KR-59 — neither `build:owner` nor `verify:owner` was reachable from
+#   any required check, and there was no CI at all, so the only guard that
+#   catches a network escape in the Owner Build was the one guard nothing ran.
+#
+#   KR-58 — `owner-build/inline.mjs` scans for external references *before* it
+#   reinserts the CSS and *before* it pastes the bundle, so it only ever
+#   inspected the bare shell. A remote `url()` in the stylesheet, and a
+#   `fetch()` added to a component, both survive it and both survive the unit
+#   tests. `verify:owner` catches them, at runtime, from a `file://` URL.
+#   This workflow does not fix `inline.mjs`. It makes the check that catches
+#   its blind spot unavoidable. Those are different things and the backlog
+#   records them separately.
+#
+# A workflow file is itself editable, so the wiring does not live only here:
+# `pnpm check` at the repository root runs `verify:owner` through the turbo
+# graph, and `apps/mission-control/test/required-checks.test.ts` fails if that
+# wiring, or this file's steps, are removed. Deleting this workflow therefore
+# breaks `pnpm test`. The owner builds and verifies below are run twice on
+# purpose — once inside `pnpm check` and once explicitly — so that removing
+# either path does not remove the guard.
+#
+# ---------------------------------------------------------------------------
+# **Why this file has four jobs and not two: the Keeper's KS4-05 and KS4-06.**
+#
+# The stage-4 review read the Actions API and found that this branch's own gate
+# had never passed: 45 runs, and the `lint, typecheck, tests, owner build,
+# owner verify` job had never concluded `success`. Three of them exited 1 at
+# `pnpm run verify:owner:v11`; at the reviewed candidate the job hit
+# `timeout-minutes: 30` **inside `pnpm check`**, with the Mind Scan, both owner
+# builds, both verifies and the digest check all skipped behind it.
+#
+# The arithmetic is the plain part. Run 41, at the branch point `c2f9651`,
+# passed with `pnpm check` taking **2 m 23 s** — and at that commit `pnpm
+# check` did not yet run `verify:owner:v11`. That check drives a WebGL scene in
+# a software rasteriser across three simulated viewports plus a motion and
+# performance tail, and takes about **fifteen minutes** on this class of
+# machine. A single sequential job holding lint, typecheck, 1,452 tests, two
+# owner builds and two browser verifies inside a thirty-minute cap has almost
+# no margin, and run 85 proved it by running out of it at 30 m 17 s.
+#
+# So: the cap is raised where the work genuinely takes that long and the reason
+# is stated rather than assumed, and the job is split the same way the check
+# itself was split, into parts that run at the same time. The whole check still
+# runs whole, once, inside `pnpm check` — because "it has never run whole,
+# anywhere" is the second half of what the review found, and four partial runs
+# are four partial runs however sufficient their coverage.
+#
+# What this does **not** fix, stated so nobody reads a green tick as more than
+# it is: whether `verify:owner:v11` passes on the browser the lockfile pins was
+# unknown when this was written. `cdn.playwright.dev` is blocked by the build
+# environment's egress policy, so every local run anywhere in the record —
+# every builder's, both reviewers' — substituted the preinstalled
+# `chromium-1194`. CI is the only place the pinned browser is ever used. If a
+# part below fails, it fails for a reason that is now readable in its own job's
+# log rather than buried in a twenty-five-minute step.
+# ---------------------------------------------------------------------------
+
+name: checks
+
+# ---------------------------------------------------------------------------
+# **What runs when, and why it stopped running everything on every push.**
+#
+# On 2026-09-10 this repository exhausted its 2,000 included Actions minutes and
+# every run after 05:36 UTC failed in two to four seconds with no runner
+# assigned and no logs — a failure that looks exactly like broken code and is
+# nothing of the kind. The arithmetic is not subtle: the four jobs below cost
+# roughly eighty-five machine-minutes per push, because two of them drive a WebGL
+# scene through a software rasteriser, and twenty-five pushes in a day is the
+# whole month's allowance.
+#
+# So the gate moved rather than shrank. **A push runs the fast half** — lint,
+# typecheck and every unit test, about four minutes and no browser. **A pull
+# request runs everything**, which is the moment it matters, because nothing
+# reaches `main` except through one. `workflow_dispatch` runs everything on
+# demand for the times a branch needs the full answer without a pull request.
+#
+# `test/required-checks.test.ts` asserts this arrangement, so the guarantee is
+# still enforced by something that fails rather than by this comment.
+#
+# **There is no `paths-ignore`, and the Keeper's KP2-02 is why.**
+#
+# This block used to skip pushes touching only `docs/**`, `knowledge/**` or
+# `**/*.md`, on the stated ground that *"documents do not change what any of
+# these checks measure"*. That sentence was false, and it was false about this
+# repository specifically. `packages/knowledge-graph/src/derive.ts` walks
+# `docs/decisions/**/(OD|ADR)-NNNN*.md`, `knowledge/raw/**.source.md` and
+# `knowledge/wiki/**.md`, and `test/seed-graph.test.ts` asserts the committed
+# graph matches a fresh derivation **byte for byte**. Every one of the three
+# ignored patterns was an input to that test.
+#
+# What it cost: commit `3e18c1b` added an owner decision record and nothing else,
+# so no check ran, and the suite was broken from that commit until an independent
+# review re-ran it with the cache forced off and found it. A skip rule is only as
+# good as the claim underneath it, and that claim had never been checked.
+#
+# So the rule is gone rather than narrowed. A prose-only push now costs the four
+# minutes of the fast job, which is the correct price for not having to be right
+# about which files feed which test.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+# Read-only. Nothing here merges, deploys, publishes or touches a credential.
+permissions:
+  contents: read
+
+# **A note on this rule, because it is part of why the branch was never green.**
+# A push cancels the run in flight. That is right for cost, and it means a
+# branch pushed to every few minutes can never finish a thirty-minute run: runs
+# 82, 83 and 84 were each cancelled within three minutes of starting. Nothing
+# here can fix that except shorter jobs, which is what the split below is for.
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 0. **The fast half: what every push runs.** No browser, no owner build, no
+  #    verify — those are the expensive parts and they run on the pull request.
+  #    This is the same lint, the same typecheck and the same 1,514 tests a
+  #    session runs before pushing, run again by something with no stake in the
+  #    answer.
+  fast:
+    name: lint, typecheck, tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test
+
+  # 1. The whole gate, in one command, exactly as a session runs it — and the
+  #    only place `verify:owner:v11` runs **whole** rather than in parts.
+  #    Sixty minutes because the measured work is about thirty and a cap has to
+  #    have margin over the measurement, not equal it.
+  checks:
+    name: lint, typecheck, tests, owner build, owner verify
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # 1. The committed lockfile, or nothing.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `verify:owner` needs a browser. The version is not chosen here: this
+      # installs whatever Chromium the `@playwright/test` pinned in
+      # `pnpm-lock.yaml` asks for, so the browser follows the lockfile and a
+      # reviewer can name it. The run prints the browser build it used.
+      - name: Install the Chromium the lockfile pins
+        run: pnpm --filter mission-control run install:browser
+
+      # 2 + 4 + 5. `pnpm check` is biome, turbo typecheck, every workspace test,
+      # and then `verify:owner` and `verify:owner:v11` — which the turbo graph
+      # makes depend on their builds, so both Owner Builds are built and opened
+      # from `file://` before this step can pass. Neither verify is given
+      # `VIRGIL_V11_VIEWPORTS` or `VIRGIL_V11_TAIL`, so the V11 one runs every
+      # viewport and the tail and prints a bare `PASS`.
+      - name: pnpm check
+        run: pnpm check
+
+  # 1b. **The hosted build, which had no check of any kind — the Keeper's
+  #     KP2-09.** It is the target the owner opens on his phone and the only one
+  #     that can start a session, and until now nothing in this repository would
+  #     have failed if `build:web` broke. Its own job rather than a step of
+  #     another, because it is quick and because a check folded into a slow job
+  #     is a check that gets skipped when the slow job times out.
+  verify-web:
+    name: hosted build, read and refused
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install the Chromium the lockfile pins
+        run: pnpm --filter mission-control run install:browser
+
+      - name: Build the hosted target
+        run: pnpm --filter mission-control run build:web
+
+      # Serves `dist/web` from a local server with a stubbed `/api/state`, so it
+      # reaches no network and holds no credential. It asserts the page asks,
+      # draws what it was told, and — with the endpoint failing — says so and
+      # draws no recorded value.
+      - name: Verify the hosted build reads, and refuses honestly
+        run: pnpm --filter mission-control run verify:web
+
+  # 2. Everything that used to sit behind `pnpm check` in the same job and was
+  #    therefore reported as `skipped` whenever it ran long. None of it needs
+  #    the V11 verify to have finished, and a Mind Scan that never runs because
+  #    a browser check timed out is a check nobody has.
+  artifacts:
+    name: Mind Scan, V10 owner build and verify, committed digests
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install the Chromium the lockfile pins
+        run: pnpm --filter mission-control run install:browser
+
+      # 3. The Mind Scan over knowledge/.
+      - name: Mind Scan
+        run: pnpm --filter @virgil/knowledge-lint run lint
+
+      # 4. Explicitly, as well as through `pnpm check`.
+      - name: Owner Build
+        run: pnpm --filter mission-control run build:owner
+
+      # 5. The important one. Opens the built artifact from a `file://` URL with
+      # no server, visits every route, and fails on a console error, an uncaught
+      # exception, or any request that is not the document itself.
+      - name: Verify the Owner Build opens with no network
+        run: pnpm --filter mission-control run verify:owner
+
+      # 6. Every committed artifact still hashes to its recorded digest. The
+      # V11 artifacts live in the `v11/` subdirectory but their `.sha256` files
+      # stay here and name the relative path, so this one glob still covers
+      # them. Why they are in a subdirectory at all:
+      # apps/mission-control/owner-build/reproduce-v11.mjs, header.
+      - name: Committed Owner Build digests
+        working-directory: docs/process/PHASE_1_owner-builds
+        run: sha256sum -c *.sha256
+
+  # 3. 5b. The V11 verify, in the four parts the script itself supports, run at
+  #    the same time instead of one after another. Each part sets up its own
+  #    artifact and drives it; the script prints `PASS (partial: …)` and names
+  #    exactly what it did, so no part can be mistaken for the whole check. The
+  #    whole check is the `checks` job above; these exist so that a failure has
+  #    a job of its own, a log of its own and about eight minutes rather than
+  #    twenty-five of context in front of it.
+  #
+  #    `fail-fast: false` so one part failing still reports the other three.
+  #    That suppresses nothing: every part's own exit code is the job's.
+  verify-v11:
+    name: V11 owner build and verify (${{ matrix.part.name }})
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        part:
+          - name: portrait-390
+            viewports: portrait-390
+            tail: skip
+          - name: portrait-430
+            viewports: portrait-430
+            tail: skip
+          - name: landscape-844
+            viewports: landscape-844
+            tail: skip
+          - name: motion and performance
+            viewports: none
+            tail: run
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install the Chromium the lockfile pins
+        run: pnpm --filter mission-control run install:browser
+
+      - name: Owner Build V11
+        run: pnpm --filter mission-control run build:owner:v11
+
+      # The same for V11, which additionally measures the simulated iPhone
+      # viewports: no horizontal overflow, every touch target at least 44 x 44
+      # CSS px, the gesture guard refusing a drag and accepting a tap, and V10's
+      # world still loading at V11's own `#/v10` route. Simulated viewports in
+      # headless Chromium; no iPhone exists in CI either, and the script prints
+      # that in its own output.
+      - name: Verify the V11 Owner Build opens with no network
+        env:
+          VIRGIL_V11_VIEWPORTS: ${{ matrix.part.viewports }}
+          VIRGIL_V11_TAIL: ${{ matrix.part.tail }}
+        run: pnpm --filter mission-control run verify:owner:v11
+
+  reproducibility:
+    name: newest Owner Build rebuilds byte for byte
+    if: github.event_name != 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      # Full history: the rebuild happens at the artifact's own source commit,
+      # not at HEAD, so that commit has to be present. A shallow clone makes the
+      # step fail with that reason printed, never pass.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 7. Recovers the source commit and the embedded build minute from the
+      # newest committed artifact, rebuilds it in a detached worktree at that
+      # commit, and compares with `cmp`. See the header of
+      # apps/mission-control/owner-build/reproduce.mjs for what it refuses to
+      # guess.
+      - name: Rebuild and compare
+        run: pnpm reproduce:owner
+
+      # 7b. The same for the newest V11 artifact, rebuilt with `build:owner:v11`
+      # at its own source commit.
+      - name: Rebuild and compare the V11 artifact
+        run: pnpm reproduce:owner:v11

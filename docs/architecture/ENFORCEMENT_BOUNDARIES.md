@@ -1,6 +1,6 @@
 # Enforcement boundaries: reducer, gate engine, orchestration
 
-Status: written during the Phase 0 foundation repair (Keeper findings K-01 to K-07, K-15, K-18), extended in the consolidation branch to the owner's binding repair requirements (resume-target allowlist, repair authorisation under a recorded owner decision, repository path normalisation, permission-overlap tests), and extended again in the owner-authorised second repair round after the independent Keeper review of candidate `956be26` (findings KR-01, KR-02, KR-04, KR-05 repaired; KR-03, KR-06, KR-07, KR-09 recorded below as accepted gaps). The repaired authority system described here is **pending fresh independent Keeper review and owner acceptance**. Nothing in this document ratifies it.
+Status: written during the Phase 0 foundation repair (Keeper findings K-01 to K-07, K-15, K-18), extended in the consolidation branch to the owner's binding repair requirements (resume-target allowlist, repair authorisation under a recorded owner decision, repository path normalisation, permission-overlap tests), and extended again in the owner-authorised second repair round after the independent Keeper review of candidate `956be26` (findings KR-01, KR-02, KR-04, KR-05 repaired; KR-03, KR-06, KR-07, KR-09 recorded below as accepted gaps). The repaired authority system described here is **pending fresh independent Keeper review and owner acceptance**. Nothing in this document ratifies it. Extended again on 2026-09-08, under the owner's grant of the repository root, with "Continuous integration: which checks now run without a human choosing to" below; that section adds claims and moves no existing row.
 
 Three different mechanisms enforce the constitution, and earlier documents blurred them. This document says exactly which mechanism enforces what today, and what no mechanism enforces yet.
 
@@ -197,6 +197,51 @@ Deferred to Phases 2 and 3, as the run record states: session launching with gra
 
 Rows 1 to 11 and 15 to 23 are **implemented now** and **validated by tests**. Rows 12 and 14 are documentation. Nothing in this table is accepted until the fresh independent review and the owner's decision.
 
+## Continuous integration: which checks now run without a human choosing to
+
+Until 2026-09-08 this repository had no continuous integration of any kind. Every check it has ever reported was run by hand, inside the session that also wrote the code, and the report of it was prose. That is the condition two review findings named. **KR-50** and **KR-59**: neither `build:owner` nor `verify:owner` was reachable from any required check and no workflow existed, so the only guard that catches a network escape in the Owner Build was the one guard nothing ran.
+
+`.github/workflows/checks.yml` runs on push to any branch and on pull requests. It installs from the committed lockfile, installs the Chromium that lockfile resolves, and runs `pnpm check` (biome, `turbo run typecheck`, every workspace test, and then `verify:owner`), the Mind Scan, `build:owner`, `verify:owner`, `sha256sum -c` over every committed Owner Build digest, and the byte-for-byte reproducibility rebuild of the newest committed artifact.
+
+The wiring does not live only in that file, because a workflow file is one edit away from gone and nothing would notice. `verify:owner` is a turbo task that depends on `build:owner`, both with `cache: false`, and the root `check` script runs it; `apps/mission-control/test/required-checks.test.ts` fails if that wiring is removed, if a step is dropped from the workflow, if the workflow file is deleted, or if a `continue-on-error` is added to it. Deleting the workflow therefore fails `pnpm test`, which fails `pnpm check`.
+
+| Claim | Status | Mechanism, and what it does not establish |
+|---|---|---|
+| The Owner Build artifact opens from a `file://` URL and makes no runtime request other than the document itself | **implemented now** and **validated by tests** | `apps/mission-control/e2e/verify-owner-build.ts` opens the built artifact from `file://` with no server, visits every route, and exits non-zero on a console error, an uncaught exception, or any request whose URL is not the document. Demonstrated to fail on 2026-09-08 for both a `fetch()` to an external host added to a component and a remote `url()` added to the stylesheet. It says nothing about how the world looks: the renderer is SwiftShader and OD-0005's two graphics-hardware checks remain recorded as not performed |
+| `verify:owner` cannot be skipped, and cannot pass from a cache | **implemented now** and **validated by tests** | `turbo.json` (`verify:owner` depends on `build:owner`; `cache: false` on both), the root `check` script, and `apps/mission-control/test/required-checks.test.ts`, which asserts each of those and every step of the workflow |
+| Every committed Owner Build artifact still hashes to its recorded digest | **implemented now** and **validated by tests** | `sha256sum -c *.sha256` in `docs/process/PHASE_1_owner-builds/`, declared in the workflow and asserted by `required-checks.test.ts`. Demonstrated to fail on a single altered byte |
+| The newest committed Owner Build artifact is byte-for-byte derivable from the commit it names, and from nothing else | **implemented now** and **validated by tests** | `apps/mission-control/owner-build/reproduce.mjs` recovers the source commit and the embedded build minute from the artifact's own bytes, rebuilds in a detached worktree at **that commit** rather than at `HEAD`, and compares with `cmp`. It refuses to guess: two candidate dates, two candidate SHAs, an unreadable file name, an artifact built from a dirty worktree, or a commit missing from the clone are each a printed failure, never a skip. Demonstrated to fail on a single altered byte. It covers the newest artifact only; the older seven are covered by their digests, not by a rebuild |
+| Everything the table above marks **validated by tests** is now exercised on every push | **implemented now** and **validated by tests** | The workflow runs `pnpm check`, which runs `turbo run test`. No label in this document changes because of that — the vocabulary was always about whether a test exists and fails, not about who ran it — but the rows are stronger in practice than they were, because passing them is no longer a session's choice |
+| That GitHub Actions honours `.github/workflows/checks.yml` | **implemented now**, and **not** validated by tests | No test here executes GitHub Actions and none can. `required-checks.test.ts` reads the file and asserts the commands are declared, exactly as `permission-matrix.test.ts` reads `.claude/settings.json` and asserts the deny rules are declared. What exists beyond that is a demonstration, not a control: run 1 on `dd2c48f` was green and run 2, on a scratch branch carrying one external `fetch()`, failed at `pnpm check` (`docs/process/PHASE_1_RUN_RECORD.md`, "Two real runs on GitHub Actions"). Two runs are not a guarantee — a workflow disabled in the repository's settings would make every claim in this section silently untrue, and nothing here would report it. The evidence that a check ran is a run's own log |
+
+### The browser is named in every run, because CI's is not this container's
+
+`verify:owner` needs a real browser. The workflow installs the Chromium that the `@playwright/test` pinned in `pnpm-lock.yaml` resolves to, so the browser follows the lockfile and not a workflow author's choice. The container these sessions run in substitutes a preinstalled Chromium that lags that pin — `141.0.7390.37` against the `153.0.8010.12` the pinned Playwright asks for — and `verify-owner-build.ts` prefers the preinstalled binary when it exists, per that environment's own instruction. So a local pass and a CI pass are not passes on the same browser, and pretending otherwise would make the green a false signal.
+
+That divergence is not repaired here, because repairing it means either downgrading the lockfile or ignoring the container's instruction, and neither is this change's business. What is done instead: every run now prints the browser type, version, executable path, and whether it was the pinned build or the substituted one, so the question "which browser said this artifact makes no requests?" has an answer in the log of every run, in CI and locally. The network-isolation property being checked does not depend on the browser version, but the record of what was checked should never be silent about it.
+
+### No row in this document moves out of "design-level only"
+
+The measurable target for work of this kind is the number of **design-level only** rows here going down. This change moves none of them, and saying otherwise would be the one failure that matters in a document whose whole value is that its labels are true. There are five, and continuous integration does not touch any:
+
+- The `docs/decisions/OD-*` boundary's **protection**, and OD-0006's **single-channel** condition, and the **authenticity** of a quoted owner instruction. Nothing determines which channel an instruction arrived on or whether the owner said the words. No check can; it needs an independent record of the owner's instruction that the filing session cannot write.
+- **KR-03** — a governed required-check list belongs in an owner-controlled file. Note the shape of what changed and what did not: this workflow makes a fixed list of checks run on every push, which is a real control, but it is declared in a repository file a session may edit, not in an owner-controlled one. The reducer still takes its required-check set from the Prover's `verification_started` and anchors it to nothing owner-controlled. KR-03 is untouched.
+- **KR-06** — case-folding and symlink resolution need a file system, which is Phase 3 hook territory.
+- **KR-07** — whether the owner may delegate a protected boundary is an owner decision on `AUTHORITY_TIERS.md`.
+
+Each of the five is design-level only because no code *can* perform it here, not because no runner existed. A runner does not change that.
+
+### KR-58: caught by a required check, not repaired
+
+`owner-build/inline.mjs` scans for external `src` and `href` references **before** it reinserts the stylesheet and **before** it pastes the bundle, so it only ever inspects the bare shell. Both defects demonstrated on 2026-09-08 passed it and passed all 317 workspace tests, and were caught only by `verify:owner`. So the position after this change is precisely:
+
+- The **blind spot in `inline.mjs` is unrepaired**, and its status is unchanged.
+- The **class of defect it misses is now caught by a check that runs on every push**, and that check cannot be skipped without failing `pnpm test`.
+
+Those are two different statements and neither substitutes for the other. A repair to `inline.mjs` — scanning the finished document rather than the shell — is still open work.
+
+So, of the three findings this section began with: **KR-50** and **KR-59** are addressed by the workflow and its wiring test. **KR-58** is caught and not repaired. `docs/process/PHASE_1_BACKLOG.md` carries all three in that form.
+
 ## Accepted gaps from the Keeper review of `956be26` (recorded, not repaired)
 
 Recorded here under the owner's authorisation of the second repair round, which limited the repair to KR-01, KR-02, KR-04 and KR-05.
@@ -207,3 +252,25 @@ Recorded here under the owner's authorisation of the second repair round, which 
 | KR-06 | The protected-boundary overlap check is case-sensitive; symlinks are outside the normaliser | design-level only | Repository paths are compared as recorded; case-folding and symlink resolution need a file system, which is Phase 3 hook territory. A grant naming `Constitution/**` is refused only on a case-sensitive file system |
 | KR-07 | An owner grant may hand an agent write authority over a protected boundary (`validation.ts` owner exemption) | design-level only | Whether the owner may delegate a protected boundary is an owner decision on `AUTHORITY_TIERS.md` invariant 3; reported, not decided by a session |
 | KR-09 | Gate `reviewer_independence` takes builder and Prover session ids but no repairer ids | deferred to a privileged runtime | The Phase 2 evidence adapter must fold repairer sessions into `builderSessionIds`; the reducer already covers repairers |
+
+## What the room cannot draw about a report it accepts (Phase 2 slice two)
+
+The wire check in `netlify/functions/state.mjs` and `SessionStatusReport` in `packages/agent-contracts/src/live.ts` now agree about what a session's report may say, and the pairing is held by generated cases rather than named ones (`apps/mission-control/test/live-state-v11.test.ts`). Agreeing about what may be *said* is not the same as being able to *draw* it. One gap is open and is named here rather than in a comment beside the code that has it.
+
+| Gap | Status | What happens now |
+|---|---|---|
+| The contract admits the whole cast as a holder — fourteen roles — and the room has three stations | drawn as at rest, deliberately | `world/live/liveState.ts` maps `fabricator`, `prover` and `keeper` to the names every other surface uses and maps every other role to nothing. A report saying the Architect holds the work is accepted, is true, and reaches the owner's screen as *no agent is working on it*. That is a loss of a true fact, and it replaces a worse one: the raw role name went through unmapped until 2026-09-10, so the slab read KEEPER while the action beneath it read *"Go to the Fabricator"* and went there |
+
+Closing it needs a surface for a role with no station — a fourth thing for the room to draw — which is a slice of its own and is not one this build has.
+
+## Accepted gaps carried out of the Phase 2 review series (recorded, not repaired)
+
+The fourth Keeper review's `KP5-16` found `KP2-14` recorded only in the title of a test, where a reader consulting this document for open gaps would not find it. These are the gaps a session may not close, with the reason each is a session's to report rather than to repair.
+
+| Finding | Gap | Why it is not repaired here |
+|---|---|---|
+| `KP2-14` | `apps/mission-control/vite.owner.config.ts` defines no `__LIVE__`; four of the five configs do. Latent: V10 does not reach the code, and the V10 artifact is clean of every live-mode string | The file is one of the five fingerprinted by `owner-build-v11.test.ts`, and `OD-0010` — a layer-1 owner decision — keeps that fingerprint deliberately, recording with approval that it refused a session adding a `define` to this very file. A session editing it and updating the digest in the same commit would be stepping over a guard the owner had just endorsed. The digest is not a security measure and the edit is available; that is precisely why taking it would be a decision rather than a repair |
+| `KP2-08` | `/api/state` has no authentication | Accepted by the owner, `OD-0012`. Not repaired, and not to be recorded as closed |
+| `KP3-06` | `main` has no branch protection, so every green check on a pull request is advisory | Deferred by the owner, `OD-0013`. GitHub will not enforce it on this plan; the owner intends to upgrade |
+| `KP3-11` | Every depiction of an agent in the live room is a session's own word about itself | A property of the design, not a defect in it. The room labels it as their word; `CLAUDE.md` says a builder's report is not evidence, and the surfaces say so too |
+| `KP2-11` | The agent step in `instruct.yml` is bounded by `CLAUDE.md` rather than by machinery | What bounds a running agent is branch protection, which is `KP3-06`, which is the owner's. The workflow's own refusal of the default branch and its single `contents: write` permission constrain the automated path and not the agent inside it |

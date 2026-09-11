@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:a86250498e12d01d9be701610b1947b0bec39c34739816ddb2e0334ea6e0d6d1",
+  "graphHash": "sha256:4ea731dec4d7bbfe534a31f3c259173f06c02dfdb9c3fe9356aa0a836f4ae3cf",
   "nodes": [
     {
       "id": "agent-roster",
@@ -107,6 +107,66 @@
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0008 — The owner's attestation as the licence basis for Meshy-generated models (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0009-netlify-and-phase-2-authorisation.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0009 — Netlify authorised, and Phase 2 authorised (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0010-v10-retired-as-a-viewing-point.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0010 — V10 is retired as a viewing point, and its byte count is no longer a contract (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0011-fourth-repair-round-authorised.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0011 — A fourth repair-and-re-review round on PR #8 is authorised (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0012-api-state-stays-unauthenticated.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0012 — `/api/state` stays unauthenticated (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0013-branch-protection-deferred.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0013 — `main` stays unprotected until the owner upgrades (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0014-fifth-repair-round-authorised.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0014 — A fifth repair round, and the cycle ceiling (Tier 3)",
       "epistemicClass": "owner_approved_decision",
       "authorityClass": "owner_decision",
       "status": null,
