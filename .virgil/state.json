@@ -1,20 +1,16 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-11T12:39:05Z",
-  "aboutCommit": "2c7b43104b539b178caa34fa7c0b0b54dd720518",
-  "branch": "claude/virgil-phase-2-slice-4",
-  "candidate": {
-    "sha": "dd52d9457e9824ca4962f7d74a9386ce8b9bb769",
-    "shortSha": "dd52d94",
-    "state": null
-  },
+  "reportedAt": "2026-09-11T15:45:06Z",
+  "aboutCommit": "91409d0d5cd4065216291c1d79f6149a735fff40",
+  "branch": "claude/raphael-8q52l9",
+  "candidate": null,
   "holder": "fabricator",
   "hops": [
     {
       "role": "fabricator",
       "activity": "WORKING",
       "reported": null,
-      "at": "2026-09-11T12:39:05Z"
+      "at": "2026-09-11T15:45:06Z"
     },
     {
       "role": "prover",
@@ -24,17 +20,11 @@
     },
     {
       "role": "keeper",
-      "activity": "REPORTED",
-      "reported": "BLOCKED",
-      "at": "2026-09-11T12:08:00Z"
+      "activity": "READY",
+      "reported": null,
+      "at": null
     }
   ],
-  "review": {
-    "verdict": "BLOCKED",
-    "recordPath": "docs/process/V11_KEEPER_REVIEW_PHASE2_SIXTH.md",
-    "recordCommit": "2c7b43104b539b178caa34fa7c0b0b54dd720518",
-    "findings": 9,
-    "blocking": 1
-  },
-  "note": "Slice four built and repaired after the Keeper blocked it; slice five is being built now."
+  "review": null,
+  "note": "Raising the branch cap that hid the newest slice, and writing this file as the work happens."
 }
