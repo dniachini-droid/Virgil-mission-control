@@ -336,7 +336,101 @@ const BUILD_COMMANDS: readonly { command: string; lines: string[]; exit: number 
   },
 ];
 
+/**
+ * **The window of an agent this app has read nothing about — SA-U-01 and
+ * SA-U-02, and it is the worst defect the audit found.**
+ *
+ * `fabricatorDoc` and `keeperDoc` both open with
+ * `tally(station === 'WORKING' ? since : 100)`. A live state's stations are
+ * `READY`, never `WORKING`, so `100` is passed — "the scripted build, fully
+ * complete" — and the recording's fixtures come back in full. Not on a broken
+ * page: **on a healthy live page about a real branch, with a real commit and
+ * real checks passing.** Two presses from the world — `TALK TO VIRGIL`, then
+ * `Go to the Fabricator` — and the owner reads:
+ *
+ *  - `Files changed — 8 of 8`, with eight invented paths and `+486` lines;
+ *  - a terminal reporting `Tests 801 passed (801)` and `exit 0`;
+ *  - `BRANCH claude/virgil-mobile-v11` beside his own real `HEAD`;
+ *  - a `DRAFT` pull request that does not exist;
+ *  - and, in the Keeper's window, three review findings `KV-01`…`KV-03`.
+ *
+ * None of it happened. The `BRANCH … HEAD` row is the sharpest of them: his
+ * real commit inside a card naming a branch he never chose.
+ *
+ * `proverDoc` was brought under this rule by `KP7-01` and these two were not,
+ * which is the whole of the defect — the same file, the same shape, two windows
+ * over. `liveState.ts` refuses to carry a verdict at length and on principle,
+ * and then the Keeper's own window listed three findings from a review that
+ * never ran.
+ *
+ * **Why the repair is not "pass `since` instead of `100`".** That would draw
+ * `0 of 8` — a different false claim, about a build that was never attempted.
+ * The list must be *absent*, not zero. So: no live source, no section.
+ */
+function nothingReadDoc(
+  state: DemoState,
+  agent: 'fabricator' | 'keeper',
+  about: string,
+): WindowDoc {
+  const role = agent as Role;
+  return {
+    key: agent,
+    agent,
+    name: NAME[agent],
+    remit: REMIT[agent],
+    status: statusOf(role, state),
+    progression: progressionOf(state, agent),
+    context: contextOf(state),
+    conclusion: {
+      headline: `Nothing has been read about ${about}`,
+      meaning: `This build reads the branch, the commit and the check results from GitHub, and nothing else. ${about[0]?.toUpperCase()}${about.slice(1)} is not among them, so this screen has nothing to show — which is not the same as nothing having happened.`,
+      next: 'A later slice gives this window a real source. Until then it says so rather than drawing the demonstration.',
+    },
+    actions: [
+      {
+        id: 'open-facts',
+        label: 'What is and is not known',
+        goes: { kind: 'section', id: 'facts' },
+      },
+    ],
+    // No scripted dialogue: no agent has said anything about this repository.
+    messages: [],
+    sections: [
+      {
+        id: 'facts',
+        title: 'What is proven and what is only reported',
+        summary: `Nothing about ${about} has been read`,
+        open: true,
+        blocks: [
+          {
+            kind: 'facts',
+            rows: [
+              {
+                text: `Whether anything happened here is unknown: this build has no source for ${about}`,
+                standing: 'unresolved' as Standing,
+              },
+              {
+                text: 'The branch, the commit and the check results are read from GitHub and are on the other screens',
+                standing: 'verified' as Standing,
+              },
+            ],
+          },
+          {
+            kind: 'note',
+            text: 'A check result is evidence. An agent’s statement is a claim. Nothing read is neither, and this screen draws neither.',
+          },
+        ],
+      },
+    ],
+    accent: ACCENT[agent]?.key ?? STATUS.cyan,
+    reaction: state.cast[role].face,
+  };
+}
+
 function fabricatorDoc(state: DemoState): WindowDoc {
+  // SA-U-01. A live page has no source for build activity, so this window says
+  // so rather than drawing the recording's eight files and its green terminal.
+  if (state.mode === 'live') return nothingReadDoc(state, 'fabricator', 'what was built');
   const { station, since } = beatOf(state, 'fabricator');
   const tally = fabricatorTally(station === 'WORKING' ? since : 100);
   const conclusion: Conclusion =
@@ -1366,6 +1460,10 @@ const REFUSALS: readonly { refused: string; reason: string; authority: string }[
 ];
 
 function keeperDoc(state: DemoState): WindowDoc {
+  // SA-U-02, and the sharper half: `liveState` refuses to carry a verdict on
+  // principle, and this window then listed three findings from a review that
+  // never ran.
+  if (state.mode === 'live') return nothingReadDoc(state, 'keeper', 'any review');
   const { station, since } = beatOf(state, 'keeper');
   const tally = keeperTally(station === 'WORKING' ? since : 100);
   const proverReported = state.cast.prover.station === 'REPORTED';

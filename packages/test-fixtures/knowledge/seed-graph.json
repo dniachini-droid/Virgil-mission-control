@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:f5c6b54df0ce654dec93c62386d7dd069170685b0b7800670aaa728ff6694c44",
+  "graphHash": "sha256:e87e71829cff5bf2ce30cc88d73c69d52622c70b03fa6ccbe890a9f841be8a04",
   "nodes": [
     {
       "id": "agent-roster",
@@ -167,6 +167,16 @@
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0014 — A fifth repair round, and the cycle ceiling (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0015-overnight-authorisation-2026-09-11.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0015 — The owner's overnight authorisation of 11 September 2026",
       "epistemicClass": "owner_approved_decision",
       "authorityClass": "owner_decision",
       "status": null,

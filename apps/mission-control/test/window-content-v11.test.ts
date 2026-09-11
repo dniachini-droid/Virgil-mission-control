@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { stateFromAnswer } from '../src/world/live/liveState.js';
 import { ROLES } from '../src/world/room/cast.js';
 import { demoAt, loopLength, OUTCOMES } from '../src/world/room/demo.js';
 import { PROVER_CHECKS, proverTally } from '../src/world/screens/tally.js';
@@ -590,5 +591,112 @@ describe('a check that did not run is never counted as one that passed', () => {
       .flatMap((block) => block.rows);
     expect(facts.some((row) => /did not run/.test(row.text))).toBe(true);
     expect(doc.conclusion.headline).not.toMatch(/All 2 checks passed/);
+  });
+});
+
+/**
+ * **The test the audit said would have caught three findings at once — SA-U-05.**
+ *
+ * `SA-U-01` and `SA-U-02` were not subtle. On a healthy live page about a real
+ * branch, the Fabricator's window drew eight invented file paths and a terminal
+ * reporting `Tests 801 passed (801)`, and the Keeper's drew three invented
+ * review findings. 1,679 tests did not catch it, and the auditor established
+ * exactly why: **no test in this repository passed a live state to `windowDoc`
+ * for the Fabricator or the Keeper.** No file imported both `stateFromAnswer`
+ * and `windowDoc`. Every live-mode window assertion targeted the Prover.
+ *
+ * The defect was not hard to see. It was outside every test's argument range.
+ *
+ * So this builds a live state the way the product builds one — through
+ * `stateFromAnswer`, from an answer shaped like the endpoint's — and asserts of
+ * **every** window that not one string from the recording's fixtures appears in
+ * it. It is deliberately written over all four agents rather than the two that
+ * were wrong, because the next window added will be wrong in the same way.
+ */
+describe('no window on a live page may draw one word of the recording', () => {
+  const LIVE: Record<string, unknown> = {
+    ok: true,
+    asOf: '2026-09-11T16:00:00Z',
+    repo: 'a-repository/that-is-not-the-fixture',
+    branch: 'claude/a-branch-the-recording-never-names',
+    branchExists: true,
+    head: {
+      sha: 'c0ffee11c0ffee11c0ffee11c0ffee11c0ffee11',
+      shortSha: 'c0ffee1',
+      message: 'A commit the recording never names',
+      committedAt: '2026-09-11T15:41:40Z',
+    },
+    pull: null,
+    checks: {
+      total: 2,
+      passed: 2,
+      failed: 0,
+      running: 0,
+      noResult: 0,
+      source: 'check runs',
+      runs: [
+        { name: 'a check the recording never names', state: 'passed' },
+        { name: 'another it never names', state: 'passed' },
+      ],
+    },
+    sessionReport: null,
+    sessionReportStatus: 'absent',
+  };
+
+  const live = () => {
+    const state = stateFromAnswer(LIVE as never, Date.parse('2026-09-11T16:00:30Z'));
+    if (!state) throw new Error('the fixture no longer produces a live state');
+    return state;
+  };
+
+  it('builds a live state at all, or every assertion below is vacuous', () => {
+    const state = live();
+    expect(state.mode).toBe('live');
+    expect(state.content.branch).toBe('claude/a-branch-the-recording-never-names');
+    expect(state.content.candidateId).toBe('c0ffee1');
+  });
+
+  for (const agent of AGENTS) {
+    it(`the ${agent}’s window contains no recorded file, commit, command or finding`, () => {
+      const said = allText(windowDoc(live(), { agent })).join(' ');
+      // The recording's own identifiers. Each is drawn somewhere in demo mode
+      // and must be drawn nowhere in live mode.
+      for (const invented of [
+        'src/world/window/AgentWindow.tsx',
+        '801 passed',
+        'claude/virgil-mobile-v11',
+        '9abcdef',
+        'KV-01',
+        'KV-02',
+        'KV-03',
+        '4d1a9c2',
+        'V11 stage 3 — the windows',
+      ]) {
+        expect(said, `${agent} drew "${invented}"`).not.toContain(invented);
+      }
+    });
+
+    it(`the ${agent}’s window never says a thing happened and that nothing happened`, () => {
+      // SA-U-03: the Fabricator's summary read “No commands have run” with a
+      // terminal showing a command that ran directly beneath it. One document,
+      // two answers, both on screen at once.
+      const doc = windowDoc(live(), { agent });
+      const blocks = doc.sections.flatMap((section) => section.blocks);
+      const claimsActivity = blocks.some((block) =>
+        ['terminal', 'files', 'commits', 'findings', 'pr'].includes(block.kind),
+      );
+      const claimsNone = allText(doc)
+        .join(' ')
+        .match(/No commands have run|is not working|Nothing has been read|has not been given/i);
+      expect(
+        claimsActivity && claimsNone !== null,
+        `${agent} both draws activity and says there is none`,
+      ).toBe(false);
+    });
+  }
+
+  it('the recording is untouched: a scripted state still draws its own record', () => {
+    const said = allText(windowDoc(demoAt(20, 0, true), { agent: 'fabricator' })).join(' ');
+    expect(said).toContain('src/world/window/AgentWindow.tsx');
   });
 });
