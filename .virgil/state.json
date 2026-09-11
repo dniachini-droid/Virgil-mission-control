@@ -1,7 +1,7 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-10T22:51:28Z",
-  "aboutCommit": "6c69a7ba130b4241a9a75fad385a598ca23afae3",
+  "reportedAt": "2026-09-11T04:41:37Z",
+  "aboutCommit": "0bdcaf8bba0691209c76ed8bf43f1f963b6d00cc",
   "branch": "claude/virgil-mobile-v11",
   "candidate": null,
   "holder": null,
@@ -26,5 +26,5 @@
     }
   ],
   "review": null,
-  "note": "Fourth round complete. Every finding a session may repair is repaired; KP2-08 and KP3-06 remain the owner's."
+  "note": "OD-0012 filed: the owner declines authentication on /api/state. Awaiting the fifth Keeper review."
 }

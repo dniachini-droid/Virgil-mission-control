@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:8693d7735359b652aaffc05938826dc644e59dcae27b69192c0d513cd9e286ad",
+  "graphHash": "sha256:5e2b65d8dd47ca744c08130be01694708ce560a2d81bb289ca6b1018b40dcf06",
   "nodes": [
     {
       "id": "agent-roster",
@@ -137,6 +137,16 @@
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0011 — A fourth repair-and-re-review round on PR #8 is authorised (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0012-api-state-stays-unauthenticated.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0012 — `/api/state` stays unauthenticated (Tier 3)",
       "epistemicClass": "owner_approved_decision",
       "authorityClass": "owner_decision",
       "status": null,
