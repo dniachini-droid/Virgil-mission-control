@@ -140,6 +140,40 @@ describe('nothing an input carries reaches a command', () => {
     }
   });
 
+  /**
+   * **KP5-06.** The rule that no `${{ }}` reaches a command is only half the
+   * property. The other half is that every `$VAR` a command *uses* is declared
+   * in that step's `env:` — and one step was not, so the note it writes into the
+   * room would have read "Run ." The check that caught the first half could not
+   * see the second.
+   */
+  it('declares every variable its commands use', () => {
+    const steps = WORKFLOW.split(/\n      - (?=name:|uses:)/).slice(1);
+    expect(steps.length).toBeGreaterThan(5);
+    for (const step of steps) {
+      const runAt = step.indexOf('run: |');
+      if (runAt === -1) continue;
+      const name = /name: (.+)/.exec(step)?.[1] ?? '(unnamed)';
+      const body = step.slice(runAt);
+      const declared = new Set(
+        [...step.slice(0, runAt).matchAll(/^\s{10}([A-Z_][A-Z0-9_]*):/gm)].map((m) => m[1] ?? ''),
+      );
+      // Shell variables the step's own script sets, and the ones the runner
+      // always provides, are not the step's to declare.
+      const provided = new Set(['GITHUB_ENV', 'GITHUB_OUTPUT', 'HOME', 'PATH', 'RUNNER_TEMP']);
+      const used = new Set(
+        [...body.matchAll(/\$\{?([A-Z_][A-Z0-9_]*)\}?/g)].map((m) => m[1] ?? ''),
+      );
+      for (const variable of used) {
+        if (provided.has(variable)) continue;
+        expect(
+          declared.has(variable),
+          `step "${name}" uses $${variable} and does not declare it in env:`,
+        ).toBe(true);
+      }
+    }
+  });
+
   it('passes the branch through the environment, quoted, wherever it pushes', () => {
     expect(WORKFLOW).not.toMatch(/git push origin HEAD:\$\{\{/);
     const pushes = [...WORKFLOW.matchAll(/git push origin (\S+)/g)].map((m) => m[1] ?? '');

@@ -118,6 +118,15 @@ jobs:
       #    shelf life exists for. The agent may update it as it goes; this
       #    guarantees the first and last word.
       - name: Say that a session has started
+        env:
+          # **KP5-06.** Six of seven steps gained this block when KP2-06 moved
+          # every value out of the command text and into the environment. This
+          # one used `$RUN_ID` and declared nothing, so the note committed to the
+          # room would have ended "Run ." — a mechanism saying something it
+          # cannot support, inside the note whose own repair was about exactly
+          # that. A test now requires every `$VAR` in a run block to be declared
+          # in that step's env.
+          RUN_ID: ${{ github.run_id }}
         run: |
           # **Virgil, not the Fabricator — the Keeper's KP2-15.** This wrote
           # `--holder fabricator` and then started an unscoped `claude -p` with

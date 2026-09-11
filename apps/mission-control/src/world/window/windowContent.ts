@@ -1369,7 +1369,22 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
           ? 'Whether the agents should fix it and try again'
           : state.content.verdict === 'INSUFFICIENT_EVIDENCE'
             ? 'Whether to run the missing check or stop this work'
-            : 'No decision is needed yet. The work is still in progress.',
+            : /**
+               * **KP5-12.** This `else` fires whenever there is no verdict and
+               * no gate — which includes *nothing has started* and *nothing was
+               * read*, neither of which is work in progress. On the hosted page
+               * with the endpoint failing, this sentence appeared three lines
+               * under "No work has started" and "Nothing is being worked on", in
+               * the same sheet: two statements about one fact, which is the
+               * defect this project treats as fatal.
+               *
+               * A decision still is not needed. What differs is the reason, and
+               * the reason is knowable here: something is holding the work, or
+               * nothing is.
+               */
+              state.content.active
+              ? 'No decision is needed yet. The work is still in progress.'
+              : 'No decision is needed yet, because nothing is in progress.',
       open: at === 'next' || at === 'candidate' || gate,
       blocks: [
         {

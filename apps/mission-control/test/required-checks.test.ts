@@ -54,6 +54,39 @@ describe('verify:owner is reachable from a required check', () => {
   });
 });
 
+/**
+ * **KP5-03: the check added to close KP2-09 was held in place by nothing.**
+ *
+ * This file's own opening states the rule — remove the command from `check`,
+ * break the turbo dependency, delete the workflow step, or add a
+ * `continue-on-error`, and the suite fails. All four assertions existed for
+ * `verify:owner`. None existed for `verify:web`, so the hosted build's only
+ * verifier could have been unwired in three places and the suite would have
+ * stayed green, under a title about exactly that. It is `KR-50` again, on the
+ * repair for `KP2-09`.
+ */
+describe('verify:web is reachable from a required check', () => {
+  it('runs as part of the root `check` script', () => {
+    expect(rootPackage.scripts.check).toContain('pnpm verify:web');
+    expect(rootPackage.scripts['verify:web']).toBe('turbo run verify:web');
+  });
+
+  it('cannot verify a stale artifact: the turbo graph builds it first', () => {
+    expect(turbo.tasks['build:web']).toBeDefined();
+    expect(turbo.tasks['verify:web']?.dependsOn).toContain('build:web');
+  });
+
+  it('is never satisfied from the turbo cache, because a cached browser run is no run', () => {
+    expect(turbo.tasks['build:web']?.cache).toBe(false);
+    expect(turbo.tasks['verify:web']?.cache).toBe(false);
+  });
+
+  it('is a step of its own job in the workflow, not only a job name', () => {
+    expect(workflow).toContain('pnpm --filter mission-control run build:web');
+    expect(workflow).toContain('pnpm --filter mission-control run verify:web');
+  });
+});
+
 describe('the checks workflow', () => {
   it('runs on every branch and on pull requests', () => {
     expect(workflow).toMatch(/^on:$/m);
@@ -248,8 +281,27 @@ describe('the gate runs in full before anything can merge', () => {
     if (!pattern.includes('/')) {
       return `${pattern} is a bare name, and nothing here can prove it is not read`;
     }
+    /**
+     * **KP5-05: the comment said "prove it harmless" and the code permitted by
+     * default.** It refused only a top segment on the derived list and waved
+     * through anything unrecognised — so `paths-ignore: ['netlify/**']` passed,
+     * and would have taken the gate off every change to the two functions that
+     * are the whole of slices two and three. `.claude/**` and `.virgil/**` are
+     * read by tests too and were equally invisible.
+     *
+     * It refuses by default now, which is what the comment always claimed. A new
+     * top-level directory that genuinely nothing reads has to be named in
+     * `PERMITTED_TO_IGNORE` by whoever adds it, with the reason — which is a
+     * deliberate act rather than an omission.
+     */
+    const PERMITTED_TO_IGNORE = new Set<string>([
+      // Nothing. Every top-level directory in this repository is read by some
+      // check today. The set exists so that the answer to "why is this empty"
+      // is written down rather than inferred.
+    ]);
+    if (PERMITTED_TO_IGNORE.has(top)) return null;
     if (never.has(top)) return `${pattern} is under ${top}, which a check reads`;
-    return null;
+    return `${pattern} is under ${top}, which nothing here can prove no check reads`;
   }
 
   /** The directories a check reads: derived where they can move, named where they cannot. */

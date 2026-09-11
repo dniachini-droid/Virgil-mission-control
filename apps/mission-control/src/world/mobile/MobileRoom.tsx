@@ -886,7 +886,17 @@ function DemoBadge({
                   report, and neither is drawn as work.
                 </>
               ) : (
-                <>No session has written a report, so nobody is shown working.</>
+                <>
+                  No session has written a report, so nobody is shown working. {/**
+                   * **KP5-08(c).** This branch stopped carrying the reason when
+                   * the status field was added, which is right while both ship
+                   * from the same commit — and this function and this page are
+                   * separate artefacts that need not. An older function in front
+                   * of a newer page sends a refusal with no status, and without
+                   * this the page would state flatly that nobody wrote one.
+                   */}
+                  {live.answer?.sessionReportReason ?? ''}
+                </>
               )}{' '}
               {live.error ? `Last attempt: ${live.error}` : ''}
             </>

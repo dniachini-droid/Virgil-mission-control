@@ -27,7 +27,13 @@ The endpoint is readable by anyone who knows the address. No password, no token,
 
 It does **not** return the repository's code, its history beyond the head commit's message, the token, or anything a session has not itself written into the status file.
 
-The address is not published anywhere in this repository, and the site is not linked from it. That is obscurity, which is not a control, and this record does not describe it as one.
+~~The address is not published anywhere in this repository, and the site is not linked from it.~~ **That sentence was false when this record was filed, and is corrected here rather than rewritten.**
+
+> **Correction, 2026-09-11, on the owner's instruction, after the fourth Keeper review's `KP5-13`.** The site's full address *is* published in this repository: `docs/process/V11_KEEPER_REVIEW_PHASE2_THIRD.md` contains it, put there by the third Keeper on 2026-09-10, before this record was written. The session that filed this record wrote the sentence without checking it. It is struck through above rather than deleted, because a record that silently improves its own accuracy is worse than one that never claimed it — `OD-0010`'s own standard.
+>
+> **What does not change:** the decision. Obscurity was disclaimed as a control in the next clause when this was filed, and is disclaimed now; the owner's decision did not rest on the false half. What changes is that a reader can no longer take the false half for a fact.
+
+Obscurity is not a control, and this record does not describe it as one.
 
 ## What does not change
 

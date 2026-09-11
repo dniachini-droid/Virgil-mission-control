@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import authority from '../../../constitution/authority.json' with { type: 'json' };
 import matrix from '../../../constitution/permission-matrix.json' with { type: 'json' };
@@ -526,13 +526,18 @@ describe('the flag that decides whether the network code exists at all', () => {
     expect(config('vite.web.config.ts')).toContain('__LIVE__: true');
   });
 
+  /**
+   * **KP5-11.** This listed four filenames, so a fifth config with `__LIVE__:
+   * true` — or V10's acquiring one — passed a test titled for catching exactly
+   * that. The list is read off the directory now, so the title is true of
+   * whatever is there rather than of what someone remembered to type.
+   */
   it('is true in exactly one config, so a second hosted build cannot appear unnoticed', () => {
-    const live = [
-      'vite.config.ts',
-      'vite.owner.v11.config.ts',
-      'vitest.config.ts',
-      'vite.web.config.ts',
-    ].filter((name) => config(name).includes('__LIVE__: true'));
+    const configs = readdirSync(new URL('../', import.meta.url)).filter((name) =>
+      /^vite.*\.config\.ts$/.test(name),
+    );
+    expect(configs.length).toBeGreaterThan(3);
+    const live = configs.filter((name) => config(name).includes('__LIVE__: true'));
     expect(live).toEqual(['vite.web.config.ts']);
   });
 
@@ -701,6 +706,13 @@ describe('the wire check and the schema agree about generated reports, not only 
     // values larger, which is the honest description of what happened.
     '2026-02-30T00:00:00Z',
     '2026-11-31T00:00:00Z',
+    // KP5-04: offsets that carry the timestamp over a UTC date boundary. The
+    // first repair of KP4-09 compared a UTC date against a local one and refused
+    // both of these, which the schema accepts. One offset in the battery was not
+    // enough, because the one it had was +00:00.
+    '2026-09-10T01:00:00+05:00',
+    '2026-09-10T23:00:00-05:00',
+    '2026-01-01T00:30:00+09:00',
     2 ** 53,
     Number.MAX_SAFE_INTEGER + 2,
     'x'.repeat(300),

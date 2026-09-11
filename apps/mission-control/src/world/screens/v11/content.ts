@@ -282,9 +282,21 @@ export function verdictPrimary(verdict: string, active: string | null, eligible 
        */
       return {
         word: 'NO VERDICT',
+        /**
+         * **KP5-12.** The second line asserted that a Keeper had started and not
+         * finished, from no data at all — drawn in live mode whenever nothing was
+         * read. The comment eight lines above names this exact family, from the
+         * V7 defect the owner caught when a slab read "awaiting review" during a
+         * build, and the branch beneath it did it again.
+         *
+         * With a role holding the work the first line is true and is kept. With
+         * nothing holding it, what is true is that no verdict has been reported —
+         * which is what `NO VERDICT` already says — and nothing is claimed about
+         * a review that may never have begun.
+         */
         lead: active
           ? `NOTHING HAS COME BACK YET. ${active.toUpperCase()} IS WORKING ON IT.`
-          : 'THE KEEPER HAS NOT FINISHED ITS REVIEW YET.',
+          : 'NO REVIEW HAS BEEN REPORTED.',
         mark: 'working',
         status: 'cyan',
       };

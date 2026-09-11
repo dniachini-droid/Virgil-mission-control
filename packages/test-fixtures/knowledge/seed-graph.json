@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:4cda7eeafd08586973571165adf44bc810b693172a4cc38c5658eb4c64fb9503",
+  "graphHash": "sha256:4ea731dec4d7bbfe534a31f3c259173f06c02dfdb9c3fe9356aa0a836f4ae3cf",
   "nodes": [
     {
       "id": "agent-roster",
@@ -157,6 +157,16 @@
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0013 — `main` stays unprotected until the owner upgrades (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0014-fifth-repair-round-authorised.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0014 — A fifth repair round, and the cycle ceiling (Tier 3)",
       "epistemicClass": "owner_approved_decision",
       "authorityClass": "owner_decision",
       "status": null,

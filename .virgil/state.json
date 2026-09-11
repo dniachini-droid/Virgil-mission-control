@@ -1,7 +1,7 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-11T05:02:07Z",
-  "aboutCommit": "f7e90ac1ee5f18e52de07765d6841d1fa62b2c98",
+  "reportedAt": "2026-09-11T06:18:55Z",
+  "aboutCommit": "7e764fbad92ce74a0c0b68de9987b779b4d68875",
   "branch": "claude/virgil-mobile-v11",
   "candidate": null,
   "holder": null,
@@ -26,5 +26,5 @@
     }
   ],
   "review": null,
-  "note": "OD-0013 filed: main stays unprotected until the owner upgrades. The fifth Keeper review is running."
+  "note": "Fifth round complete under OD-0014. KP5-01 closed and proved by mutation; twelve more repaired."
 }

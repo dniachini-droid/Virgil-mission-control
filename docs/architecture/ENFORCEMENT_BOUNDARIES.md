@@ -262,3 +262,15 @@ The wire check in `netlify/functions/state.mjs` and `SessionStatusReport` in `pa
 | The contract admits the whole cast as a holder — fourteen roles — and the room has three stations | drawn as at rest, deliberately | `world/live/liveState.ts` maps `fabricator`, `prover` and `keeper` to the names every other surface uses and maps every other role to nothing. A report saying the Architect holds the work is accepted, is true, and reaches the owner's screen as *no agent is working on it*. That is a loss of a true fact, and it replaces a worse one: the raw role name went through unmapped until 2026-09-10, so the slab read KEEPER while the action beneath it read *"Go to the Fabricator"* and went there |
 
 Closing it needs a surface for a role with no station — a fourth thing for the room to draw — which is a slice of its own and is not one this build has.
+
+## Accepted gaps carried out of the Phase 2 review series (recorded, not repaired)
+
+The fourth Keeper review's `KP5-16` found `KP2-14` recorded only in the title of a test, where a reader consulting this document for open gaps would not find it. These are the gaps a session may not close, with the reason each is a session's to report rather than to repair.
+
+| Finding | Gap | Why it is not repaired here |
+|---|---|---|
+| `KP2-14` | `apps/mission-control/vite.owner.config.ts` defines no `__LIVE__`; four of the five configs do. Latent: V10 does not reach the code, and the V10 artifact is clean of every live-mode string | The file is one of the five fingerprinted by `owner-build-v11.test.ts`, and `OD-0010` — a layer-1 owner decision — keeps that fingerprint deliberately, recording with approval that it refused a session adding a `define` to this very file. A session editing it and updating the digest in the same commit would be stepping over a guard the owner had just endorsed. The digest is not a security measure and the edit is available; that is precisely why taking it would be a decision rather than a repair |
+| `KP2-08` | `/api/state` has no authentication | Accepted by the owner, `OD-0012`. Not repaired, and not to be recorded as closed |
+| `KP3-06` | `main` has no branch protection, so every green check on a pull request is advisory | Deferred by the owner, `OD-0013`. GitHub will not enforce it on this plan; the owner intends to upgrade |
+| `KP3-11` | Every depiction of an agent in the live room is a session's own word about itself | A property of the design, not a defect in it. The room labels it as their word; `CLAUDE.md` says a builder's report is not evidence, and the surfaces say so too |
+| `KP2-11` | The agent step in `instruct.yml` is bounded by `CLAUDE.md` rather than by machinery | What bounds a running agent is branch protection, which is `KP3-06`, which is the owner's. The workflow's own refusal of the default branch and its single `contents: write` permission constrain the automated path and not the agent inside it |

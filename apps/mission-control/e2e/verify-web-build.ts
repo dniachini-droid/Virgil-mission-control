@@ -48,15 +48,26 @@ const netlifyToml = resolve(import.meta.dirname, '../../../netlify.toml');
  * So the header the site actually sends is applied to the page this check drives.
  * A violation surfaces as a console error, which this already fails on.
  */
-const CSP =
-  /Content-Security-Policy\s*=\s*"([^"]+)"/.exec(readFileSync(netlifyToml, 'utf8'))?.[1] ?? '';
+// **KP5-10.** `.exec` takes the *first* policy in the file. A second `[[headers]]`
+// block added later is the one the site sends and would have been invisible here,
+// which is the ordering trap this file's own redirect comments warn about. All of
+// them are read; every one must be free of the allowance, and the last is the one
+// the page is served under.
+const policies = [
+  ...readFileSync(netlifyToml, 'utf8').matchAll(/Content-Security-Policy\s*=\s*"([^"]+)"/g),
+]
+  .map((match) => match[1] ?? '')
+  .filter((policy) => policy.length > 0);
+const CSP = policies[policies.length - 1] ?? '';
 if (!CSP.includes('script-src')) {
   throw new Error('no Content-Security-Policy found in netlify.toml');
 }
-if (/script-src[^;]*unsafe-inline/.test(CSP)) {
-  throw new Error(
-    "netlify.toml allows script-src 'unsafe-inline' on the page that holds the instruct secret",
-  );
+for (const policy of policies) {
+  if (/script-src[^;]*unsafe-inline/.test(policy)) {
+    throw new Error(
+      "netlify.toml allows script-src 'unsafe-inline' on the page that holds the instruct secret",
+    );
+  }
 }
 const failures: string[] = [];
 const startedAt = Date.now();
@@ -81,14 +92,74 @@ const ANSWER = {
     committedAt: '2026-09-10T05:41:40Z',
   },
   pull: null,
-  checks: null,
+  /**
+   * **KP5-07.** `checks` was `null` here, so the only branch of the repair for
+   * `KP2-16` that had ever executed was the one that says nothing was read. The
+   * counts are deliberately unlike any in the recording, and prime, so a fixture
+   * cannot coincide with them.
+   */
+  checks: { total: 7, passed: 5, failed: 1, running: 1, noResult: 0, runs: [] },
   githubReviews: null,
   keeperVerdict: null,
   keeperVerdictReason: 'No Keeper review record is published where this function can read it.',
   sessionReport: null,
   sessionReportedIn: null,
+  sessionReportStatus: 'absent',
   sessionReportReason: 'No session has written .virgil/state.json on this branch.',
 };
+
+/**
+ * **KP5-08(a): the four states of a session report, of which one was exercised.**
+ *
+ * `KP4-03` was a false sentence about a refused report, and the repair of that
+ * repair was a second false sentence about an absent one. Both were guarded by
+ * source-text assertions and neither by anything that ran the page. These are the
+ * other three answers, and each names the sentence it must produce.
+ */
+const REPORT_STATES: { state: string; answer: Record<string, unknown>; must: RegExp }[] = [
+  {
+    state: 'refused',
+    answer: {
+      sessionReport: null,
+      sessionReportStatus: 'refused',
+      sessionReportReason: '.virgil/state.json has no readable time on it.',
+    },
+    must: /did write a report and this build refused it/i,
+  },
+  {
+    state: 'unreadable',
+    answer: {
+      sessionReport: null,
+      sessionReportStatus: 'unreadable',
+      sessionReportReason: '.virgil/state.json is not readable JSON.',
+    },
+    must: /could not read it/i,
+  },
+  {
+    state: 'read',
+    answer: {
+      sessionReportStatus: 'read',
+      sessionReportReason: null,
+      sessionReportedIn: 'd00dfeed'.repeat(5),
+      sessionReport: {
+        schema: 'virgil.session-status.v1',
+        reportedAt: new Date().toISOString(),
+        aboutCommit: 'c0ffee11c0ffee11c0ffee11c0ffee11c0ffee11',
+        branch: 'claude/a-branch-the-recording-never-names',
+        candidate: null,
+        holder: 'keeper',
+        hops: [
+          { role: 'fabricator', activity: 'READY', reported: null, at: null },
+          { role: 'prover', activity: 'READY', reported: null, at: null },
+          { role: 'keeper', activity: 'WORKING', reported: null, at: new Date().toISOString() },
+        ],
+        review: null,
+        note: 'A session is reviewing.',
+      },
+    },
+    must: /comes from the agents’ own report/i,
+  },
+];
 
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -229,19 +300,79 @@ async function framePeriodMs(): Promise<number> {
  * enough and where it sits are measured by `verify-owner-build-v11.ts` at three
  * viewports, which is the right place for them.
  */
+const dispatched: string[] = [];
+
 async function press(selector: string): Promise<void> {
   try {
     await page.click(selector);
-  } catch {
-    const dispatched = await page.evaluate((css) => {
+  } catch (error) {
+    /**
+     * **KP5-02, three faults in one `catch`.**
+     *
+     * The first version caught everything, announced *"would not take a real
+     * click inside the budget"* — a cause it could not know — and passed. The
+     * Keeper proved it by covering the page with a transparent overlay, on which
+     * nothing can be pressed, and getting `PASS` and exit 0. Interception,
+     * invisibility, detachment and a viewport miss are all real defects on a page
+     * the owner presses with his thumb, and all four became a pass.
+     *
+     * So: the fallback is for a **timeout** and nothing else — anything that is
+     * not a timeout is a failure, with Playwright's own message kept. The
+     * reported cause is the message rather than a guess. And every fallback is
+     * counted into the final line, so a result that says PASS says what kind of
+     * PASS it is.
+     */
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/Timeout \d+ms exceeded/.test(message)) {
+      failures.push(`${selector} could not be pressed: ${message.split('\n')[0]}`);
+      return;
+    }
+    /**
+     * **A timeout is not enough to justify the fallback, which the first repair
+     * of KP5-02 assumed.** Playwright retries a click on a covered element until
+     * the deadline, so an overlay nothing can be pressed through produces the
+     * same `Timeout` as a starved main thread — the Keeper's overlay page still
+     * passed, merely with a more honest label.
+     *
+     * The question that separates them is answerable in one call: is the control
+     * the thing at its own centre point? If something else is on top, a person
+     * pressing there presses that instead, and the page is broken however fast
+     * the machine is. If the control *is* the hit target and the click still
+     * timed out, nothing is in its way and the machine is the reason.
+     */
+    const reach = await page.evaluate((css) => {
       const element = document.querySelector(css) as HTMLElement | null;
-      if (!element) return false;
+      if (!element) return { on: false as const };
+      const box = element.getBoundingClientRect();
+      const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      // `top === element` or a child of it. **Not** `top.contains(element)`: an
+      // overlay drawn as `body::after` reports `body` as the hit target, and
+      // `body` contains every control on the page, so that clause declared a
+      // covered button reachable and passed the Keeper's overlay a second time.
+      const reachable = top === element || element.contains(top);
+      if (!reachable) {
+        return {
+          on: true as const,
+          reachable: false as const,
+          covering: `${top?.tagName.toLowerCase() ?? 'nothing'}${top?.className ? `.${String(top.className).split(' ')[0]}` : ''}`,
+        };
+      }
       element.click();
-      return true;
+      return { on: true as const, reachable: true as const };
     }, selector);
-    if (!dispatched) throw new Error(`${selector} is not on the page at all`);
+    if (!reach.on) {
+      failures.push(`${selector} is not on the page at all`);
+      return;
+    }
+    if (!reach.reachable) {
+      failures.push(
+        `${selector} cannot be pressed: ${reach.covering} is on top of it at its own centre. A control the owner's thumb cannot reach is not a working control, however fast the machine is.`,
+      );
+      return;
+    }
+    dispatched.push(selector);
     console.log(
-      `web build verify: NOTE — ${selector} would not take a real click inside the budget; the click was dispatched on the element instead.`,
+      `web build verify: NOTE — ${selector} timed out taking a real click; dispatched on the element instead. Playwright said: ${message.split('\n')[0]}`,
     );
   }
 }
@@ -284,7 +415,10 @@ try {
   //    is also what the owner taps to find out where the numbers came from, and
   //    therefore the thing that must not be wrong.
   await press('.v11-badge');
-  await page.waitForSelector('.v11-badge-body', { state: 'visible' });
+  // Tolerant, like the two below it: when `press` has already refused — a
+  // control nothing can reach — the panel never opens, and the run must end with
+  // that finding rather than with a stack trace about a selector.
+  await page.waitForSelector('.v11-badge-body', { state: 'visible' }).catch(() => {});
   const badge = await page.evaluate(
     () => (document.querySelector('.v11-badge-body') as HTMLElement | null)?.innerText ?? '',
   );
@@ -294,7 +428,42 @@ try {
   if (!badge.includes(ANSWER.repo)) {
     failures.push(`the badge does not name the repository it was told (${ANSWER.repo})`);
   }
-  mark('the badge names the branch and repository it was told');
+  if (!/Of 7 checks on this commit, 5 passed, 1 failed, 1 still running/.test(badge)) {
+    failures.push(
+      `the badge does not report the check counts it was told: "${badge.slice(0, 200)}"`,
+    );
+  }
+  mark('the badge names the branch, the repository and the check counts it was told');
+
+  /**
+   * **KP5-08(a).** Each remaining report state, driven through the real page and
+   * required to produce its own sentence. The page has said a false thing about
+   * two of these states inside the last two days; both times a source-text
+   * assertion passed and nothing ran the branch.
+   */
+  for (const scenario of REPORT_STATES) {
+    answer = { status: 200, body: JSON.stringify({ ...ANSWER, ...scenario.answer }) };
+    await page.goto(`${url}?state=${scenario.state}`, { waitUntil: 'load' });
+    await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
+      timeout: budget,
+    });
+    await press('.v11-badge');
+    await page.waitForSelector('.v11-badge-body', { state: 'visible' }).catch(() => {});
+    const said = await page.evaluate(
+      () => (document.querySelector('.v11-badge-body') as HTMLElement | null)?.innerText ?? '',
+    );
+    if (!scenario.must.test(said)) {
+      failures.push(
+        `with a ${scenario.state} report the badge does not say so (${scenario.must}): "${said.slice(0, 200)}"`,
+      );
+    }
+    // And the sentence for a different state must not appear beside it.
+    if (scenario.state !== 'absent' && /No session has written a report/.test(said)) {
+      failures.push(`with a ${scenario.state} report the badge also says no session wrote one`);
+    }
+  }
+  answer = { status: 200, body: JSON.stringify(ANSWER) };
+  mark(`each of ${REPORT_STATES.length + 1} report states says its own sentence`);
 
   // Console errors are counted for the good answer only: the next phase makes
   // the endpoint fail on purpose and the browser logs that failed fetch.
@@ -362,5 +531,9 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'web build verify: PASS — the page reads /api/state, names what it read, and when it reads nothing it says so and draws no recorded value.',
+  `web build verify: PASS — the page reads /api/state, names what it read, and when it reads nothing it says so and draws no recorded value.${
+    dispatched.length > 0
+      ? ` ${dispatched.length} control(s) — ${dispatched.join(', ')} — did not take a real click and were dispatched on the element, so this PASS is weaker than a PASS with none.`
+      : ' Every control took a real click.'
+  }`,
 );

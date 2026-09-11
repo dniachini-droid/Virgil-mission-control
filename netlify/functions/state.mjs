@@ -266,14 +266,35 @@ export function shapeComplaint(report) {
       value,
     ) &&
     !Number.isNaN(Date.parse(value)) &&
-    // A date that exists. `2026-02-30` matches the shape, parses without error
-    // and rolls forward to 2 March — so it passed here while the schema refused
-    // it. One of the two divergences the Keeper's KP4-09 found outside the
-    // generated battery, and the reason a disclaimer about that battery has to
-    // stay attached to it: this was closed because someone went looking, not
-    // because 1,431 cases said there was nothing to find.
-    new Date(value).toISOString().slice(0, 10) ===
-      `${value.slice(0, 4)}-${value.slice(5, 7)}-${value.slice(8, 10)}`;
+    /**
+     * A date that exists. `2026-02-30` matches the shape, parses without error
+     * and rolls forward to 2 March — so it passed here while the schema refused
+     * it. One of the two divergences `KP4-09` found outside the generated
+     * battery.
+     *
+     * **And the first repair of it opened a third, in the other direction —
+     * `KP5-04`.** It compared `new Date(value).toISOString()`, which is UTC,
+     * against the date written in the string, which is local to its offset. So
+     * every legal timestamp whose offset carries it over a UTC date boundary —
+     * `2026-09-10T01:00:00+05:00` — was refused on the wire and accepted by the
+     * schema. The generated battery could not see it: of 57 values it holds one
+     * offset, `+00:00`, whose UTC date never differs.
+     *
+     * The calendar check is done in the timezone the string is written in. The
+     * parts are compared against `Date.UTC` of the same parts, which is the same
+     * arithmetic the calendar is, and no offset enters it.
+     */
+    (() => {
+      const year = Number(value.slice(0, 4));
+      const month = Number(value.slice(5, 7));
+      const day = Number(value.slice(8, 10));
+      const asDate = new Date(Date.UTC(year, month - 1, day));
+      return (
+        asDate.getUTCFullYear() === year &&
+        asDate.getUTCMonth() === month - 1 &&
+        asDate.getUTCDate() === day
+      );
+    })();
   // Safe, not merely integral: `2 ** 53` is an integer to JavaScript and is not
   // one the schema accepts. KP4-09's second divergence.
   const isCount = (value) => Number.isSafeInteger(value) && value >= 0;

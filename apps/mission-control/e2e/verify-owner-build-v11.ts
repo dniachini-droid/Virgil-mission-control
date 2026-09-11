@@ -438,30 +438,79 @@ notes.push(
 
 // ------------------------------------------------- the simulated iPhone runs
 /**
- * **The Keeper's KP2-10, checked in the artifact rather than in the source.**
+ * **The Keeper's KP2-10, checked in the artifact rather than in the source —
+ * and rewritten after KP5-01, where the first version of this check failed the
+ * build over the name of a document.**
  *
- * The Owner Build's promise is that it cannot reach the network, and
- * `verify:owner:v11` proves the running page makes no request. It does not prove
- * the file has no way to: the instruct client was carried into the artifact
- * whole — `/api/instruct`, the secret header, the storage key — unreachable only
- * because a runtime branch happened never to be taken. `__LIVE__` is a
- * compile-time constant and those functions now test it first, so the bundler
- * folds them away; this reads the built file and fails if any of it comes back.
+ * The Owner Build's promise is that it cannot reach the network. `verify:owner:v11`
+ * proves the running page makes no request; it does not prove the file has no way
+ * to. The instruct client was once carried into the artifact whole — the endpoint,
+ * the secret header, the storage key — unreachable only because a runtime branch
+ * happened never to be taken. `__LIVE__` is a compile-time constant and those
+ * functions test it first now, so the bundler folds them away, and this reads the
+ * built file to confirm it.
  *
- * A grep over an artifact is a blunt instrument and is the right one here: the
- * question is not what the code does, it is whether these bytes are present at
- * all in a file the owner opens from a disk with no server.
+ * **What went wrong with the first version, because the repair is only honest if
+ * the mistake is written next to it.** It searched for four *substrings*
+ * anywhere in the file, one of them `/api/state`. A session then filed
+ * `OD-0012`, a decision record about that endpoint, whose filename and title
+ * contain the path; the knowledge graph carries every decision record's name;
+ * `spikes/mind/MindScene.tsx` imports the graph; so the artifact contained the
+ * eight characters, in a JSON string, as the *name of a document*. The build
+ * failed. The check was right that the bytes were there and wrong about what
+ * their presence meant.
+ *
+ * **The repair is to ask the question the check means.** It does not mean "do
+ * these characters occur": it means "is there code here that can reach the
+ * network". So each pattern now matches a **call or a code position** rather than
+ * a mention:
+ *
+ *  - a `fetch(` whose target is any `/api/` path — broader than the two endpoints
+ *    the old list named, and unreachable by prose, because a document does not
+ *    contain a call;
+ *  - the secret header as an **object key**, which is what it is in a request and
+ *    what prose never writes, because prose does not put a colon after it.
+ *
+ * **The storage key `virgil.instruct.secret` is no longer checked, and that is a
+ * loss worth stating rather than hiding.** There is no pattern that tells its use
+ * from its mention: in code it is a quoted literal, and in a markdown title — the
+ * very thing that caused this finding — it is a quoted literal too. Its presence
+ * was never evidence about behaviour in any case: the key names a slot in the
+ * owner's own browser, the secret itself is never in any build, and an artifact
+ * that cannot `fetch` cannot send what is in that slot anywhere. The two patterns
+ * above cover the machinery; the runtime request count covers the promise.
+ *
+ * **What was deliberately not done**, because it was available and it was the
+ * wrong answer: `/api/state` was not removed from the check, and no exception was
+ * added for the seed graph. Either would have turned a red build green by making
+ * the check stop looking for the thing it exists to find. The Keeper named that
+ * shape as the prohibited one in the finding itself.
+ *
+ * **Proved by mutation, not by reading.** A V11 Owner Build compiled with
+ * `__LIVE__` true carries the real instruct client, and this check fails on it —
+ * which is the only evidence that a narrower pattern still catches what the
+ * broad one caught. `owner-build-v11.test.ts` holds the patterns so they cannot
+ * quietly loosen again.
  */
 {
   const text = readFileSync(file, 'utf8');
-  const mustBeAbsent = ['/api/instruct', '/api/state', 'x-virgil-secret', 'virgil.instruct.secret'];
-  const present = mustBeAbsent.filter((needle) => text.includes(needle));
+  const liveModeCode: { what: string; pattern: RegExp }[] = [
+    // The substantive one. No fetch, no request, whatever else is in the file.
+    { what: 'a fetch to an /api/ endpoint', pattern: /fetch\(\s*[`'"]\/api\// },
+    // The instruct client's request header, as an object key. Prose does not
+    // put a colon after a header name.
+    { what: 'the instruct secret sent as a header', pattern: /[`'"]x-virgil-secret[`'"]\s*:/ },
+  ];
+  const present = liveModeCode.filter((entry) => entry.pattern.test(text));
   if (present.length > 0) {
     failures.push(
-      `the Owner Build carries the live-mode strings ${present.join(', ')}; __LIVE__ should have removed them`,
+      `the Owner Build carries live-mode code: ${present.map((entry) => entry.what).join(', ')}; __LIVE__ should have removed it`,
     );
+  } else {
+    // Only when it holds. The first version announced the negative it had just
+    // disproved, one line above its own failure — the Keeper's KP5-09.
+    mark(`the artifact carries none of ${liveModeCode.length} kinds of live-mode code`);
   }
-  mark(`the artifact carries none of ${mustBeAbsent.length} live-mode strings`);
 }
 
 mark('the routes and V10 chrome are done; the viewports begin');
