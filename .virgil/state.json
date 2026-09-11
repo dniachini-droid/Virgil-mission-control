@@ -1,7 +1,7 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-11T04:41:37Z",
-  "aboutCommit": "0bdcaf8bba0691209c76ed8bf43f1f963b6d00cc",
+  "reportedAt": "2026-09-11T05:02:07Z",
+  "aboutCommit": "f7e90ac1ee5f18e52de07765d6841d1fa62b2c98",
   "branch": "claude/virgil-mobile-v11",
   "candidate": null,
   "holder": null,
@@ -26,5 +26,5 @@
     }
   ],
   "review": null,
-  "note": "OD-0012 filed: the owner declines authentication on /api/state. Awaiting the fifth Keeper review."
+  "note": "OD-0013 filed: main stays unprotected until the owner upgrades. The fifth Keeper review is running."
 }
