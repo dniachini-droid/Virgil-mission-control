@@ -326,6 +326,34 @@ function checksOf(answer: LiveAnswer): NonNullable<DemoState['checks']> | null {
 
 export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState | null {
   if (!answer.ok) return null;
+  /**
+   * **The Keeper's KP8-02, and it is the defect this whole project exists to
+   * prevent — created, not inherited.**
+   *
+   * Until slice five, every `ok: true` answer carried a head commit, so "the
+   * page read nothing" and "`stateFromAnswer` returned `null`" were the same
+   * thing, and `MobileRoom` drew no world at all in that case. A comment there
+   * names what that guard is for, in these words: *"a lie with a specific shape:
+   * `screens/candidate.ts` supplies a data-shaped identifier when none is set,
+   * so a live page that had read nothing would draw `9abcdef` beside a real
+   * branch name and look exactly like a page that had."*
+   *
+   * Slice five introduced an `ok: true` answer with `head: null` — the branch
+   * asked for is not in the repository — and that walked straight through this
+   * function. The result was a live state with no candidate id, every consumer
+   * falling back to `CANDIDATE_ID`, and the room drawing `9abcdef012` under the
+   * caption *"Exact version being worked on"* next to the real, deleted branch
+   * name. The Fabricator's window drew eight invented file paths and a terminal
+   * claiming `801 passed` with exit 0; the Keeper's drew three invented
+   * findings. About a branch the same page had just said did not exist.
+   *
+   * The guarantee is restored where it belongs — here, once, rather than in each
+   * of the dozen places that read `content.candidateId`. **No head, no state.**
+   * The branch list is chrome and is drawn from `live.answer` regardless, so the
+   * page still says which branch is gone and still offers the ones that are not:
+   * nothing is lost by refusing to draw a world nobody can describe.
+   */
+  if (!answer.head?.sha) return null;
   const base = demoAt(0, 0, false);
   // `exactOptionalPropertyTypes` is on, and it is right to be: an absent field
   // and a field explicitly set to `undefined` are different claims, and the

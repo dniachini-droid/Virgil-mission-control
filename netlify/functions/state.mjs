@@ -678,9 +678,47 @@ export async function readBranches(repo, token, defaultBranch, pulls) {
     return a.name.localeCompare(b.name);
   });
 
-  // Capped, and the count says so. A list silently cut to eight is a list
-  // lying about what exists.
-  return { branches: rows.slice(0, WATCHED_BRANCHES), reason: null, total: rows.length };
+  /**
+   * **The Keeper's KP8-01: the cap decided what existed, and it must not.**
+   *
+   * This returned only `rows.slice(0, WATCHED_BRANCHES)`, and the handler then
+   * asked whether the branch being shown was in *that*. On a repository with
+   * nine branches the ninth was reported `branchExists: false`, and the page
+   * told the owner it had been "merged and deleted" — about a branch with live
+   * commits, on the surface built to cure exactly that kind of false statement.
+   * On this repository the branch that fell off the end was the one the owner
+   * was being asked to merge.
+   *
+   * So three things travel now, and they answer three different questions:
+   * `names` is every branch there is, and is the only thing existence is ever
+   * decided against; `branches` is what the interface draws; `total` is how many
+   * there are. The cap is a drawing decision and has no say in what is true.
+   *
+   * And the branch being shown is **pinned into the list** by the caller below,
+   * wherever it sorts, because a list that omits the row you are looking at
+   * offers no way back to it.
+   */
+  return {
+    branches: rows.slice(0, WATCHED_BRANCHES),
+    all: rows,
+    names: rows.map((entry) => entry.name),
+    reason: null,
+    total: rows.length,
+  };
+}
+
+/**
+ * The list as drawn, with the branch being shown guaranteed to be in it.
+ *
+ * Past the cap it replaces the last row rather than growing the list, so the
+ * count the interface reports stays the count it draws.
+ */
+function withShowing(list, wanted) {
+  if (list.branches === null || list.all === undefined) return list.branches;
+  if (list.branches.some((entry) => entry.name === wanted)) return list.branches;
+  const found = list.all.find((entry) => entry.name === wanted);
+  if (!found) return list.branches;
+  return [...list.branches.slice(0, Math.max(0, WATCHED_BRANCHES - 1)), found];
 }
 
 export default async function handler(request) {
@@ -702,13 +740,20 @@ export default async function handler(request) {
    * deleted. The caller now names the branch; the variable becomes the default
    * when they do not.
    *
-   * Refused rather than trusted: a branch name is a path segment in six GitHub
-   * URLs below. Git's own rules forbid a leading dot, `..`, a trailing `.lock`,
+   * Refused rather than trusted: the name reaches three GitHub URLs below — the
+   * head commit, the session report's file read, and the commit that last
+   * changed it. Git's own rules forbid a leading dot, `..`, a trailing `.lock`,
    * a space and the ASCII control range, and this refuses beyond them — no `..`
    * anywhere, no leading slash, nothing over 255 bytes — so that a crafted name
-   * cannot reach past the `/branches/` segment it belongs in. `encodeURIComponent`
-   * would already contain it; this refuses first so the answer says the name was
-   * refused rather than 404ing under an escaped mess.
+   * cannot reach past the path or query position it belongs in.
+   *
+   * **`encodeURIComponent` at each of those three call sites is the defence that
+   * bears the load, and this is a second layer, not the first.** The Keeper's
+   * KP8-11 established that precisely: several names git itself refuses do pass
+   * this check — `%2e%2e%2fetc`, `main#frag`, `main&per_page=1`, a leading dash,
+   * zero-width characters — and every one of them is neutralised by the encoding
+   * before it reaches a URL. Saying so here rather than letting this function
+   * look like the thing standing between a crafted name and GitHub.
    */
   const asked = url.searchParams.get('branch');
   if (asked !== null && !isBranchName(asked)) {
@@ -727,6 +772,22 @@ export default async function handler(request) {
 
   try {
     const repository = await gh(`/repos/${repo}`, token);
+    /**
+     * **The Keeper's KP8-04, half of it.** This read
+     * `asked || branch || repository.default_branch`, so an omitted parameter
+     * resolved to `GITHUB_BRANCH` before the repository's own default. The
+     * interface sent nothing for the default-branch row, so tapping `main` asked
+     * for whatever that hosting setting named — on this deployment, a deleted
+     * branch — and the owner could not reach the default at all without editing
+     * a setting the app cannot touch. That is the first half of the instruction
+     * this slice was built from, "the state of what's been merged", unreachable.
+     *
+     * `GITHUB_BRANCH` is now what it was demoted to be: the branch shown when
+     * nobody has said which. The row sends its own name explicitly
+     * (`MobileRoom.tsx`), so the interface never depends on this precedence at
+     * all — but the precedence is wrong on its own terms and is fixed here too,
+     * because two defences against one defect is the point.
+     */
     const wanted = asked || branch || repository.default_branch;
 
     /**
@@ -751,8 +812,8 @@ export default async function handler(request) {
      * that it is gone. The page then has everything it needs to say so and to
      * offer the branches that do exist.
      */
-    const exists =
-      list.branches === null ? null : list.branches.some((entry) => entry.name === wanted);
+    // Against every branch there is, never against the eight that are drawn.
+    const exists = list.names === undefined ? null : list.names.includes(wanted);
     if (exists === false) {
       const answer = JSON.stringify({
         ok: true,
@@ -763,7 +824,7 @@ export default async function handler(request) {
         branchExists: false,
         isDefaultBranch: false,
         defaultBranch: repository.default_branch,
-        branches: list.branches,
+        branches: withShowing(list, wanted),
         branchesReason: list.reason,
         branchesTotal: list.total,
         branchesWatched: WATCHED_BRANCHES,
@@ -827,7 +888,7 @@ export default async function handler(request) {
        * another request — and so that no single name written in a settings box
        * can take the page down again.
        */
-      branches: list.branches,
+      branches: withShowing(list, ref),
       branchesReason: list.reason,
       branchesTotal: list.total,
       branchesWatched: WATCHED_BRANCHES,

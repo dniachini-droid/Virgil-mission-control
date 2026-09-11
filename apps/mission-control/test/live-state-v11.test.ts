@@ -96,12 +96,51 @@ describe('the live state carries only what was read', () => {
    * unread identifier is **absent**, not `undefined` and not a placeholder, and
    * `MobileRoom` draws no world at all until there is an answer.
    */
-  it('leaves an unread identifier off entirely rather than shaping one', () => {
+  it('draws nothing at all when the answer carries no commit', () => {
+    /**
+     * **This test used to assert the defect, and the Keeper's KP8-02 is what
+     * made that visible.**
+     *
+     * It read: given `ok: true` with no head, `expect(state).not.toBeNull()` and
+     * `candidateId` merely absent. The docstring above it says the opposite in
+     * plain words — *"`MobileRoom` draws no world at all until there is an
+     * answer"* — so the comment stated the rule and the assertion locked in its
+     * violation, one line apart. While no answer shape could produce it the two
+     * never had to be reconciled; slice five introduced exactly that answer, a
+     * branch that is not in the repository, and the consequence was the room
+     * drawing `9abcdef012` under *"Exact version being worked on"* beside a real
+     * branch name, with the Fabricator's window reporting eight invented files
+     * and a green test run.
+     *
+     * An absent `candidateId` was never protection. Every consumer reads
+     * `content.candidateId ?? CANDIDATE_ID`, so absent *is* the placeholder, one
+     * `??` later. The rule the docstring states is the one that works, and it is
+     * what is asserted now.
+     *
+     * This is not a test weakened to let a change through. It is a stronger
+     * claim than the one it replaces — nothing at all, rather than one field
+     * missing from something drawn — and it was an independent reviewer, not
+     * this session, that established the old assertion was wrong.
+     */
     const withoutHead: LiveAnswer = { ok: true, asOf: FULL.asOf, branch: 'main' };
-    const state = stateFromAnswer(withoutHead);
-    expect(state).not.toBeNull();
-    expect('candidateId' in (state?.content ?? {})).toBe(false);
-    expect(state?.content.branch).toBe('main');
+    expect(stateFromAnswer(withoutHead)).toBeNull();
+    // Including the shape slice five actually produces.
+    expect(
+      stateFromAnswer({
+        ok: true,
+        asOf: FULL.asOf,
+        branch: 'claude/gone',
+        branchExists: false,
+        head: null,
+      } as never),
+    ).toBeNull();
+    // And a head that is present but unusable is not a head.
+    expect(stateFromAnswer({ ...FULL, head: { shortSha: 'abc' } } as never)).toBeNull();
+  });
+
+  it('carries the identifier it did read, so the guard costs nothing real', () => {
+    expect(stateFromAnswer(FULL)?.content.candidateId).toBe(FULL.head?.shortSha);
+    expect(stateFromAnswer(FULL)?.content.branch).toBe(FULL.branch);
   });
 });
 
@@ -1146,6 +1185,35 @@ describe('the branch list, and what it will and will not claim', () => {
       expect(read.branches).toBeNull();
       expect(read.reason).toBeTruthy();
     }
+  });
+
+  /**
+   * **The Keeper's KP8-01, at the level where it was decided.**
+   *
+   * `readBranches` returned only the capped eight and the handler asked whether
+   * the branch being shown was in *that*. On this repository — nine branches —
+   * the ninth was reported as not being in the repository at all, and the page
+   * told the owner it had been "merged and deleted". The branch that fell off
+   * the end was the one the owner was being asked to merge.
+   *
+   * So existence is decided against `names`, which is every branch, and the cap
+   * is only ever a drawing decision.
+   */
+  it('knows every branch exists, including the ones past the cap it draws', async () => {
+    const many = Array.from({ length: 9 }, (_, i) => ({
+      name: i === 0 ? 'main' : `claude/branch-${String(i).padStart(2, '0')}`,
+      commit: { sha: 'd'.repeat(40) },
+    }));
+    const read = await withFetch(() => many);
+    expect(read.branches).toHaveLength(8);
+    // Nine names, not eight: the list the interface draws has no vote on what is
+    // true of the repository.
+    expect(read.names).toHaveLength(9);
+    const ninth = many[8]?.name as string;
+    expect(read.names).toContain(ninth);
+    // The exact expression the handler uses, held against the exact defect.
+    expect(read.names.includes(ninth)).toBe(true);
+    expect(read.branches?.some((entry: { name: string }) => entry.name === ninth)).toBe(false);
   });
 
   it('caps the list and still reports how many exist', async () => {

@@ -630,7 +630,17 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
             <p className="v11-live-notice" role="status">
               {live.error
                 ? `This repository could not be read. ${live.error}`
-                : 'Reading this repository…'}
+                : live.answer?.branchExists === false
+                  ? /**
+                     * **Not "reading…", which is what this said.** Since KP8-02
+                     * there is a third case: the read succeeded and the branch is
+                     * not there, so no world is drawn — and a notice saying the
+                     * page is still reading would be waiting for something that
+                     * is never going to arrive. The branch list beside this says
+                     * which branch and offers the ones that exist.
+                     */
+                    `Nothing is shown for ${live.answer.branch}: that branch is not in this repository. Choose another above.`
+                  : 'Reading this repository…'}
             </p>
           ) : null}
           <DemoBadge
@@ -875,7 +885,21 @@ function BranchList({
                         data-touch-target={`branch-${entry.name}`}
                         aria-current={isShowing ? 'true' : undefined}
                         onClick={() => {
-                          onChoose(entry.isDefault ? null : entry.name);
+                          /**
+                           * **The Keeper's KP8-04.** This sent `null` for the
+                           * default branch, meaning "omit the parameter" — and
+                           * the endpoint resolved an omitted parameter to
+                           * `GITHUB_BRANCH` before the repository's default. So
+                           * tapping `main` asked for whatever that hosting
+                           * setting named, which on this deployment is a deleted
+                           * branch. The row that answers "the state of what's
+                           * been merged" went somewhere else, every time.
+                           *
+                           * A row now sends its own name. What the row says is
+                           * what is asked for, with nothing in between to
+                           * disagree with it.
+                           */
+                          onChoose(entry.name);
                           setOpen(false);
                         }}
                       >

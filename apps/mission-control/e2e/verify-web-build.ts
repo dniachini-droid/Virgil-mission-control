@@ -511,8 +511,25 @@ async function worldStill(budget: number): Promise<boolean> {
  * it is not.
  */
 async function readSheet(what: string): Promise<string | null> {
-  const seen = await page.evaluate(() => {
-    const sheet = document.querySelector('.v11w-sheet') as HTMLElement | null;
+  return readVisible('.v11w-sheet', what);
+}
+
+/**
+ * **The same rule for every panel this file reads — the Keeper's KP8-07.**
+ *
+ * `readSheet` was written for `KP7-05` and closed the hole properly, and then
+ * the slice-five cases read `.v11-branches` with a bare `innerText` and did not
+ * use it. `innerText` falls back to `textContent` for an element that is not
+ * rendered, so a panel hidden by a CSS regression would have satisfied every
+ * assertion — including the one whose comment reads *"the way out is on screen
+ * without another press"*, which was counting DOM nodes.
+ *
+ * One helper, taking the selector, so the next panel cannot be read the wrong
+ * way by being new.
+ */
+async function readVisible(selector: string, what: string): Promise<string | null> {
+  const seen = await page.evaluate((css) => {
+    const sheet = document.querySelector(css) as HTMLElement | null;
     if (!sheet) return { on: false as const };
     const box = sheet.getBoundingClientRect();
     const onScreen =
@@ -535,7 +552,7 @@ async function readSheet(what: string): Promise<string | null> {
       box: `${Math.round(box.left)},${Math.round(box.top)} ${Math.round(box.width)}x${Math.round(box.height)}`,
       text: sheet.innerText,
     };
-  });
+  }, selector);
   if (!seen.on) {
     failures.push(`${what}: no window is on the page at all`);
     return null;
@@ -920,8 +937,25 @@ try {
     main: 'the commit that only main has',
     'claude/a-branch-the-recording-never-names': 'the commit that only the work branch has',
   };
+  /**
+   * **The Keeper's KP8-04, and why this check could not see it.**
+   *
+   * This stub used to resolve an omitted `?branch=` to `main` — modelling a
+   * server whose default is the default branch, which is the one configuration
+   * in which the defect is invisible. The real endpoint resolved an omitted
+   * parameter to `GITHUB_BRANCH` first, and the interface sent nothing at all
+   * for the default-branch row, so tapping `main` asked for whatever that
+   * hosting setting named. On this deployment that is a deleted branch.
+   *
+   * The stub now answers for a branch nobody wants when the parameter is
+   * missing, so a page that fails to name the branch it is asking for draws that
+   * branch's commit and the check fails. A stub written in the shape that hides
+   * the bug is not a check.
+   */
+  const IF_NOT_ASKED = 'claude/the-branch-a-hosting-setting-names';
+  SAID[IF_NOT_ASKED] = 'the commit of the branch nobody chose';
   answerFor = (asked) => {
-    const which = asked ?? 'main';
+    const which = asked ?? IF_NOT_ASKED;
     return {
       status: 200,
       body: JSON.stringify({
@@ -954,9 +988,7 @@ try {
       `the branch list draws ${rows.length} rows for ${BRANCHES.length} branches it was given`,
     );
   }
-  const panel = await page.evaluate(
-    () => (document.querySelector('.v11-branches') as HTMLElement | null)?.innerText ?? '',
-  );
+  const panel = (await readVisible('.v11-branches', 'the branch list')) ?? '';
   // Eleven exist and eight are carried: a list silently cut is a list lying
   // about what the repository has.
   if (!/11 branches/.test(panel)) {
@@ -1038,9 +1070,8 @@ try {
     timeout: budget,
   });
   await page.waitForSelector('.v11-branch-gone', { state: 'visible' }).catch(() => {});
-  const goneText = await page.evaluate(
-    () => (document.querySelector('.v11-branches') as HTMLElement | null)?.innerText ?? '',
-  );
+  const goneText =
+    (await readVisible('.v11-branches', 'the branch list with the branch gone')) ?? '';
   if (!/is not in this repository any more/.test(goneText)) {
     failures.push(
       `a deleted branch does not produce a message saying so: "${goneText.slice(0, 200)}"`,
@@ -1058,6 +1089,197 @@ try {
   if (stillThere === 0) {
     failures.push('with the branch gone the world is not drawn at all');
   }
+
+  /**
+   * **The default-branch row selects the default branch — KP8-04.**
+   *
+   * The row the owner most needs: *"the state of what's been merged"*, the first
+   * half of the instruction this slice was built from. It must ask for `main` by
+   * name, not by omission, because an omitted parameter is resolved by a hosting
+   * setting the app cannot see.
+   */
+  askedFor.length = 0;
+  await press('[data-touch-target="branches"]');
+  await page.waitForSelector('.v11-branch-rows', { state: 'visible' }).catch(() => {});
+  await press('[data-touch-target="branch-main"]');
+  {
+    const deadline = Date.now() + budget;
+    while (!askedFor.includes('main') && Date.now() < deadline) {
+      await page.waitForTimeout(100);
+    }
+  }
+  if (!askedFor.includes('main')) {
+    failures.push(
+      `tapping the default branch never asked for it by name; it asked for ${JSON.stringify(askedFor)}`,
+    );
+  }
+  await press('.v11-badge');
+  const onDefault = (await readVisible('.v11-badge-body', 'the badge')) ?? '';
+  if (onDefault.includes(IF_NOT_ASKED)) {
+    failures.push(
+      'tapping the default branch landed on the branch a hosting setting names, not the default',
+    );
+  }
+
+  /**
+   * **A branch past the eight-row cap still exists — KP8-01.**
+   *
+   * The cap is a drawing decision. When it was allowed to decide what existed,
+   * the ninth branch of nine was reported deleted and the page said it had been
+   * "merged and deleted" — about this candidate's own branch, with the panel
+   * beneath it simultaneously saying one more branch existed and was not listed.
+   */
+  const NINE = Array.from({ length: 9 }, (_, i) => ({
+    name: i === 0 ? 'main' : `claude/branch-${String(i).padStart(2, '0')}`,
+    sha: 'e'.repeat(40),
+    shortSha: 'eeeeeee',
+    isDefault: i === 0,
+    protected: false,
+    pull: null,
+    updatedAt: null,
+  }));
+  const PAST_THE_CAP = NINE[8]?.name as string;
+  answerFor = (asked) => {
+    const which = asked ?? 'main';
+    const known = NINE.some((entry) => entry.name === which);
+    return {
+      status: 200,
+      body: JSON.stringify({
+        ...ANSWER,
+        branch: which,
+        branchExists: known,
+        defaultBranch: 'main',
+        // Eight drawn, nine exist — and the ninth is the one being asked for,
+        // which must therefore be pinned into the list it would otherwise miss.
+        branches: known ? [...NINE.slice(0, 7), NINE[8]].filter(Boolean) : NINE.slice(0, 8),
+        branchesReason: null,
+        branchesTotal: 9,
+        branchesWatched: 8,
+        head: known ? { ...ANSWER.head, message: `the commit on ${which}` } : null,
+        checks: known ? ANSWER.checks : null,
+      }),
+    };
+  };
+  await page.goto(`${url}?ninth=1&branch=${encodeURIComponent(PAST_THE_CAP)}`, {
+    waitUntil: 'load',
+  });
+  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
+    timeout: budget,
+  });
+  const ninth = (await readVisible('.v11-branches', 'the branch list past the cap')) ?? '';
+  if (/is not in this repository any more/.test(ninth)) {
+    failures.push(
+      `a branch past the eight-row cap is reported as deleted: "${ninth.slice(0, 200)}"`,
+    );
+  }
+
+  /**
+   * **A page that read nothing draws no world — KP8-02 and KP8-03.**
+   *
+   * The `ok: true` answer with no head commit is new, and it walked straight
+   * through the one guard that kept a live page which had read nothing from
+   * drawing the recording's fixtures: `9abcdef` under *"Exact version being
+   * worked on"*, eight invented file paths, a terminal reading `801 passed`,
+   * three invented review findings — beside the real name of a branch the same
+   * page had just said did not exist.
+   */
+  answerFor = () => ({
+    status: 200,
+    body: JSON.stringify({
+      ...ANSWER,
+      ...listed,
+      branch: 'claude/virgil-mobile-v11',
+      branchExists: false,
+      head: null,
+      checks: null,
+      sessionReport: null,
+      sessionReportStatus: 'absent',
+    }),
+  });
+  await page.goto(`${url}?nohead=1`, { waitUntil: 'load' });
+  await page.waitForSelector('.v11-branch-gone', { state: 'visible' }).catch(() => {});
+  /**
+   * **Read through the world, not through the page text — and the first version
+   * of this check was too weak to see its own defect.**
+   *
+   * It searched `document.body.innerText` for `9abcdef` and the Fabricator's
+   * fixtures. `9abcdef` is drawn on a slab **inside the canvas**, where page text
+   * cannot reach it, and the window fixtures only enter the DOM once a window is
+   * open. So with the guard deliberately removed the check still passed, which
+   * is the same species of failure as the defect it is here to catch.
+   *
+   * What is observable, and is the guarantee itself: with nothing read there is
+   * no world, so there is nothing in the world to press and no record to open.
+   * The taps are attempted the way a person would, and a window appearing is the
+   * failure.
+   */
+  /**
+   * The discriminating signal, and it is a **positive** one so the good case is
+   * fast and the bad case cannot pass by being early.
+   *
+   * With nothing read, `stateFromAnswer` returns `null`, no world is drawn, and
+   * `MobileRoom` renders the notice naming the branch that is not there. With
+   * the guard removed the world draws instead and this notice never appears — so
+   * waiting for it separates the two exactly. The first version of this check
+   * asserted the absence of fixtures straight after navigation and passed with
+   * the defect deliberately reinstated, because it looked before the world had
+   * finished drawing. An absence asserted too early is not an absence, and this
+   * file has now made that mistake twice.
+   */
+  const noticed = await page
+    .waitForSelector('.v11-live-notice', { state: 'visible', timeout: budget })
+    .then(() => true)
+    .catch(() => false);
+  if (!noticed) {
+    failures.push(
+      'with no commit read, the page never said so — it drew a world for a branch it has read nothing about',
+    );
+  }
+  const saidWhich = await page.evaluate(
+    () => (document.querySelector('.v11-live-notice') as HTMLElement | null)?.innerText ?? '',
+  );
+  if (noticed && !/not in this repository/.test(saidWhich)) {
+    failures.push(`with no commit read, the page does not say why: "${saidWhich.slice(0, 160)}"`);
+  }
+  /**
+   * **What this check is, and the two things it deliberately is not.**
+   *
+   * The discriminating assertion is the notice above, and it is exact: with the
+   * guard removed the world draws, the notice never appears, and the wait fails.
+   * Proved by removing the guard, rebuilding, and watching it go red.
+   *
+   * It is **not** a count of world targets. Those are projected from fixed
+   * anchors by `TouchTargets`, which renders whether or not a world is drawn, so
+   * the count is not a fact about whether anything was read — it passed once by
+   * timing and failed the honest build on the next run.
+   *
+   * And it is **not** an attempt to press the world here. The branch panel is
+   * open on this page by design, because the branch is gone and the way out must
+   * be on screen, so it covers the world — and `pressWorld` correctly refuses,
+   * which is the product being right rather than a defect to assert around.
+   */
+  const opened = await page.evaluate(
+    () => (window as { __virgilV11?: { window?: string | null } }).__virgilV11?.window ?? null,
+  );
+  if (opened !== null) {
+    failures.push(`with no commit read, a record window is open: ${opened}`);
+  }
+  const leaked = await page.evaluate(
+    () => (document.querySelector('.v11w-sheet') as HTMLElement | null)?.innerText ?? '',
+  );
+  for (const fixture of ['9abcdef', '801 passed', 'Files changed', 'KV-01']) {
+    if (leaked.includes(fixture)) {
+      failures.push(
+        `with no commit read, the page draws the recording's "${fixture}" beside a real branch name`,
+      );
+    }
+  }
+  // And it is not a dead page: the way out is still on screen.
+  const wayOut = await page.evaluate(() => document.querySelectorAll('.v11-branch-row').length);
+  if (wayOut === 0) {
+    failures.push('with no commit read, the page offers no branch to switch to');
+  }
+
   if (failures.length === beforeBranches) {
     mark(
       `the page lists ${BRANCHES.length} branches, reads the one it is told to, and survives one being deleted`,

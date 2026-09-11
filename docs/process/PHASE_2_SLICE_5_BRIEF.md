@@ -52,7 +52,7 @@ A is the smallest thing that makes the sentence *"it shows everything"* true. It
 - **It does not invent activity.** A branch with no session report reads `idle`, which means *nobody has said anything about it* — not *nobody is working*. Those are different facts and the row will use the words for the one it knows.
 - **It does not add an endpoint, a credential or a permission.** Same function, same token, same scopes.
 - **It does not touch the Owner Build.** `__LIVE__` is false there.
-- **It does not change the Prover's, Fabricator's or Keeper's windows.** They say what they say today, about whichever branch is showing.
+- **It does not change the Prover's, Fabricator's or Keeper's windows.** ~~They say what they say today, about whichever branch is showing.~~ **The struck half is false — KP8-06.** The Fabricator's and Keeper's windows are not about the showing branch at all; they draw the same fixtures whichever branch it is. The first sentence is true and the slice changes none of them; the second overstated what those windows do. Struck rather than deleted, for the same reason as the twin sentence in the slice-four brief.
 
 ## Cost, stated before it is spent
 
@@ -72,7 +72,11 @@ So the steady-state cost of having the app open is what it is today, plus one ca
 - Open the app: the list names the same branches `git branch -r` names on your repository, with the same commits.
 - Delete a branch the app was showing, reload, and the app says that branch is gone **and still works** — the defect that took the site down today has an executable check.
 - `verify:web` gains cases: the hosted page is given a known set of branches by the stub and must list exactly those; selecting one must change what the room reads; and a stub that names a branch which no longer exists must produce the "gone" message and a working list, not a dead page.
-- A session building on a branch shows as building on that branch's row, proved by a written `.virgil/state.json` rather than by me saying so.
+- ~~A session building on a branch shows as building on that branch's row, proved by a written `.virgil/state.json` rather than by me saying so.~~
+
+  **Not built, and the Keeper's KP8-05 is right that it was quietly dropped.** Half of item 5 was done — `ce9aa3c` writes a real `.virgil/state.json`, and the branch being shown draws its session report as it always has. The half that is this acceptance condition was not: no row carries a session status, and none can as built, because `readBranches` is given only the branch list and the open pull requests, and the session report is read once, for the showing branch alone. Reading it per branch is one more call per row, which is the cost this brief promised not to spend.
+  
+  So it is a real deviation from an approved scope, and it is recorded here rather than left for a reader to discover by comparing the page with the product. It is the second candidate for a later slice, behind the two windows in `KP8-06`.
 
 ## Size
 

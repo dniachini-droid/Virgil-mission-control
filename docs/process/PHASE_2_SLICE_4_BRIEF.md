@@ -46,7 +46,7 @@ So the slice adds a fifth state to the window's vocabulary rather than mapping `
 ## What it does NOT do, stated plainly
 
 - **It does not make the Prover an agent.** Nobody is running those checks on your behalf inside the app. The window will show what GitHub ran, on the commit the app is already reading, and the window will say so in those words.
-- **It does not change the Fabricator's or the Keeper's window.** They keep saying `NOT READ`, because they are.
+- **It does not change the Fabricator's or the Keeper's window.** ~~They keep saying `NOT READ`, because they are.~~ **The struck sentence is false and the Keeper's KP8-06 caught it.** Those two windows do not say `NOT READ` on a live page: the Fabricator's draws eight invented file paths, a terminal reporting `801 passed` with exit 0, and a pull request; the Keeper's draws three invented findings. All of it comes from the recording's fixtures and none of it is about the repository being read. That predates this slice and this slice does not change it — so the first sentence stands and the second was simply wrong about the app. It is struck rather than deleted, because a reader of this brief was told something untrue and is owed the correction where the claim was made. The gap is carried openly as the first candidate for a later slice.
 - **It draws nothing when nothing was read.** If the checks cannot be fetched, the window says they were not read — not zero, not empty, not `skipped`.
 - **It adds no endpoint, no credential, no new permission.** The data is already in the answer the page fetches.
 - **It does not touch the Owner Build.** `__LIVE__` is false there; that build keeps saying what it has always said.
