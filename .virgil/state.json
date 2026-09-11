@@ -1,8 +1,8 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-11T16:07:50Z",
-  "aboutCommit": "e52f5b1031a2fb184ff57929ed45534111d369b4",
-  "branch": "claude/virgil-branch-list-and-live-status",
+  "reportedAt": "2026-09-11T16:29:57Z",
+  "aboutCommit": "f65fd848311ed8d765b35f5ea640e0be46c87474",
+  "branch": "claude/virgil-checks-and-records",
   "candidate": null,
   "holder": "fabricator",
   "hops": [
@@ -10,7 +10,7 @@
       "role": "fabricator",
       "activity": "WORKING",
       "reported": null,
-      "at": "2026-09-11T16:07:50Z"
+      "at": "2026-09-11T16:29:57Z"
     },
     {
       "role": "prover",
@@ -26,5 +26,5 @@
     }
   ],
   "review": null,
-  "note": "Raised the branch cap that hid the newest slice; writing this file as the work happens."
+  "note": "Reviews filed and the swallowed-wait check built; the mutation manifest is next."
 }
