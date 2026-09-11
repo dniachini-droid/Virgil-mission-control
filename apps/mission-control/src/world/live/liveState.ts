@@ -212,6 +212,48 @@ export interface LiveAnswer {
    */
   sessionReportStatus?: 'read' | 'absent' | 'unreadable' | 'refused' | null;
   /**
+   * **Whether the branch being asked about is still in the repository.**
+   *
+   * `false` on an `ok: true` answer: the repository was read, the list was read,
+   * and the branch named is not in it — a fact about the repository rather than
+   * a failure to read it. Absent on an answer from before slice five.
+   */
+  branchExists?: boolean;
+  /** The repository's own default branch, so the page can offer it as the way back. */
+  defaultBranch?: string;
+  /**
+   * Every branch, capped at `branchesWatched` and ordered default-first. `null`
+   * means the list could not be read, which is not the same as no branches.
+   */
+  branches?:
+    | {
+        name: string;
+        sha: string | null;
+        shortSha: string | null;
+        isDefault: boolean;
+        protected: boolean;
+        pull: {
+          number: number;
+          title: string | null;
+          draft: boolean;
+          url: string | null;
+          updatedAt: string | null;
+        } | null;
+        /**
+         * When the branch last moved, **where that is known** — which is only
+         * where it has an open pull request to read it from. `/branches` carries
+         * no dates and there is no one call that does, so a branch without a
+         * pull request reads `null` and must be drawn as "not read", never as
+         * old.
+         */
+        updatedAt: string | null;
+      }[]
+    | null;
+  branchesReason?: string | null;
+  /** How many branches exist, which may be more than the list carries. */
+  branchesTotal?: number;
+  branchesWatched?: number;
+  /**
    * Why no checks are in the answer, when none are.
    *
    * `state.mjs` has always sent it — `checksReason: checkResult.unreadable ?? null`
@@ -461,7 +503,41 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
  * that shows a state is claiming the state is current, and the only honest
  * version of that claim is one that stops when the reading does.
  */
-export function useLive(enabled: boolean): Live {
+/**
+ * Which branch the room is showing, remembered across reloads.
+ *
+ * The page's state, not the server's: nothing is written back, so choosing a
+ * branch costs nothing and no other reader is affected by what you looked at.
+ * `null` means "whatever the endpoint's own default is", which is what a first
+ * visit gets.
+ *
+ * `localStorage` is wrapped because it throws in a private window and in a page
+ * whose site data has been blocked, and a room that will not open because it
+ * could not remember which branch you last looked at would be a worse failure
+ * than forgetting.
+ */
+const BRANCH_KEY = 'virgil.branch';
+
+export function rememberedBranch(): string | null {
+  try {
+    const value = window.localStorage.getItem(BRANCH_KEY);
+    return value && value.length > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function rememberBranch(name: string | null): void {
+  try {
+    if (name === null) window.localStorage.removeItem(BRANCH_KEY);
+    else window.localStorage.setItem(BRANCH_KEY, name);
+  } catch {
+    // A browser that will not remember is not a browser that cannot show the
+    // room. Nothing here is load-bearing.
+  }
+}
+
+export function useLive(enabled: boolean, branch?: string | null): Live {
   const [live, setLive] = useState<Live>({ state: null, answer: null, error: null, asOf: null });
 
   useEffect(() => {
@@ -470,7 +546,10 @@ export function useLive(enabled: boolean): Live {
 
     const read = async () => {
       try {
-        const response = await fetch('/api/state', { headers: { accept: 'application/json' } });
+        // The branch travels as a query parameter, so the browser and any cache
+        // in front of it treat two branches as two answers rather than one.
+        const where = branch ? `/api/state?branch=${encodeURIComponent(branch)}` : '/api/state';
+        const response = await fetch(where, { headers: { accept: 'application/json' } });
         if (!response.ok) throw new Error(`the state endpoint answered ${response.status}`);
         const answer = (await response.json()) as LiveAnswer;
         if (cancelled) return;
@@ -497,7 +576,10 @@ export function useLive(enabled: boolean): Live {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [enabled]);
+    // `branch` is a dependency: changing which branch is showing must start a
+    // new read immediately rather than at the next poll, or a tap appears to do
+    // nothing for up to thirty seconds.
+  }, [enabled, branch]);
 
   return live;
 }

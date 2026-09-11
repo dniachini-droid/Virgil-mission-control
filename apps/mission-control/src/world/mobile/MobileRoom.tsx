@@ -20,7 +20,14 @@ import { Figure } from '../characters/Figure.js';
 import { VirgilRigged } from '../characters/VirgilRigged.js';
 import type { FaceState } from '../characters/Visor.js';
 import { forgetSecret, rememberSecret, storedSecret } from '../live/liveSession.js';
-import { type Live, liveIsCompiledIn, reportIsCurrent, useLive } from '../live/liveState.js';
+import {
+  type Live,
+  liveIsCompiledIn,
+  rememberBranch,
+  rememberedBranch,
+  reportIsCurrent,
+  useLive,
+} from '../live/liveState.js';
 import type { SlabName } from '../panel/panelContent.js';
 import { demoSnapshot, publishDemoState } from '../panel/panelStore.js';
 import { RUN, RUN_SECONDS, recordedClock, recordedDuration } from '../replay/recordedRun.js';
@@ -145,7 +152,24 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
    * and the file still makes no request of any kind. In the hosted build it
    * reads `/api/state` and keeps reading while the page is open.
    */
-  const live = useLive(mode === 'live');
+  /**
+   * **Which branch the room is showing — slice five.**
+   *
+   * Until now the app read one branch, named by `GITHUB_BRANCH` in the hosting
+   * settings, and nothing else. That took the whole site down three times in one
+   * day, each time because a branch was merged and deleted and the name in that
+   * settings box still pointed at it — on a repository where deleting a merged
+   * branch is the normal end of a slice.
+   *
+   * The choice now lives here, remembered in the browser so it survives a
+   * reload, and `null` means whatever the endpoint's own default is. Nothing is
+   * written to the server, so what one person looks at changes nothing for
+   * anybody else.
+   */
+  const [branch, setBranch] = useState<string | null>(() =>
+    mode === 'live' ? rememberedBranch() : null,
+  );
+  const live = useLive(mode === 'live', branch);
   /**
    * **How many device pixels the world is drawn at.** Stage 3's answer to the
    * owner's crispness question, and the reasoning is in `pixelRatio.ts`: every
@@ -616,6 +640,16 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
             open={badgeOpen}
             onToggle={() => setBadgeOpen((value) => !value)}
           />
+          {mode === 'live' ? (
+            <BranchList
+              live={live}
+              showing={live.answer?.branch ?? branch}
+              onChoose={(name) => {
+                setBranch(name);
+                rememberBranch(name);
+              }}
+            />
+          ) : null}
           <PerformanceNotice level={level} forced={forcedLevel !== 'auto'} />
           {/*
            * **The one control that still opens a window in a single press, and
@@ -741,6 +775,152 @@ function DevEntry({ open, onToggle }: { open: boolean; onToggle: () => void }) {
  * their own colour and their own words, as V10 established, because they make
  * opposite claims about their own truthfulness.
  */
+
+/**
+ * **Every branch, and which one the room is showing — Phase 2, slice five.**
+ *
+ * The owner's instruction of 2026-09-11: *"I want the app to show me live work
+ * and what's being built right now as well as the state of what's been merged.
+ * It's meant to show everything."* Of three ways to do it he chose the first:
+ * one list, one branch in the room at a time, a tap to change which.
+ *
+ * Three rules it keeps, all of them the same rule.
+ *
+ *  - **A row never says more than was read.** `/branches` carries no commit
+ *    dates and there is no single call that does, so a branch's time is known
+ *    only where it has an open pull request to read it from. A row without one
+ *    says nothing about when it last moved rather than guessing from its
+ *    position in a list.
+ *  - **A list that was cut says it was cut.** Eight branches are carried; if
+ *    more exist, the count of what exists is on screen. A list silently
+ *    truncated is a list lying about what a repository has.
+ *  - **"Not read" is not "none".** A list that could not be read says so and
+ *    says why; it does not draw as a repository with no branches.
+ *
+ * And the branch the room is showing is the branch the answer *says* it is —
+ * `live.answer.branch`, not what was asked for. Those differ for the length of
+ * one read after a tap, and drawing the asked-for name over the previous
+ * branch's commits is precisely the confusion this whole build exists to avoid.
+ */
+function BranchList({
+  live,
+  showing,
+  onChoose,
+}: {
+  live: Live;
+  showing: string | null;
+  onChoose: (name: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const answer = live.answer;
+  const branches = answer?.branches ?? null;
+  const gone = answer?.branchExists === false;
+  const total = answer?.branchesTotal ?? 0;
+  const watched = answer?.branchesWatched ?? 0;
+  const more = total > watched ? total - watched : 0;
+
+  // Nothing to offer and nothing to explain: an answer from before this slice,
+  // or one that never arrived. The room is the room; this adds no furniture to
+  // say it has nothing to say.
+  if (!answer || (branches === null && !answer.branchesReason && !gone)) return null;
+
+  return (
+    <div className={`v11-branches${open ? ' is-open' : ''}`}>
+      <button
+        type="button"
+        className={`v11-branch-toggle${gone ? ' is-gone' : ''}`}
+        data-touch-target="branches"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span className="v11-branch-label">Branch</span>
+        <span className="v11-branch-name">{showing ?? '—'}</span>
+        <span className="v11-branch-more" aria-hidden="true">
+          {open ? '×' : '▾'}
+        </span>
+      </button>
+
+      {gone ? (
+        /**
+         * **The failure that took this site down three times in one day, now a
+         * sentence instead of a dead page.** A merged branch is deleted, the
+         * name written in the hosting settings still points at it, and every
+         * read 422s. The list beside this message is the way out, which is the
+         * whole reason the endpoint reads the list before it reads the branch.
+         */
+        <p className="v11-branch-gone" role="status">
+          <strong>{answer.branch}</strong> is not in this repository any more — most likely merged
+          and deleted. Nothing is being shown for it, which is not the same as nothing having
+          happened on it. Choose another branch below.
+        </p>
+      ) : null}
+
+      {open || gone ? (
+        <div className="v11-branch-panel">
+          {branches === null ? (
+            <p className="v11-branch-note" role="status">
+              {answer.branchesReason ??
+                'The branch list could not be read, so this cannot say which branches exist.'}
+            </p>
+          ) : (
+            <>
+              <ul className="v11-branch-rows">
+                {branches.map((entry) => {
+                  const isShowing = entry.name === showing && !gone;
+                  return (
+                    <li key={entry.name}>
+                      <button
+                        type="button"
+                        className={`v11-branch-row${isShowing ? ' is-showing' : ''}`}
+                        data-touch-target={`branch-${entry.name}`}
+                        aria-current={isShowing ? 'true' : undefined}
+                        onClick={() => {
+                          onChoose(entry.isDefault ? null : entry.name);
+                          setOpen(false);
+                        }}
+                      >
+                        <span className="v11-branch-row-name">{entry.name}</span>
+                        <span className="v11-branch-row-what">
+                          {entry.isDefault
+                            ? 'merged'
+                            : entry.pull
+                              ? entry.pull.draft
+                                ? `draft pull request #${entry.pull.number}`
+                                : `pull request #${entry.pull.number}`
+                              : 'no pull request'}
+                        </span>
+                        <span className="v11-branch-row-sha">{entry.shortSha ?? '—'}</span>
+                        <span className="v11-branch-row-when">
+                          {/*
+                           * Only where it is known. A branch with no pull
+                           * request has no time on this wire, and "not read" is
+                           * what it gets — never a guess, and never the blank
+                           * that would read as "just now".
+                           */}
+                          {entry.updatedAt
+                            ? readClock(entry.updatedAt)
+                            : 'when it last moved: not read'}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="v11-branch-note">
+                {more > 0
+                  ? `Showing ${branches.length} of ${total} branches, the default first and then the ones with a pull request. ${more} more exist and are not listed.`
+                  : `All ${total} branch${total === 1 ? '' : 'es'} in this repository.`}{' '}
+                A branch's time is known only where it has a pull request to read it from, so the
+                others say so rather than guessing.
+              </p>
+            </>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function DemoBadge({
   mode,
   speed,

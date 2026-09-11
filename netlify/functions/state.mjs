@@ -38,8 +38,35 @@ const GITHUB = 'https://api.github.com';
 /** How long an answer is reused. GitHub's rate limit is the reason. */
 const CACHE_SECONDS = 25;
 
-/** @type {{ at: number, body: string } | null} */
-let cached = null;
+/**
+ * One cached answer **per branch**, because the answer is now about a branch the
+ * caller names. A single slot would serve `main`'s answer to a request about a
+ * work branch for up to 25 seconds, which is a screen showing one branch's
+ * commits under another branch's name — the exact class of untruth this file
+ * exists to prevent.
+ *
+ * Bounded, because a cache keyed by something a caller supplies is a cache a
+ * caller can grow without limit.
+ * @type {Map<string, { at: number, body: string }>}
+ */
+const cached = new Map();
+const CACHE_BRANCHES = 16;
+
+/**
+ * How many branches the list carries. The count of what exists is reported
+ * beside it, so a repository with forty branches shows eight and says forty
+ * rather than showing eight and implying eight.
+ */
+const WATCHED_BRANCHES = 8;
+
+function remember(key, body) {
+  if (cached.size >= CACHE_BRANCHES && !cached.has(key)) {
+    const oldest = cached.keys().next().value;
+    if (oldest !== undefined) cached.delete(oldest);
+  }
+  cached.delete(key);
+  cached.set(key, { at: Date.now(), body });
+}
 
 function iso(ms = Date.now()) {
   return new Date(ms).toISOString();
@@ -56,6 +83,26 @@ function body(value) {
 
 function fail(reason) {
   return body({ ok: false, asOf: iso(), reason });
+}
+
+/**
+ * Whether a string is a branch name this function will put in a URL.
+ *
+ * Git's `check-ref-format` rules, the ones that matter here: no component
+ * beginning with a dot, no `..`, no ASCII control characters, no space, no
+ * `~ ^ : ? * [ \`, no trailing dot, no trailing `.lock`, no leading or trailing
+ * slash and no doubled slash. Length is bounded because an unbounded name is an
+ * unbounded URL.
+ */
+export function isBranchName(value) {
+  if (typeof value !== 'string') return false;
+  if (value.length === 0 || value.length > 255) return false;
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f ~^:?*[\\]/.test(value)) return false;
+  if (value.includes('..') || value.includes('//')) return false;
+  if (value.startsWith('/') || value.endsWith('/')) return false;
+  if (value.endsWith('.') || value.endsWith('.lock')) return false;
+  return value.split('/').every((part) => part.length > 0 && !part.startsWith('.'));
 }
 
 async function gh(path, token) {
@@ -542,6 +589,100 @@ async function readSessionReport(repo, ref, token) {
   return { report, status: 'read', reason: null, reportedIn };
 }
 
+/**
+ * **Every branch the repository has, in one call.**
+ *
+ * `/branches` gives a name and a head sha per branch and **no dates**. There is
+ * no REST call that gives the list with commit times, so the choice was one call
+ * without dates or one call per branch with them. The slice's brief promised one
+ * call, so one call it is, and the rows say what they do not know rather than
+ * having a date invented for them.
+ *
+ * What *is* known cheaply: the open pull requests are already fetched for the
+ * branch being shown, and each one carries its branch name and when it was last
+ * updated. So a branch with an open pull request gets a real time; a branch
+ * without one says so. That is less than the brief implied and it is said here
+ * rather than smoothed over.
+ *
+ * Returns `null` — not `[]` — when the list could not be read. Zero branches and
+ * "not read" are different claims and every surface downstream has to be able to
+ * tell them apart.
+ */
+export async function readBranches(repo, token, defaultBranch, pulls) {
+  let raw;
+  try {
+    raw = await gh(`/repos/${repo}/branches?per_page=100`, token);
+  } catch (error) {
+    return {
+      branches: null,
+      reason: `The branch list could not be read (${error?.status ?? 'no status'}).`,
+      total: 0,
+    };
+  }
+  if (!Array.isArray(raw)) {
+    return {
+      branches: null,
+      reason: 'The branch list came back in a shape this function does not recognise.',
+      total: 0,
+    };
+  }
+  const openFor = new Map();
+  if (Array.isArray(pulls)) {
+    for (const pull of pulls) {
+      const ref = pull?.head?.ref;
+      if (typeof ref === 'string' && ref.length > 0) {
+        openFor.set(ref, {
+          number: pull.number,
+          title: pull.title ?? null,
+          draft: Boolean(pull.draft),
+          url: pull.html_url ?? null,
+          updatedAt: pull.updated_at ?? null,
+        });
+      }
+    }
+  }
+  const rows = raw
+    .filter((entry) => typeof entry?.name === 'string' && entry.name.length > 0)
+    .map((entry) => ({
+      name: entry.name,
+      sha: typeof entry.commit?.sha === 'string' ? entry.commit.sha : null,
+      shortSha: typeof entry.commit?.sha === 'string' ? entry.commit.sha.slice(0, 7) : null,
+      isDefault: entry.name === defaultBranch,
+      protected: Boolean(entry.protected),
+      /** Null means no open pull request, which is a fact, not a missing read. */
+      pull: openFor.get(entry.name) ?? null,
+      /**
+       * When this branch last moved — **only where it is known**. It comes from
+       * the branch's open pull request and nowhere else, so a branch without one
+       * reads `null`, which the interface must draw as "not read" rather than as
+       * old.
+       */
+      updatedAt: openFor.get(entry.name)?.updatedAt ?? null,
+    }));
+
+  /**
+   * The default branch first, because it is the one that is true of the project
+   * rather than of somebody's work. Then branches with an open pull request,
+   * newest first, because those are the ones something is happening on and the
+   * only ones whose time is known. Then the rest by name — not by age, which
+   * would be a claim about recency this function cannot make.
+   */
+  rows.sort((a, b) => {
+    if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
+    const aHas = a.updatedAt !== null;
+    const bHas = b.updatedAt !== null;
+    if (aHas !== bHas) return aHas ? -1 : 1;
+    if (aHas && bHas && a.updatedAt !== b.updatedAt) {
+      return a.updatedAt < b.updatedAt ? 1 : -1;
+    }
+    return a.name.localeCompare(b.name);
+  });
+
+  // Capped, and the count says so. A list silently cut to eight is a list
+  // lying about what exists.
+  return { branches: rows.slice(0, WATCHED_BRANCHES), reason: null, total: rows.length };
+}
+
 export default async function handler(request) {
   const token = process.env.GITHUB_TOKEN;
   const repo = process.env.GITHUB_REPO;
@@ -552,8 +693,31 @@ export default async function handler(request) {
 
   const url = new URL(request.url);
   const forced = url.searchParams.get('fresh') === '1';
-  if (!forced && cached && Date.now() - cached.at < CACHE_SECONDS * 1000) {
-    return new Response(cached.body, {
+  /**
+   * **Which branch is being asked about, and why the caller may say.**
+   *
+   * Until slice five this was `GITHUB_BRANCH` and nothing else, which made the
+   * whole site depend on one name written in one settings box — and took it down
+   * three times in one day when the branch that name pointed at was merged and
+   * deleted. The caller now names the branch; the variable becomes the default
+   * when they do not.
+   *
+   * Refused rather than trusted: a branch name is a path segment in six GitHub
+   * URLs below. Git's own rules forbid a leading dot, `..`, a trailing `.lock`,
+   * a space and the ASCII control range, and this refuses beyond them — no `..`
+   * anywhere, no leading slash, nothing over 255 bytes — so that a crafted name
+   * cannot reach past the `/branches/` segment it belongs in. `encodeURIComponent`
+   * would already contain it; this refuses first so the answer says the name was
+   * refused rather than 404ing under an escaped mess.
+   */
+  const asked = url.searchParams.get('branch');
+  if (asked !== null && !isBranchName(asked)) {
+    return fail(`That is not a branch name this function will ask GitHub about.`);
+  }
+  const key = asked ?? branch ?? '';
+  const hit = cached.get(key);
+  if (!forced && hit && Date.now() - hit.at < CACHE_SECONDS * 1000) {
+    return new Response(hit.body, {
       headers: {
         'content-type': 'application/json; charset=utf-8',
         'cache-control': `public, max-age=${CACHE_SECONDS}`,
@@ -563,18 +727,82 @@ export default async function handler(request) {
 
   try {
     const repository = await gh(`/repos/${repo}`, token);
-    const ref = branch || repository.default_branch;
+    const wanted = asked || branch || repository.default_branch;
+
+    /**
+     * **The branch list is read before the branch, and that order is the repair.**
+     *
+     * Until now the head commit was fetched first, so a branch that had been
+     * merged and deleted produced a 422 and the *whole page* went dark — three
+     * times in one day, on a repository where deleting a merged branch is the
+     * normal end of a slice. The list is what lets the page keep working and
+     * offer somewhere else to look, so it is read first and its failure is its
+     * own rather than the answer's.
+     */
+    const pullsForList = await gh(`/repos/${repo}/pulls?state=open&per_page=20`, token).catch(
+      () => null,
+    );
+    const list = await readBranches(repo, token, repository.default_branch, pullsForList);
+
+    /**
+     * A branch that is not there is a fact about the repository, not a failure to
+     * read it. The answer stays `ok: true` — the list is real, the repository is
+     * real, the default branch is real — and says which name was asked for and
+     * that it is gone. The page then has everything it needs to say so and to
+     * offer the branches that do exist.
+     */
+    const exists =
+      list.branches === null ? null : list.branches.some((entry) => entry.name === wanted);
+    if (exists === false) {
+      const answer = JSON.stringify({
+        ok: true,
+        asOf: iso(),
+        cachedForSeconds: CACHE_SECONDS,
+        repo,
+        branch: wanted,
+        branchExists: false,
+        isDefaultBranch: false,
+        defaultBranch: repository.default_branch,
+        branches: list.branches,
+        branchesReason: list.reason,
+        branchesTotal: list.total,
+        branchesWatched: WATCHED_BRANCHES,
+        head: null,
+        pull: null,
+        checks: null,
+        checksReason: `The branch ${wanted} is not in this repository, so there was nothing to read checks against.`,
+        githubReviews: null,
+        keeperVerdict: null,
+        keeperVerdictReason:
+          'No Keeper review record is published where this function can read it.',
+        sessionReport: null,
+        sessionReportedIn: null,
+        sessionReportReason: `The branch ${wanted} is not in this repository, so no session report could be read from it.`,
+        sessionReportStatus: 'absent',
+      });
+      remember(key, answer);
+      return new Response(answer, {
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'cache-control': `public, max-age=${CACHE_SECONDS}`,
+        },
+      });
+    }
+
+    const ref = wanted;
     const head = await gh(`/repos/${repo}/commits/${encodeURIComponent(ref)}`, token);
     const sha = head.sha;
 
     // Either of these may fail on its own without making the rest unknowable, so
     // each failure becomes `null` — "not read" — rather than taking the whole
     // answer down or, worse, becoming a zero.
-    const [checkResult, pulls, session] = await Promise.all([
+    const [checkResult, session] = await Promise.all([
       readChecks(repo, sha, token),
-      gh(`/repos/${repo}/pulls?state=open&per_page=20`, token).catch(() => null),
       readSessionReport(repo, ref, token),
     ]);
+    // Already fetched above for the list. Fetching it twice would be paying
+    // twice for one answer, on a project a bill has already stopped once.
+    const pulls = pullsForList;
 
     const pull = Array.isArray(pulls) ? pulls.find((entry) => entry.head?.ref === ref) : undefined;
 
@@ -591,7 +819,18 @@ export default async function handler(request) {
       cachedForSeconds: CACHE_SECONDS,
       repo,
       branch: ref,
+      branchExists: true,
       isDefaultBranch: ref === repository.default_branch,
+      defaultBranch: repository.default_branch,
+      /**
+       * Every branch, so the page can offer somewhere else to look without
+       * another request — and so that no single name written in a settings box
+       * can take the page down again.
+       */
+      branches: list.branches,
+      branchesReason: list.reason,
+      branchesTotal: list.total,
+      branchesWatched: WATCHED_BRANCHES,
       head: {
         sha,
         shortSha: sha.slice(0, 7),
@@ -646,7 +885,7 @@ export default async function handler(request) {
       sessionReportReason: session.reason,
       sessionReportStatus: session.status ?? null,
     });
-    cached = { at: Date.now(), body: answer };
+    remember(key, answer);
     return new Response(answer, {
       headers: {
         'content-type': 'application/json; charset=utf-8',

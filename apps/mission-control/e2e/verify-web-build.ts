@@ -170,12 +170,23 @@ const TYPES: Record<string, string> = {
 
 /** Serves the built directory, and answers `/api/state` however this file says. */
 function serve(
-  state: () => { status: number; body: string },
+  state: (branch: string | null) => { status: number; body: string },
 ): Promise<{ server: Server; url: string }> {
   const server = createServer((request, response) => {
     const path = (request.url ?? '/').split('?')[0] ?? '/';
     if (path === '/api/state') {
-      const answer = state();
+      /**
+       * **The stub is given the branch the page asked for — slice five.**
+       *
+       * Before this it ignored the query entirely, which would have made a check
+       * that the page asks for the chosen branch impossible to write: the answer
+       * would have been the same whatever was requested, and the check would
+       * have passed a page that never sent the parameter at all.
+       */
+      const query = (request.url ?? '').split('?')[1] ?? '';
+      const asked = new URLSearchParams(query).get('branch');
+      askedFor.push(asked);
+      const answer = state(asked);
       response.writeHead(answer.status, { 'content-type': 'application/json; charset=utf-8' });
       response.end(answer.body);
       return;
@@ -238,7 +249,15 @@ console.log(`web build verify: serving under the site's own CSP — ${CSP}`);
 }
 
 let answer: { status: number; body: string } = { status: 200, body: JSON.stringify(ANSWER) };
-const { server, url } = await serve(() => answer);
+/** Every branch the page has asked about, in order, so a tap can be proved. */
+const askedFor: (string | null)[] = [];
+/** Set when a case needs the answer to depend on which branch was asked for. */
+type AnswerFor = (branch: string | null) => { status: number; body: string };
+let answerFor: AnswerFor | null = null;
+const { server, url } = await serve((branch) => {
+  const per = answerFor;
+  return per ? per(branch) : answer;
+});
 
 // The same substitution `verify-owner-build-v11.ts` makes, and for the same
 // reason: CI installs the Chromium the lockfile pins, and this container has one
@@ -833,6 +852,218 @@ try {
   if (failures.length === beforeUnread) {
     mark('with nothing read, the Prover’s window says so and draws none of the recording’s checks');
   }
+  answer = { status: 200, body: JSON.stringify(ANSWER) };
+
+  /**
+   * **Phase 2 slice five, proved on the page rather than described.**
+   *
+   * `PHASE_2_SLICE_5_BRIEF.md` promised these by name: the page lists exactly the
+   * branches the stub names; choosing one changes which branch the room reads;
+   * and a branch that no longer exists produces a message and a **working list**
+   * rather than a dead page.
+   *
+   * That last one is not a hypothetical. On 2026-09-11 a merged branch was
+   * deleted and this site went dark three separate times, because three places
+   * had its name written down. This is the executable check that the app's share
+   * of that cannot come back.
+   */
+  const beforeBranches = failures.length;
+  const BRANCHES = [
+    {
+      name: 'main',
+      sha: 'a'.repeat(40),
+      shortSha: 'aaaaaaa',
+      isDefault: true,
+      protected: true,
+      pull: null,
+      updatedAt: null,
+    },
+    {
+      name: 'claude/a-branch-the-recording-never-names',
+      sha: 'b'.repeat(40),
+      shortSha: 'bbbbbbb',
+      isDefault: false,
+      protected: false,
+      pull: {
+        number: 99,
+        title: 'Something in flight',
+        draft: false,
+        url: 'https://example.invalid/99',
+        updatedAt: '2026-09-11T12:00:00Z',
+      },
+      updatedAt: '2026-09-11T12:00:00Z',
+    },
+    {
+      name: 'claude/one-with-no-pull-request',
+      sha: 'c'.repeat(40),
+      shortSha: 'ccccccc',
+      isDefault: false,
+      protected: false,
+      pull: null,
+      updatedAt: null,
+    },
+  ];
+  const listed = {
+    branches: BRANCHES,
+    branchesReason: null,
+    branchesTotal: 11,
+    branchesWatched: 8,
+    defaultBranch: 'main',
+    branchExists: true,
+  };
+  /**
+   * The answer now depends on which branch was asked for, which is the only way
+   * to tell a page that really re-reads from one that merely repaints a label.
+   * Each branch reports a commit message only it could have.
+   */
+  const SAID: Record<string, string> = {
+    main: 'the commit that only main has',
+    'claude/a-branch-the-recording-never-names': 'the commit that only the work branch has',
+  };
+  answerFor = (asked) => {
+    const which = asked ?? 'main';
+    return {
+      status: 200,
+      body: JSON.stringify({
+        ...ANSWER,
+        ...listed,
+        branch: which,
+        head: { ...ANSWER.head, message: SAID[which] ?? `the commit on ${which}` },
+      }),
+    };
+  };
+  askedFor.length = 0;
+  await page.goto(`${url}?branches=1`, { waitUntil: 'load' });
+  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
+    timeout: budget,
+  });
+  await press('[data-touch-target="branches"]');
+  await page.waitForSelector('.v11-branch-rows', { state: 'visible' }).catch(() => {});
+  const rows = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.v11-branch-row-name')).map(
+      (node) => (node as HTMLElement).innerText,
+    ),
+  );
+  for (const entry of BRANCHES) {
+    if (!rows.includes(entry.name)) {
+      failures.push(`the branch list does not name "${entry.name}", which the answer listed`);
+    }
+  }
+  if (rows.length !== BRANCHES.length) {
+    failures.push(
+      `the branch list draws ${rows.length} rows for ${BRANCHES.length} branches it was given`,
+    );
+  }
+  const panel = await page.evaluate(
+    () => (document.querySelector('.v11-branches') as HTMLElement | null)?.innerText ?? '',
+  );
+  // Eleven exist and eight are carried: a list silently cut is a list lying
+  // about what the repository has.
+  if (!/11 branches/.test(panel)) {
+    failures.push(`the branch list does not say how many branches exist: "${panel.slice(0, 200)}"`);
+  }
+  // A branch with no pull request has no time on this wire, and must say so
+  // rather than showing a blank that reads as "just now".
+  if (!/not read/i.test(panel)) {
+    failures.push('a branch with no pull request does not say its time was not read');
+  }
+
+  /**
+   * **The tap, and the only assertion that separates a working choice from a
+   * repainted label**: after choosing, the page must *ask* for that branch and
+   * must draw what that branch's answer said, not the previous one's.
+   */
+  await press('[data-touch-target="branch-claude/a-branch-the-recording-never-names"]');
+  /**
+   * **Waited for the request, not for a word on the page.**
+   *
+   * The first version of this waited for the chosen branch's commit message to
+   * appear in `document.body.innerText`. That message is drawn on the candidate
+   * slab, which is **inside the canvas** — so the condition could never become
+   * true, the wait burned its whole 60-second budget every run, and the
+   * assertions below then passed on their own merits while the check as a whole
+   * took seventy-five seconds. A wait that can never succeed is a wait that is
+   * measuring nothing, and on a project where a bill has already stopped work
+   * once, a minute of CI per run is not free.
+   *
+   * The condition that actually answers the question is on this side: has the
+   * page asked the endpoint for that branch yet?
+   */
+  {
+    const deadline = Date.now() + budget;
+    while (
+      !askedFor.includes('claude/a-branch-the-recording-never-names') &&
+      Date.now() < deadline
+    ) {
+      await page.waitForTimeout(100);
+    }
+  }
+  if (!askedFor.includes('claude/a-branch-the-recording-never-names')) {
+    failures.push(
+      `choosing a branch never asked the endpoint for it; it asked for ${JSON.stringify(askedFor)}`,
+    );
+  }
+  const afterTap = await press('.v11-badge').then(() =>
+    page.evaluate(
+      () => (document.querySelector('.v11-badge-body') as HTMLElement | null)?.innerText ?? '',
+    ),
+  );
+  if (!afterTap.includes('claude/a-branch-the-recording-never-names')) {
+    failures.push(
+      `after choosing a branch the page still names another: "${afterTap.slice(0, 200)}"`,
+    );
+  }
+
+  /**
+   * **The branch is gone — the failure that took this site down three times in
+   * one day.** `ok: true`, the list is real, and the branch asked for is not in
+   * it. The page must say so and must still offer the branches that do exist.
+   */
+  answerFor = () => ({
+    status: 200,
+    body: JSON.stringify({
+      ...ANSWER,
+      ...listed,
+      branch: 'claude/virgil-mobile-v11',
+      branchExists: false,
+      head: null,
+      checks: null,
+      checksReason: 'The branch claude/virgil-mobile-v11 is not in this repository.',
+      sessionReport: null,
+      sessionReportStatus: 'absent',
+    }),
+  });
+  await page.goto(`${url}?gone=1`, { waitUntil: 'load' });
+  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
+    timeout: budget,
+  });
+  await page.waitForSelector('.v11-branch-gone', { state: 'visible' }).catch(() => {});
+  const goneText = await page.evaluate(
+    () => (document.querySelector('.v11-branches') as HTMLElement | null)?.innerText ?? '',
+  );
+  if (!/is not in this repository any more/.test(goneText)) {
+    failures.push(
+      `a deleted branch does not produce a message saying so: "${goneText.slice(0, 200)}"`,
+    );
+  }
+  // The whole point: the way out is on screen without another press.
+  const goneRows = await page.evaluate(() => document.querySelectorAll('.v11-branch-row').length);
+  if (goneRows !== BRANCHES.length) {
+    failures.push(
+      `with the branch gone the page offers ${goneRows} branches to switch to, not ${BRANCHES.length}: the dead-page failure is back`,
+    );
+  }
+  // And it must not be dead: the world still draws.
+  const stillThere = await page.evaluate(() => document.querySelectorAll('canvas').length);
+  if (stillThere === 0) {
+    failures.push('with the branch gone the world is not drawn at all');
+  }
+  if (failures.length === beforeBranches) {
+    mark(
+      `the page lists ${BRANCHES.length} branches, reads the one it is told to, and survives one being deleted`,
+    );
+  }
+  answerFor = null;
   answer = { status: 200, body: JSON.stringify(ANSWER) };
 
   // Console errors are counted for the good answer only: the next phase makes

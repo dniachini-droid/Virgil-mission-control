@@ -59,6 +59,8 @@ A is the smallest thing that makes the sentence *"it shows everything"* true. It
 Every extra branch is more GitHub calls, and this project has already had work stopped dead by a bill.
 
 - The list is **one** call, whatever the number of branches.
+
+  **Correction, made during the build and not smoothed over.** The brief was written as though that one call would carry everything a row needs. It does not: `/repos/{repo}/branches` gives a name and a head sha per branch and **no dates**, and there is no REST call that gives the list with commit times. So the choice was one call without dates, or one call per branch with them. The promise above is kept — one call — and the cost lands on the rows: a branch's time is known only where it has an open pull request to read it from, and a branch without one **says its time was not read** rather than having one guessed for it. The ordering follows the same limit: default branch first, then the branches whose time is known, newest first, then the rest by name — never by an age this function cannot know.
 - Detail is fetched for the **showing** branch only — the same 8 calls the endpoint makes today, not 8 × N.
 - The list watches at most **eight** branches, chosen by most recent commit, and says on screen when there are more rather than silently truncating.
 - The 25-second answer cache stays, and becomes per branch.
