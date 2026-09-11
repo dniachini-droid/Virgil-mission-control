@@ -182,6 +182,70 @@ const browser = await chromium.launch(substituted ? { executablePath: preinstall
 const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
 const page = await context.newPage();
 
+/**
+ * **Waits are measured in this machine's frames, not in seconds — K11-04, which
+ * `verify-owner-build-v11.ts` learned and this file did not.**
+ *
+ * The first version used `page.waitForTimeout(3000)` and Playwright's 30-second
+ * default. It passed here, where a frame takes about 1.5 s, and failed in CI,
+ * where a frame takes 6.7 s: `page.click('.v11-badge')` found the element,
+ * called it visible, enabled and stable, and then timed out *performing the
+ * click*, because a WebGL render loop at 6.7 s a frame starves the main thread
+ * that has to answer it. A false failure on a working page, which is exactly
+ * what that finding is about.
+ *
+ * So the deadline is derived from the machine: six frames are timed, and every
+ * wait is given thirty of them or sixty seconds, whichever is longer. A slower
+ * machine is given proportionally longer rather than being called broken.
+ */
+async function framePeriodMs(): Promise<number> {
+  const started = Date.now();
+  // One `evaluate` per frame, and **no named inner function**: `tsx` compiles a
+  // named arrow into an esbuild `__name(...)` call that is not defined inside
+  // the page. `verify-owner-build-v11.ts` records that exact failure above its
+  // own `frames`, and the first version of this function reproduced it anyway.
+  // The per-frame round trip makes the estimate a little long, which errs
+  // towards a longer budget and is the safe direction.
+  for (let i = 0; i < 6; i += 1) {
+    await page.evaluate(
+      () =>
+        new Promise<void>((done) => {
+          requestAnimationFrame(() => done());
+        }),
+    );
+  }
+  return Math.max(16, (Date.now() - started) / 6);
+}
+
+/**
+ * A press that survives a starved main thread.
+ *
+ * A real `page.click` is tried first, because it is the thing the owner does and
+ * it exercises hit-testing. If the render loop is busy enough that Playwright
+ * cannot land it inside the budget, the click is dispatched on the element
+ * instead — weaker, and **said so in the output** rather than passed off as the
+ * same thing. What that fallback still proves is what this file is about: that
+ * pressing the control shows what the page read. Whether the control is big
+ * enough and where it sits are measured by `verify-owner-build-v11.ts` at three
+ * viewports, which is the right place for them.
+ */
+async function press(selector: string): Promise<void> {
+  try {
+    await page.click(selector);
+  } catch {
+    const dispatched = await page.evaluate((css) => {
+      const element = document.querySelector(css) as HTMLElement | null;
+      if (!element) return false;
+      element.click();
+      return true;
+    }, selector);
+    if (!dispatched) throw new Error(`${selector} is not on the page at all`);
+    console.log(
+      `web build verify: NOTE — ${selector} would not take a real click inside the budget; the click was dispatched on the element instead.`,
+    );
+  }
+}
+
 const requested: string[] = [];
 page.on('request', (request) => requested.push(new URL(request.url()).pathname));
 const consoleErrors: string[] = [];
@@ -194,11 +258,21 @@ try {
   //    exists and is never called, which shipped once already.
   await page.goto(url, { waitUntil: 'load' });
   await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
-    timeout: 60_000,
+    timeout: 120_000,
   });
-  // Time for the first poll to land. A pause, not a wait for a condition, and
-  // named as one.
-  await page.waitForTimeout(3000);
+  const frame = await framePeriodMs();
+  const budget = Math.max(60_000, Math.round(frame * 30));
+  context.setDefaultTimeout(budget);
+  mark(
+    `a frame takes ${Math.round(frame)} ms here, so every wait is given ${Math.round(budget / 1000)}s`,
+  );
+
+  // Waited for, not slept through: the request either arrives or the deadline
+  // passes, and which happened is the finding.
+  const deadline = Date.now() + budget;
+  while (!requested.includes('/api/state') && Date.now() < deadline) {
+    await page.waitForTimeout(250);
+  }
   const asked = requested.filter((path) => path === '/api/state').length;
   if (asked === 0) {
     failures.push('the page never asked for /api/state: the live path is not wired');
@@ -209,8 +283,8 @@ try {
   //    canvas, so the readable statement of what was read is the badge — which
   //    is also what the owner taps to find out where the numbers came from, and
   //    therefore the thing that must not be wrong.
-  await page.click('.v11-badge');
-  await page.waitForTimeout(500);
+  await press('.v11-badge');
+  await page.waitForSelector('.v11-badge-body', { state: 'visible' });
   const badge = await page.evaluate(
     () => (document.querySelector('.v11-badge-body') as HTMLElement | null)?.innerText ?? '',
   );
@@ -248,7 +322,7 @@ try {
    */
   answer = { status: 500, body: JSON.stringify({ ok: false, reason: 'the endpoint failed' }) };
   await page.goto(`${url}?again=1`, { waitUntil: 'load' });
-  await page.waitForTimeout(4000);
+  await page.waitForSelector('.v11-live-notice', { state: 'visible' }).catch(() => {});
   const notice = await page.evaluate(
     () => (document.querySelector('.v11-live-notice') as HTMLElement | null)?.innerText ?? '',
   );
@@ -256,8 +330,8 @@ try {
     failures.push(`with the endpoint failing, the page shows no notice saying so: "${notice}"`);
   }
 
-  await page.click('text=TALK TO VIRGIL');
-  await page.waitForTimeout(1500);
+  await press('.v11-talk');
+  await page.waitForSelector('.v11w-sheet', { state: 'visible' }).catch(() => {});
   const windowText = await page.evaluate(
     () => (document.querySelector('.v11w-sheet') as HTMLElement | null)?.innerText ?? '',
   );
