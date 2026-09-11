@@ -1269,6 +1269,22 @@ describe('a branch name is refused before it is put in a URL', () => {
     const refused = [
       '../../etc/passwd',
       'a/../b',
+      /**
+       * **Found by the mutation manifest on its first run, and it is the reason
+       * that mechanism exists.**
+       *
+       * Deleting `value.includes('..')` from `isBranchName` left every test in
+       * this file passing. Not because the tests were weak in general, but
+       * because every traversal case listed here is *also* refused by another
+       * rule: `../../etc/passwd` and `a/../b` have a component beginning with a
+       * dot, and `double//slash` has an empty component. The one guard nothing
+       * exercised was the one that matters on its own.
+       *
+       * `a..b` has no dot-leading component and no empty one. Git forbids `..`
+       * anywhere in a ref, and this line is the only thing here that refuses it.
+       */
+      'a..b',
+      'refs..heads',
       '/leading',
       'trailing/',
       'double//slash',
@@ -1299,5 +1315,79 @@ describe('a branch name is refused before it is put in a URL', () => {
     for (const value of [null, undefined, 42, {}, [], true]) {
       expect(isBranchName(value as never)).toBe(false);
     }
+  });
+});
+
+/**
+ * **SA-U-06: the room and the window must not disagree about the same checks.**
+ *
+ * The audit found the Prover's window saying *"All 2 checks passed"* while his
+ * station screen, on the same page at the same instant, said `NOT READ`. Both
+ * were drawing the same live answer. The window read `state.checks`; the screen
+ * read a schedule that the live path deliberately left empty and nothing ever
+ * refilled.
+ */
+describe('what the Prover’s station screen knows matches what his window says', () => {
+  const NOW = Date.parse('2026-09-11T12:00:00Z');
+  const withRuns = (runs: { name: string; state: string }[]) =>
+    stateFromAnswer(
+      {
+        ...FULL,
+        checks: { total: runs.length, passed: 0, failed: 0, running: 0, noResult: 0, runs },
+      } as never,
+      NOW,
+    );
+
+  it('carries the counts GitHub reported to the station, not a schedule', () => {
+    const state = withRuns([
+      { name: 'one', state: 'passed' },
+      { name: 'two', state: 'passed' },
+      { name: 'three', state: 'failed' },
+      { name: 'four', state: 'skipped' },
+      { name: 'five', state: 'running' },
+    ]);
+    const work = state?.cast.prover.work;
+    expect(work?.kind).toBe('checks');
+    if (work?.kind !== 'checks') throw new Error('the Prover lost his checks');
+    expect(work.read).toEqual({ passed: 2, failed: 1, running: 1, skipped: 1, total: 5 });
+    // The schedule stays empty: a Check carries a start time and a duration,
+    // GitHub returns neither, and the console animates them. Filling it in
+    // would be inventing the motion.
+    expect(work.checks).toEqual([]);
+  });
+
+  it('counts a check with no result in the total, as the window’s heading does', () => {
+    const work = withRuns([
+      { name: 'named', state: 'passed' },
+      { name: 'cancelled', state: 'noResult' },
+    ])?.cast.prover.work;
+    if (work?.kind !== 'checks') throw new Error('the Prover lost his checks');
+    expect(work.read?.total).toBe(2);
+    expect(work.read?.passed).toBe(1);
+  });
+
+  it('leaves the station saying nothing was read when nothing was', () => {
+    // The whole point of the original guard, and it must survive the repair:
+    // an answer with no checks leaves the rail at NOT READ rather than at zero.
+    const work = stateFromAnswer(FULL, NOW)?.cast.prover.work;
+    if (work?.kind !== 'checks') throw new Error('the Prover lost his checks');
+    expect(work.read).toBeUndefined();
+    expect(work.checks).toEqual([]);
+  });
+
+  it('leaves the Fabricator and the Keeper saying nothing was read, because nothing is', () => {
+    const state = withRuns([{ name: 'one', state: 'passed' }]);
+    expect(state?.cast.fabricator.work).toEqual({
+      kind: 'build',
+      files: [],
+      commits: [],
+      counts: [],
+    });
+    expect(state?.cast.keeper.work).toEqual({
+      kind: 'review',
+      findings: [],
+      readSeconds: 0,
+      counts: [],
+    });
   });
 });

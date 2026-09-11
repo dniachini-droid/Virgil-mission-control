@@ -133,6 +133,17 @@ async function gh(path, token) {
     // The status and the path. Never the token, and never the headers.
     const error = new Error(`GitHub answered ${response.status} for ${path}`);
     error.status = response.status;
+    /**
+     * **SA-S-08: enough to tell a refused token from a used-up allowance.**
+     *
+     * Both arrive as 403. GitHub distinguishes them in two headers, and without
+     * them the owner is told his token was refused when in fact his hourly limit
+     * ran out — which sends him to rotate a credential that was never the
+     * matter. Two headers, never the token and never the rest of them.
+     */
+    error.remaining = response.headers.get('x-ratelimit-remaining');
+    const reset = response.headers.get('x-ratelimit-reset');
+    error.resetAt = reset ? new Date(Number(reset) * 1000).toISOString().slice(11, 16) : null;
     throw error;
   }
   return response.json();
@@ -745,7 +756,21 @@ export default async function handler(request) {
   if (!repo) return fail('No repository is configured, so nothing has been read.');
 
   const url = new URL(request.url);
-  const forced = url.searchParams.get('fresh') === '1';
+  /**
+   * **`?fresh=1` is gone — the audit's SA-S-03.**
+   *
+   * It skipped the 25-second cache outright, and **no client in this application
+   * ever sent it** — `liveState.ts` sends only `?branch=`. It was a debugging
+   * affordance, and the moment this repository went public its only remaining
+   * function was to let a stranger switch off the one rate-limiting mechanism
+   * the endpoint has. Measured: 5,000 GitHub calls an hour divided by nine per
+   * uncached answer is about 556 requests — thirty seconds of one laptop — to
+   * exhaust the owner's hourly limit and turn his command centre off.
+   *
+   * `?branch=` still defeats the cache past sixteen distinct names, which is a
+   * narrower hole and a separate repair.
+   */
+  const forced = false;
   /**
    * **Which branch is being asked about, and why the caller may say.**
    *
@@ -889,7 +914,22 @@ export default async function handler(request) {
     // twice for one answer, on a project a bill has already stopped once.
     const pulls = pullsForList;
 
-    const pull = Array.isArray(pulls) ? pulls.find((entry) => entry.head?.ref === ref) : undefined;
+    /**
+     * **Matched on the full label, not the bare ref — SA-S-07.**
+     *
+     * `head.ref` on a pull request from a fork is the *fork's* branch name, and
+     * fork pull requests appear in this repository's list. So anyone could fork,
+     * name a branch `main`, open a pull request, and have their number and draft
+     * state drawn on the owner's row. `head.label` carries the owner prefix
+     * (`someone:main`), so comparing against `<this repo's owner>:<ref>` admits
+     * only branches that are actually here.
+     */
+    const mine = `${repo.split('/')[0]}:${ref}`;
+    const pull = Array.isArray(pulls)
+      ? pulls.find(
+          (entry) => (entry.head?.label ?? `${repo.split('/')[0]}:${entry.head?.ref}`) === mine,
+        )
+      : undefined;
 
     let reviews = null;
     if (pull) {
@@ -980,6 +1020,18 @@ export default async function handler(request) {
   } catch (error) {
     const status = error?.status;
     if (status === 401 || status === 403) {
+      /**
+       * **SA-S-08.** Now that this endpoint is public and unauthenticated, an
+       * exhausted hourly limit is by far the likeliest cause of a 403 — and it
+       * was reported as a permissions problem, which sends the owner to rotate a
+       * token that was never the matter. GitHub says which it is in a header, so
+       * this says which it is.
+       */
+      const remaining = error?.remaining;
+      if (status === 403 && remaining === '0') {
+        const resets = error?.resetAt ? ` It resets at ${error.resetAt}.` : '';
+        return fail(`GitHub's hourly request limit is used up, so nothing was read.${resets}`);
+      }
       return fail('The token was refused, or it is not permitted to read this repository.');
     }
     if (status === 404) {

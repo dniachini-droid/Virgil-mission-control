@@ -353,13 +353,25 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
    * page still says which branch is gone and still offers the ones that are not:
    * nothing is lost by refusing to draw a world nobody can describe.
    */
-  if (!answer.head?.sha) return null;
+  // **SA-U-04 / KP9-02: the guard and the read must name the same field.** This
+  // checked `sha` while the identifier every screen draws comes from
+  // `shortSha` one line below — so a head carrying one and not the other passed
+  // the guard, left `candidateId` unset, and every consumer's `?? CANDIDATE_ID`
+  // put `9abcdef012` on the slab under “Exact version being worked on”. Two
+  // reviewers reproduced it; today's wire never sends that shape, and “the other
+  // side always sets both” is the assumption this file rejects everywhere else.
+  if (!answer.head?.sha || !answer.head?.shortSha) return null;
   const base = demoAt(0, 0, false);
   // `exactOptionalPropertyTypes` is on, and it is right to be: an absent field
   // and a field explicitly set to `undefined` are different claims, and the
   // screens read the first as "the demonstration supplies its own" and would
   // read the second as a value. So an unread field is left off entirely rather
   // than written as `undefined`.
+  /**
+   * Read once and used twice — the Prover's window and, since SA-U-06, his
+   * station screen. Two surfaces, one reading, no way for them to disagree.
+   */
+  const read = checksOf(answer);
   const known: { candidateId?: string; branch?: string } = {};
   if (answer.head?.shortSha) known.candidateId = answer.head.shortSha;
   if (answer.branch) known.branch = answer.branch;
@@ -417,6 +429,41 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
   }
 
   /**
+   * **SA-U-06: the one live source that exists reaches the station screen too.**
+   *
+   * The loop above is unconditional and stays that way — every station starts
+   * from nothing read, which is what is true until a real source is wired to it.
+   * The Prover now has one. Before this, his window listed the checks and said
+   * *"All 2 checks passed"* while his station screen, on the same page at the
+   * same instant, said `NOT READ`: the owner walks over to the Prover to find
+   * out whether his checks passed and the station tells him nobody knows.
+   *
+   * Counts only. `checks` stays empty because a `Check` carries a start time and
+   * a duration, GitHub returns neither, and the console *animates* them —
+   * filling that in would be inventing the motion this whole file exists to
+   * refuse.
+   */
+  if (read) {
+    cast.prover = {
+      ...cast.prover,
+      work: {
+        kind: 'checks',
+        checks: [],
+        counts: [],
+        read: {
+          passed: read.rows.filter((row) => row.state === 'passed').length,
+          failed: read.rows.filter((row) => row.state === 'failed').length,
+          running: read.rows.filter((row) => row.state === 'running').length,
+          skipped: read.rows.filter((row) => row.state === 'skipped').length,
+          // Every check GitHub named, including the ones it had no word for —
+          // the same total the window's heading counts.
+          total: read.rows.length + read.noResult,
+        },
+      },
+    };
+  }
+
+  /**
    * **KP4-06: the principle this file states for one field, applied to the one
    * beside it.**
    *
@@ -443,6 +490,10 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
     }
   }
 
+  /**
+   * Read once: the window draws it and, since SA-U-06, so does the Prover's
+   * station screen. Two surfaces, one reading, no chance of disagreeing.
+   */
   return {
     ...base,
     mode: 'live',
@@ -453,7 +504,7 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
      * carry no checks and the Prover's window falls back to its recorded text —
      * a scripted run saying what it is.
      */
-    checks: checksOf(answer),
+    checks: read,
     /**
      * Carried whether or not there is a reason, so that `checks: null` always
      * arrives with the question "why" already answered — with a sentence, or

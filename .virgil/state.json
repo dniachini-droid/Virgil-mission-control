@@ -1,7 +1,7 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-11T16:29:57Z",
-  "aboutCommit": "f65fd848311ed8d765b35f5ea640e0be46c87474",
+  "reportedAt": "2026-09-11T17:19:58Z",
+  "aboutCommit": "2a18c8ef3414f8d3b96cf7fa71f1d9989f0fee04",
   "branch": "claude/virgil-checks-and-records",
   "candidate": null,
   "holder": "fabricator",
@@ -10,7 +10,7 @@
       "role": "fabricator",
       "activity": "WORKING",
       "reported": null,
-      "at": "2026-09-11T16:29:57Z"
+      "at": "2026-09-11T17:19:58Z"
     },
     {
       "role": "prover",
@@ -20,11 +20,11 @@
     },
     {
       "role": "keeper",
-      "activity": "READY",
-      "reported": null,
-      "at": null
+      "activity": "REPORTED",
+      "reported": "BLOCKED",
+      "at": "2026-09-11T17:19:58Z"
     }
   ],
   "review": null,
-  "note": "Reviews filed and the swallowed-wait check built; the mutation manifest is next."
+  "note": "The system audit ran; its worst finding is repaired and two need the owner."
 }
