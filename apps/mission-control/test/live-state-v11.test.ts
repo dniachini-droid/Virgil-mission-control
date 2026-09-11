@@ -7,8 +7,18 @@ import matrix from '../../../constitution/permission-matrix.json' with { type: '
 // workspace resolution, which is exactly why its shape check is written by hand
 // rather than in Zod. It is imported here so the two can be held against each
 // other; see the drift tests at the foot of this file.
-import { isBranchName, readBranches, shapeComplaint } from '../../../netlify/functions/state.mjs';
+import * as stateFunction from '../../../netlify/functions/state.mjs';
 import { SessionStatusReport } from '../../../packages/agent-contracts/src/live.js';
+
+/**
+ * Taken off a namespace import rather than named directly, because the
+ * `@ts-expect-error` above applies to the line that follows it and a named
+ * import long enough to wrap puts the unresolved module on a later line, where
+ * the directive cannot reach it — so the suppression silently stopped working
+ * and the typecheck failed on a file that had not changed meaning.
+ */
+const { isBranchName, readBranches, shapeComplaint, WATCHED_BRANCHES } = stateFunction;
+
 import {
   type LiveAnswer,
   REPORT_GOES_COLD_MS,
@@ -1200,32 +1210,41 @@ describe('the branch list, and what it will and will not claim', () => {
    * is only ever a drawing decision.
    */
   it('knows every branch exists, including the ones past the cap it draws', async () => {
-    const many = Array.from({ length: 9 }, (_, i) => ({
-      name: i === 0 ? 'main' : `claude/branch-${String(i).padStart(2, '0')}`,
+    /**
+     * **Constructed so the cap actually bites, rather than relying on the
+     * repository happening to be bigger than it.**
+     *
+     * Written against a fixed nine branches and a cap of eight, this test passed
+     * for the right reason by luck — and stopped exercising anything the moment
+     * the cap moved to twenty. It now generates one more branch than the cap,
+     * whatever the cap is, so the condition it is about always exists.
+     */
+    const many = Array.from({ length: WATCHED_BRANCHES + 1 }, (_, i) => ({
+      name: i === 0 ? 'main' : `claude/branch-${String(i).padStart(3, '0')}`,
       commit: { sha: 'd'.repeat(40) },
     }));
     const read = await withFetch(() => many);
-    expect(read.branches).toHaveLength(8);
-    // Nine names, not eight: the list the interface draws has no vote on what is
-    // true of the repository.
-    expect(read.names).toHaveLength(9);
-    const ninth = many[8]?.name as string;
-    expect(read.names).toContain(ninth);
-    // The exact expression the handler uses, held against the exact defect.
-    expect(read.names.includes(ninth)).toBe(true);
-    expect(read.branches?.some((entry: { name: string }) => entry.name === ninth)).toBe(false);
+    expect(read.branches).toHaveLength(WATCHED_BRANCHES);
+    // Every name, whatever the cap: the list the interface draws has no vote on
+    // what is true of the repository.
+    expect(read.names).toHaveLength(WATCHED_BRANCHES + 1);
+    const past = many[WATCHED_BRANCHES]?.name as string;
+    // The exact expression the handler uses, held against the exact defect: the
+    // branch is not drawn, and is still known to exist.
+    expect(read.branches?.some((entry: { name: string }) => entry.name === past)).toBe(false);
+    expect(read.names.includes(past)).toBe(true);
   });
 
   it('caps the list and still reports how many exist', async () => {
-    const many = Array.from({ length: 20 }, (_, i) => ({
+    const many = Array.from({ length: WATCHED_BRANCHES + 12 }, (_, i) => ({
       name: i === 0 ? 'main' : `branch-${String(i).padStart(2, '0')}`,
       commit: { sha: 'd'.repeat(40) },
     }));
     const read = await withFetch(() => many);
-    expect(read.branches).toHaveLength(8);
-    // A list silently cut to eight is a list lying about what the repository
-    // has. The count of what exists travels beside it.
-    expect(read.total).toBe(20);
+    expect(read.branches).toHaveLength(WATCHED_BRANCHES);
+    // A list silently cut is a list lying about what the repository has. The
+    // count of what exists travels beside it, whatever the cap happens to be.
+    expect(read.total).toBe(WATCHED_BRANCHES + 12);
   });
 
   it('drops an entry with no usable name rather than drawing a blank row', async () => {
