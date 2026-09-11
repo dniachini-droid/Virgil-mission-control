@@ -375,3 +375,220 @@ describe('the functional interface text is DOM text and never enters the canvas'
     }
   });
 });
+
+/**
+ * **Slice four: the Prover's window, when the checks are real.**
+ *
+ * The recorded window draws six checks from a fixed schedule. Given a live
+ * answer it must draw what GitHub reported instead, and the defect it would be
+ * easiest to ship is the two side by side — real names above recorded ones, all
+ * under one heading, with no way for a reader to tell which is which.
+ */
+describe('the Prover’s window draws the checks that actually ran', () => {
+  const base = demoAt(0, 0, false);
+  const live = (
+    rows: { name: string; state: 'running' | 'passed' | 'failed' | 'skipped' }[],
+    noResult = 0,
+  ) =>
+    windowDoc({ ...base, checks: { rows, noResult, source: 'check runs' } }, { agent: 'prover' });
+
+  it('lists every check it was given, by its own name', () => {
+    const doc = live([
+      { name: 'a name the recording never uses', state: 'passed' },
+      { name: 'another it never uses', state: 'failed' },
+    ]);
+    const said = allText(doc).join(' ');
+    expect(said).toContain('a name the recording never uses');
+    expect(said).toContain('another it never uses');
+  });
+
+  it('does not draw the recording’s six checks beside them', () => {
+    const said = allText(live([{ name: 'the only check that ran', state: 'passed' }])).join(' ');
+    for (const name of CHECK_NAMES) {
+      expect(said, name).not.toContain(name);
+    }
+  });
+
+  it('says a check returned no result, and never lists it as one that ran', () => {
+    const doc = live([{ name: 'the one that reported', state: 'passed' }], 1);
+    const said = allText(doc).join(' ');
+    expect(said).toMatch(/1 check returned no result/i);
+    const rows = doc.sections
+      .flatMap((section) => section.blocks)
+      .filter((block): block is Extract<Block, { kind: 'checks' }> => block.kind === 'checks')
+      .flatMap((block) => block.rows);
+    expect(rows).toHaveLength(1);
+  });
+
+  it('uses only the four words the constitution has, in every row it draws', () => {
+    const doc = live([
+      { name: 'one', state: 'passed' },
+      { name: 'two', state: 'failed' },
+      { name: 'three', state: 'running' },
+      { name: 'four', state: 'skipped' },
+    ]);
+    const rows = doc.sections
+      .flatMap((section) => section.blocks)
+      .filter((block): block is Extract<Block, { kind: 'checks' }> => block.kind === 'checks')
+      .flatMap((block) => block.rows);
+    expect(rows.map((row) => row.state).sort()).toEqual(['failed', 'passed', 'running', 'skipped']);
+  });
+
+  it('names which GitHub question the results came from', () => {
+    expect(allText(live([{ name: 'one', state: 'passed' }])).join(' ')).toContain('check runs');
+  });
+
+  it('draws no verdict on the work from checks passing', () => {
+    // The oldest rule in this file and the reason `keeperVerdict` is never
+    // inferred: checks passing is the Prover's evidence, not the Keeper's
+    // conclusion. A window that says PASS because everything went green has
+    // decided something no check decided.
+    const said = allText(
+      live([
+        { name: 'one', state: 'passed' },
+        { name: 'two', state: 'passed' },
+      ]),
+    ).join(' ');
+    expect(said).not.toMatch(/\bPASS\b|\bAPPROVED\b|\bBLOCKED\b/);
+  });
+
+  it('says nothing is known when nothing reported, rather than filling the quiet', () => {
+    const doc = live([]);
+    expect(doc.conclusion.headline).toBe('No checks have reported yet');
+    // Not "all 0 passed", which is true of an empty list and says the opposite
+    // of what is known.
+    expect(doc.conclusion.headline).not.toMatch(/passed/i);
+    expect(allText(doc).join(' ')).toMatch(/reported no checks at all/i);
+  });
+
+  it('carries no scripted dialogue, because no agent said anything about these', () => {
+    expect(live([{ name: 'one', state: 'passed' }]).messages).toEqual([]);
+  });
+
+  it('leads with meaning, never with a table', () => {
+    const doc = live([{ name: 'one', state: 'failed' }]);
+    expect(doc.conclusion.headline.length).toBeGreaterThan(0);
+    expect(doc.sections[0]?.blocks[0]?.kind).not.toBe('table');
+  });
+
+  it('the recorded window is untouched when there are no live checks', () => {
+    const doc = windowDoc(base, { agent: 'prover' });
+    const said = allText(doc).join(' ');
+    expect(said).toContain(CHECK_NAMES[0]);
+  });
+});
+
+/**
+ * **The Keeper's KP7-01 and KP7-02, held by tests rather than by a comment.**
+ *
+ * KP7-01 was the worst defect this project could ship and the first build of
+ * slice four shipped it: when GitHub could not be asked about the checks at all,
+ * the live Prover's window fell through to the recorded document and drew the
+ * recording's fourteen invented checks under `14 finished, 0 still to come`,
+ * with `14 checks have run and passed so far` marked `verified` — a fixture
+ * presented as evidence, on the one surface whose subject is that distinction,
+ * on a page whose badge simultaneously said the results could not be read.
+ *
+ * The approved brief had named this case in its own words: *"It draws nothing
+ * when nothing was read … not zero, not empty, not `skipped`."*
+ */
+describe('when the checks were not read, the Prover’s window says so and draws nothing', () => {
+  const base = demoAt(0, 0, false);
+  // `null`, not absent: a live answer that read no checks. The recording leaves
+  // the field off entirely, and that is the difference the window turns on.
+  const notRead = (checksReason: string | null = null) =>
+    windowDoc({ ...base, mode: 'live', checks: null, checksReason }, { agent: 'prover' });
+
+  it('never draws one of the recording’s checks', () => {
+    const said = allText(notRead()).join(' ');
+    for (const name of CHECK_NAMES) {
+      expect(said, name).not.toContain(name);
+    }
+  });
+
+  it('lists no checks at all, rather than zero of them', () => {
+    const rows = notRead()
+      .sections.flatMap((section) => section.blocks)
+      .filter((block): block is Extract<Block, { kind: 'checks' }> => block.kind === 'checks');
+    expect(rows).toEqual([]);
+  });
+
+  it('marks nothing as verified, because nothing was read', () => {
+    const standings = notRead()
+      .sections.flatMap((section) => section.blocks)
+      .filter((block): block is Extract<Block, { kind: 'facts' }> => block.kind === 'facts')
+      .flatMap((block) => block.rows)
+      .map((row) => row.standing);
+    expect(standings.length).toBeGreaterThan(0);
+    expect(standings).not.toContain('verified');
+  });
+
+  it('says the results were not read, and does not say none ran', () => {
+    const doc = notRead();
+    expect(doc.conclusion.headline).toBe('The check results were not read');
+    const said = allText(doc).join(' ');
+    expect(said).toMatch(/could not be read this time, so none are shown/);
+    expect(said).not.toMatch(/\b0 checks\b|no checks ran/i);
+  });
+
+  it('says the same sentence the badge on the same page says', () => {
+    // Two surfaces, one fact, one vocabulary. The wording is lifted from
+    // MobileRoom's badge deliberately.
+    expect(allText(notRead()).join(' ')).toContain('not zero, which would be a different claim');
+  });
+
+  it('names which sources refused when the answer said, and admits it when it did not', () => {
+    const why = 'No source could be read: check runs (403), workflow runs (403).';
+    expect(allText(notRead(why)).join(' ')).toContain(why);
+    expect(allText(notRead()).join(' ')).toMatch(/No reason came back with the answer/);
+  });
+
+  it('the recording is untouched: absent checks still draw the recorded six', () => {
+    expect(allText(windowDoc(base, { agent: 'prover' })).join(' ')).toContain(CHECK_NAMES[0]);
+  });
+});
+
+describe('a check that did not run is never counted as one that passed', () => {
+  const base = demoAt(0, 0, false);
+  const live = (rows: { name: string; state: 'running' | 'passed' | 'failed' | 'skipped' }[]) =>
+    windowDoc(
+      { ...base, checks: { rows, noResult: 0, source: 'check runs' } },
+      { agent: 'prover' },
+    );
+
+  it('does not say all passed when one was skipped — KP7-02', () => {
+    const doc = live([
+      { name: 'one that ran', state: 'passed' },
+      { name: 'one that did not', state: 'skipped' },
+    ]);
+    expect(doc.conclusion.headline).not.toMatch(/^All /);
+    expect(doc.conclusion.headline).toContain('did not run');
+  });
+
+  it('does not say all passed when every check was skipped', () => {
+    const doc = live([{ name: 'the only one', state: 'skipped' }]);
+    expect(doc.conclusion.headline).toBe('1 check did not run');
+    expect(doc.conclusion.headline).not.toMatch(/All \d|passed/i);
+  });
+
+  it('still says all passed when they all actually did', () => {
+    const doc = live([
+      { name: 'one', state: 'passed' },
+      { name: 'two', state: 'passed' },
+    ]);
+    expect(doc.conclusion.headline).toBe('All 2 checks passed');
+  });
+
+  it('the headline never contradicts the facts block beneath it', () => {
+    const doc = live([
+      { name: 'one that ran', state: 'passed' },
+      { name: 'one that did not', state: 'skipped' },
+    ]);
+    const facts = doc.sections
+      .flatMap((section) => section.blocks)
+      .filter((block): block is Extract<Block, { kind: 'facts' }> => block.kind === 'facts')
+      .flatMap((block) => block.rows);
+    expect(facts.some((row) => /did not run/.test(row.text))).toBe(true);
+    expect(doc.conclusion.headline).not.toMatch(/All 2 checks passed/);
+  });
+});

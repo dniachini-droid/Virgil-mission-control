@@ -16,7 +16,7 @@ import {
 } from '../screens/tally.js';
 import { primaryFor, verdictPrimary } from '../screens/v11/content.js';
 import { ACCENT, STATUS } from '../screens/v11/system.js';
-import type { Block, Message, Section, Standing } from './blocks.js';
+import type { Block, CheckState, Message, Section, Standing } from './blocks.js';
 import { SESSION_ACTIONS } from './session.js';
 
 /**
@@ -697,7 +697,363 @@ function couldNotRunBlock(name: string): Block {
   };
 }
 
+/**
+ * **The Prover's window when the checks are real.**
+ *
+ * Everything below this line in `proverDoc` is the recording: a fixed schedule
+ * of six named checks whose results come from `screens/tally.ts`, drawn because
+ * a scripted run has to draw something. When `/api/state` has answered, the
+ * window must draw what actually ran instead — and say so, rather than showing
+ * the recording's six checks with a live badge above them, which is the exact
+ * confusion this build exists to prevent.
+ *
+ * Three rules it keeps.
+ *
+ *  - **Only the four words.** A row carries `running`, `passed`, `failed` or
+ *    `skipped` (`constitution/authority.json`) or it is not a row. `liveState`
+ *    has already refused anything else; nothing here widens that.
+ *  - **A check with no result is counted, never drawn.** GitHub reports runs
+ *    that were cancelled, that errored in the runner, that finished with no
+ *    conclusion at all. None of those is `skipped` — `skipped` is a check that
+ *    chose not to run and said so. So they are said in a sentence and left out
+ *    of the list, because a list is a claim about each row in it.
+ *  - **Where it came from is on the page.** Check runs, workflow runs and commit
+ *    statuses are three different questions, and "eight checks passed" means a
+ *    different thing from each. The source is named in the section that lists
+ *    them, not buried.
+ *
+ * There is no conclusion drawn about the work from any of this. Checks passing
+ * is the Prover's evidence, not the Keeper's verdict, and this window has never
+ * been allowed to infer one from the other.
+ */
+function liveProverDoc(state: DemoState, checks: NonNullable<DemoState['checks']>): WindowDoc {
+  const rows = checks.rows;
+  const count = (want: CheckState) => rows.filter((row) => row.state === want).length;
+  const passed = count('passed');
+  const failed = count('failed');
+  const running = count('running');
+  const skipped = count('skipped');
+  const { noResult } = checks;
+  const total = rows.length + noResult;
+  const named = (want: CheckState) =>
+    rows.filter((row) => row.state === want).map((row) => row.name);
+  /** `1 check`, `2 checks`. Said the same way everywhere on this page. */
+  const checkWord = (n: number) => `${n} check${n === 1 ? '' : 's'}`;
+  const noResultLine = `${checkWord(noResult)} returned no result, so nothing is known about ${noResult === 1 ? 'it' : 'them'}`;
+
+  const conclusion: Conclusion =
+    total === 0
+      ? {
+          headline: 'No checks have reported yet',
+          meaning: `GitHub's ${checks.source} have nothing to report against this version. That is not a pass and not a failure.`,
+          next: 'Nothing is known about this version until a check reports a result.',
+        }
+      : failed > 0
+        ? {
+            headline: `${checkWord(failed)} of ${total} failed`,
+            meaning: `${named('failed').join(', ')} failed. A check confirming a problem is evidence, and it is the Prover's evidence only — it is not a review.`,
+            next: 'You decide whether the agents should fix it and run the checks again.',
+          }
+        : running > 0
+          ? {
+              headline: `${checkWord(running)} of ${total} ${running === 1 ? 'is' : 'are'} still running`,
+              meaning:
+                'A check that has not finished cannot pass or fail. Nothing is known about it either way yet.',
+              next: 'The remaining checks finish, and then the result of each is known.',
+            }
+          : noResult > 0
+            ? {
+                headline: `${checkWord(passed)} passed, and ${noResultLine}`,
+                meaning:
+                  'A check that returned no result is not a check that passed, and it is not one that was skipped either. The project has no word for what it did, so this screen does not give it one.',
+                next: 'Those checks must produce a result before anything is known about them.',
+              }
+            : skipped > 0
+              ? {
+                  /**
+                   * **The Keeper's KP7-02.** This branch did not exist, so a row
+                   * set of `[passed, skipped]` fell through to *"All 2 checks
+                   * passed"* — while the facts block two sections below said the
+                   * skipped one never ran. One document, two answers.
+                   *
+                   * It was unreachable on today's wire, because `state.mjs` maps
+                   * GitHub's `skipped` to `noResult` (KP7-03, not repaired here).
+                   * That is not a defence and this file has already rejected it
+                   * once: the function and this page are separate artefacts that
+                   * can ship from different commits, and the slice's own e2e stub
+                   * sends a skipped row.
+                   */
+                  // `0 checks passed, and 1 check did not run` is true and reads
+                  // like a machine. When nothing passed, the passing half is
+                  // dropped rather than reported as a zero.
+                  headline:
+                    passed > 0
+                      ? `${checkWord(passed)} passed, and ${checkWord(skipped)} did not run`
+                      : `${checkWord(skipped)} did not run`,
+                  meaning: `${named('skipped').join(', ')} did not run, so ${skipped === 1 ? 'its result is' : 'their results are'} unknown. A check that did not run has not passed.`,
+                  next: 'Those checks must run before anything is known about them.',
+                }
+              : {
+                  headline: `All ${checkWord(total)} passed`,
+                  meaning: `Every check GitHub's ${checks.source} reported against this version passed. That is the Prover's evidence. It is not a verdict on the work.`,
+                  next: 'A review is a separate question, decided by the Keeper against the record.',
+                };
+
+  const sections: Section[] = [
+    {
+      id: 'checks',
+      /**
+       * **The Keeper's KP7-07.** The title counted every check GitHub named,
+       * including the one that returned nothing; the summary beneath it
+       * accounted for the four states only. Two numbers one line apart, one
+       * short of the other, and nothing between them saying why. The title now
+       * counts what the list holds, and the count of the rest rides in the same
+       * line as the states rather than in a heading above them.
+       */
+      title:
+        rows.length === 0
+          ? 'The checks that reported'
+          : `The ${checkWord(rows.length)} that reported`,
+      summary:
+        rows.length === 0
+          ? `Nothing readable from ${checks.source}`
+          : `${passed} passed · ${failed} failed · ${running} still running · ${skipped} skipped${noResult > 0 ? ` · ${noResult} with no result` : ''}`,
+      open: true,
+      blocks: [
+        ...(rows.length > 0
+          ? ([{ kind: 'checks', rows: rows.map((row) => ({ ...row })) }] as Block[])
+          : []),
+        ...(noResult > 0
+          ? ([
+              {
+                kind: 'note',
+                // Not in the list above, deliberately. A row in that list says
+                // what the check did; these are the ones nobody can say that of.
+                text: `${noResultLine}. ${noResult === 1 ? 'It is' : 'They are'} counted here and left out of the list, because a list of results is a claim about every line in it.`,
+              },
+            ] as Block[])
+          : []),
+        ...(rows.length === 0 && noResult === 0
+          ? ([
+              {
+                kind: 'note',
+                text: `GitHub's ${checks.source} reported no checks at all against this version.`,
+              },
+            ] as Block[])
+          : []),
+      ],
+    },
+    {
+      id: 'facts',
+      title: 'What is proven and what is only reported',
+      summary: 'Results from checks, kept separate from what agents said',
+      open: failed > 0,
+      blocks: [
+        {
+          kind: 'facts',
+          rows: [
+            {
+              text:
+                passed === 0
+                  ? 'No check has run and passed'
+                  : `${checkWord(passed)} ran and passed against this exact version`,
+              standing: passed === 0 ? ('unresolved' as Standing) : ('verified' as Standing),
+            },
+            ...(failed > 0
+              ? [
+                  {
+                    text: `${named('failed').join(', ')} failed, and ${failed === 1 ? 'it' : 'they'} can be run again from the record`,
+                    standing: 'verified' as Standing,
+                  },
+                ]
+              : []),
+            ...(running > 0
+              ? [
+                  {
+                    text: `${checkWord(running)} ${running === 1 ? 'has' : 'have'} not finished, so nothing is known about ${running === 1 ? 'it' : 'them'}`,
+                    standing: 'unresolved' as Standing,
+                  },
+                ]
+              : []),
+            ...(skipped > 0
+              ? [
+                  {
+                    text: `${named('skipped').join(', ')} did not run, so ${skipped === 1 ? 'its result is' : 'their results are'} unknown`,
+                    standing: 'unresolved' as Standing,
+                  },
+                ]
+              : []),
+            ...(noResult > 0 ? [{ text: noResultLine, standing: 'unresolved' as Standing }] : []),
+          ],
+        },
+        {
+          kind: 'note',
+          text: 'A check result is evidence. An agent’s statement is a claim. This screen keeps them separate.',
+        },
+      ],
+    },
+    {
+      id: 'source',
+      title: 'Where these results came from',
+      summary: `Read from ${checks.source}`,
+      blocks: [
+        {
+          kind: 'markdown',
+          markdown: `${total === 0 ? 'Nothing was reported' : `These ${checkWord(total)} were read`} from GitHub's **${checks.source}** for the exact version this page names. Check runs, workflow runs and commit statuses are three different questions, and the same sentence means a different thing from each, so the one that answered is named here rather than left out.\n\nNothing on this screen is a verdict on the work. Checks passing is the Prover's evidence; a review is the Keeper's, and it is decided against the record, not inferred from these.`,
+        },
+      ],
+    },
+  ];
+
+  return {
+    key: 'prover',
+    agent: 'prover',
+    name: NAME.prover,
+    remit: REMIT.prover,
+    status: statusOf('prover', state),
+    progression: progressionOf(state, 'prover'),
+    context: contextOf(state),
+    conclusion,
+    actions: [
+      { id: 'open-checks', label: 'View every check', goes: { kind: 'section', id: 'checks' } },
+      {
+        id: 'open-source',
+        label: 'Where these came from',
+        goes: { kind: 'section', id: 'source' },
+      },
+    ],
+    /**
+     * Empty, and that is the point. The thread beneath the recorded Prover is
+     * scripted dialogue; no real agent has said anything about these checks, so
+     * this window shows no messages rather than the recording's.
+     */
+    messages: [],
+    sections,
+    accent: ACCENT.prover?.key ?? STATUS.cyan,
+    reaction: state.cast.prover.face,
+  };
+}
+
+/**
+ * **The Prover's window when the checks were not read — the Keeper's KP7-01.**
+ *
+ * The brief this slice was built to says it in its own words: *"It draws nothing
+ * when nothing was read. If the checks cannot be fetched, the window says they
+ * were not read — not zero, not empty, not `skipped`."* The first build of the
+ * slice did not do that. `checksOf` returns `null` when GitHub refused every
+ * source — a token without the scope, a rate limit, a 5xx — and `proverDoc`
+ * guarded on truthiness alone, so a **live** page fell through to the recorded
+ * document and drew the recording's fourteen invented checks under the summary
+ * `14 finished, 0 still to come`, with `14 checks have run and passed so far`
+ * marked `verified`.
+ *
+ * Two things make that the worst defect this project can ship. A fixture from
+ * `screens/tally.ts` was presented as evidence on the one surface whose entire
+ * subject is the difference between evidence and a claim. And the badge on the
+ * same page said, correctly, *"The check results could not be read this time, so
+ * none are shown — not zero, which would be a different claim"* — so the page
+ * contradicted itself and the false half was the larger, more prominent one.
+ *
+ * The comments the first build put in this file asserted the opposite of what it
+ * did — *"not a fallback the live path may quietly borrow from"* — which is the
+ * same species of artefact as a comment asserting a guard that does not exist.
+ * They are corrected, not deleted.
+ *
+ * **How the three cases are told apart**, and why no `state.mode` test is needed:
+ * `demoAt` never sets `checks`, so the recording and the replay have it
+ * `undefined`. `stateFromAnswer` always sets it, so a live state has it `null`
+ * when nothing was read and an object when something was. `exactOptionalPropertyTypes`
+ * is on, which is what makes absent and `null` two different claims rather than
+ * one — this is the case that repays that setting.
+ */
+function unreadProverDoc(state: DemoState): WindowDoc {
+  const why = state.checksReason;
+  return {
+    key: 'prover',
+    agent: 'prover',
+    name: NAME.prover,
+    remit: REMIT.prover,
+    status: statusOf('prover', state),
+    progression: progressionOf(state, 'prover'),
+    context: contextOf(state),
+    conclusion: {
+      headline: 'The check results were not read',
+      // Not "no checks ran". Nobody knows whether any ran; what is known is that
+      // the question could not be asked. Those are different facts and the
+      // distinction is the whole of this window.
+      meaning:
+        'GitHub could not be asked about the checks on this version, so nothing is known about them — which is not the same as none having run, and not the same as any of them having passed or failed.',
+      next: 'Nothing here can say what the checks did until they can be read.',
+    },
+    actions: [
+      { id: 'open-why', label: 'Why they were not read', goes: { kind: 'section', id: 'why' } },
+    ],
+    messages: [],
+    sections: [
+      {
+        id: 'why',
+        title: 'Why nothing is listed',
+        summary: 'The results could not be read this time',
+        open: true,
+        blocks: [
+          {
+            kind: 'note',
+            // The badge's own sentence, deliberately word for word: two surfaces
+            // on one page describing one fact should not describe it twice in
+            // two vocabularies.
+            text: 'The check results could not be read this time, so none are shown — not zero, which would be a different claim.',
+          },
+          ...(typeof why === 'string' && why.length > 0
+            ? ([{ kind: 'evidence', rows: [{ label: 'What was tried', value: why }] }] as Block[])
+            : ([
+                {
+                  kind: 'note',
+                  text: 'No reason came back with the answer, so this screen cannot say which source refused or why.',
+                },
+              ] as Block[])),
+        ],
+      },
+      {
+        id: 'facts',
+        title: 'What is proven and what is only reported',
+        summary: 'Nothing about the checks is proven, because none were read',
+        blocks: [
+          {
+            kind: 'facts',
+            rows: [
+              {
+                text: 'Whether any check ran on this version is unknown',
+                standing: 'unresolved' as Standing,
+              },
+              {
+                text: 'No check result has been read, so none can be evidence of anything',
+                standing: 'unresolved' as Standing,
+              },
+            ],
+          },
+          {
+            kind: 'note',
+            text: 'A check result is evidence. An agent’s statement is a claim. A result nobody could read is neither.',
+          },
+        ],
+      },
+    ],
+    accent: ACCENT.prover?.key ?? STATUS.cyan,
+    reaction: state.cast.prover.face,
+  };
+}
+
 function proverDoc(state: DemoState): WindowDoc {
+  // Real checks answer the question this window asks, so they answer it.
+  if (state.checks) return liveProverDoc(state, state.checks);
+  /**
+   * **`null` is not `undefined` here, and the Keeper's KP7-01 is the whole
+   * reason.** Absent means the recording, which draws its own six. `null` means
+   * a live answer whose checks could not be read, and the recording is not a
+   * fallback the live path may borrow from — which is what the comment that
+   * used to stand here claimed while the code beneath it did exactly that.
+   */
+  if (state.checks === null) return unreadProverDoc(state);
   const { station, since } = beatOf(state, 'prover');
   const tally = proverTally(station === 'WORKING' ? since : 100, state.outcome);
   const report = state.cast.prover.report;

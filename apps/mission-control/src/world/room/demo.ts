@@ -5,6 +5,7 @@ import type { Activity } from '../characters/Figure.js';
 import type { VirgilPose } from '../characters/VirgilRigged.js';
 import type { FaceState } from '../characters/Visor.js';
 import type { HopWork } from '../screens/work.js';
+import type { CheckState } from '../window/blocks.js';
 import type { Role } from './cast.js';
 
 /**
@@ -165,6 +166,37 @@ export interface DemoState {
   virgilFace: FaceState;
   cast: Record<Role, MemberState>;
   content: ScreenContent;
+  /**
+   * The checks the live answer actually reported, when there is a live answer.
+   *
+   * `null` in the recording and in replay, because the recording has no real
+   * checks and must not pretend to: a scripted run says what it is, and the
+   * Prover's window falls back to the recorded text. Present only on a state
+   * built from `/api/state`.
+   *
+   * `rows` carries only the checks whose result the constitution has a word for
+   * — `running`, `passed`, `failed`, `skipped` (`constitution/authority.json`,
+   * `checkResults`). Anything else is not translated into one of those four; it
+   * is counted in `noResult` and said in a sentence, because drawing an unknown
+   * result as `skipped` would be the interface telling the owner something the
+   * evidence never said.
+   */
+  checks?: {
+    rows: readonly { name: string; state: CheckState }[];
+    noResult: number;
+    /** Which GitHub API answered: check runs, workflow runs, or commit statuses. */
+    source: string;
+  } | null;
+  /**
+   * Why the checks could not be read, when they could not be.
+   *
+   * Absent with `checks` absent — the recording has nothing to explain. Present
+   * and `null` on a live state whose checks were read. Present and a sentence on
+   * a live state whose checks were not: `state.mjs` names which sources refused
+   * and with what status, and the Prover's window says so instead of drawing
+   * anything.
+   */
+  checksReason?: string | null;
 }
 
 /** The beats, in seconds from the loop's start. */

@@ -676,3 +676,179 @@
   opacity: 0.7;
   font-size: 0.8em;
 }
+
+/* --------------------------------------------------- the branch list, slice 5 */
+
+/*
+ * **Every branch, and which one the room is showing.**
+ *
+ * It lives in the badge dock, beneath the badge, because it answers the same
+ * question the badge answers — *where is what I am looking at coming from* —
+ * and a second dock in a second corner would make the owner hunt for the
+ * answer in two places.
+ *
+ * Every pressable thing here is at least 44 px tall. `verify:owner:v11`
+ * measures that at three viewports and fails the build below it, which is why
+ * the rule is written as `min-height` on the control rather than as padding
+ * that a long branch name could collapse.
+ */
+.v11-branches {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: min(520px, 100%);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.v11-branch-toggle {
+  min-height: var(--v11-touch);
+  max-width: 100%;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px 0 14px;
+  font: 600 12px / 1 var(--mono);
+  letter-spacing: 0.06em;
+  color: var(--ice);
+  background: rgba(4, 16, 34, 0.94);
+  border: 1px solid rgba(191, 233, 255, 0.6);
+  border-radius: 999px;
+}
+
+/* The branch is gone. Amber, because it is a thing the reader must act on. */
+.v11-branch-toggle.is-gone {
+  color: var(--amber);
+  background: rgba(43, 15, 5, 0.94);
+  border-color: rgba(255, 179, 71, 0.75);
+}
+
+.v11-branch-label {
+  opacity: 0.62;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  flex: none;
+}
+
+/*
+ * A long branch name is the normal case here — `claude/virgil-phase-2-slice-4`
+ * is twenty-nine characters on a 390 px phone. It ellipsises rather than
+ * wrapping, because the row must stay one line for the control to keep its
+ * shape, and the whole name is in the list one press away.
+ */
+.v11-branch-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.v11-branch-more {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid currentColor;
+  opacity: 0.75;
+  flex: none;
+}
+
+.v11-branch-gone,
+.v11-branch-note {
+  margin: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 10px 13px;
+  font: 500 12.5px / 1.5 var(--ui);
+  border-radius: 12px;
+}
+
+.v11-branch-gone {
+  color: #ffd9a8;
+  background: rgba(43, 15, 5, 0.96);
+  border: 1px solid rgba(255, 179, 71, 0.6);
+}
+
+.v11-branch-note {
+  color: rgba(216, 236, 255, 0.78);
+  background: rgba(4, 16, 34, 0.9);
+  border: 1px solid rgba(191, 233, 255, 0.3);
+}
+
+.v11-branch-panel {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.v11-branch-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-height: 46vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* The list scrolls; the page never does. */
+  overscroll-behavior: contain;
+}
+
+.v11-branch-row {
+  min-height: var(--v11-touch);
+  width: 100%;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "name sha"
+    "what when";
+  align-items: center;
+  gap: 2px 10px;
+  padding: 8px 12px;
+  text-align: left;
+  color: #d8ecff;
+  background: rgba(4, 16, 34, 0.94);
+  border: 1px solid rgba(191, 233, 255, 0.28);
+  border-radius: 10px;
+}
+
+.v11-branch-row.is-showing {
+  border-color: rgba(191, 233, 255, 0.85);
+  background: rgba(10, 32, 62, 0.96);
+}
+
+.v11-branch-row-name {
+  grid-area: name;
+  font: 600 12.5px / 1.3 var(--mono);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.v11-branch-row-sha {
+  grid-area: sha;
+  font: 500 11px / 1.3 var(--mono);
+  opacity: 0.6;
+  flex: none;
+}
+
+.v11-branch-row-what {
+  grid-area: what;
+  font: 500 11px / 1.3 var(--ui);
+  opacity: 0.72;
+}
+
+.v11-branch-row-when {
+  grid-area: when;
+  font: 500 11px / 1.3 var(--ui);
+  opacity: 0.55;
+  text-align: right;
+}

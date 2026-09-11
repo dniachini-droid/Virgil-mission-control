@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import authority from '../../../../../constitution/authority.json' with { type: 'json' };
 import { type DemoState, demoAt } from '../room/demo.js';
+import type { CheckState } from '../window/blocks.js';
 
 /**
  * **The world, reporting this repository instead of replaying a recording.**
@@ -158,7 +159,21 @@ export interface LiveAnswer {
     failed: number;
     running: number;
     noResult: number;
-    runs: { name: string; status: string; conclusion: string | null; url: string | null }[];
+    /**
+     * Which GitHub API answered — `check runs`, `workflow runs` or `commit
+     * statuses`. Reported rather than hidden: *"fourteen checks passed"* means a
+     * different thing from each of the three (`netlify/functions/state.mjs`).
+     */
+    source?: string;
+    /**
+     * **Declared as the function actually sends it.** This said
+     * `{ name, status, conclusion, url }` — GitHub's own fields — while
+     * `state.mjs` has always mapped those to one `state` of its own and a
+     * `detail` beside it. Nothing read the field, so nothing caught it; the
+     * moment something did, the type would have described a payload that has
+     * never existed on this wire.
+     */
+    runs: { name: string; state: string; detail?: string | null; url: string | null }[];
   } | null;
   githubReviews?: { state: string; submittedAt: string | null }[] | null;
   keeperVerdict?: null;
@@ -196,6 +211,57 @@ export interface LiveAnswer {
    * different things about each and cannot tell them apart from the prose.
    */
   sessionReportStatus?: 'read' | 'absent' | 'unreadable' | 'refused' | null;
+  /**
+   * **Whether the branch being asked about is still in the repository.**
+   *
+   * `false` on an `ok: true` answer: the repository was read, the list was read,
+   * and the branch named is not in it — a fact about the repository rather than
+   * a failure to read it. Absent on an answer from before slice five.
+   */
+  branchExists?: boolean;
+  /** The repository's own default branch, so the page can offer it as the way back. */
+  defaultBranch?: string;
+  /**
+   * Every branch, capped at `branchesWatched` and ordered default-first. `null`
+   * means the list could not be read, which is not the same as no branches.
+   */
+  branches?:
+    | {
+        name: string;
+        sha: string | null;
+        shortSha: string | null;
+        isDefault: boolean;
+        protected: boolean;
+        pull: {
+          number: number;
+          title: string | null;
+          draft: boolean;
+          url: string | null;
+          updatedAt: string | null;
+        } | null;
+        /**
+         * When the branch last moved, **where that is known** — which is only
+         * where it has an open pull request to read it from. `/branches` carries
+         * no dates and there is no one call that does, so a branch without a
+         * pull request reads `null` and must be drawn as "not read", never as
+         * old.
+         */
+        updatedAt: string | null;
+      }[]
+    | null;
+  branchesReason?: string | null;
+  /** How many branches exist, which may be more than the list carries. */
+  branchesTotal?: number;
+  branchesWatched?: number;
+  /**
+   * Why no checks are in the answer, when none are.
+   *
+   * `state.mjs` has always sent it — `checksReason: checkResult.unreadable ?? null`
+   * — naming each source that refused and the status it refused with. Nothing in
+   * this app read it until the Prover's window needed to say *why* it is showing
+   * nothing, which is the difference between "not read" and "none".
+   */
+  checksReason?: string | null;
 }
 
 export interface Live {
@@ -217,8 +283,77 @@ export interface Live {
  * because it is what the room looks like when nothing is happening — and when
  * nothing is happening, that is what should be on screen.
  */
+/**
+ * The four words the constitution has for how a check ended.
+ *
+ * `constitution/authority.json`, `checkResults`. They are layer 2 and only the
+ * owner may change them, so this list is read against the wire rather than
+ * extended to fit it: a result outside the four is not translated into one of
+ * them, it is counted as having returned nothing.
+ */
+const CHECK_STATES: readonly string[] = ['running', 'passed', 'failed', 'skipped'];
+
+/**
+ * The checks the answer reported, as rows the Prover's window can draw.
+ *
+ * Two things it will not do. It will not invent a name: a run the API named with
+ * an empty string is not drawn as a blank row, it is counted in `noResult`. And
+ * it will not translate a result the constitution has no word for into one it
+ * does — `noResult` is not `skipped`, `cancelled` is not `failed`. Those are
+ * counted and said in a sentence, because the alternative is the interface
+ * telling the owner something the evidence never said, which is the one thing
+ * this whole build exists to avoid.
+ */
+function checksOf(answer: LiveAnswer): NonNullable<DemoState['checks']> | null {
+  const read = answer.checks;
+  if (!read || !Array.isArray(read.runs)) return null;
+  const rows: { name: string; state: CheckState }[] = [];
+  let noResult = 0;
+  for (const run of read.runs) {
+    const name = typeof run?.name === 'string' && run.name.length > 0 ? run.name : null;
+    if (!name) {
+      noResult += 1;
+      continue;
+    }
+    if (CHECK_STATES.includes(run.state)) {
+      rows.push({ name, state: run.state as CheckState });
+    } else {
+      noResult += 1;
+    }
+  }
+  return { rows, noResult, source: typeof read.source === 'string' ? read.source : 'GitHub' };
+}
+
 export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState | null {
   if (!answer.ok) return null;
+  /**
+   * **The Keeper's KP8-02, and it is the defect this whole project exists to
+   * prevent — created, not inherited.**
+   *
+   * Until slice five, every `ok: true` answer carried a head commit, so "the
+   * page read nothing" and "`stateFromAnswer` returned `null`" were the same
+   * thing, and `MobileRoom` drew no world at all in that case. A comment there
+   * names what that guard is for, in these words: *"a lie with a specific shape:
+   * `screens/candidate.ts` supplies a data-shaped identifier when none is set,
+   * so a live page that had read nothing would draw `9abcdef` beside a real
+   * branch name and look exactly like a page that had."*
+   *
+   * Slice five introduced an `ok: true` answer with `head: null` — the branch
+   * asked for is not in the repository — and that walked straight through this
+   * function. The result was a live state with no candidate id, every consumer
+   * falling back to `CANDIDATE_ID`, and the room drawing `9abcdef012` under the
+   * caption *"Exact version being worked on"* next to the real, deleted branch
+   * name. The Fabricator's window drew eight invented file paths and a terminal
+   * claiming `801 passed` with exit 0; the Keeper's drew three invented
+   * findings. About a branch the same page had just said did not exist.
+   *
+   * The guarantee is restored where it belongs — here, once, rather than in each
+   * of the dozen places that read `content.candidateId`. **No head, no state.**
+   * The branch list is chrome and is drawn from `live.answer` regardless, so the
+   * page still says which branch is gone and still offers the ones that are not:
+   * nothing is lost by refusing to draw a world nobody can describe.
+   */
+  if (!answer.head?.sha) return null;
   const base = demoAt(0, 0, false);
   // `exactOptionalPropertyTypes` is on, and it is right to be: an absent field
   // and a field explicitly set to `undefined` are different claims, and the
@@ -313,6 +448,18 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
     mode: 'live',
     running: false,
     cast,
+    /**
+     * Present only here. `demoAt` leaves it off, so the recording and the replay
+     * carry no checks and the Prover's window falls back to its recorded text —
+     * a scripted run saying what it is.
+     */
+    checks: checksOf(answer),
+    /**
+     * Carried whether or not there is a reason, so that `checks: null` always
+     * arrives with the question "why" already answered — with a sentence, or
+     * with `null` meaning the source said nothing about it.
+     */
+    checksReason: typeof answer.checksReason === 'string' ? answer.checksReason : null,
     content: {
       ...base.content,
       ...known,
@@ -384,7 +531,41 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
  * that shows a state is claiming the state is current, and the only honest
  * version of that claim is one that stops when the reading does.
  */
-export function useLive(enabled: boolean): Live {
+/**
+ * Which branch the room is showing, remembered across reloads.
+ *
+ * The page's state, not the server's: nothing is written back, so choosing a
+ * branch costs nothing and no other reader is affected by what you looked at.
+ * `null` means "whatever the endpoint's own default is", which is what a first
+ * visit gets.
+ *
+ * `localStorage` is wrapped because it throws in a private window and in a page
+ * whose site data has been blocked, and a room that will not open because it
+ * could not remember which branch you last looked at would be a worse failure
+ * than forgetting.
+ */
+const BRANCH_KEY = 'virgil.branch';
+
+export function rememberedBranch(): string | null {
+  try {
+    const value = window.localStorage.getItem(BRANCH_KEY);
+    return value && value.length > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function rememberBranch(name: string | null): void {
+  try {
+    if (name === null) window.localStorage.removeItem(BRANCH_KEY);
+    else window.localStorage.setItem(BRANCH_KEY, name);
+  } catch {
+    // A browser that will not remember is not a browser that cannot show the
+    // room. Nothing here is load-bearing.
+  }
+}
+
+export function useLive(enabled: boolean, branch?: string | null): Live {
   const [live, setLive] = useState<Live>({ state: null, answer: null, error: null, asOf: null });
 
   useEffect(() => {
@@ -393,7 +574,10 @@ export function useLive(enabled: boolean): Live {
 
     const read = async () => {
       try {
-        const response = await fetch('/api/state', { headers: { accept: 'application/json' } });
+        // The branch travels as a query parameter, so the browser and any cache
+        // in front of it treat two branches as two answers rather than one.
+        const where = branch ? `/api/state?branch=${encodeURIComponent(branch)}` : '/api/state';
+        const response = await fetch(where, { headers: { accept: 'application/json' } });
         if (!response.ok) throw new Error(`the state endpoint answered ${response.status}`);
         const answer = (await response.json()) as LiveAnswer;
         if (cancelled) return;
@@ -420,7 +604,10 @@ export function useLive(enabled: boolean): Live {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [enabled]);
+    // `branch` is a dependency: changing which branch is showing must start a
+    // new read immediately rather than at the next poll, or a tap appears to do
+    // nothing for up to thirty seconds.
+  }, [enabled, branch]);
 
   return live;
 }

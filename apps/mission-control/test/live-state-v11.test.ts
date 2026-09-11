@@ -7,7 +7,7 @@ import matrix from '../../../constitution/permission-matrix.json' with { type: '
 // workspace resolution, which is exactly why its shape check is written by hand
 // rather than in Zod. It is imported here so the two can be held against each
 // other; see the drift tests at the foot of this file.
-import { shapeComplaint } from '../../../netlify/functions/state.mjs';
+import { isBranchName, readBranches, shapeComplaint } from '../../../netlify/functions/state.mjs';
 import { SessionStatusReport } from '../../../packages/agent-contracts/src/live.js';
 import {
   type LiveAnswer,
@@ -15,6 +15,7 @@ import {
   reportIsCurrent,
   stateFromAnswer,
 } from '../src/world/live/liveState.js';
+import { demoAt } from '../src/world/room/demo.js';
 
 /**
  * **The guards on live state, which are the same guards the recording has and
@@ -95,12 +96,51 @@ describe('the live state carries only what was read', () => {
    * unread identifier is **absent**, not `undefined` and not a placeholder, and
    * `MobileRoom` draws no world at all until there is an answer.
    */
-  it('leaves an unread identifier off entirely rather than shaping one', () => {
+  it('draws nothing at all when the answer carries no commit', () => {
+    /**
+     * **This test used to assert the defect, and the Keeper's KP8-02 is what
+     * made that visible.**
+     *
+     * It read: given `ok: true` with no head, `expect(state).not.toBeNull()` and
+     * `candidateId` merely absent. The docstring above it says the opposite in
+     * plain words — *"`MobileRoom` draws no world at all until there is an
+     * answer"* — so the comment stated the rule and the assertion locked in its
+     * violation, one line apart. While no answer shape could produce it the two
+     * never had to be reconciled; slice five introduced exactly that answer, a
+     * branch that is not in the repository, and the consequence was the room
+     * drawing `9abcdef012` under *"Exact version being worked on"* beside a real
+     * branch name, with the Fabricator's window reporting eight invented files
+     * and a green test run.
+     *
+     * An absent `candidateId` was never protection. Every consumer reads
+     * `content.candidateId ?? CANDIDATE_ID`, so absent *is* the placeholder, one
+     * `??` later. The rule the docstring states is the one that works, and it is
+     * what is asserted now.
+     *
+     * This is not a test weakened to let a change through. It is a stronger
+     * claim than the one it replaces — nothing at all, rather than one field
+     * missing from something drawn — and it was an independent reviewer, not
+     * this session, that established the old assertion was wrong.
+     */
     const withoutHead: LiveAnswer = { ok: true, asOf: FULL.asOf, branch: 'main' };
-    const state = stateFromAnswer(withoutHead);
-    expect(state).not.toBeNull();
-    expect('candidateId' in (state?.content ?? {})).toBe(false);
-    expect(state?.content.branch).toBe('main');
+    expect(stateFromAnswer(withoutHead)).toBeNull();
+    // Including the shape slice five actually produces.
+    expect(
+      stateFromAnswer({
+        ok: true,
+        asOf: FULL.asOf,
+        branch: 'claude/gone',
+        branchExists: false,
+        head: null,
+      } as never),
+    ).toBeNull();
+    // And a head that is present but unusable is not a head.
+    expect(stateFromAnswer({ ...FULL, head: { shortSha: 'abc' } } as never)).toBeNull();
+  });
+
+  it('carries the identifier it did read, so the guard costs nothing real', () => {
+    expect(stateFromAnswer(FULL)?.content.candidateId).toBe(FULL.head?.shortSha);
+    expect(stateFromAnswer(FULL)?.content.branch).toBe(FULL.branch);
   });
 });
 
@@ -133,9 +173,38 @@ describe('neither side translates GitHub’s vocabulary into the constitution’
     }
   });
 
+  /**
+   * **This test caught slice five and was strengthened rather than relaxed.**
+   *
+   * It asserted the literal `fetch('/api/state'`, which held while the page had
+   * exactly one hard-coded URL. Slice five builds the URL — the branch travels
+   * as a query parameter — so the literal stopped matching while the guarantee
+   * it stood for was untouched.
+   *
+   * The guarantee is what is now asserted, and it is the stronger claim: the
+   * page cannot hold a token, so **every** fetch it makes must be to its own
+   * endpoint. Every `fetch(` in the file is found and its target read, and any
+   * target that is not this origin's `/api/` fails — including a future one
+   * nobody thought to write a test for.
+   */
   it('the page never talks to GitHub itself, because it cannot hold a token', () => {
     expect(SOURCE).not.toContain('api.github.com');
-    expect(SOURCE).toContain("fetch('/api/state'");
+    const calls = [...SOURCE.matchAll(/fetch\(\s*([^,)]+)/g)].map((match) =>
+      (match[1] ?? '').trim(),
+    );
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) {
+      // Either the literal path, or a variable this file assigned from a
+      // template that starts with `/api/` — checked below, not assumed.
+      expect(call, call).toMatch(/^(['"`]\/api\/|where$)/);
+    }
+    // And `where` is only ever one of the two `/api/state` forms.
+    const built = [...SOURCE.matchAll(/const where =([^;]+);/g)].map((match) => match[1] ?? '');
+    expect(built.length).toBe(1);
+    for (const value of built) {
+      expect(value).not.toMatch(/https?:/);
+      expect((value.match(/\/api\/state/g) ?? []).length).toBe(2);
+    }
   });
 
   it('the function never returns the token, and never logs it', () => {
@@ -885,5 +954,331 @@ describe('no invented candidate state reaches the slab', () => {
     };
     expect(shapeComplaint(report)).not.toBeNull();
     expect(SessionStatusReport.safeParse(report).success).toBe(false);
+  });
+});
+
+/**
+ * **Slice four: the checks that actually ran reach the room.**
+ *
+ * The Prover's window has always drawn six checks from a fixed schedule in
+ * `screens/tally.ts`, because a recording has to draw something. When a live
+ * answer is in hand it must draw what GitHub reported instead — and the whole of
+ * the risk is in the translation, because the wire has more kinds of outcome
+ * than the constitution has words for.
+ *
+ * `constitution/authority.json` names four: `running`, `passed`, `failed`,
+ * `skipped`. They are layer 2 and only the owner may change them. So a result
+ * outside the four is not squeezed into one of them; it is counted as having
+ * returned nothing, and the window says so in a sentence.
+ */
+describe('the checks that ran reach the room, and only in words the constitution has', () => {
+  const NOW = Date.parse('2026-09-10T12:00:00Z');
+  const withRuns = (runs: unknown[], extra: Record<string, unknown> = {}) =>
+    stateFromAnswer(
+      {
+        ...FULL,
+        checks: {
+          total: Array.isArray(runs) ? runs.length : 0,
+          passed: 0,
+          failed: 0,
+          running: 0,
+          noResult: 0,
+          runs,
+          ...extra,
+        },
+      } as never,
+      NOW,
+    );
+
+  it('carries no checks at all when the answer reported none', () => {
+    expect(stateFromAnswer(FULL, NOW)?.checks).toBeNull();
+  });
+
+  /**
+   * **The Keeper's KP7-01, at the mapping end.** `null` and absent are two
+   * different claims here and the window turns on which one it has: absent is
+   * the recording, which draws its own six; `null` is a live answer whose checks
+   * could not be read, which must draw none. A live state that came back
+   * `undefined` would fall into the recording, which is the defect.
+   */
+  it('says null rather than nothing when a live answer read no checks', () => {
+    const state = stateFromAnswer(FULL, NOW);
+    expect(state?.checks).toBeNull();
+    expect('checks' in (state as object)).toBe(true);
+    expect(demoAt(0, 0, false).checks).toBeUndefined();
+  });
+
+  it('carries the reason the checks were not read, which nothing read before', () => {
+    const why = 'No source could be read: check runs (403), workflow runs (403).';
+    expect(stateFromAnswer({ ...FULL, checksReason: why } as never, NOW)?.checksReason).toBe(why);
+    // Present and null rather than absent, so `checks: null` always arrives with
+    // the question already answered one way or the other.
+    expect(stateFromAnswer(FULL, NOW)?.checksReason).toBeNull();
+    expect(stateFromAnswer({ ...FULL, checksReason: 42 } as never, NOW)?.checksReason).toBeNull();
+  });
+
+  it('the recording carries none either, so its window keeps its own six', () => {
+    // `demoAt` is what every scripted and replayed state is built from. If it
+    // ever grew a `checks` field the recording would start drawing itself as
+    // live, which is the confusion this slice exists to prevent.
+    expect(demoAt(0, 0, false).checks).toBeUndefined();
+  });
+
+  it('keeps each of the four results the constitution names', () => {
+    const state = withRuns([
+      { name: 'one', state: 'passed' },
+      { name: 'two', state: 'failed' },
+      { name: 'three', state: 'running' },
+      { name: 'four', state: 'skipped' },
+    ]);
+    expect(state?.checks?.rows).toEqual([
+      { name: 'one', state: 'passed' },
+      { name: 'two', state: 'failed' },
+      { name: 'three', state: 'running' },
+      { name: 'four', state: 'skipped' },
+    ]);
+    expect(state?.checks?.noResult).toBe(0);
+  });
+
+  it('the four are exactly the four the constitution names, not a list of its own', () => {
+    const state = withRuns(
+      authority.checkResults.map((result: string, i: number) => ({
+        name: `check ${i}`,
+        state: result,
+      })),
+    );
+    expect(state?.checks?.rows).toHaveLength(authority.checkResults.length);
+    expect(state?.checks?.noResult).toBe(0);
+  });
+
+  it('counts a result the constitution has no word for, and never draws it as one', () => {
+    const state = withRuns([
+      { name: 'cancelled', state: 'noResult' },
+      { name: 'stale', state: 'cancelled' },
+      { name: 'odd', state: 'neutral' },
+      { name: 'nothing', state: '' },
+    ]);
+    expect(state?.checks?.rows).toEqual([]);
+    expect(state?.checks?.noResult).toBe(4);
+  });
+
+  it('will not invent a name for a check that has none', () => {
+    const state = withRuns([
+      { name: '', state: 'passed' },
+      { name: null, state: 'passed' },
+      { state: 'passed' },
+      { name: 42, state: 'passed' },
+    ]);
+    expect(state?.checks?.rows).toEqual([]);
+    expect(state?.checks?.noResult).toBe(4);
+  });
+
+  it('names which GitHub question answered, and falls back to no claim about which', () => {
+    expect(withRuns([], { source: 'workflow runs' })?.checks?.source).toBe('workflow runs');
+    expect(withRuns([], { source: 42 })?.checks?.source).toBe('GitHub');
+    expect(withRuns([])?.checks?.source).toBe('GitHub');
+  });
+
+  it('reads nothing at all from a runs field that is not a list', () => {
+    for (const runs of [null, 'some checks', 42, {}]) {
+      expect(withRuns(runs as never)?.checks).toBeNull();
+    }
+  });
+
+  it('ignores the counts the answer asserts and counts the rows it was given', () => {
+    // The tally on the wire is written by the same function that wrote the runs,
+    // and a tally that disagrees with its own rows is a claim about them. The
+    // rows are the evidence, so the rows are what is counted.
+    const state = withRuns([{ name: 'one', state: 'passed' }], {
+      total: 900,
+      passed: 900,
+      noResult: 900,
+    });
+    expect(state?.checks?.rows).toHaveLength(1);
+    expect(state?.checks?.noResult).toBe(0);
+  });
+});
+
+/**
+ * **Slice five: every branch, and a deleted one that no longer kills the page.**
+ *
+ * The owner's instruction was *"it's meant to show everything"*, but the finding
+ * underneath this slice is smaller and sharper: on 2026-09-11 a merged branch
+ * was deleted and the whole site went dark three separate times, because three
+ * different places had that branch's name written down. The endpoint's share of
+ * that is here.
+ */
+describe('the branch list, and what it will and will not claim', () => {
+  const BRANCHES = [
+    { name: 'main', commit: { sha: 'a'.repeat(40) }, protected: true },
+    { name: 'claude/work', commit: { sha: 'b'.repeat(40) }, protected: false },
+    { name: 'claude/older', commit: { sha: 'c'.repeat(40) }, protected: false },
+  ];
+  const PULLS = [
+    {
+      number: 9,
+      title: 'Slice five',
+      draft: false,
+      html_url: 'https://example.invalid/9',
+      updated_at: '2026-09-11T12:00:00Z',
+      head: { ref: 'claude/work' },
+    },
+  ];
+  // No network in a unit test: `gh` reaches GitHub through `fetch`, so `fetch`
+  // is what is replaced. What is under test is the shaping, which is where
+  // every claim this list makes is decided.
+  const withFetch = async (handler: () => unknown) => {
+    const real = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      const answer = handler();
+      if (answer === null) return { ok: false, status: 403, text: async () => 'no' };
+      return { ok: true, status: 200, json: async () => answer };
+    }) as unknown as typeof globalThis.fetch;
+    try {
+      return await readBranches('owner/repo', 'token', 'main', PULLS);
+    } finally {
+      globalThis.fetch = real;
+    }
+  };
+
+  it('names every branch, with the default first', async () => {
+    const read = await withFetch(() => BRANCHES);
+    expect(read.branches?.map((entry: { name: string }) => entry.name)).toEqual([
+      'main',
+      'claude/work',
+      'claude/older',
+    ]);
+    expect(read.branches?.[0]?.isDefault).toBe(true);
+    expect(read.total).toBe(3);
+  });
+
+  it('orders a branch with a pull request above one without, because only it has a time', async () => {
+    const read = await withFetch(() => BRANCHES);
+    const names = (read.branches ?? []).map((entry: { name: string }) => entry.name);
+    expect(names.indexOf('claude/work')).toBeLessThan(names.indexOf('claude/older'));
+  });
+
+  it('gives a time only where one was read, and null where none was', async () => {
+    const read = await withFetch(() => BRANCHES);
+    const rows = read.branches ?? [];
+    const work = rows.find((entry: { name: string }) => entry.name === 'claude/work');
+    const older = rows.find((entry: { name: string }) => entry.name === 'claude/older');
+    expect(work.updatedAt).toBe('2026-09-11T12:00:00Z');
+    expect(work.pull.number).toBe(9);
+    // Not a guess, and not a blank that would read as "just now": `/branches`
+    // carries no dates and this must not invent one.
+    expect(older.updatedAt).toBeNull();
+    expect(older.pull).toBeNull();
+  });
+
+  it('says the list was not read, rather than saying there are no branches', async () => {
+    const read = await withFetch(() => null);
+    // `null`, never `[]`. Zero branches and "not read" are different claims and
+    // every surface downstream has to be able to tell them apart.
+    expect(read.branches).toBeNull();
+    expect(read.reason).toMatch(/could not be read/);
+  });
+
+  it('says the same when the list comes back in a shape it does not know', async () => {
+    for (const shape of [{ branches: [] }, 'a list', 42]) {
+      const read = await withFetch(() => shape);
+      expect(read.branches).toBeNull();
+      expect(read.reason).toBeTruthy();
+    }
+  });
+
+  /**
+   * **The Keeper's KP8-01, at the level where it was decided.**
+   *
+   * `readBranches` returned only the capped eight and the handler asked whether
+   * the branch being shown was in *that*. On this repository — nine branches —
+   * the ninth was reported as not being in the repository at all, and the page
+   * told the owner it had been "merged and deleted". The branch that fell off
+   * the end was the one the owner was being asked to merge.
+   *
+   * So existence is decided against `names`, which is every branch, and the cap
+   * is only ever a drawing decision.
+   */
+  it('knows every branch exists, including the ones past the cap it draws', async () => {
+    const many = Array.from({ length: 9 }, (_, i) => ({
+      name: i === 0 ? 'main' : `claude/branch-${String(i).padStart(2, '0')}`,
+      commit: { sha: 'd'.repeat(40) },
+    }));
+    const read = await withFetch(() => many);
+    expect(read.branches).toHaveLength(8);
+    // Nine names, not eight: the list the interface draws has no vote on what is
+    // true of the repository.
+    expect(read.names).toHaveLength(9);
+    const ninth = many[8]?.name as string;
+    expect(read.names).toContain(ninth);
+    // The exact expression the handler uses, held against the exact defect.
+    expect(read.names.includes(ninth)).toBe(true);
+    expect(read.branches?.some((entry: { name: string }) => entry.name === ninth)).toBe(false);
+  });
+
+  it('caps the list and still reports how many exist', async () => {
+    const many = Array.from({ length: 20 }, (_, i) => ({
+      name: i === 0 ? 'main' : `branch-${String(i).padStart(2, '0')}`,
+      commit: { sha: 'd'.repeat(40) },
+    }));
+    const read = await withFetch(() => many);
+    expect(read.branches).toHaveLength(8);
+    // A list silently cut to eight is a list lying about what the repository
+    // has. The count of what exists travels beside it.
+    expect(read.total).toBe(20);
+  });
+
+  it('drops an entry with no usable name rather than drawing a blank row', async () => {
+    const read = await withFetch(() => [...BRANCHES, { name: '' }, { commit: {} }, {}]);
+    expect(read.branches).toHaveLength(3);
+  });
+});
+
+/**
+ * A branch name reaches GitHub as a path segment in several URLs. It is refused
+ * here before `encodeURIComponent` ever sees it, so that a crafted name produces
+ * an answer saying it was refused rather than a 404 under an escaped mess.
+ */
+describe('a branch name is refused before it is put in a URL', () => {
+  it('accepts the names this repository actually uses', () => {
+    for (const name of ['main', 'claude/virgil-phase-2-slice-4', 'a', 'release/1.2.x', 'x_y-z']) {
+      expect(isBranchName(name), name).toBe(true);
+    }
+  });
+
+  it('refuses what git itself refuses, and path traversal above all', () => {
+    const refused = [
+      '../../etc/passwd',
+      'a/../b',
+      '/leading',
+      'trailing/',
+      'double//slash',
+      '.hidden',
+      'a/.hidden',
+      'ends.',
+      'ends.lock',
+      'has space',
+      'has~tilde',
+      'has^caret',
+      'has:colon',
+      'has?question',
+      'has*star',
+      'has[bracket',
+      'has\\backslash',
+      `has${String.fromCharCode(0)}null`,
+      `has${String.fromCharCode(127)}del`,
+      `has${String.fromCharCode(10)}newline`,
+      '',
+      'x'.repeat(256),
+    ];
+    for (const name of refused) {
+      expect(isBranchName(name), JSON.stringify(name)).toBe(false);
+    }
+  });
+
+  it('refuses anything that is not a string', () => {
+    for (const value of [null, undefined, 42, {}, [], true]) {
+      expect(isBranchName(value as never)).toBe(false);
+    }
   });
 });

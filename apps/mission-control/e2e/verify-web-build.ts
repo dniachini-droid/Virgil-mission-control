@@ -170,12 +170,23 @@ const TYPES: Record<string, string> = {
 
 /** Serves the built directory, and answers `/api/state` however this file says. */
 function serve(
-  state: () => { status: number; body: string },
+  state: (branch: string | null) => { status: number; body: string },
 ): Promise<{ server: Server; url: string }> {
   const server = createServer((request, response) => {
     const path = (request.url ?? '/').split('?')[0] ?? '/';
     if (path === '/api/state') {
-      const answer = state();
+      /**
+       * **The stub is given the branch the page asked for — slice five.**
+       *
+       * Before this it ignored the query entirely, which would have made a check
+       * that the page asks for the chosen branch impossible to write: the answer
+       * would have been the same whatever was requested, and the check would
+       * have passed a page that never sent the parameter at all.
+       */
+      const query = (request.url ?? '').split('?')[1] ?? '';
+      const asked = new URLSearchParams(query).get('branch');
+      askedFor.push(asked);
+      const answer = state(asked);
       response.writeHead(answer.status, { 'content-type': 'application/json; charset=utf-8' });
       response.end(answer.body);
       return;
@@ -238,7 +249,15 @@ console.log(`web build verify: serving under the site's own CSP — ${CSP}`);
 }
 
 let answer: { status: number; body: string } = { status: 200, body: JSON.stringify(ANSWER) };
-const { server, url } = await serve(() => answer);
+/** Every branch the page has asked about, in order, so a tap can be proved. */
+const askedFor: (string | null)[] = [];
+/** Set when a case needs the answer to depend on which branch was asked for. */
+type AnswerFor = (branch: string | null) => { status: number; body: string };
+let answerFor: AnswerFor | null = null;
+const { server, url } = await serve((branch) => {
+  const per = answerFor;
+  return per ? per(branch) : answer;
+});
 
 // The same substitution `verify-owner-build-v11.ts` makes, and for the same
 // reason: CI installs the Chromium the lockfile pins, and this container has one
@@ -377,6 +396,182 @@ async function press(selector: string): Promise<void> {
   }
 }
 
+/**
+ * **A press on the world, which is not a DOM control and must not be pressed
+ * like one.**
+ *
+ * The 48 px boxes under `[data-touch-target][data-world="1"]` carry
+ * `pointer-events: none` deliberately — `mobile.css` calls it *"load-bearing and
+ * not a detail: an overlay that took the press would take it from the camera"*.
+ * The product's hit test runs on the stage, from a real pointer press, and asks
+ * `targetAt(x, y)` which box the point fell in. So `page.click(selector)` can
+ * never land on one: Playwright waits for an element that by design receives no
+ * pointer events, times out, and `press`'s fallback then correctly reports the
+ * canvas as being on top of it. The page was right; this check was wrong.
+ *
+ * This presses where the box is, the way a thumb does — move, down, up — and
+ * still refuses when something is really in the way: the point must belong to
+ * the canvas, because pressing the world means pressing the world. An overlay
+ * over the page is reported here, not pressed through.
+ */
+async function pressWorld(id: string): Promise<boolean> {
+  const at = await page.evaluate((target) => {
+    const node = document.querySelector(
+      `[data-touch-target="${target}"][data-world="1"]`,
+    ) as HTMLElement | null;
+    if (!node) return { on: false as const };
+    if (node.style.display === 'none') return { on: true as const, shown: false as const };
+    const box = node.getBoundingClientRect();
+    const x = box.left + box.width / 2;
+    const y = box.top + box.height / 2;
+    const top = document.elementFromPoint(x, y);
+    return {
+      on: true as const,
+      shown: true as const,
+      x,
+      y,
+      canvas: top?.tagName === 'CANVAS',
+      covering: `${top?.tagName.toLowerCase() ?? 'nothing'}${top?.className ? `.${String(top.className).split(' ')[0]}` : ''}`,
+    };
+  }, id);
+  if (!at.on) {
+    failures.push(`the world has no ${id} to press`);
+    return false;
+  }
+  if (!at.shown) {
+    failures.push(`${id} is not on screen, so nothing can press it`);
+    return false;
+  }
+  if (!at.canvas) {
+    failures.push(
+      `${id} cannot be pressed: ${at.covering} is on top of the world at that point, so a thumb there presses that instead`,
+    );
+    return false;
+  }
+  await page.mouse.move(at.x, at.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  return true;
+}
+
+/**
+ * Waits for the camera to stop, and says whether it did.
+ *
+ * Not politeness. A press counts as a tap only if the camera did not move
+ * during it — `gesture.ts`, `CAMERA_SLOP` of 0.005 world units, on the reasoning
+ * that the surest evidence a gesture was navigation is that it navigated. Press
+ * the Prover's screen while the camera is still travelling towards him and the
+ * press is correctly refused, and the window never opens.
+ *
+ * What is observable from outside is where the world's own targets are drawn:
+ * they are projected through the camera every frame, so they stop moving exactly
+ * when it does. Repeated identical samples, inside the frame-derived budget — a
+ * condition, not an interval.
+ */
+async function worldStill(budget: number): Promise<boolean> {
+  const deadline = Date.now() + budget;
+  let last = '';
+  let same = 0;
+  while (Date.now() < deadline) {
+    const now = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('[data-touch-target][data-world="1"]'))
+        .map((node) => {
+          const element = node as HTMLElement;
+          if (element.style.display === 'none') return '';
+          const box = element.getBoundingClientRect();
+          return `${element.dataset.touchTarget}:${Math.round(box.left)},${Math.round(box.top)}`;
+        })
+        .join('|'),
+    );
+    if (now.replace(/\|/g, '').length > 0 && now === last) {
+      same += 1;
+      if (same >= 2) return true;
+    } else {
+      same = 0;
+    }
+    last = now;
+    await page.waitForTimeout(100);
+  }
+  return false;
+}
+
+/**
+ * The open window's text, and **only when a person could actually read it** —
+ * the Keeper's KP7-05.
+ *
+ * The first version of the slice-four case asked for `.v11w-sheet`'s `innerText`
+ * and asserted against that. `innerText` falls back to `textContent` for an
+ * element that is not being rendered, so a sheet that opened in state and was
+ * hidden, clipped, or translated off screen satisfied every assertion in the
+ * case. That is the KP5-02 family again — a check that passes a page nobody
+ * could use — in the file whose whole subject is not doing that.
+ *
+ * So the sheet must be on screen and be the thing at its own centre point before
+ * a word of it is read. Returns `null` with the reason pushed as a failure when
+ * it is not.
+ */
+async function readSheet(what: string): Promise<string | null> {
+  return readVisible('.v11w-sheet', what);
+}
+
+/**
+ * **The same rule for every panel this file reads — the Keeper's KP8-07.**
+ *
+ * `readSheet` was written for `KP7-05` and closed the hole properly, and then
+ * the slice-five cases read `.v11-branches` with a bare `innerText` and did not
+ * use it. `innerText` falls back to `textContent` for an element that is not
+ * rendered, so a panel hidden by a CSS regression would have satisfied every
+ * assertion — including the one whose comment reads *"the way out is on screen
+ * without another press"*, which was counting DOM nodes.
+ *
+ * One helper, taking the selector, so the next panel cannot be read the wrong
+ * way by being new.
+ */
+async function readVisible(selector: string, what: string): Promise<string | null> {
+  const seen = await page.evaluate((css) => {
+    const sheet = document.querySelector(css) as HTMLElement | null;
+    if (!sheet) return { on: false as const };
+    const box = sheet.getBoundingClientRect();
+    const onScreen =
+      box.width > 0 &&
+      box.height > 0 &&
+      box.right > 0 &&
+      box.bottom > 0 &&
+      box.left < window.innerWidth &&
+      box.top < window.innerHeight;
+    const x = Math.min(Math.max(box.left + box.width / 2, 1), window.innerWidth - 1);
+    const y = Math.min(Math.max(box.top + box.height / 2, 1), window.innerHeight - 1);
+    const top = document.elementFromPoint(x, y);
+    const style = window.getComputedStyle(sheet);
+    return {
+      on: true as const,
+      onScreen,
+      visible: style.visibility !== 'hidden' && Number(style.opacity) > 0.01,
+      reachable: top === sheet || sheet.contains(top),
+      covering: `${top?.tagName.toLowerCase() ?? 'nothing'}${top?.className ? `.${String(top.className).split(' ')[0]}` : ''}`,
+      box: `${Math.round(box.left)},${Math.round(box.top)} ${Math.round(box.width)}x${Math.round(box.height)}`,
+      text: sheet.innerText,
+    };
+  }, selector);
+  if (!seen.on) {
+    failures.push(`${what}: no window is on the page at all`);
+    return null;
+  }
+  if (!seen.onScreen) {
+    failures.push(`${what}: the window is off screen at ${seen.box}, so nothing in it can be read`);
+    return null;
+  }
+  if (!seen.visible) {
+    failures.push(`${what}: the window is on the page but not visible`);
+    return null;
+  }
+  if (!seen.reachable) {
+    failures.push(`${what}: ${seen.covering} is on top of the window at its own centre`);
+    return null;
+  }
+  return seen.text;
+}
+
 const requested: string[] = [];
 page.on('request', (request) => requested.push(new URL(request.url()).pathname));
 const consoleErrors: string[] = [];
@@ -464,6 +659,634 @@ try {
   }
   answer = { status: 200, body: JSON.stringify(ANSWER) };
   mark(`each of ${REPORT_STATES.length + 1} report states says its own sentence`);
+
+  /**
+   * **Phase 2 slice four, proved through the page rather than in a unit test.**
+   *
+   * `PHASE_2_SLICE_4_BRIEF.md` promised this check by name: *"the hosted page is
+   * given a known set of checks by the stub and the window must list exactly
+   * those names and states — so the wiring is proved by a check that runs in CI,
+   * not by me saying it works."*
+   *
+   * The names are deliberately unlike anything in the recording, and one check
+   * returns a result the constitution has no word for. The window must list the
+   * four it can name, and say in a sentence that one returned nothing — never
+   * drawing it as `skipped`, which is a different fact.
+   */
+  const before = failures.length;
+  const NAMED_CHECKS = [
+    { name: 'a check the recording never names', state: 'passed' },
+    { name: 'another the recording never names', state: 'failed' },
+    { name: 'a third, still going', state: 'running' },
+    { name: 'a fourth, which chose not to run', state: 'skipped' },
+    { name: 'a fifth, which returned nothing', state: 'noResult' },
+  ];
+  answer = {
+    status: 200,
+    body: JSON.stringify({
+      ...ANSWER,
+      checks: {
+        total: 5,
+        passed: 1,
+        failed: 1,
+        running: 1,
+        noResult: 1,
+        source: 'check runs',
+        runs: NAMED_CHECKS,
+      },
+    }),
+  };
+  await page.goto(`${url}?checks=1`, { waitUntil: 'load' });
+  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
+    timeout: budget,
+  });
+  /**
+   * The Prover's window is opened the way a person opens it: two taps on the
+   * world — the first travels to him, the second opens the record on his screen.
+   * The page's `__virgilV11` hook is deliberately read-only, so no window can be
+   * put on screen from outside the product, and that is the right design rather
+   * than an obstacle to work around.
+   */
+  await page.waitForSelector('[data-touch-target="prover"]', { state: 'attached' }).catch(() => {});
+  if (!(await worldStill(budget))) {
+    failures.push('the world never settled, so no press on it could be read as a tap');
+  }
+  await pressWorld('prover');
+  /**
+   * The second tap is the Prover's *screen*, not the Prover again: the owner's
+   * two-step rule is tap a character to travel, tap their screen to open the
+   * record. Tapping the character twice travels and opens nothing, which is what
+   * the rule is for and what the first version of this check got wrong.
+   *
+   * Two waits stand between the taps, and both are conditions rather than
+   * intervals — the K11-04 lesson, in a file that had already learned it once.
+   *
+   *  - `focus` reaching the Prover is the product agreeing the first tap landed.
+   *    It is set when the tap is read, not when the camera arrives.
+   *  - `worldStill` is the camera arriving. It matters because a press during a
+   *    camera move is not a tap (`gesture.ts`), so the second press would be
+   *    refused — correctly — and the window would never open.
+   */
+  await page
+    .waitForFunction(
+      () => (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus === 'prover',
+      undefined,
+      { timeout: budget },
+    )
+    .catch(() => {});
+  if (!(await worldStill(budget))) {
+    failures.push('the camera never stopped after the first tap, so the second could not be one');
+  }
+  await pressWorld('prover-screen');
+  await page
+    .waitForFunction(
+      () =>
+        (window as { __virgilV11?: { window?: string | null } }).__virgilV11?.window === 'prover',
+      undefined,
+      { timeout: budget },
+    )
+    .catch(() => {});
+  await page.waitForSelector('.v11w-sheet', { state: 'visible' }).catch(() => {});
+  const onProver = await page.evaluate(
+    () => (window as { __virgilV11?: { window?: string | null } }).__virgilV11?.window ?? null,
+  );
+  if (onProver !== 'prover') {
+    failures.push(
+      `two taps on the Prover opened ${onProver ?? 'no window'} rather than the Prover’s`,
+    );
+  }
+  const prover = (await readSheet('the Prover’s window')) ?? '';
+  for (const check of NAMED_CHECKS.filter((entry) => entry.state !== 'noResult')) {
+    if (!prover.includes(check.name)) {
+      failures.push(`the Prover’s window does not list "${check.name}", which it was told ran`);
+    }
+  }
+  const nothingReturned = NAMED_CHECKS.find((entry) => entry.state === 'noResult');
+  if (nothingReturned && prover.includes(nothingReturned.name)) {
+    failures.push(
+      `the Prover’s window lists "${nothingReturned.name}" among the checks with a state; it returned nothing and has none`,
+    );
+  }
+  if (!/1 check returned no result/i.test(prover)) {
+    failures.push(
+      `the Prover’s window does not say a check returned no result: "${prover.slice(0, 240)}"`,
+    );
+  }
+  // The recording's own six checks must not be underneath the live ones: that
+  // is the confusion the whole slice exists to prevent, and it would read as a
+  // pass against every assertion above.
+  if (/biome lint|typecheck domain|unit gate-engine/i.test(prover)) {
+    failures.push('the Prover’s window still lists the recording’s checks beside the real ones');
+  }
+  if (failures.length === before) {
+    // Only when it held. Announcing the negative one line above its own failure
+    // is KP5-09, and this file had reintroduced it.
+    mark(
+      `the Prover’s window lists ${NAMED_CHECKS.length - 1} named checks and counts the one with no result`,
+    );
+  }
+  answer = { status: 200, body: JSON.stringify(ANSWER) };
+
+  /**
+   * **The other half of the same brief sentence, and the Keeper's KP7-01.**
+   *
+   * `PHASE_2_SLICE_4_BRIEF.md`: *"It draws nothing when nothing was read. If the
+   * checks cannot be fetched, the window says they were not read — not zero, not
+   * empty, not `skipped`."*
+   *
+   * The first build of the slice failed exactly here, and no check in this
+   * repository would have caught it: the window fell through to the recorded
+   * document and drew the recording's fourteen invented checks with *"14 checks
+   * have run and passed"* marked verified, while the badge on the same page said
+   * the results could not be read. The answer below is the one `state.mjs`
+   * actually sends when every GitHub source refuses — `ok: true`, `checks: null`,
+   * and a reason beside it.
+   */
+  const beforeUnread = failures.length;
+  const WHY =
+    'No source could be read: check runs (403), workflow runs (403), commit statuses (403).';
+  answer = {
+    status: 200,
+    body: JSON.stringify({ ...ANSWER, checks: null, checksReason: WHY }),
+  };
+  await page.goto(`${url}?unread=1`, { waitUntil: 'load' });
+  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
+    timeout: budget,
+  });
+  await page.waitForSelector('[data-touch-target="prover"]', { state: 'attached' }).catch(() => {});
+  if (!(await worldStill(budget))) {
+    failures.push('the world never settled, so no press on it could be read as a tap');
+  }
+  await pressWorld('prover');
+  await page
+    .waitForFunction(
+      () => (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus === 'prover',
+      undefined,
+      { timeout: budget },
+    )
+    .catch(() => {});
+  if (!(await worldStill(budget))) {
+    failures.push('the camera never stopped after the first tap, so the second could not be one');
+  }
+  await pressWorld('prover-screen');
+  await page
+    .waitForFunction(
+      () =>
+        (window as { __virgilV11?: { window?: string | null } }).__virgilV11?.window === 'prover',
+      undefined,
+      { timeout: budget },
+    )
+    .catch(() => {});
+  const unread = (await readSheet('the Prover’s window with nothing read')) ?? '';
+  // The names the recording invents. Any one of them on a live page is the
+  // defect: a fixture drawn where a reader is owed a fact.
+  for (const name of [
+    'biome lint',
+    'typecheck domain',
+    'unit gate-engine',
+    'unit mission-control',
+  ]) {
+    if (unread.includes(name)) {
+      failures.push(
+        `with no checks read, the Prover’s window draws the recording’s "${name}" — a fixture where a fact is owed`,
+      );
+    }
+  }
+  if (!/could not be read this time, so none are shown/i.test(unread)) {
+    failures.push(
+      `with no checks read, the Prover’s window does not say they were not read: "${unread.slice(0, 240)}"`,
+    );
+  }
+  if (!unread.includes(WHY)) {
+    failures.push('the Prover’s window does not name which sources refused, which the answer said');
+  }
+  // "0 of 14" and "all passed" are both claims about checks nobody read.
+  if (/\b\d+ checks have run and passed\b|\ball \d+ checks? passed\b/i.test(unread)) {
+    failures.push(
+      `with no checks read, the Prover’s window still counts checks: "${unread.slice(0, 240)}"`,
+    );
+  }
+  if (failures.length === beforeUnread) {
+    mark('with nothing read, the Prover’s window says so and draws none of the recording’s checks');
+  }
+  answer = { status: 200, body: JSON.stringify(ANSWER) };
+
+  /**
+   * **Phase 2 slice five, proved on the page rather than described.**
+   *
+   * `PHASE_2_SLICE_5_BRIEF.md` promised these by name: the page lists exactly the
+   * branches the stub names; choosing one changes which branch the room reads;
+   * and a branch that no longer exists produces a message and a **working list**
+   * rather than a dead page.
+   *
+   * That last one is not a hypothetical. On 2026-09-11 a merged branch was
+   * deleted and this site went dark three separate times, because three places
+   * had its name written down. This is the executable check that the app's share
+   * of that cannot come back.
+   */
+  const beforeBranches = failures.length;
+  const BRANCHES = [
+    {
+      name: 'main',
+      sha: 'a'.repeat(40),
+      shortSha: 'aaaaaaa',
+      isDefault: true,
+      protected: true,
+      pull: null,
+      updatedAt: null,
+    },
+    {
+      name: 'claude/a-branch-the-recording-never-names',
+      sha: 'b'.repeat(40),
+      shortSha: 'bbbbbbb',
+      isDefault: false,
+      protected: false,
+      pull: {
+        number: 99,
+        title: 'Something in flight',
+        draft: false,
+        url: 'https://example.invalid/99',
+        updatedAt: '2026-09-11T12:00:00Z',
+      },
+      updatedAt: '2026-09-11T12:00:00Z',
+    },
+    {
+      name: 'claude/one-with-no-pull-request',
+      sha: 'c'.repeat(40),
+      shortSha: 'ccccccc',
+      isDefault: false,
+      protected: false,
+      pull: null,
+      updatedAt: null,
+    },
+  ];
+  const listed = {
+    branches: BRANCHES,
+    branchesReason: null,
+    branchesTotal: 11,
+    branchesWatched: 8,
+    defaultBranch: 'main',
+    branchExists: true,
+  };
+  /**
+   * The answer now depends on which branch was asked for, which is the only way
+   * to tell a page that really re-reads from one that merely repaints a label.
+   * Each branch reports a commit message only it could have.
+   */
+  const SAID: Record<string, string> = {
+    main: 'the commit that only main has',
+    'claude/a-branch-the-recording-never-names': 'the commit that only the work branch has',
+  };
+  /**
+   * **The Keeper's KP8-04, and why this check could not see it.**
+   *
+   * This stub used to resolve an omitted `?branch=` to `main` — modelling a
+   * server whose default is the default branch, which is the one configuration
+   * in which the defect is invisible. The real endpoint resolved an omitted
+   * parameter to `GITHUB_BRANCH` first, and the interface sent nothing at all
+   * for the default-branch row, so tapping `main` asked for whatever that
+   * hosting setting named. On this deployment that is a deleted branch.
+   *
+   * The stub now answers for a branch nobody wants when the parameter is
+   * missing, so a page that fails to name the branch it is asking for draws that
+   * branch's commit and the check fails. A stub written in the shape that hides
+   * the bug is not a check.
+   */
+  const IF_NOT_ASKED = 'claude/the-branch-a-hosting-setting-names';
+  SAID[IF_NOT_ASKED] = 'the commit of the branch nobody chose';
+  answerFor = (asked) => {
+    const which = asked ?? IF_NOT_ASKED;
+    return {
+      status: 200,
+      body: JSON.stringify({
+        ...ANSWER,
+        ...listed,
+        branch: which,
+        head: { ...ANSWER.head, message: SAID[which] ?? `the commit on ${which}` },
+      }),
+    };
+  };
+  askedFor.length = 0;
+  await page.goto(`${url}?branches=1`, { waitUntil: 'load' });
+  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
+    timeout: budget,
+  });
+  await press('[data-touch-target="branches"]');
+  await page.waitForSelector('.v11-branch-rows', { state: 'visible' }).catch(() => {});
+  const rows = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.v11-branch-row-name')).map(
+      (node) => (node as HTMLElement).innerText,
+    ),
+  );
+  for (const entry of BRANCHES) {
+    if (!rows.includes(entry.name)) {
+      failures.push(`the branch list does not name "${entry.name}", which the answer listed`);
+    }
+  }
+  if (rows.length !== BRANCHES.length) {
+    failures.push(
+      `the branch list draws ${rows.length} rows for ${BRANCHES.length} branches it was given`,
+    );
+  }
+  const panel = (await readVisible('.v11-branches', 'the branch list')) ?? '';
+  // Eleven exist and eight are carried: a list silently cut is a list lying
+  // about what the repository has.
+  if (!/11 branches/.test(panel)) {
+    failures.push(`the branch list does not say how many branches exist: "${panel.slice(0, 200)}"`);
+  }
+  // A branch with no pull request has no time on this wire, and must say so
+  // rather than showing a blank that reads as "just now".
+  if (!/not read/i.test(panel)) {
+    failures.push('a branch with no pull request does not say its time was not read');
+  }
+
+  /**
+   * **The tap, and the only assertion that separates a working choice from a
+   * repainted label**: after choosing, the page must *ask* for that branch and
+   * must draw what that branch's answer said, not the previous one's.
+   */
+  await press('[data-touch-target="branch-claude/a-branch-the-recording-never-names"]');
+  /**
+   * **Waited for the request, not for a word on the page.**
+   *
+   * The first version of this waited for the chosen branch's commit message to
+   * appear in `document.body.innerText`. That message is drawn on the candidate
+   * slab, which is **inside the canvas** — so the condition could never become
+   * true, the wait burned its whole 60-second budget every run, and the
+   * assertions below then passed on their own merits while the check as a whole
+   * took seventy-five seconds. A wait that can never succeed is a wait that is
+   * measuring nothing, and on a project where a bill has already stopped work
+   * once, a minute of CI per run is not free.
+   *
+   * The condition that actually answers the question is on this side: has the
+   * page asked the endpoint for that branch yet?
+   */
+  {
+    const deadline = Date.now() + budget;
+    while (
+      !askedFor.includes('claude/a-branch-the-recording-never-names') &&
+      Date.now() < deadline
+    ) {
+      await page.waitForTimeout(100);
+    }
+  }
+  if (!askedFor.includes('claude/a-branch-the-recording-never-names')) {
+    failures.push(
+      `choosing a branch never asked the endpoint for it; it asked for ${JSON.stringify(askedFor)}`,
+    );
+  }
+  const afterTap = await press('.v11-badge').then(() =>
+    page.evaluate(
+      () => (document.querySelector('.v11-badge-body') as HTMLElement | null)?.innerText ?? '',
+    ),
+  );
+  if (!afterTap.includes('claude/a-branch-the-recording-never-names')) {
+    failures.push(
+      `after choosing a branch the page still names another: "${afterTap.slice(0, 200)}"`,
+    );
+  }
+
+  /**
+   * **The branch is gone — the failure that took this site down three times in
+   * one day.** `ok: true`, the list is real, and the branch asked for is not in
+   * it. The page must say so and must still offer the branches that do exist.
+   */
+  answerFor = () => ({
+    status: 200,
+    body: JSON.stringify({
+      ...ANSWER,
+      ...listed,
+      branch: 'claude/virgil-mobile-v11',
+      branchExists: false,
+      head: null,
+      checks: null,
+      checksReason: 'The branch claude/virgil-mobile-v11 is not in this repository.',
+      sessionReport: null,
+      sessionReportStatus: 'absent',
+    }),
+  });
+  await page.goto(`${url}?gone=1`, { waitUntil: 'load' });
+  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
+    timeout: budget,
+  });
+  await page.waitForSelector('.v11-branch-gone', { state: 'visible' }).catch(() => {});
+  const goneText =
+    (await readVisible('.v11-branches', 'the branch list with the branch gone')) ?? '';
+  if (!/is not in this repository any more/.test(goneText)) {
+    failures.push(
+      `a deleted branch does not produce a message saying so: "${goneText.slice(0, 200)}"`,
+    );
+  }
+  // The whole point: the way out is on screen without another press.
+  const goneRows = await page.evaluate(() => document.querySelectorAll('.v11-branch-row').length);
+  if (goneRows !== BRANCHES.length) {
+    failures.push(
+      `with the branch gone the page offers ${goneRows} branches to switch to, not ${BRANCHES.length}: the dead-page failure is back`,
+    );
+  }
+  // And it must not be dead: the world still draws.
+  const stillThere = await page.evaluate(() => document.querySelectorAll('canvas').length);
+  if (stillThere === 0) {
+    failures.push('with the branch gone the world is not drawn at all');
+  }
+
+  /**
+   * **The default-branch row selects the default branch — KP8-04.**
+   *
+   * The row the owner most needs: *"the state of what's been merged"*, the first
+   * half of the instruction this slice was built from. It must ask for `main` by
+   * name, not by omission, because an omitted parameter is resolved by a hosting
+   * setting the app cannot see.
+   */
+  askedFor.length = 0;
+  await press('[data-touch-target="branches"]');
+  await page.waitForSelector('.v11-branch-rows', { state: 'visible' }).catch(() => {});
+  await press('[data-touch-target="branch-main"]');
+  {
+    const deadline = Date.now() + budget;
+    while (!askedFor.includes('main') && Date.now() < deadline) {
+      await page.waitForTimeout(100);
+    }
+  }
+  if (!askedFor.includes('main')) {
+    failures.push(
+      `tapping the default branch never asked for it by name; it asked for ${JSON.stringify(askedFor)}`,
+    );
+  }
+  await press('.v11-badge');
+  const onDefault = (await readVisible('.v11-badge-body', 'the badge')) ?? '';
+  if (onDefault.includes(IF_NOT_ASKED)) {
+    failures.push(
+      'tapping the default branch landed on the branch a hosting setting names, not the default',
+    );
+  }
+
+  /**
+   * **A branch past the eight-row cap still exists — KP8-01.**
+   *
+   * The cap is a drawing decision. When it was allowed to decide what existed,
+   * the ninth branch of nine was reported deleted and the page said it had been
+   * "merged and deleted" — about this candidate's own branch, with the panel
+   * beneath it simultaneously saying one more branch existed and was not listed.
+   */
+  const NINE = Array.from({ length: 9 }, (_, i) => ({
+    name: i === 0 ? 'main' : `claude/branch-${String(i).padStart(2, '0')}`,
+    sha: 'e'.repeat(40),
+    shortSha: 'eeeeeee',
+    isDefault: i === 0,
+    protected: false,
+    pull: null,
+    updatedAt: null,
+  }));
+  const PAST_THE_CAP = NINE[8]?.name as string;
+  answerFor = (asked) => {
+    const which = asked ?? 'main';
+    const known = NINE.some((entry) => entry.name === which);
+    return {
+      status: 200,
+      body: JSON.stringify({
+        ...ANSWER,
+        branch: which,
+        branchExists: known,
+        defaultBranch: 'main',
+        // Eight drawn, nine exist — and the ninth is the one being asked for,
+        // which must therefore be pinned into the list it would otherwise miss.
+        branches: known ? [...NINE.slice(0, 7), NINE[8]].filter(Boolean) : NINE.slice(0, 8),
+        branchesReason: null,
+        branchesTotal: 9,
+        branchesWatched: 8,
+        head: known ? { ...ANSWER.head, message: `the commit on ${which}` } : null,
+        checks: known ? ANSWER.checks : null,
+      }),
+    };
+  };
+  await page.goto(`${url}?ninth=1&branch=${encodeURIComponent(PAST_THE_CAP)}`, {
+    waitUntil: 'load',
+  });
+  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
+    timeout: budget,
+  });
+  const ninth = (await readVisible('.v11-branches', 'the branch list past the cap')) ?? '';
+  if (/is not in this repository any more/.test(ninth)) {
+    failures.push(
+      `a branch past the eight-row cap is reported as deleted: "${ninth.slice(0, 200)}"`,
+    );
+  }
+
+  /**
+   * **A page that read nothing draws no world — KP8-02 and KP8-03.**
+   *
+   * The `ok: true` answer with no head commit is new, and it walked straight
+   * through the one guard that kept a live page which had read nothing from
+   * drawing the recording's fixtures: `9abcdef` under *"Exact version being
+   * worked on"*, eight invented file paths, a terminal reading `801 passed`,
+   * three invented review findings — beside the real name of a branch the same
+   * page had just said did not exist.
+   */
+  answerFor = () => ({
+    status: 200,
+    body: JSON.stringify({
+      ...ANSWER,
+      ...listed,
+      branch: 'claude/virgil-mobile-v11',
+      branchExists: false,
+      head: null,
+      checks: null,
+      sessionReport: null,
+      sessionReportStatus: 'absent',
+    }),
+  });
+  await page.goto(`${url}?nohead=1`, { waitUntil: 'load' });
+  await page.waitForSelector('.v11-branch-gone', { state: 'visible' }).catch(() => {});
+  /**
+   * **Read through the world, not through the page text — and the first version
+   * of this check was too weak to see its own defect.**
+   *
+   * It searched `document.body.innerText` for `9abcdef` and the Fabricator's
+   * fixtures. `9abcdef` is drawn on a slab **inside the canvas**, where page text
+   * cannot reach it, and the window fixtures only enter the DOM once a window is
+   * open. So with the guard deliberately removed the check still passed, which
+   * is the same species of failure as the defect it is here to catch.
+   *
+   * What is observable, and is the guarantee itself: with nothing read there is
+   * no world, so there is nothing in the world to press and no record to open.
+   * The taps are attempted the way a person would, and a window appearing is the
+   * failure.
+   */
+  /**
+   * The discriminating signal, and it is a **positive** one so the good case is
+   * fast and the bad case cannot pass by being early.
+   *
+   * With nothing read, `stateFromAnswer` returns `null`, no world is drawn, and
+   * `MobileRoom` renders the notice naming the branch that is not there. With
+   * the guard removed the world draws instead and this notice never appears — so
+   * waiting for it separates the two exactly. The first version of this check
+   * asserted the absence of fixtures straight after navigation and passed with
+   * the defect deliberately reinstated, because it looked before the world had
+   * finished drawing. An absence asserted too early is not an absence, and this
+   * file has now made that mistake twice.
+   */
+  const noticed = await page
+    .waitForSelector('.v11-live-notice', { state: 'visible', timeout: budget })
+    .then(() => true)
+    .catch(() => false);
+  if (!noticed) {
+    failures.push(
+      'with no commit read, the page never said so — it drew a world for a branch it has read nothing about',
+    );
+  }
+  const saidWhich = await page.evaluate(
+    () => (document.querySelector('.v11-live-notice') as HTMLElement | null)?.innerText ?? '',
+  );
+  if (noticed && !/not in this repository/.test(saidWhich)) {
+    failures.push(`with no commit read, the page does not say why: "${saidWhich.slice(0, 160)}"`);
+  }
+  /**
+   * **What this check is, and the two things it deliberately is not.**
+   *
+   * The discriminating assertion is the notice above, and it is exact: with the
+   * guard removed the world draws, the notice never appears, and the wait fails.
+   * Proved by removing the guard, rebuilding, and watching it go red.
+   *
+   * It is **not** a count of world targets. Those are projected from fixed
+   * anchors by `TouchTargets`, which renders whether or not a world is drawn, so
+   * the count is not a fact about whether anything was read — it passed once by
+   * timing and failed the honest build on the next run.
+   *
+   * And it is **not** an attempt to press the world here. The branch panel is
+   * open on this page by design, because the branch is gone and the way out must
+   * be on screen, so it covers the world — and `pressWorld` correctly refuses,
+   * which is the product being right rather than a defect to assert around.
+   */
+  const opened = await page.evaluate(
+    () => (window as { __virgilV11?: { window?: string | null } }).__virgilV11?.window ?? null,
+  );
+  if (opened !== null) {
+    failures.push(`with no commit read, a record window is open: ${opened}`);
+  }
+  const leaked = await page.evaluate(
+    () => (document.querySelector('.v11w-sheet') as HTMLElement | null)?.innerText ?? '',
+  );
+  for (const fixture of ['9abcdef', '801 passed', 'Files changed', 'KV-01']) {
+    if (leaked.includes(fixture)) {
+      failures.push(
+        `with no commit read, the page draws the recording's "${fixture}" beside a real branch name`,
+      );
+    }
+  }
+  // And it is not a dead page: the way out is still on screen.
+  const wayOut = await page.evaluate(() => document.querySelectorAll('.v11-branch-row').length);
+  if (wayOut === 0) {
+    failures.push('with no commit read, the page offers no branch to switch to');
+  }
+
+  if (failures.length === beforeBranches) {
+    mark(
+      `the page lists ${BRANCHES.length} branches, reads the one it is told to, and survives one being deleted`,
+    );
+  }
+  answerFor = null;
+  answer = { status: 200, body: JSON.stringify(ANSWER) };
 
   // Console errors are counted for the good answer only: the next phase makes
   // the endpoint fail on purpose and the browser logs that failed fetch.
