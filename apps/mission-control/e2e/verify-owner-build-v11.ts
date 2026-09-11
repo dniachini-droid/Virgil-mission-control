@@ -489,11 +489,63 @@ notes.push(
  * **Proved by mutation, not by reading.** A V11 Owner Build compiled with
  * `__LIVE__` true carries the real instruct client, and this check fails on it —
  * which is the only evidence that a narrower pattern still catches what the
- * broad one caught. `owner-build-v11.test.ts` holds the patterns so they cannot
- * quietly loosen again.
+ * broad one caught.
+ *
+ * **And the sentence that used to stand here was false when it was written.**
+ * It said `owner-build-v11.test.ts` held the patterns so they could not quietly
+ * loosen. No test in this repository mentioned them; the Keeper's `KP6-02`
+ * found it inside this very paragraph, one sentence after a proved claim and
+ * indistinguishable from it. The test exists now — *"the artifact guard cannot
+ * be loosened quietly"* — and it was written because the sentence was not true,
+ * rather than the sentence being written because the test was there.
  */
 {
   const text = readFileSync(file, 'utf8');
+  /**
+   * **KP6-01: the third check, which counts rather than matches.**
+   *
+   * The two patterns below look for a literal standing *at* a call site. The
+   * Keeper proved that is a property of how the minifier happens to emit today's
+   * code rather than a property of the escape: the same client with its endpoint
+   * in a `const` compiles to `var u="/api/instruct" … fetch(u,…)`, which both
+   * patterns pass and the substring check they replaced would have caught. The
+   * minifier already does that hoist to `virgil.instruct.secret` in this very
+   * artifact.
+   *
+   * So the breadth of the old substring check is restored, without the document
+   * collision that made it fail on a decision record's name — by counting
+   * instead of detecting. Every legitimate `/api/` in this artifact arrives
+   * through the knowledge graph, which `spikes/mind/MindScene.tsx` imports; the
+   * graph is a file this check can read. If the artifact carries more than the
+   * graph does, the surplus came from code, wherever in the file it sits and
+   * however it is spelled.
+   *
+   * What this does not catch: an endpoint assembled at runtime from pieces
+   * (`'/api' + '/state'`), which no pattern over a built file can see. The
+   * runtime request count is what answers that, and it is the check next to this
+   * one.
+   */
+  const graph = readFileSync(
+    resolve(import.meta.dirname, '../../../packages/test-fixtures/knowledge/seed-graph.json'),
+    'utf8',
+  );
+  /**
+   * Root-relative only. The first draft counted `/api/` anywhere and fired on
+   * the honest build, because three.js embeds a documentation URL —
+   * `docs.pmnd.rs/react-three-fiber/api/objects` — in an error message. A path
+   * segment inside somebody else's URL is not an endpoint this page can call;
+   * an endpoint is a path that begins at the root, so the character before it
+   * must be a quote or a delimiter rather than a letter or another slash.
+   */
+  const rootRelativeApi = /(^|[`'"(,=\s])\/api\//g;
+  const inDocuments = (graph.match(rootRelativeApi) ?? []).length;
+  const inArtifact = (text.match(rootRelativeApi) ?? []).length;
+  if (inArtifact > inDocuments) {
+    failures.push(
+      `the Owner Build carries ${inArtifact} "/api/" strings and the documents it compiles account for ${inDocuments}; the surplus is code that can reach the network`,
+    );
+  }
+
   const liveModeCode: { what: string; pattern: RegExp }[] = [
     // The substantive one. No fetch, no request, whatever else is in the file.
     { what: 'a fetch to an /api/ endpoint', pattern: /fetch\(\s*[`'"]\/api\// },
@@ -501,15 +553,21 @@ notes.push(
     // put a colon after a header name.
     { what: 'the instruct secret sent as a header', pattern: /[`'"]x-virgil-secret[`'"]\s*:/ },
   ];
+  const surplus = inArtifact > inDocuments;
   const present = liveModeCode.filter((entry) => entry.pattern.test(text));
   if (present.length > 0) {
     failures.push(
       `the Owner Build carries live-mode code: ${present.map((entry) => entry.what).join(', ')}; __LIVE__ should have removed it`,
     );
-  } else {
-    // Only when it holds. The first version announced the negative it had just
-    // disproved, one line above its own failure — the Keeper's KP5-09.
-    mark(`the artifact carries none of ${liveModeCode.length} kinds of live-mode code`);
+  }
+  if (present.length === 0 && !surplus) {
+    // Only when both hold. The first version of this block announced the
+    // negative it had just disproved, one line above its own failure — KP5-09 —
+    // and the count added above reintroduced it for one run, because `mark` was
+    // in an `else` that only knew about the patterns.
+    mark(
+      `the artifact carries none of ${liveModeCode.length} kinds of live-mode code, and its ${inArtifact} "/api/" string(s) are all accounted for by the documents it compiles`,
+    );
   }
 }
 

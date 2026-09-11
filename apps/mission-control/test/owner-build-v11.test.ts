@@ -251,6 +251,49 @@ describe('V11 adds to V10’s graph, and does not add to V10’s bundle', () => 
   });
 });
 
+/**
+ * **KP6-02: the comment said this file held the patterns, and it did not.**
+ *
+ * `verify-owner-build-v11.ts` carries the only check standing between the Owner
+ * Build and compiled-in network code, and its own comment — under a heading
+ * reading *"Proved by mutation, not by reading"* — asserted that this file held
+ * the patterns so they could not quietly loosen. Nothing in this repository
+ * mentioned them. Two claims in one paragraph, one proved and one asserted,
+ * written identically; which is the habit five Keeper reviews have been about.
+ *
+ * It holds them now. These assertions are source text, which is weaker than
+ * execution and is the idiom this file already uses; what they buy is that
+ * deleting or loosening a guard is a visible act rather than a silent one.
+ */
+describe('the artifact guard cannot be loosened quietly', () => {
+  const verify = readFileSync(
+    resolve(import.meta.dirname, '../e2e/verify-owner-build-v11.ts'),
+    'utf8',
+  );
+
+  it('counts root-relative /api/ paths against the documents the build compiles', () => {
+    expect(verify).toContain('const rootRelativeApi =');
+    expect(verify).toContain('seed-graph.json');
+    expect(verify).toContain('inArtifact > inDocuments');
+    // The failure has to be pushed, not merely computed. A comparison whose
+    // result goes nowhere is the shape this repository keeps shipping.
+    expect(verify).toMatch(/failures\.push\(\s*`the Owner Build carries \$\{inArtifact\}/);
+  });
+
+  it('still matches a fetch to any /api/ path and the secret header', () => {
+    expect(verify).toContain("what: 'a fetch to an /api/ endpoint'");
+    expect(verify).toContain("what: 'the instruct secret sent as a header'");
+    expect(verify).toMatch(/pattern: \/fetch\\\(/);
+    expect(verify).toContain('x-virgil-secret');
+  });
+
+  it('says nothing reassuring when either check has failed', () => {
+    // KP5-09 twice over: the progress line must not announce the negative the
+    // block has just disproved, and it must know about both checks.
+    expect(verify).toContain('if (present.length === 0 && !surplus)');
+  });
+});
+
 describe('a fingerprint of V10’s protected files', () => {
   /**
    * Not a security measure and not claimed as one: anyone editing these files
