@@ -72,7 +72,7 @@ const CACHE_BRANCHES = 16;
  * needs commit dates the branch list does not carry — recorded rather than
  * pretended away.
  */
-const WATCHED_BRANCHES = 20;
+export const WATCHED_BRANCHES = 20;
 
 function remember(key, body) {
   if (cached.size >= CACHE_BRANCHES && !cached.has(key)) {

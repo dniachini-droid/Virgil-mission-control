@@ -1,8 +1,8 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-11T15:45:06Z",
-  "aboutCommit": "91409d0d5cd4065216291c1d79f6149a735fff40",
-  "branch": "claude/raphael-8q52l9",
+  "reportedAt": "2026-09-11T16:07:50Z",
+  "aboutCommit": "e52f5b1031a2fb184ff57929ed45534111d369b4",
+  "branch": "claude/virgil-branch-list-and-live-status",
   "candidate": null,
   "holder": "fabricator",
   "hops": [
@@ -10,7 +10,7 @@
       "role": "fabricator",
       "activity": "WORKING",
       "reported": null,
-      "at": "2026-09-11T15:45:06Z"
+      "at": "2026-09-11T16:07:50Z"
     },
     {
       "role": "prover",
@@ -26,5 +26,5 @@
     }
   ],
   "review": null,
-  "note": "Raising the branch cap that hid the newest slice, and writing this file as the work happens."
+  "note": "Raised the branch cap that hid the newest slice; writing this file as the work happens."
 }
