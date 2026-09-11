@@ -377,6 +377,105 @@ async function press(selector: string): Promise<void> {
   }
 }
 
+/**
+ * **A press on the world, which is not a DOM control and must not be pressed
+ * like one.**
+ *
+ * The 48 px boxes under `[data-touch-target][data-world="1"]` carry
+ * `pointer-events: none` deliberately — `mobile.css` calls it *"load-bearing and
+ * not a detail: an overlay that took the press would take it from the camera"*.
+ * The product's hit test runs on the stage, from a real pointer press, and asks
+ * `targetAt(x, y)` which box the point fell in. So `page.click(selector)` can
+ * never land on one: Playwright waits for an element that by design receives no
+ * pointer events, times out, and `press`'s fallback then correctly reports the
+ * canvas as being on top of it. The page was right; this check was wrong.
+ *
+ * This presses where the box is, the way a thumb does — move, down, up — and
+ * still refuses when something is really in the way: the point must belong to
+ * the canvas, because pressing the world means pressing the world. An overlay
+ * over the page is reported here, not pressed through.
+ */
+async function pressWorld(id: string): Promise<boolean> {
+  const at = await page.evaluate((target) => {
+    const node = document.querySelector(
+      `[data-touch-target="${target}"][data-world="1"]`,
+    ) as HTMLElement | null;
+    if (!node) return { on: false as const };
+    if (node.style.display === 'none') return { on: true as const, shown: false as const };
+    const box = node.getBoundingClientRect();
+    const x = box.left + box.width / 2;
+    const y = box.top + box.height / 2;
+    const top = document.elementFromPoint(x, y);
+    return {
+      on: true as const,
+      shown: true as const,
+      x,
+      y,
+      canvas: top?.tagName === 'CANVAS',
+      covering: `${top?.tagName.toLowerCase() ?? 'nothing'}${top?.className ? `.${String(top.className).split(' ')[0]}` : ''}`,
+    };
+  }, id);
+  if (!at.on) {
+    failures.push(`the world has no ${id} to press`);
+    return false;
+  }
+  if (!at.shown) {
+    failures.push(`${id} is not on screen, so nothing can press it`);
+    return false;
+  }
+  if (!at.canvas) {
+    failures.push(
+      `${id} cannot be pressed: ${at.covering} is on top of the world at that point, so a thumb there presses that instead`,
+    );
+    return false;
+  }
+  await page.mouse.move(at.x, at.y);
+  await page.mouse.down();
+  await page.mouse.up();
+  return true;
+}
+
+/**
+ * Waits for the camera to stop, and says whether it did.
+ *
+ * Not politeness. A press counts as a tap only if the camera did not move
+ * during it — `gesture.ts`, `CAMERA_SLOP` of 0.005 world units, on the reasoning
+ * that the surest evidence a gesture was navigation is that it navigated. Press
+ * the Prover's screen while the camera is still travelling towards him and the
+ * press is correctly refused, and the window never opens.
+ *
+ * What is observable from outside is where the world's own targets are drawn:
+ * they are projected through the camera every frame, so they stop moving exactly
+ * when it does. Repeated identical samples, inside the frame-derived budget — a
+ * condition, not an interval.
+ */
+async function worldStill(budget: number): Promise<boolean> {
+  const deadline = Date.now() + budget;
+  let last = '';
+  let same = 0;
+  while (Date.now() < deadline) {
+    const now = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('[data-touch-target][data-world="1"]'))
+        .map((node) => {
+          const element = node as HTMLElement;
+          if (element.style.display === 'none') return '';
+          const box = element.getBoundingClientRect();
+          return `${element.dataset.touchTarget}:${Math.round(box.left)},${Math.round(box.top)}`;
+        })
+        .join('|'),
+    );
+    if (now.replace(/\|/g, '').length > 0 && now === last) {
+      same += 1;
+      if (same >= 2) return true;
+    } else {
+      same = 0;
+    }
+    last = now;
+    await page.waitForTimeout(100);
+  }
+  return false;
+}
+
 const requested: string[] = [];
 page.on('request', (request) => requested.push(new URL(request.url()).pathname));
 const consoleErrors: string[] = [];
@@ -464,6 +563,135 @@ try {
   }
   answer = { status: 200, body: JSON.stringify(ANSWER) };
   mark(`each of ${REPORT_STATES.length + 1} report states says its own sentence`);
+
+  /**
+   * **Phase 2 slice four, proved through the page rather than in a unit test.**
+   *
+   * `PHASE_2_SLICE_4_BRIEF.md` promised this check by name: *"the hosted page is
+   * given a known set of checks by the stub and the window must list exactly
+   * those names and states — so the wiring is proved by a check that runs in CI,
+   * not by me saying it works."*
+   *
+   * The names are deliberately unlike anything in the recording, and one check
+   * returns a result the constitution has no word for. The window must list the
+   * four it can name, and say in a sentence that one returned nothing — never
+   * drawing it as `skipped`, which is a different fact.
+   */
+  const before = failures.length;
+  const NAMED_CHECKS = [
+    { name: 'a check the recording never names', state: 'passed' },
+    { name: 'another the recording never names', state: 'failed' },
+    { name: 'a third, still going', state: 'running' },
+    { name: 'a fourth, which chose not to run', state: 'skipped' },
+    { name: 'a fifth, which returned nothing', state: 'noResult' },
+  ];
+  answer = {
+    status: 200,
+    body: JSON.stringify({
+      ...ANSWER,
+      checks: {
+        total: 5,
+        passed: 1,
+        failed: 1,
+        running: 1,
+        noResult: 1,
+        source: 'check runs',
+        runs: NAMED_CHECKS,
+      },
+    }),
+  };
+  await page.goto(`${url}?checks=1`, { waitUntil: 'load' });
+  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
+    timeout: budget,
+  });
+  /**
+   * The Prover's window is opened the way a person opens it: two taps on the
+   * world — the first travels to him, the second opens the record on his screen.
+   * The page's `__virgilV11` hook is deliberately read-only, so no window can be
+   * put on screen from outside the product, and that is the right design rather
+   * than an obstacle to work around.
+   */
+  await page.waitForSelector('[data-touch-target="prover"]', { state: 'attached' }).catch(() => {});
+  if (!(await worldStill(budget))) {
+    failures.push('the world never settled, so no press on it could be read as a tap');
+  }
+  await pressWorld('prover');
+  /**
+   * The second tap is the Prover's *screen*, not the Prover again: the owner's
+   * two-step rule is tap a character to travel, tap their screen to open the
+   * record. Tapping the character twice travels and opens nothing, which is what
+   * the rule is for and what the first version of this check got wrong.
+   *
+   * Two waits stand between the taps, and both are conditions rather than
+   * intervals — the K11-04 lesson, in a file that had already learned it once.
+   *
+   *  - `focus` reaching the Prover is the product agreeing the first tap landed.
+   *    It is set when the tap is read, not when the camera arrives.
+   *  - `worldStill` is the camera arriving. It matters because a press during a
+   *    camera move is not a tap (`gesture.ts`), so the second press would be
+   *    refused — correctly — and the window would never open.
+   */
+  await page
+    .waitForFunction(
+      () => (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus === 'prover',
+      undefined,
+      { timeout: budget },
+    )
+    .catch(() => {});
+  if (!(await worldStill(budget))) {
+    failures.push('the camera never stopped after the first tap, so the second could not be one');
+  }
+  await pressWorld('prover-screen');
+  await page
+    .waitForFunction(
+      () =>
+        (window as { __virgilV11?: { window?: string | null } }).__virgilV11?.window === 'prover',
+      undefined,
+      { timeout: budget },
+    )
+    .catch(() => {});
+  await page.waitForSelector('.v11w-sheet', { state: 'visible' }).catch(() => {});
+  const onProver = await page.evaluate(
+    () => (window as { __virgilV11?: { window?: string | null } }).__virgilV11?.window ?? null,
+  );
+  if (onProver !== 'prover') {
+    failures.push(
+      `two taps on the Prover opened ${onProver ?? 'no window'} rather than the Prover’s`,
+    );
+  }
+  const prover = await page.evaluate(
+    () => (document.querySelector('.v11w-sheet') as HTMLElement | null)?.innerText ?? '',
+  );
+  for (const check of NAMED_CHECKS.filter((entry) => entry.state !== 'noResult')) {
+    if (!prover.includes(check.name)) {
+      failures.push(`the Prover’s window does not list "${check.name}", which it was told ran`);
+    }
+  }
+  const nothingReturned = NAMED_CHECKS.find((entry) => entry.state === 'noResult');
+  if (nothingReturned && prover.includes(nothingReturned.name)) {
+    failures.push(
+      `the Prover’s window lists "${nothingReturned.name}" among the checks with a state; it returned nothing and has none`,
+    );
+  }
+  if (!/1 check returned no result/i.test(prover)) {
+    failures.push(
+      `the Prover’s window does not say a check returned no result: "${prover.slice(0, 240)}"`,
+    );
+  }
+  // The recording's own six checks must not be underneath the live ones: that
+  // is the confusion the whole slice exists to prevent, and it would read as a
+  // pass against every assertion above.
+  if (/biome lint|typecheck domain|unit gate-engine/i.test(prover)) {
+    failures.push('the Prover’s window still lists the recording’s checks beside the real ones');
+  }
+  if (failures.length === before) {
+    // Only when it held. Announcing the negative one line above its own failure
+    // is KP5-09, and this file had reintroduced it.
+    mark(
+      `the Prover’s window lists ${NAMED_CHECKS.length - 1} named checks and counts the one with no result`,
+    );
+  }
+  answer = { status: 200, body: JSON.stringify(ANSWER) };
 
   // Console errors are counted for the good answer only: the next phase makes
   // the endpoint fail on purpose and the browser logs that failed fetch.

@@ -66,3 +66,31 @@ Small. One new state in a shared type, one mapping from the answer into the wind
 **Yes** — and I build it. **No, do X instead** — and I do that. **Change it** — and I rewrite this page.
 
 If you say yes, this document stays as the record of what was proposed, and the Keeper reviews the result against it.
+
+---
+
+## Amendment, 2026-09-11 — the fifth state is not added, on the owner's instruction
+
+**The brief above proposed something a session is not allowed to do, and it was caught on the first line of the build rather than after it.**
+
+"The one mismatch, named before it is built" ends: *"the slice adds a fifth state to the window's vocabulary rather than mapping `noResult` onto `skipped`."* The reasoning behind that sentence stands and nothing here softens it — `noResult` and `skipped` are different facts and drawing one as the other is exactly the class of untruth this project keeps finding.
+
+What the sentence missed is where the four words come from. They are not the window's list. They are `checkResults` in `constitution/authority.json` — `running`, `passed`, `failed`, `skipped` — which is authority layer 2, and `CLAUDE.md` says only the owner may change layers 1 and 2. A fifth word in the interface would either have been the interface speaking a vocabulary the constitution does not have, or a session editing the constitution to fit its own build. Both are refused, and the second is refused twice over: `constitution/**` is still denied to every session by the two deny lines the owner deliberately left in place.
+
+So the build stopped and put two roads to the owner. He answered on 2026-09-11:
+
+> "1. do it"
+
+That is the first: **keep the four words, and say the rest in a sentence.**
+
+### What is built instead
+
+- The window lists a check only when its result is one of the constitution's four. That list is a claim about every row in it, and every row in it now has a word the constitution recognises.
+- A check whose result is not one of the four — cancelled, errored in the runner, finished with no conclusion at all, or reported with no name — is **counted, not listed**. The window says, in a sentence beside the list, `1 check returned no result, so nothing is known about it`, and says the same thing again in the facts section marked `unresolved`.
+- Nothing in the interface is drawn as `skipped` that GitHub did not report as skipped. The promise of the original mismatch section is kept; only the mechanism changed.
+
+### What this costs, plainly
+
+A reader sees four states in the list and a sentence underneath, rather than five states in the list. The sentence carries the same fact and carries it in the place a reader looking at the list will see it — but it is a sentence, and a row is easier to scan than a sentence. That is the price of the interface not inventing a word the constitution has not given it, and it is the right price.
+
+This does not close the question. If the owner decides the constitution should have a fifth word for a check that ran and returned nothing, that is his to decide and layer 2 is where it would be written; the interface would then follow. Nothing here presumes that decision either way.

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import authority from '../../../../../constitution/authority.json' with { type: 'json' };
 import { type DemoState, demoAt } from '../room/demo.js';
+import type { CheckState } from '../window/blocks.js';
 
 /**
  * **The world, reporting this repository instead of replaying a recording.**
@@ -158,7 +159,21 @@ export interface LiveAnswer {
     failed: number;
     running: number;
     noResult: number;
-    runs: { name: string; status: string; conclusion: string | null; url: string | null }[];
+    /**
+     * Which GitHub API answered — `check runs`, `workflow runs` or `commit
+     * statuses`. Reported rather than hidden: *"fourteen checks passed"* means a
+     * different thing from each of the three (`netlify/functions/state.mjs`).
+     */
+    source?: string;
+    /**
+     * **Declared as the function actually sends it.** This said
+     * `{ name, status, conclusion, url }` — GitHub's own fields — while
+     * `state.mjs` has always mapped those to one `state` of its own and a
+     * `detail` beside it. Nothing read the field, so nothing caught it; the
+     * moment something did, the type would have described a payload that has
+     * never existed on this wire.
+     */
+    runs: { name: string; state: string; detail?: string | null; url: string | null }[];
   } | null;
   githubReviews?: { state: string; submittedAt: string | null }[] | null;
   keeperVerdict?: null;
@@ -217,6 +232,47 @@ export interface Live {
  * because it is what the room looks like when nothing is happening — and when
  * nothing is happening, that is what should be on screen.
  */
+/**
+ * The four words the constitution has for how a check ended.
+ *
+ * `constitution/authority.json`, `checkResults`. They are layer 2 and only the
+ * owner may change them, so this list is read against the wire rather than
+ * extended to fit it: a result outside the four is not translated into one of
+ * them, it is counted as having returned nothing.
+ */
+const CHECK_STATES: readonly string[] = ['running', 'passed', 'failed', 'skipped'];
+
+/**
+ * The checks the answer reported, as rows the Prover's window can draw.
+ *
+ * Two things it will not do. It will not invent a name: a run the API named with
+ * an empty string is not drawn as a blank row, it is counted in `noResult`. And
+ * it will not translate a result the constitution has no word for into one it
+ * does — `noResult` is not `skipped`, `cancelled` is not `failed`. Those are
+ * counted and said in a sentence, because the alternative is the interface
+ * telling the owner something the evidence never said, which is the one thing
+ * this whole build exists to avoid.
+ */
+function checksOf(answer: LiveAnswer): NonNullable<DemoState['checks']> | null {
+  const read = answer.checks;
+  if (!read || !Array.isArray(read.runs)) return null;
+  const rows: { name: string; state: CheckState }[] = [];
+  let noResult = 0;
+  for (const run of read.runs) {
+    const name = typeof run?.name === 'string' && run.name.length > 0 ? run.name : null;
+    if (!name) {
+      noResult += 1;
+      continue;
+    }
+    if (CHECK_STATES.includes(run.state)) {
+      rows.push({ name, state: run.state as CheckState });
+    } else {
+      noResult += 1;
+    }
+  }
+  return { rows, noResult, source: typeof read.source === 'string' ? read.source : 'GitHub' };
+}
+
 export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState | null {
   if (!answer.ok) return null;
   const base = demoAt(0, 0, false);
@@ -313,6 +369,12 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
     mode: 'live',
     running: false,
     cast,
+    /**
+     * Present only here. `demoAt` leaves it off, so the recording and the replay
+     * carry no checks and the Prover's window falls back to its recorded text —
+     * a scripted run saying what it is.
+     */
+    checks: checksOf(answer),
     content: {
       ...base.content,
       ...known,

@@ -15,6 +15,7 @@ import {
   reportIsCurrent,
   stateFromAnswer,
 } from '../src/world/live/liveState.js';
+import { demoAt } from '../src/world/room/demo.js';
 
 /**
  * **The guards on live state, which are the same guards the recording has and
@@ -885,5 +886,124 @@ describe('no invented candidate state reaches the slab', () => {
     };
     expect(shapeComplaint(report)).not.toBeNull();
     expect(SessionStatusReport.safeParse(report).success).toBe(false);
+  });
+});
+
+/**
+ * **Slice four: the checks that actually ran reach the room.**
+ *
+ * The Prover's window has always drawn six checks from a fixed schedule in
+ * `screens/tally.ts`, because a recording has to draw something. When a live
+ * answer is in hand it must draw what GitHub reported instead — and the whole of
+ * the risk is in the translation, because the wire has more kinds of outcome
+ * than the constitution has words for.
+ *
+ * `constitution/authority.json` names four: `running`, `passed`, `failed`,
+ * `skipped`. They are layer 2 and only the owner may change them. So a result
+ * outside the four is not squeezed into one of them; it is counted as having
+ * returned nothing, and the window says so in a sentence.
+ */
+describe('the checks that ran reach the room, and only in words the constitution has', () => {
+  const NOW = Date.parse('2026-09-10T12:00:00Z');
+  const withRuns = (runs: unknown[], extra: Record<string, unknown> = {}) =>
+    stateFromAnswer(
+      {
+        ...FULL,
+        checks: {
+          total: Array.isArray(runs) ? runs.length : 0,
+          passed: 0,
+          failed: 0,
+          running: 0,
+          noResult: 0,
+          runs,
+          ...extra,
+        },
+      } as never,
+      NOW,
+    );
+
+  it('carries no checks at all when the answer reported none', () => {
+    expect(stateFromAnswer(FULL, NOW)?.checks).toBeNull();
+  });
+
+  it('the recording carries none either, so its window keeps its own six', () => {
+    // `demoAt` is what every scripted and replayed state is built from. If it
+    // ever grew a `checks` field the recording would start drawing itself as
+    // live, which is the confusion this slice exists to prevent.
+    expect(demoAt(0, 0, false).checks).toBeUndefined();
+  });
+
+  it('keeps each of the four results the constitution names', () => {
+    const state = withRuns([
+      { name: 'one', state: 'passed' },
+      { name: 'two', state: 'failed' },
+      { name: 'three', state: 'running' },
+      { name: 'four', state: 'skipped' },
+    ]);
+    expect(state?.checks?.rows).toEqual([
+      { name: 'one', state: 'passed' },
+      { name: 'two', state: 'failed' },
+      { name: 'three', state: 'running' },
+      { name: 'four', state: 'skipped' },
+    ]);
+    expect(state?.checks?.noResult).toBe(0);
+  });
+
+  it('the four are exactly the four the constitution names, not a list of its own', () => {
+    const state = withRuns(
+      authority.checkResults.map((result: string, i: number) => ({
+        name: `check ${i}`,
+        state: result,
+      })),
+    );
+    expect(state?.checks?.rows).toHaveLength(authority.checkResults.length);
+    expect(state?.checks?.noResult).toBe(0);
+  });
+
+  it('counts a result the constitution has no word for, and never draws it as one', () => {
+    const state = withRuns([
+      { name: 'cancelled', state: 'noResult' },
+      { name: 'stale', state: 'cancelled' },
+      { name: 'odd', state: 'neutral' },
+      { name: 'nothing', state: '' },
+    ]);
+    expect(state?.checks?.rows).toEqual([]);
+    expect(state?.checks?.noResult).toBe(4);
+  });
+
+  it('will not invent a name for a check that has none', () => {
+    const state = withRuns([
+      { name: '', state: 'passed' },
+      { name: null, state: 'passed' },
+      { state: 'passed' },
+      { name: 42, state: 'passed' },
+    ]);
+    expect(state?.checks?.rows).toEqual([]);
+    expect(state?.checks?.noResult).toBe(4);
+  });
+
+  it('names which GitHub question answered, and falls back to no claim about which', () => {
+    expect(withRuns([], { source: 'workflow runs' })?.checks?.source).toBe('workflow runs');
+    expect(withRuns([], { source: 42 })?.checks?.source).toBe('GitHub');
+    expect(withRuns([])?.checks?.source).toBe('GitHub');
+  });
+
+  it('reads nothing at all from a runs field that is not a list', () => {
+    for (const runs of [null, 'some checks', 42, {}]) {
+      expect(withRuns(runs as never)?.checks).toBeNull();
+    }
+  });
+
+  it('ignores the counts the answer asserts and counts the rows it was given', () => {
+    // The tally on the wire is written by the same function that wrote the runs,
+    // and a tally that disagrees with its own rows is a claim about them. The
+    // rows are the evidence, so the rows are what is counted.
+    const state = withRuns([{ name: 'one', state: 'passed' }], {
+      total: 900,
+      passed: 900,
+      noResult: 900,
+    });
+    expect(state?.checks?.rows).toHaveLength(1);
+    expect(state?.checks?.noResult).toBe(0);
   });
 });

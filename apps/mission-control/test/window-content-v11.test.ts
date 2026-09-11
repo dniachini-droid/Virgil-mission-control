@@ -375,3 +375,105 @@ describe('the functional interface text is DOM text and never enters the canvas'
     }
   });
 });
+
+/**
+ * **Slice four: the Prover's window, when the checks are real.**
+ *
+ * The recorded window draws six checks from a fixed schedule. Given a live
+ * answer it must draw what GitHub reported instead, and the defect it would be
+ * easiest to ship is the two side by side — real names above recorded ones, all
+ * under one heading, with no way for a reader to tell which is which.
+ */
+describe('the Prover’s window draws the checks that actually ran', () => {
+  const base = demoAt(0, 0, false);
+  const live = (
+    rows: { name: string; state: 'running' | 'passed' | 'failed' | 'skipped' }[],
+    noResult = 0,
+  ) =>
+    windowDoc({ ...base, checks: { rows, noResult, source: 'check runs' } }, { agent: 'prover' });
+
+  it('lists every check it was given, by its own name', () => {
+    const doc = live([
+      { name: 'a name the recording never uses', state: 'passed' },
+      { name: 'another it never uses', state: 'failed' },
+    ]);
+    const said = allText(doc).join(' ');
+    expect(said).toContain('a name the recording never uses');
+    expect(said).toContain('another it never uses');
+  });
+
+  it('does not draw the recording’s six checks beside them', () => {
+    const said = allText(live([{ name: 'the only check that ran', state: 'passed' }])).join(' ');
+    for (const name of CHECK_NAMES) {
+      expect(said, name).not.toContain(name);
+    }
+  });
+
+  it('says a check returned no result, and never lists it as one that ran', () => {
+    const doc = live([{ name: 'the one that reported', state: 'passed' }], 1);
+    const said = allText(doc).join(' ');
+    expect(said).toMatch(/1 check returned no result/i);
+    const rows = doc.sections
+      .flatMap((section) => section.blocks)
+      .filter((block): block is Extract<Block, { kind: 'checks' }> => block.kind === 'checks')
+      .flatMap((block) => block.rows);
+    expect(rows).toHaveLength(1);
+  });
+
+  it('uses only the four words the constitution has, in every row it draws', () => {
+    const doc = live([
+      { name: 'one', state: 'passed' },
+      { name: 'two', state: 'failed' },
+      { name: 'three', state: 'running' },
+      { name: 'four', state: 'skipped' },
+    ]);
+    const rows = doc.sections
+      .flatMap((section) => section.blocks)
+      .filter((block): block is Extract<Block, { kind: 'checks' }> => block.kind === 'checks')
+      .flatMap((block) => block.rows);
+    expect(rows.map((row) => row.state).sort()).toEqual(['failed', 'passed', 'running', 'skipped']);
+  });
+
+  it('names which GitHub question the results came from', () => {
+    expect(allText(live([{ name: 'one', state: 'passed' }])).join(' ')).toContain('check runs');
+  });
+
+  it('draws no verdict on the work from checks passing', () => {
+    // The oldest rule in this file and the reason `keeperVerdict` is never
+    // inferred: checks passing is the Prover's evidence, not the Keeper's
+    // conclusion. A window that says PASS because everything went green has
+    // decided something no check decided.
+    const said = allText(
+      live([
+        { name: 'one', state: 'passed' },
+        { name: 'two', state: 'passed' },
+      ]),
+    ).join(' ');
+    expect(said).not.toMatch(/\bPASS\b|\bAPPROVED\b|\bBLOCKED\b/);
+  });
+
+  it('says nothing is known when nothing reported, rather than filling the quiet', () => {
+    const doc = live([]);
+    expect(doc.conclusion.headline).toBe('No checks have reported yet');
+    // Not "all 0 passed", which is true of an empty list and says the opposite
+    // of what is known.
+    expect(doc.conclusion.headline).not.toMatch(/passed/i);
+    expect(allText(doc).join(' ')).toMatch(/reported no checks at all/i);
+  });
+
+  it('carries no scripted dialogue, because no agent said anything about these', () => {
+    expect(live([{ name: 'one', state: 'passed' }]).messages).toEqual([]);
+  });
+
+  it('leads with meaning, never with a table', () => {
+    const doc = live([{ name: 'one', state: 'failed' }]);
+    expect(doc.conclusion.headline.length).toBeGreaterThan(0);
+    expect(doc.sections[0]?.blocks[0]?.kind).not.toBe('table');
+  });
+
+  it('the recorded window is untouched when there are no live checks', () => {
+    const doc = windowDoc(base, { agent: 'prover' });
+    const said = allText(doc).join(' ');
+    expect(said).toContain(CHECK_NAMES[0]);
+  });
+});
