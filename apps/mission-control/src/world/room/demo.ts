@@ -187,6 +187,16 @@ export interface DemoState {
     /** Which GitHub API answered: check runs, workflow runs, or commit statuses. */
     source: string;
   } | null;
+  /**
+   * Why the checks could not be read, when they could not be.
+   *
+   * Absent with `checks` absent — the recording has nothing to explain. Present
+   * and `null` on a live state whose checks were read. Present and a sentence on
+   * a live state whose checks were not: `state.mjs` names which sources refused
+   * and with what status, and the Prover's window says so instead of drawing
+   * anything.
+   */
+  checksReason?: string | null;
 }
 
 /** The beats, in seconds from the loop's start. */

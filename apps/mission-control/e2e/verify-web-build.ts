@@ -476,6 +476,66 @@ async function worldStill(budget: number): Promise<boolean> {
   return false;
 }
 
+/**
+ * The open window's text, and **only when a person could actually read it** —
+ * the Keeper's KP7-05.
+ *
+ * The first version of the slice-four case asked for `.v11w-sheet`'s `innerText`
+ * and asserted against that. `innerText` falls back to `textContent` for an
+ * element that is not being rendered, so a sheet that opened in state and was
+ * hidden, clipped, or translated off screen satisfied every assertion in the
+ * case. That is the KP5-02 family again — a check that passes a page nobody
+ * could use — in the file whose whole subject is not doing that.
+ *
+ * So the sheet must be on screen and be the thing at its own centre point before
+ * a word of it is read. Returns `null` with the reason pushed as a failure when
+ * it is not.
+ */
+async function readSheet(what: string): Promise<string | null> {
+  const seen = await page.evaluate(() => {
+    const sheet = document.querySelector('.v11w-sheet') as HTMLElement | null;
+    if (!sheet) return { on: false as const };
+    const box = sheet.getBoundingClientRect();
+    const onScreen =
+      box.width > 0 &&
+      box.height > 0 &&
+      box.right > 0 &&
+      box.bottom > 0 &&
+      box.left < window.innerWidth &&
+      box.top < window.innerHeight;
+    const x = Math.min(Math.max(box.left + box.width / 2, 1), window.innerWidth - 1);
+    const y = Math.min(Math.max(box.top + box.height / 2, 1), window.innerHeight - 1);
+    const top = document.elementFromPoint(x, y);
+    const style = window.getComputedStyle(sheet);
+    return {
+      on: true as const,
+      onScreen,
+      visible: style.visibility !== 'hidden' && Number(style.opacity) > 0.01,
+      reachable: top === sheet || sheet.contains(top),
+      covering: `${top?.tagName.toLowerCase() ?? 'nothing'}${top?.className ? `.${String(top.className).split(' ')[0]}` : ''}`,
+      box: `${Math.round(box.left)},${Math.round(box.top)} ${Math.round(box.width)}x${Math.round(box.height)}`,
+      text: sheet.innerText,
+    };
+  });
+  if (!seen.on) {
+    failures.push(`${what}: no window is on the page at all`);
+    return null;
+  }
+  if (!seen.onScreen) {
+    failures.push(`${what}: the window is off screen at ${seen.box}, so nothing in it can be read`);
+    return null;
+  }
+  if (!seen.visible) {
+    failures.push(`${what}: the window is on the page but not visible`);
+    return null;
+  }
+  if (!seen.reachable) {
+    failures.push(`${what}: ${seen.covering} is on top of the window at its own centre`);
+    return null;
+  }
+  return seen.text;
+}
+
 const requested: string[] = [];
 page.on('request', (request) => requested.push(new URL(request.url()).pathname));
 const consoleErrors: string[] = [];
@@ -659,9 +719,7 @@ try {
       `two taps on the Prover opened ${onProver ?? 'no window'} rather than the Prover’s`,
     );
   }
-  const prover = await page.evaluate(
-    () => (document.querySelector('.v11w-sheet') as HTMLElement | null)?.innerText ?? '',
-  );
+  const prover = (await readSheet('the Prover’s window')) ?? '';
   for (const check of NAMED_CHECKS.filter((entry) => entry.state !== 'noResult')) {
     if (!prover.includes(check.name)) {
       failures.push(`the Prover’s window does not list "${check.name}", which it was told ran`);
@@ -690,6 +748,90 @@ try {
     mark(
       `the Prover’s window lists ${NAMED_CHECKS.length - 1} named checks and counts the one with no result`,
     );
+  }
+  answer = { status: 200, body: JSON.stringify(ANSWER) };
+
+  /**
+   * **The other half of the same brief sentence, and the Keeper's KP7-01.**
+   *
+   * `PHASE_2_SLICE_4_BRIEF.md`: *"It draws nothing when nothing was read. If the
+   * checks cannot be fetched, the window says they were not read — not zero, not
+   * empty, not `skipped`."*
+   *
+   * The first build of the slice failed exactly here, and no check in this
+   * repository would have caught it: the window fell through to the recorded
+   * document and drew the recording's fourteen invented checks with *"14 checks
+   * have run and passed"* marked verified, while the badge on the same page said
+   * the results could not be read. The answer below is the one `state.mjs`
+   * actually sends when every GitHub source refuses — `ok: true`, `checks: null`,
+   * and a reason beside it.
+   */
+  const beforeUnread = failures.length;
+  const WHY =
+    'No source could be read: check runs (403), workflow runs (403), commit statuses (403).';
+  answer = {
+    status: 200,
+    body: JSON.stringify({ ...ANSWER, checks: null, checksReason: WHY }),
+  };
+  await page.goto(`${url}?unread=1`, { waitUntil: 'load' });
+  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
+    timeout: budget,
+  });
+  await page.waitForSelector('[data-touch-target="prover"]', { state: 'attached' }).catch(() => {});
+  if (!(await worldStill(budget))) {
+    failures.push('the world never settled, so no press on it could be read as a tap');
+  }
+  await pressWorld('prover');
+  await page
+    .waitForFunction(
+      () => (window as { __virgilV11?: { focus?: string } }).__virgilV11?.focus === 'prover',
+      undefined,
+      { timeout: budget },
+    )
+    .catch(() => {});
+  if (!(await worldStill(budget))) {
+    failures.push('the camera never stopped after the first tap, so the second could not be one');
+  }
+  await pressWorld('prover-screen');
+  await page
+    .waitForFunction(
+      () =>
+        (window as { __virgilV11?: { window?: string | null } }).__virgilV11?.window === 'prover',
+      undefined,
+      { timeout: budget },
+    )
+    .catch(() => {});
+  const unread = (await readSheet('the Prover’s window with nothing read')) ?? '';
+  // The names the recording invents. Any one of them on a live page is the
+  // defect: a fixture drawn where a reader is owed a fact.
+  for (const name of [
+    'biome lint',
+    'typecheck domain',
+    'unit gate-engine',
+    'unit mission-control',
+  ]) {
+    if (unread.includes(name)) {
+      failures.push(
+        `with no checks read, the Prover’s window draws the recording’s "${name}" — a fixture where a fact is owed`,
+      );
+    }
+  }
+  if (!/could not be read this time, so none are shown/i.test(unread)) {
+    failures.push(
+      `with no checks read, the Prover’s window does not say they were not read: "${unread.slice(0, 240)}"`,
+    );
+  }
+  if (!unread.includes(WHY)) {
+    failures.push('the Prover’s window does not name which sources refused, which the answer said');
+  }
+  // "0 of 14" and "all passed" are both claims about checks nobody read.
+  if (/\b\d+ checks have run and passed\b|\ball \d+ checks? passed\b/i.test(unread)) {
+    failures.push(
+      `with no checks read, the Prover’s window still counts checks: "${unread.slice(0, 240)}"`,
+    );
+  }
+  if (failures.length === beforeUnread) {
+    mark('with nothing read, the Prover’s window says so and draws none of the recording’s checks');
   }
   answer = { status: 200, body: JSON.stringify(ANSWER) };
 

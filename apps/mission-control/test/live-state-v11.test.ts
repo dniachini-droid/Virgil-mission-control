@@ -926,6 +926,29 @@ describe('the checks that ran reach the room, and only in words the constitution
     expect(stateFromAnswer(FULL, NOW)?.checks).toBeNull();
   });
 
+  /**
+   * **The Keeper's KP7-01, at the mapping end.** `null` and absent are two
+   * different claims here and the window turns on which one it has: absent is
+   * the recording, which draws its own six; `null` is a live answer whose checks
+   * could not be read, which must draw none. A live state that came back
+   * `undefined` would fall into the recording, which is the defect.
+   */
+  it('says null rather than nothing when a live answer read no checks', () => {
+    const state = stateFromAnswer(FULL, NOW);
+    expect(state?.checks).toBeNull();
+    expect('checks' in (state as object)).toBe(true);
+    expect(demoAt(0, 0, false).checks).toBeUndefined();
+  });
+
+  it('carries the reason the checks were not read, which nothing read before', () => {
+    const why = 'No source could be read: check runs (403), workflow runs (403).';
+    expect(stateFromAnswer({ ...FULL, checksReason: why } as never, NOW)?.checksReason).toBe(why);
+    // Present and null rather than absent, so `checks: null` always arrives with
+    // the question already answered one way or the other.
+    expect(stateFromAnswer(FULL, NOW)?.checksReason).toBeNull();
+    expect(stateFromAnswer({ ...FULL, checksReason: 42 } as never, NOW)?.checksReason).toBeNull();
+  });
+
   it('the recording carries none either, so its window keeps its own six', () => {
     // `demoAt` is what every scripted and replayed state is built from. If it
     // ever grew a `checks` field the recording would start drawing itself as

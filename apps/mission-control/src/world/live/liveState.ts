@@ -211,6 +211,15 @@ export interface LiveAnswer {
    * different things about each and cannot tell them apart from the prose.
    */
   sessionReportStatus?: 'read' | 'absent' | 'unreadable' | 'refused' | null;
+  /**
+   * Why no checks are in the answer, when none are.
+   *
+   * `state.mjs` has always sent it — `checksReason: checkResult.unreadable ?? null`
+   * — naming each source that refused and the status it refused with. Nothing in
+   * this app read it until the Prover's window needed to say *why* it is showing
+   * nothing, which is the difference between "not read" and "none".
+   */
+  checksReason?: string | null;
 }
 
 export interface Live {
@@ -375,6 +384,12 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
      * a scripted run saying what it is.
      */
     checks: checksOf(answer),
+    /**
+     * Carried whether or not there is a reason, so that `checks: null` always
+     * arrives with the question "why" already answered — with a sentence, or
+     * with `null` meaning the source said nothing about it.
+     */
+    checksReason: typeof answer.checksReason === 'string' ? answer.checksReason : null,
     content: {
       ...base.content,
       ...known,
