@@ -337,13 +337,13 @@ const PINNED: Record<
     what: 'c11ef2dae566',
   },
   'KXR-13': {
-    status: 'open',
+    status: 'repaired',
     foundBy: 'review',
     where: 'docs/process/KEEPER_RECORD_KEEPING_REVIEW.md',
     what: 'fd1b7efad5cc',
   },
   'KXR-14': {
-    status: 'open',
+    status: 'repaired',
     foundBy: 'review',
     where: 'docs/process/KEEPER_RECORD_KEEPING_REVIEW.md',
     what: '8107c97c0192',

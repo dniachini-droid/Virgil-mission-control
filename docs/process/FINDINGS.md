@@ -66,8 +66,8 @@ This column is the point of the register rather than a decoration on it. It is t
 | KXR-10 | repaired | review | The pointer check was satisfied by the register itself, since every row contains its own id, and matched ids as substrings, so a file naming only `KXR-01` satisfied `XR-01` | docs/process/KEEPER_FINAL_REVIEW_GATE_PROOF_AND_FINDINGS.md |
 | KXR-11 | repaired | review | A finding recorded in a second table headed anything but `id` was invisible to every check | docs/process/KEEPER_FINAL_REVIEW_GATE_PROOF_AND_FINDINGS.md |
 | KXR-12 | repaired | review | The register told readers that adding a row meant two edits "and nothing else", and listed what the check enforces without mentioning two of its guards | docs/process/KEEPER_FINAL_REVIEW_GATE_PROOF_AND_FINDINGS.md |
-| KXR-13 | open | review | A second table headed exactly like the register is read by nothing, and both the register and its check say otherwise | docs/process/KEEPER_RECORD_KEEPING_REVIEW.md |
-| KXR-14 | open | review | The five attributes `KXR-03` added are unpinned, so a severity can be downgraded and a reproduction erased in silence | docs/process/KEEPER_RECORD_KEEPING_REVIEW.md |
+| KXR-13 | repaired | review | A second table headed exactly like the register is read by nothing, and both the register and its check say otherwise | docs/process/KEEPER_RECORD_KEEPING_REVIEW.md |
+| KXR-14 | repaired | review | The five attributes `KXR-03` added are unpinned, so a severity can be downgraded and a reproduction erased in silence | docs/process/KEEPER_RECORD_KEEPING_REVIEW.md |
 | KXR-15 | repaired | review | The record-keeping brief opened by denying it was a repair cycle and four paragraphs later committed to repairing five findings | docs/process/KEEPER_RECORD_KEEPING_REVIEW.md |
 | KXR-16 | open | review | `KXR-12` reads `repaired` and the first of the two passages it named is byte-identical to before | docs/process/KEEPER_RECORD_KEEPING_REVIEW.md |
 | KXR-17 | open | review | The run record makes no statement about CI for the record-keeping candidate, where its own predecessor section names the run | docs/process/KEEPER_RECORD_KEEPING_REVIEW.md |
