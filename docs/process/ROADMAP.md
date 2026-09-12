@@ -58,6 +58,8 @@ They move to a package of their own. **The check is the point: delete `apps/miss
 
 The owner's position, 2026-09-12: *"if it impacts the building system I want it separate."* This is what makes separating possible later without breaking the inspector — and makes it unnecessary to hurry.
 
+**And see "the workbench" below.** If that shape is adopted, this item and item 9 become one move rather than two, because a workbench has no application inside it to separate from.
+
 ## 4. The knowledge system, which absorbs the cleanup
 
 **The cleanup that was proposed and abandoned.** A list of twenty-six documents to delete was prepared and was wrong: `PHASE_1_RUN_RECORD.md` cites all eleven `HOW_TO_LOOK` versions and a run record is evidence, live source cites another, and the unsuffixed file turned out to be the oldest rather than the survivor.
@@ -115,6 +117,48 @@ A record of what happened to each piece of work: started, built, checked, review
 ## 9. Portable
 
 Packaged so it can be pointed at a fresh repository and work. **This is the thing the owner asked for on day one** and everything above is the road to it.
+
+## The shape all of this is heading for — the workbench
+
+**Added 2026-09-12, after the owner shared `praxis-agent-suite` and asked whether its structure would keep things clean across many projects.** It would, and it answers a question this roadmap already contains twice.
+
+Praxis separates two folders and nothing else about it matters here:
+
+```
+workbench/
+├── framework/        the system — vendored, updated from a source clone
+└── projects/
+    ├── registry.json  project id → where that project actually lives on disk
+    └── {id}/          that project's state: its plans, its findings, its lessons
+```
+
+**Project repositories stay where they are and stay clean.** Registering one drops a small anchor file carrying an id and no machine paths. The system edits the project's real source wherever it lives; everything the system *learns* accumulates in the workbench under that project's id. Work that belongs to no project runs at a `_meta` scope.
+
+### Why it matters here, specifically
+
+**It dissolves a question this roadmap asks twice.** Item 3 exists because the inspector's checks ended up inside the application, and item 10 exists because the application may want to leave. Under a workbench there is nothing to separate: the system is the workbench and Virgil is a registered project. They were never joined.
+
+**And it answers one this roadmap does not ask.** When the third project exists and the inspector improves, how does the first project get the improvement? Today the answer is copying files between repositories. Under a workbench the framework is updated once and every project already uses it.
+
+### What it does to the knowledge system
+
+Item 4 proposes marking each lesson `repository` or `general` and building promotion between wikis later. **The workbench makes that unnecessary rather than easier.** A lesson about this repository's 3D rendering belongs in that project's folder. A lesson about checks lying about themselves belongs at `_meta`, where every project already reads it. Same distinction, no promotion machinery, and the folder a lesson is written into *is* the decision.
+
+Item 4's brief should be rewritten against this before it is built.
+
+### What is taken, and what is deliberately not
+
+**Taken:** the workbench-and-projects split, a registry with a portable anchor, per-project plus `_meta` state, and a framework vendored from a source clone so it can be updated without touching any work.
+
+**Not taken:** the sixteen named agents, the MCP intelligence layer, the desk system, Docker, the semantic-search stack — 1,253 files of a *different* system. Praxis coordinates agents that hand work to each other. This one verifies work without trusting the agent that did it. Grafting the first onto the second would add no gate, no evidence and no independent review.
+
+### When
+
+**Not now, and the reason is not caution.** Restructuring before Phase 1 means moving a system that does not yet do its job; restructuring after means moving one that works.
+
+So: **Phase 1 builds toward it rather than into it.** In practice that means the evidence collector takes the repository it is inspecting as an argument and hardcodes none of this repository's paths, package names or layout. That is a small discipline during Phase 1 and it is most of the work of items 3 and 9 — which then collapse into one move that is already half done.
+
+---
 
 ## 10. Then, and only then, the question of Virgil
 
