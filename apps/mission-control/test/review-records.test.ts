@@ -67,11 +67,27 @@ const RECORDS: Record_[] = [
     reviewed: 'ec53d9876283444a704751ffd1d6f6fe59e71fe9',
     holds: ['KXR-09', 'KXR-10', 'KXR-11', 'KXR-12'],
   },
+  {
+    path: 'docs/process/KEEPER_RECORD_KEEPING_REVIEW.md',
+    from: 'claude/keeper-review-b27cde14-ug7ffo',
+    commit: 'c3d9849',
+    sha256: 'ea7100b9407bb59eed9ba18b575d8baa09b79e3270074f1afb22c778a096b9d7',
+    reviewed: 'b27cde14a2dd3fe9ad7ac435ded24c49686d68a8',
+    holds: ['KXR-13', 'KXR-14', 'KXR-15', 'KXR-16', 'KXR-17'],
+  },
+  {
+    path: 'docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md',
+    from: 'claude/pr-11-unreviewed-commits-mvjp2h',
+    commit: 'f8bd148',
+    sha256: '38ea0709e2d1592d0d4f12bda1a98e94f48d4ade97b94d3bebeb4344097cc670',
+    reviewed: 'd7d80fdaf54663afe47d8bda60845cd4b6c9808b',
+    holds: ['KXR-19', 'KXR-20', 'KXR-21', 'KXR-22'],
+  },
 ];
 
 describe('the reviews are kept, exactly as they were written', () => {
   it('has records to check, or every assertion below is vacuous', () => {
-    expect(RECORDS.length).toBe(3);
+    expect(RECORDS.length).toBe(5);
   });
 
   for (const record of RECORDS) {
@@ -105,12 +121,28 @@ describe('the reviews are kept, exactly as they were written', () => {
     });
   }
 
-  it('every KXR finding has a document that holds its text', () => {
-    // The whole point of copying them in. Twelve findings, three documents, and
-    // nothing left depending on a branch surviving.
+  it('every KXR finding the register carries has a document that holds its text', () => {
+    /**
+     * **`KXR-22`: this was hardcoded to twelve.**
+     *
+     * A fourth review of `b27cde14` existed — `claude/keeper-review-b27cde14-ug7ffo`
+     * at `c3d9849`, dated 22 minutes before the commit whose pull-request
+     * description called that commit unreviewed — and raised `KXR-13` to
+     * `KXR-17`. Those five findings were in no file in this repository, which is
+     * `XR-02` recurring inside the lineage built to end it. A completeness check
+     * counting to a literal could not notice, because the number was the claim.
+     *
+     * It now counts what the register actually carries. A finding recorded with
+     * nowhere holding its text fails, whatever its number.
+     */
     const held = new Set(RECORDS.flatMap((r) => r.holds));
-    const expected = Array.from({ length: 12 }, (_, i) => `KXR-${String(i + 1).padStart(2, '0')}`);
-    const missing = expected.filter((id) => !held.has(id));
+    const register = readFileSync(resolve(root, 'docs/process/FINDINGS.md'), 'utf8');
+    const carried = [...register.matchAll(/^\| (KXR-\d+) \|/gm)].map((m) => m[1] as string);
+    expect(
+      carried.length,
+      'the register carries no KXR findings, so this proves nothing',
+    ).toBeGreaterThan(12);
+    const missing = carried.filter((id) => !held.has(id));
     expect(missing, `findings whose text is in no kept record: ${missing.join(', ')}`).toEqual([]);
   });
 });

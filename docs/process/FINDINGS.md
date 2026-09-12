@@ -66,6 +66,15 @@ This column is the point of the register rather than a decoration on it. It is t
 | KXR-10 | repaired | review | The pointer check was satisfied by the register itself, since every row contains its own id, and matched ids as substrings, so a file naming only `KXR-01` satisfied `XR-01` | docs/process/KEEPER_FINAL_REVIEW_GATE_PROOF_AND_FINDINGS.md |
 | KXR-11 | repaired | review | A finding recorded in a second table headed anything but `id` was invisible to every check | docs/process/KEEPER_FINAL_REVIEW_GATE_PROOF_AND_FINDINGS.md |
 | KXR-12 | repaired | review | The register told readers that adding a row meant two edits "and nothing else", and listed what the check enforces without mentioning two of its guards | docs/process/KEEPER_FINAL_REVIEW_GATE_PROOF_AND_FINDINGS.md |
+| KXR-13 | open | review | A second table headed exactly like the register is read by nothing, and both the register and its check say otherwise | docs/process/KEEPER_RECORD_KEEPING_REVIEW.md |
+| KXR-14 | open | review | The five attributes `KXR-03` added are unpinned, so a severity can be downgraded and a reproduction erased in silence | docs/process/KEEPER_RECORD_KEEPING_REVIEW.md |
+| KXR-15 | repaired | review | The record-keeping brief opened by denying it was a repair cycle and four paragraphs later committed to repairing five findings | docs/process/KEEPER_RECORD_KEEPING_REVIEW.md |
+| KXR-16 | open | review | `KXR-12` reads `repaired` and the first of the two passages it named is byte-identical to before | docs/process/KEEPER_RECORD_KEEPING_REVIEW.md |
+| KXR-17 | open | review | The run record makes no statement about CI for the record-keeping candidate, where its own predecessor section names the run | docs/process/KEEPER_RECORD_KEEPING_REVIEW.md |
+| KXR-19 | open | review | `enabledPlugins` and `extraKnownMarketplaces` land in the only region of `.claude/settings.json` no check reads | docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md |
+| KXR-20 | open | review | `CLAUDE.md` forbids reading another repository ten lines above a section installing one that every session loads | docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md |
+| KXR-21 | open | review | "MIT licensed, free" is asserted of Superpowers and is unverifiable from this container, with no record in `assets/licenses/` | docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md |
+| KXR-22 | repaired | review | A fourth review of `b27cde14` existed and its five findings were in no file, while the PR description called that commit unreviewed | docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md |
 
 ## Attributes, for findings recorded from 2026-09-12
 
@@ -91,6 +100,15 @@ It is repaired **forward-only**, which is the same rule the register already run
 | KXR-10 | moderate | `apps/mission-control/test/findings-register.test.ts` | Repoint twenty rows at `FINDINGS.md`; green. Point `XR-01` at a file naming only `KXR-01`; green | The brief's requirement 2; `KXR-08` as raised |
 | KXR-11 | minor | `apps/mission-control/test/findings-register.test.ts`, `rowsOf` | Record a finding in a table headed anything but `id`; no check sees it | `REVIEW_POLICY.md` line 19 |
 | KXR-12 | minor | `docs/process/FINDINGS.md` | Read "Adding a row" against what the check enforces | Accuracy of this file's own instructions |
+| KXR-13 | moderate | `apps/mission-control/test/findings-register.test.ts`, `tablesOf` | Add a second table with the register's exact header; rows in it are read by nothing, suite green at 125 | `REVIEW_POLICY.md` line 19 |
+| KXR-14 | moderate | `apps/mission-control/test/findings-register.test.ts`, `PINNED`; the attributes table | Downgrade `KXR-02` major to minor and erase its reproduction; suite green | `REVIEW_POLICY.md` line 19; `KXR-06` and `KXR-09` as raised |
+| KXR-15 | major | `docs/process/RECORD_KEEPING_BRIEF.md`; `docs/process/FINDINGS.md` | Read the brief's opening against its "what gets built" four paragraphs later | `REPAIR_LIMITS.md`; `authority.json` `repairLimits.maxCyclesWithOwner` |
+| KXR-16 | minor | `docs/process/FINDINGS.md` line 7 | Compare line 7 of the register at ec53d98 with line 7 of the candidate — byte-identical | accuracy of the register's own status column |
+| KXR-17 | minor | `docs/process/FOUNDATION_REPAIR_RUN_RECORD.md` | `grep -n "Actions run"` over the record-keeping section — nothing | the brief's criterion 1, "in CI on the candidate SHA" |
+| KXR-19 | moderate | `.claude/settings.json`; its two tests | The tests read `settings.permissions` and `settings.hooks` only; the new keys are in neither | `SA-G-03` |
+| KXR-20 | moderate | `CLAUDE.md` | Read line 19 against the Superpowers section below it | `CLAUDE.md`'s own first hard limit |
+| KXR-21 | minor | `CLAUDE.md`; `assets/licenses/` | `WebFetch` and `WebSearch` are denied and no licence record exists for the plugin | this repository's own licence-record practice |
+| KXR-22 | moderate | `docs/process/`; the PR #11 description | `git log claude/keeper-review-b27cde14-ug7ffo` — a review dated before the commit that called its subject unreviewed | `XR-02`; `REVIEW_POLICY.md` line 19 |
 
 ## Adding a row
 
