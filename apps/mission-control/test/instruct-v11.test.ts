@@ -1,5 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
+// @ts-expect-error — the deployed Netlify function, deliberately outside this
+// app's TypeScript program: it ships on its own, with no bundler and no
+// workspace resolution. Imported here so the checks below can run the endpoint
+// rather than read it. Namespace import for the reason `live-state-v11.test.ts`
+// gives: a named import long enough to wrap moves the unresolved module off the
+// line this directive covers.
+import * as instructFunction from '../../../netlify/functions/instruct.mjs';
+
+const { default: instruct, forgetAttempts } = instructFunction as {
+  default: (request: Request) => Promise<Response>;
+  forgetAttempts: () => void;
+};
 
 /**
  * **The guards on the one thing in this project that can act.**
@@ -497,38 +509,30 @@ describe('the owner gets an answer, or is told why he did not', () => {
 describe('a wrong guess at the secret costs something', () => {
   const SECRET = 'a-secret-long-enough-to-be-a-secret';
 
-  const post = async (headers: Record<string, string>) => {
-    const { default: handler, forgetAttempts } = (await import(
-      '../../../netlify/functions/instruct.mjs'
-      // Deliberately outside this app's TypeScript program, like `state.mjs`.
-    )) as { default: (request: Request) => Promise<Response>; forgetAttempts: () => void };
-    void forgetAttempts;
-    return handler(
+  const post = (headers: Record<string, string>) =>
+    instruct(
       new Request('https://example.test/api/instruct', {
         method: 'POST',
         headers,
         body: JSON.stringify({ instruction: 'what is the state of things?' }),
       }),
     );
-  };
 
-  const clear = async () => {
-    const { forgetAttempts } = (await import('../../../netlify/functions/instruct.mjs')) as {
-      forgetAttempts: () => void;
-    };
-    forgetAttempts();
-  };
-
-  beforeEach(async () => {
+  beforeEach(() => {
     process.env.INSTRUCT_SECRET = SECRET;
     process.env.GITHUB_DISPATCH_TOKEN = 'not-a-real-token';
     process.env.GITHUB_REPO = 'owner/repo';
     process.env.GITHUB_BRANCH = 'claude/some-branch';
-    await clear();
+    // The counters are module state and would otherwise leak between cases,
+    // which is exactly the kind of check that passes for the wrong reason.
+    forgetAttempts();
   });
 
   it('refuses a wrong secret without saying anything about it', async () => {
-    const response = await post({ 'x-virgil-secret': 'wrong', 'x-nf-client-connection-ip': '1.1.1.1' });
+    const response = await post({
+      'x-virgil-secret': 'wrong',
+      'x-nf-client-connection-ip': '1.1.1.1',
+    });
     expect(response.status).toBe(401);
     const body = (await response.json()) as { reason: string };
     // Not "wrong secret", not "3 attempts left", not "no secret installed".
@@ -611,8 +615,9 @@ describe('a wrong guess at the secret costs something', () => {
     expect(right.status).not.toBe(401);
 
     for (let i = 0; i < 5; i += 1) {
-      expect((await post({ 'x-virgil-secret': 'wrong', 'x-nf-client-connection-ip': from })).status)
-        .toBe(401);
+      expect(
+        (await post({ 'x-virgil-secret': 'wrong', 'x-nf-client-connection-ip': from })).status,
+      ).toBe(401);
     }
   });
 

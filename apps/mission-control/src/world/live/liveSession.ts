@@ -131,13 +131,25 @@ export async function instruct(text: string, secret: string): Promise<SendOutcom
     } | null;
 
     if (response.ok && answer?.ok) {
+      /**
+       * **Slice six: where the answer will appear, and how long it takes.**
+       *
+       * The owner asked for seconds and was told plainly that seconds needs a
+       * paid API key his own `CLAUDE.md` forbids; he chose to keep the rule
+       * (`docs/process/PHASE_2_SLICE_6_BRIEF.md`). A composer that says
+       * *"Sent"* and then shows nothing for four minutes is the version of that
+       * choice where he thinks it is broken. So the wait is stated at the
+       * moment he starts it, not explained afterwards.
+       */
+      const arrives =
+        ' The reply appears in this thread when the session has written it — minutes rather than seconds, and it survives closing this page.';
       return {
         sent: true,
         kept: true,
         note:
           answer.runsInTheLastDay && answer.ceiling
-            ? `Sent. A session is starting. That is ${answer.runsInTheLastDay} of ${answer.ceiling} runs today.`
-            : 'Sent. A session is starting.',
+            ? `Sent. A session is starting. That is ${answer.runsInTheLastDay} of ${answer.ceiling} runs today.${arrives}`
+            : `Sent. A session is starting.${arrives}`,
       };
     }
 

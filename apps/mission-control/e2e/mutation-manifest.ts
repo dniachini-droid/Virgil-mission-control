@@ -193,6 +193,22 @@ const MUTATIONS: Mutation[] = [
     why: 'x-forwarded-for is client-settable. Preferring it gives an attacker a fresh allowance per forged header, which makes the limit decoration.',
   },
   {
+    id: 'the-live-thread-is-the-owner\u2019s-own',
+    file: 'apps/mission-control/src/world/window/windowContent.ts',
+    find: "messages: state.mode === 'live' ? liveVirgilThread(state) : virgilThread(state),",
+    replace: 'messages: virgilThread(state),',
+    caughtBy: 'test/window-content-v11.test.ts',
+    why: 'Slice six. Without it a live page draws the recording\u2019s scripted turns in Virgil\u2019s voice — "Good evening", "The Prover is running the checks" — addressed to the owner, plausible, and written by nobody. SA-U-01 one surface over, and worse: he could tell the invented file paths were invented; he cannot tell that about a sentence addressed to him. Also proved red end to end in verify:web, where it produced ten failures.',
+  },
+  {
+    id: 'nothing-read-is-not-nothing-said',
+    file: 'apps/mission-control/src/world/live/liveState.ts',
+    find: '  if (exchanges.length === 0 && raw.length > 0) return null;',
+    replace: '  if (false) return null;',
+    caughtBy: 'test/live-state-v11.test.ts',
+    why: 'A conversation whose every exchange was undrawable would be drawn as nobody having said anything. The file said something and none of it held together, which is a different fact and the one the owner needs.',
+  },
+  {
     id: 'handler-existence',
     file: 'netlify/functions/state.mjs',
     find: '    const exists = list.names === undefined ? null : list.names.includes(wanted);',

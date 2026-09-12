@@ -988,6 +988,9 @@ try {
       `the branch list draws ${rows.length} rows for ${BRANCHES.length} branches it was given`,
     );
   }
+  await page
+    .waitForSelector('.v11-branches', { state: 'visible', timeout: budget })
+    .catch(() => {});
   const panel = (await readVisible('.v11-branches', 'the branch list')) ?? '';
   // Eleven exist and eight are carried: a list silently cut is a list lying
   // about what the repository has.
@@ -1166,7 +1169,29 @@ try {
   await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
     timeout: budget,
   });
-  const ninth = (await readVisible('.v11-branches', 'the branch list past the cap')) ?? '';
+  /**
+   * **Waited for, not assumed — and this went red once before it was.**
+   *
+   * The read below raced the page's own fetch: `canvas` appears as soon as the
+   * world draws, and the branch list appears only once `/api/state` has
+   * answered. On a busy machine the read landed in between, `readVisible` found
+   * no panel, and the case failed on a build that was correct. A check that goes
+   * red for how busy the machine is teaches everyone to ignore it, which is
+   * worse than not having it.
+   *
+   * `K11-04`'s rule, which this file records and had not applied here: wait for
+   * the condition, never for an interval, and never for nothing at all.
+   */
+  const listedPastTheCap = await page
+    .waitForSelector('.v11-branches', { state: 'visible', timeout: budget })
+    .then(() => true)
+    .catch(() => false);
+  if (!listedPastTheCap) {
+    failures.push('past the cap, the branch list never appeared, so nothing could be read from it');
+  }
+  const ninth = listedPastTheCap
+    ? ((await readVisible('.v11-branches', 'the branch list past the cap')) ?? '')
+    : '';
   if (/is not in this repository any more/.test(ninth)) {
     failures.push(
       `a branch past the eight-row cap is reported as deleted: "${ninth.slice(0, 200)}"`,
@@ -1286,6 +1311,237 @@ try {
     );
   }
   answerFor = null;
+  answer = { status: 200, body: JSON.stringify(ANSWER) };
+
+  /**
+   * **Phase 2 slice six, proved on the page rather than described.**
+   *
+   * `PHASE_2_SLICE_6_BRIEF.md` names these by name, under *"How you will know it
+   * works, without taking my word"*:
+   *
+   * > `verify:web` gains a case: a stubbed conversation must be drawn as a
+   * > thread, in order, with the in-flight message marked as in flight and never
+   * > as answered. A message whose run failed shows as failed, with the reason —
+   * > proved by a stub, not by hoping.
+   *
+   * It is the one surface where an invented line would be read as **Virgil's own
+   * words to him**, which is a worse failure than any this file already guards:
+   * `SA-U-01` drew eight invented file paths, and he could tell they were
+   * invented. He cannot tell that about a sentence addressed to him.
+   */
+  const beforeTalk = failures.length;
+  const TALK = {
+    schema: 'virgil.conversation.v1',
+    updatedAt: '2026-09-12T05:00:00Z',
+    exchanges: [
+      {
+        id: '801',
+        askedAt: '2026-09-12T03:00:00Z',
+        question: 'A question only this stub asks',
+        state: 'failed',
+        answeredAt: '2026-09-12T03:20:00Z',
+        answer: null,
+        reason: 'A reason only this stub gives',
+        runUrl: 'https://example.invalid/actions/runs/801',
+      },
+      {
+        id: '802',
+        askedAt: '2026-09-12T04:00:00Z',
+        question: 'A second question only this stub asks',
+        state: 'answered',
+        answeredAt: '2026-09-12T04:06:00Z',
+        answer: 'An answer only this stub gives.',
+        reason: null,
+        runUrl: 'https://example.invalid/actions/runs/802',
+      },
+      {
+        id: '803',
+        askedAt: '2026-09-12T05:00:00Z',
+        question: 'A third question, still being worked',
+        state: 'asked',
+        answeredAt: null,
+        answer: null,
+        reason: null,
+        runUrl: 'https://example.invalid/actions/runs/803',
+      },
+    ],
+  };
+  answer = {
+    status: 200,
+    body: JSON.stringify({
+      ...ANSWER,
+      conversation: TALK,
+      conversationStatus: 'read',
+      conversationReason: null,
+    }),
+  };
+  await page.goto(`${url}?talk=1`, { waitUntil: 'load' });
+  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
+    timeout: budget,
+  });
+  // The dock button, not a world target: "Talk to Virgil" is how a person opens
+  // this, and pressing it the way a person does is the point of this file.
+  await press('.v11-talk');
+  await page.waitForSelector('.v11w-sheet', { state: 'visible' }).catch(() => {});
+  const thread = (await readSheet('Virgil’s window with a conversation')) ?? '';
+
+  for (const said of [
+    'A question only this stub asks',
+    'A reason only this stub gives',
+    'A second question only this stub asks',
+    'An answer only this stub gives.',
+    'A third question, still being worked',
+  ]) {
+    if (!thread.includes(said)) {
+      failures.push(`the thread does not draw "${said}", which the answer carried`);
+    }
+  }
+
+  /**
+   * **Order, read off the page.** A thread out of order is a different
+   * conversation: an answer above its question reads as Virgil having
+   * anticipated it.
+   */
+  const positions = [
+    'A question only this stub asks',
+    'A reason only this stub gives',
+    'A second question only this stub asks',
+    'An answer only this stub gives.',
+    'A third question, still being worked',
+  ].map((said) => thread.indexOf(said));
+  for (let i = 1; i < positions.length; i += 1) {
+    const here = positions[i] ?? -1;
+    const before = positions[i - 1] ?? -1;
+    if (here >= 0 && before >= 0 && here < before) {
+      failures.push(`the thread draws message ${i} before message ${i - 1}: it is out of order`);
+    }
+  }
+
+  /**
+   * **The in-flight message is marked in flight, and is never an answer.**
+   *
+   * Read from the DOM rather than from the prose, because "it says it is
+   * working" and "the interface knows it is unfinished" are different claims and
+   * only the second survives someone rewording the sentence.
+   */
+  const inFlight = await page.evaluate(() => {
+    const nodes = Array.from(document.querySelectorAll('.v11w-turn'));
+    const working = nodes.find((node) =>
+      (node as HTMLElement).innerText.includes('A session is working on this'),
+    );
+    return {
+      found: working !== undefined,
+      // `v11w-streaming` is set from `message.streaming` and nothing else, and
+      // `still arriving` is what a person reads. Both, because the class alone
+      // could be styled to nothing and the words alone could be typed by hand.
+      marked: working?.classList.contains('v11w-streaming') === true,
+      says: (working as HTMLElement | undefined)?.innerText.includes('still arriving') === true,
+      messages: nodes.length,
+      // Which speaker each message is from, in order — the failure must not be
+      // in Virgil's voice.
+      from: nodes.map((node) =>
+        Array.from(node.classList)
+          .find((name) => name.startsWith('is-'))
+          ?.slice(3),
+      ),
+    };
+  });
+  if (!inFlight.found) {
+    failures.push('the message still being worked is not drawn as being worked at all');
+  }
+  if (inFlight.found && !inFlight.marked) {
+    failures.push('the message still being worked is not marked as unfinished by the interface');
+  }
+  if (inFlight.found && !inFlight.says) {
+    failures.push('the message still being worked does not tell the owner it is still arriving');
+  }
+  if (
+    inFlight.messages === 6 &&
+    inFlight.from.join(',') !== 'owner,system,owner,virgil,owner,virgil'
+  ) {
+    // A run that died is not Virgil speaking. Putting it in his voice would make
+    // the machinery sound like someone who had considered the question.
+    failures.push(
+      `the thread attributes its messages to ${JSON.stringify(inFlight.from)}, which is not who said them`,
+    );
+  }
+  // Six messages: three questions, one failure, one answer, one in flight.
+  if (inFlight.messages !== 6) {
+    failures.push(
+      `the thread draws ${inFlight.messages} messages for three exchanges; six were expected`,
+    );
+  }
+  // And nothing anywhere claims an answer for it.
+  if (
+    /A third question, still being worked[\s\S]{0,400}An answer only this stub gives/.test(thread)
+  ) {
+    failures.push(
+      'the in-flight message is followed by an answer that belongs to another exchange',
+    );
+  }
+
+  /**
+   * **Not one line of the recording's scripted thread.** The failure this file
+   * exists for, on the surface where it would be least visible: these sentences
+   * are plausible, addressed to him, and written by nobody.
+   */
+  for (const scripted of [
+    'Good evening',
+    'I’ve given the Fabricator the task',
+    'The Prover is running the checks',
+  ]) {
+    if (thread.includes(scripted)) {
+      failures.push(`the live thread drew the recording's scripted line "${scripted}"`);
+    }
+  }
+
+  if (failures.length === beforeTalk) {
+    mark('a conversation is drawn as a thread, in order, with the unfinished one unfinished');
+  }
+
+  /**
+   * **And a conversation that could not be read is not a conversation with
+   * nothing in it.** The same distinction the checks and the session report are
+   * held to, on the surface the owner will use most.
+   */
+  const beforeUnreadTalk = failures.length;
+  answer = {
+    status: 200,
+    body: JSON.stringify({
+      ...ANSWER,
+      conversation: null,
+      conversationStatus: 'unreadable',
+      conversationReason: 'A refusal only this stub gives.',
+    }),
+  };
+  await page.goto(`${url}?talkgone=1`, { waitUntil: 'load' });
+  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
+    timeout: budget,
+  });
+  await press('.v11-talk');
+  await page.waitForSelector('.v11w-sheet', { state: 'visible' }).catch(() => {});
+  const unreadThread = (await readSheet('Virgil’s window with nothing read')) ?? '';
+  if (!/could not be read/i.test(unreadThread)) {
+    failures.push(
+      `with no conversation read, the window does not say so: "${unreadThread.slice(0, 240)}"`,
+    );
+  }
+  if (!unreadThread.includes('A refusal only this stub gives.')) {
+    failures.push('with no conversation read, the window does not say why, which the answer said');
+  }
+  if (/Nothing has been said on this branch yet/.test(unreadThread)) {
+    failures.push('a conversation that could not be read is drawn as nobody having said anything');
+  }
+  for (const said of ['An answer only this stub gives.', 'A reason only this stub gives']) {
+    if (unreadThread.includes(said)) {
+      failures.push(
+        `with no conversation read, the window still draws "${said}" from the last one`,
+      );
+    }
+  }
+  if (failures.length === beforeUnreadTalk) {
+    mark('a conversation that could not be read says so, and draws none of the previous one');
+  }
   answer = { status: 200, body: JSON.stringify(ANSWER) };
 
   // Console errors are counted for the good answer only: the next phase makes
