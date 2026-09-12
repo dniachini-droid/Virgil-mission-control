@@ -288,3 +288,19 @@ Four lines close that. They only ever remove power from sessions, never add it, 
 **What it does not close, and what it must not be mistaken for.** The guard still cannot tell a true owner quotation from an invented one, because nothing in this repository holds an independent copy of anything the owner said. Every `OD-*` quotation was written by the session that filed it. The records say so themselves — `OD-0015`: *"the owner reading his own decision records is the only detection of a false one"* — and that remains exactly true. The auditor's recommendation for the real repair is the owner's to take: an owner-console transcript committed to `knowledge/raw/`, which is already append-only and already denied to sessions, and a test asserting that every blockquote in every `OD-*` appears verbatim in some raw record.
 
 Until that exists, this repair makes the guard harder to remove. It does not make it work.
+
+## Guessing at `INSTRUCT_SECRET` now costs something, and it is not the protection
+
+**`SA-S-02`, repaired as far as a free static site can repair it, and the remainder written down rather than implied.**
+
+`netlify/functions/instruct.mjs` had no limit of any kind on wrong guesses at the shared secret. The daily ceiling and the one-at-a-time rule sit *after* the comparison and bound successful runs, not attempts — so a wrong guess cost the attacker nothing and the rate was whatever their connection allowed, indefinitely. The endpoint's address and its header name are both world-readable in this repository. What a landed guess buys is a session running `--dangerously-skip-permissions` with the owner's Claude subscription token in scope, twenty times a day.
+
+The endpoint now refuses an address after five wrong guesses in fifteen minutes, checked **before** the comparison, with a missing header counted as the wrong guess it is and an unattributable request counted rather than waved through.
+
+**What that is not.** The counters are in the function's own memory. A Netlify Function is a Lambda: an instance is reused while it is warm, and a second instance starts with an empty map. An attacker who opens enough concurrent connections, or who waits for a cold start, gets a fresh allowance. The map is also capped at five thousand addresses and evicts the oldest, so a flood of addresses can evict a real attacker's entry. **This raises the cost of guessing. It does not bound it globally.** A shared store would, and there is none on the free path.
+
+**So the protection is the secret's entropy, and no code here can supply it.** The audit's first instruction is the one that matters — rotate `INSTRUCT_SECRET` to 32 or more random characters — and it is the owner's, in Netlify's environment settings, where no session can read, write or verify it. A session cannot even check that it was done: the function compares against whatever is installed and has no way to judge it. That is the boundary; the limiter is the second layer, recorded as a second layer.
+
+**One thing did get stronger than it was.** These are the first checks in this project that **run** `/api/instruct` rather than read its source. Every refusal above happens before any network call — that is the point of checking the limit before the comparison — so the handler is driven for real by ten cases. `KP9-04` records that the sibling endpoint's handler is invoked by no test; this is what closing that looks like, on the endpoint where it matters most.
+
+And one check got stronger by going red. `asks GitHub for nothing it does not need` banned four substrings anywhere in the file, which made it a check on the endpoint's vocabulary rather than on its requests — it failed because the limiter calls `attempts.delete(address)` on a `Map` in local memory. It now reads what actually reaches `gh(`, the single door to the GitHub API in that file, and every HTTP method the file issues.

@@ -71,6 +71,107 @@ async function gh(path, token, init = {}) {
 }
 
 /**
+ * **A wrong guess has to cost something — the system audit's `SA-S-02`.**
+ *
+ * There was no limit of any kind on wrong guesses at `INSTRUCT_SECRET`. The
+ * daily ceiling and the one-at-a-time rule sit *after* the comparison and bound
+ * successful runs, not attempts, so a wrong guess cost the attacker nothing and
+ * the rate was whatever their connection allowed, indefinitely. The endpoint's
+ * address and its header name are both world-readable in this repository. What a
+ * landed guess buys is a session running `--dangerously-skip-permissions` with
+ * the owner's Claude subscription token in scope.
+ *
+ * `docs/process/PHASE_2_SLICE_6_BRIEF.md` makes this a **precondition** of
+ * switching the composer on rather than a recommendation, because today the
+ * composer is disabled and nobody has ever used it: turning it on makes this
+ * live.
+ *
+ * **What this is, exactly, and it is less than it looks.** The counters live in
+ * this process's memory. A Netlify Function is a Lambda: an instance is reused
+ * while it is warm, and a second instance has its own empty map. So an attacker
+ * who opens enough concurrent connections, or who waits for a cold start, gets a
+ * fresh allowance. This raises the cost of guessing; it does not bound it
+ * globally, and a shared store is what would.
+ *
+ * **So it is not the protection. The secret's entropy is.** The audit's first
+ * instruction is the one that matters — rotate `INSTRUCT_SECRET` to 32 or more
+ * random characters — and no code here can do that or check that it was done.
+ * This is the second layer, recorded as a second layer, in
+ * `docs/architecture/ENFORCEMENT_BOUNDARIES.md`.
+ *
+ * **And there is deliberately no artificial delay on a wrong guess.** The
+ * obvious way to make guessing expensive is to sleep before refusing, and on a
+ * free plan that spends the site's own function allowance on the attacker's
+ * behalf: a slow refusal is a way to take the site down. A refusal that returns
+ * immediately costs the attacker a round trip and the site almost nothing.
+ */
+const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+
+/** Wrong guesses from one address before it is refused without being compared. */
+const MAX_ATTEMPTS = 5;
+
+/**
+ * How many addresses are remembered at once. A Lambda's memory is not a place to
+ * keep an unbounded map fed by strangers, so the oldest entry is dropped when
+ * this is reached — which means a flood of addresses can evict a real
+ * attacker's entry. That is the honest cost of not having a shared store, and it
+ * is written here rather than discovered.
+ */
+const REMEMBERED_ADDRESSES = 5000;
+
+const attempts = new Map();
+
+/**
+ * Who is asking, as well as this can be known.
+ *
+ * Netlify sets `x-nf-client-connection-ip` from the connection itself, which a
+ * client cannot forge; `x-forwarded-for` can be, and is used only as a fallback.
+ * **When neither is readable the request is counted against one shared bucket
+ * rather than waved through** — `KP2-07`'s rule, one endpoint over: a limit that
+ * cannot be attributed has not been satisfied, and the version of this that
+ * returns `null` for "unknown" is the version where sending no headers is the
+ * way around it.
+ */
+function addressOf(request) {
+  const direct = request.headers.get('x-nf-client-connection-ip');
+  if (direct) return direct.trim();
+  const forwarded = request.headers.get('x-forwarded-for');
+  const first = forwarded?.split(',')[0]?.trim();
+  return first || 'unattributed';
+}
+
+/** True when this address has spent its attempts and the window has not passed. */
+function lockedOut(address, now) {
+  const seen = attempts.get(address);
+  if (!seen) return false;
+  if (now - seen.first > ATTEMPT_WINDOW_MS) {
+    attempts.delete(address);
+    return false;
+  }
+  return seen.count >= MAX_ATTEMPTS;
+}
+
+function recordWrongGuess(address, now) {
+  const seen = attempts.get(address);
+  if (seen && now - seen.first <= ATTEMPT_WINDOW_MS) {
+    seen.count += 1;
+    return;
+  }
+  if (attempts.size >= REMEMBERED_ADDRESSES) {
+    // Insertion order: the oldest entry goes. Documented above as a real
+    // weakness rather than left as a surprise.
+    const oldest = attempts.keys().next();
+    if (!oldest.done) attempts.delete(oldest.value);
+  }
+  attempts.set(address, { first: now, count: 1 });
+}
+
+/** Exported for the checks, which drive the handler rather than read it. */
+export function forgetAttempts() {
+  attempts.clear();
+}
+
+/**
  * Constant-time-ish comparison. The timing of a string compare is a poor way to
  * learn a secret over the internet, but writing the careless version invites
  * someone to reason about whether it mattered.
@@ -98,9 +199,32 @@ export default async function handler(request) {
   if (!repo) return refuse('No repository is configured.', 503);
   if (!branch) return refuse('No branch is configured.', 503);
 
+  /**
+   * The limit is checked **before** the comparison, and a locked-out address is
+   * refused without its guess being looked at. Checking afterwards would let an
+   * attacker keep testing and merely change what they are told, which is not a
+   * limit on guessing.
+   *
+   * A missing header counts as a wrong guess, because it is one.
+   */
+  const address = addressOf(request);
+  const at = Date.now();
+  if (lockedOut(address, at)) {
+    return refuse(
+      `That is ${MAX_ATTEMPTS} wrong attempts. Nothing more from here will be looked at for ${
+        ATTEMPT_WINDOW_MS / 60000
+      } minutes.`,
+      429,
+    );
+  }
   if (!secretMatches(request.headers.get('x-virgil-secret') ?? '', secret)) {
+    recordWrongGuess(address, at);
+    // The refusal says nothing about how close the guess was, how many attempts
+    // remain, or whether a secret is installed. "Refused." is the whole answer.
     return refuse('Refused.', 401);
   }
+  // A correct secret is the owner. Whatever went wrong before it did not.
+  attempts.delete(address);
 
   let body;
   try {
