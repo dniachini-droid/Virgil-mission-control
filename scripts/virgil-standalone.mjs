@@ -43,7 +43,14 @@ try {
   // inspector that needs the application declared is not standalone.
   const yaml = join(tree, 'pnpm-workspace.yaml');
   const text = run('cat', [yaml], tree);
-  run('sh', ['-c', `printf '%s' ${JSON.stringify(text.replace(/^\s*-\s*['"]?apps\/\*['"]?\s*$/m, ''))} > ${JSON.stringify(yaml)}`], tree);
+  run(
+    'sh',
+    [
+      '-c',
+      `printf '%s' ${JSON.stringify(text.replace(/^\s*-\s*['"]?apps\/\*['"]?\s*$/m, ''))} > ${JSON.stringify(yaml)}`,
+    ],
+    tree,
+  );
 
   // node_modules are linked rather than copied: installing from scratch needs
   // the network, and this check is about structure, not about pnpm.
@@ -52,12 +59,24 @@ try {
     dereference: false,
     errorOnExist: false,
   });
-  for (const pkg of ['agent-contracts', 'domain', 'gate-engine', 'knowledge-graph', 'repo-checks', 'test-fixtures', 'visual-language']) {
+  for (const pkg of [
+    'agent-contracts',
+    'domain',
+    'gate-engine',
+    'knowledge-graph',
+    'repo-checks',
+    'test-fixtures',
+    'visual-language',
+  ]) {
     try {
-      cpSync(join(root, 'packages', pkg, 'node_modules'), join(tree, 'packages', pkg, 'node_modules'), {
-        recursive: true,
-        dereference: false,
-      });
+      cpSync(
+        join(root, 'packages', pkg, 'node_modules'),
+        join(tree, 'packages', pkg, 'node_modules'),
+        {
+          recursive: true,
+          dereference: false,
+        },
+      );
     } catch {
       // A package with no node_modules of its own is not a problem.
     }
@@ -66,7 +85,12 @@ try {
   console.log('standalone: running the remaining suite\n');
   const out = run('npx', ['turbo', 'run', 'test', '--force'], tree);
   const tasks = /Tasks:\s+(\d+) successful, (\d+) total/.exec(out);
-  console.log(out.split('\n').filter((l) => /Tasks:|Cached:|Test Files|passed/.test(l)).join('\n'));
+  console.log(
+    out
+      .split('\n')
+      .filter((l) => /Tasks:|Cached:|Test Files|passed/.test(l))
+      .join('\n'),
+  );
   if (!tasks || tasks[1] !== tasks[2]) {
     console.error('\nstandalone: FAIL — the suite did not pass without the application');
     process.exit(1);

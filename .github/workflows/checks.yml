@@ -205,6 +205,21 @@ jobs:
   #
   #     The expensive jobs below keep the exclusion. A gate nobody can afford to
   #     run is a different problem from a gate nobody runs.
+  standalone:
+    name: the inspector stands without the application
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Delete the application and run what remains
+        run: pnpm standalone
+
   verify-web:
     name: hosted build, read and refused
     runs-on: ubuntu-24.04

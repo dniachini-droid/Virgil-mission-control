@@ -20,6 +20,7 @@
         "$TURBO_ROOT$/knowledge/**",
         "$TURBO_ROOT$/schemas/**",
         "$TURBO_ROOT$/netlify/**",
+        "$TURBO_ROOT$/scripts/**",
         "$TURBO_ROOT$/.claude/**",
         "$TURBO_ROOT$/.github/**",
         "$TURBO_ROOT$/.virgil/**"
