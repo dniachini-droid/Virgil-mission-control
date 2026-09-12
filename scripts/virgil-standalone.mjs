@@ -13,7 +13,7 @@
  *   node scripts/virgil-standalone.mjs
  */
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -42,45 +42,24 @@ try {
   // Removing the entry is part of the claim, not a workaround for it: an
   // inspector that needs the application declared is not standalone.
   const yaml = join(tree, 'pnpm-workspace.yaml');
-  const text = run('cat', [yaml], tree);
-  run(
-    'sh',
-    [
-      '-c',
-      `printf '%s' ${JSON.stringify(text.replace(/^\s*-\s*['"]?apps\/\*['"]?\s*$/m, ''))} > ${JSON.stringify(yaml)}`,
-    ],
-    tree,
-  );
+  // Written with the filesystem rather than a shell. The first version piped
+  // the text through `printf '%s'`, which does not expand the `\n` escapes a
+  // JSON-quoted string carries — so the copy received one line of literal
+  // backslash-n and pnpm answered "Expected object but found - string", an
+  // error about YAML that was really an error about quoting.
+  writeFileSync(yaml, readFileSync(yaml, 'utf8').replace(/^\s*-\s*['"]?apps\/\*['"]?\s*$\n?/m, ''));
 
-  // node_modules are linked rather than copied: installing from scratch needs
-  // the network, and this check is about structure, not about pnpm.
-  cpSync(join(root, 'node_modules'), join(tree, 'node_modules'), {
-    recursive: true,
-    dereference: false,
-    errorOnExist: false,
-  });
-  for (const pkg of [
-    'agent-contracts',
-    'domain',
-    'gate-engine',
-    'knowledge-graph',
-    'repo-checks',
-    'test-fixtures',
-    'visual-language',
-  ]) {
-    try {
-      cpSync(
-        join(root, 'packages', pkg, 'node_modules'),
-        join(tree, 'packages', pkg, 'node_modules'),
-        {
-          recursive: true,
-          dereference: false,
-        },
-      );
-    } catch {
-      // A package with no node_modules of its own is not a problem.
-    }
-  }
+  // **Install rather than copy.** The first version copied `node_modules` from
+  // the real tree, which does not work: pnpm's layout is a web of relative
+  // symlinks into `.pnpm`, and a copy leaves them pointing at nothing. Every
+  // package then reported "no tests" with two errors, which reads like a
+  // structural failure and was an artefact of the copy.
+  //
+  // So the copy installs, exactly as a fresh clone would. That is slower and it
+  // is the thing being claimed: an inspector that needs this repository's
+  // `node_modules` to run is not standing on its own.
+  console.log('standalone: installing into the copy');
+  run('pnpm', ['install', '--ignore-scripts'], tree);
 
   console.log('standalone: running the remaining suite\n');
   const out = run('npx', ['turbo', 'run', 'test', '--force'], tree);
@@ -98,7 +77,12 @@ try {
   console.log(`\nstandalone: PASS — ${tasks[1]} of ${tasks[2]} packages pass with apps/ deleted`);
 } catch (error) {
   console.error('\nstandalone: FAIL');
-  console.error(error.stdout?.slice(-4000) ?? error.message);
+  // Both streams, because the useful half is not always the one you expect:
+  // pnpm writes resolution failures to stderr and turbo writes test output to
+  // stdout, and printing one of them made this script report a failure it could
+  // not explain.
+  console.error(error.stdout?.toString().slice(-3000) ?? '');
+  console.error(error.stderr?.toString().slice(-3000) ?? error.message);
   process.exit(1);
 } finally {
   rmSync(scratch, { recursive: true, force: true });
