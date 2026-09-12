@@ -345,7 +345,9 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
     // window carries the whole of it.
     openWindow(
       anchor.id,
-      row === undefined ? step.window : windowForLedgerRow(demoSnapshot() ?? demoAt(0, 0, false), row),
+      row === undefined
+        ? step.window
+        : windowForLedgerRow(demoSnapshot() ?? demoAt(0, 0, false), row),
     );
   };
   /**
