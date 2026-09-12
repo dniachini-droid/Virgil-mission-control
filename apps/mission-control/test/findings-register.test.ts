@@ -373,7 +373,7 @@ const PINNED: Record<
     what: '4afc95d25502',
   },
   'KXR-20': {
-    status: 'open',
+    status: 'repaired',
     foundBy: 'review',
     where: 'docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md',
     what: 'bf198acc04ed',

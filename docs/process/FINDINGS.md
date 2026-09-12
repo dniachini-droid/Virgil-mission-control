@@ -72,7 +72,7 @@ This column is the point of the register rather than a decoration on it. It is t
 | KXR-16 | open | review | `KXR-12` reads `repaired` and the first of the two passages it named is byte-identical to before | docs/process/KEEPER_RECORD_KEEPING_REVIEW.md |
 | KXR-17 | open | review | The run record makes no statement about CI for the record-keeping candidate, where its own predecessor section names the run | docs/process/KEEPER_RECORD_KEEPING_REVIEW.md |
 | KXR-19 | open | review | `enabledPlugins` and `extraKnownMarketplaces` land in the only region of `.claude/settings.json` no check reads | docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md |
-| KXR-20 | open | review | `CLAUDE.md` forbids reading another repository ten lines above a section installing one that every session loads | docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md |
+| KXR-20 | repaired | review | `CLAUDE.md` forbids reading another repository ten lines above a section installing one that every session loads | docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md |
 | KXR-21 | open | review | "MIT licensed, free" is asserted of Superpowers and is unverifiable from this container, with no record in `assets/licenses/` | docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md |
 | KXR-22 | repaired | review | A fourth review of `b27cde14` existed and its five findings were in no file, while the PR description called that commit unreviewed | docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md |
 

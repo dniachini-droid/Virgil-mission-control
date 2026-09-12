@@ -16,7 +16,9 @@ Only the owner may change layers 1 and 2. A session that finds a contradiction r
 
 ## Hard limits for every session
 
-- Work only inside this repository. Never read, clone or modify any other repository.
+- **Change only this repository.** Never modify, push to, open a pull request on, or in any way write to another repository. Reading and cloning one is permitted — the owner decided this on 2026-09-12 (`docs/decisions/OD-0016`), replacing the blanket prohibition that stood here. What a session may never do is act on another repository, and that half of the rule is unchanged and absolute.
+  - **Why it changed.** The old line read *"Never read, clone or modify any other repository"*, and by 2026-09-12 it had been set aside three times in one day by owner authorisation — to compare `obra/superpowers`, `NicholasSpisak/second-brain` and `toolboxmd/karpathy-wiki` — and then contradicted outright by a section ten lines below installing a plugin every session loads. That is `KXR-20`. A rule broken whenever it is inconvenient teaches sessions that rules are negotiable; a rule that contradicts itself makes them guess which half to obey. Both are worse than the honest narrower rule.
+  - **What reading another repository still does not confer.** Nothing from it is authority here. Its code is not copied without checking its licence, and a repository with no licence is read and not copied at all. What is taken is recorded in the work that takes it.
 - Commit only to the branch assigned to the session. Never touch `main`. Never open a pull request, merge, deploy, or connect credentials unless the owner explicitly authorised it in writing for that session.
 - No paid services, subscriptions or commercial assets.
 - Never write secrets, tokens or credential material into files, logs, fixtures or the interface.
