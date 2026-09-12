@@ -145,6 +145,37 @@ export type SessionStatusReport = z.infer<typeof SessionStatusReport>;
  * per exchange on every poll. The cost of the endpoint is a thing this project
  * has already been bitten by.
  */
+/**
+ * **A link a person is invited to press, and therefore not merely a URL.**
+ *
+ * `z.string().url()` stood here, and it accepts `javascript:alert(1)`,
+ * `mailto:` and `ftp:` — anything with a scheme. The value reaches the window
+ * as an `href` on the owner's phone, written into the repository by a workflow
+ * run, so "it parses as a URL" is not the property that matters. Two are: a
+ * scheme a browser navigates to, and a length the wire will also accept.
+ *
+ * Written as an explicit predicate rather than a library option because the
+ * Netlify function holds a hand-written twin of this and cannot import Zod. The
+ * two are the same three lines, and the generated battery is what keeps them
+ * that way.
+ */
+const WebUrl = z
+  .string()
+  .min(1)
+  .max(400)
+  .refine(
+    (value) => {
+      let parsed;
+      try {
+        parsed = new URL(value);
+      } catch {
+        return false;
+      }
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    },
+    { message: 'must be an http or https URL of at most 400 characters' },
+  );
+
 export const ConversationState = z.enum(['asked', 'answered', 'failed']);
 
 export const ConversationExchange = z
@@ -165,12 +196,20 @@ export const ConversationExchange = z
      */
     state: ConversationState,
     answeredAt: Timestamp.nullable(),
-    /** What the session said. Null until it has said it. */
-    answer: z.string().max(20_000).nullable(),
+    /**
+     * What the session said. Null until it has said it — and never the empty
+     * string, which is a different claim: null is "no answer yet" and `''`
+     * would be "it answered, with nothing", drawn as a reply bubble containing
+     * silence. `.max()` does not imply a minimum, so the empty string was legal
+     * here while the wire refused it. That drift is the one the writing step
+     * found the moment it had to decide what to do with an agent that printed
+     * nothing.
+     */
+    answer: z.string().min(1).max(20_000).nullable(),
     /** Why there is no answer, when there is none. Null when there is one. */
-    reason: z.string().max(600).nullable(),
+    reason: z.string().min(1).max(600).nullable(),
     /** The run on GitHub, so any answer can be checked against what ran. */
-    runUrl: z.string().url().nullable(),
+    runUrl: WebUrl.nullable(),
   })
   .strict()
   .refine((entry) => (entry.state === 'answered') === (entry.answer !== null), {

@@ -262,6 +262,22 @@ export interface LiveAnswer {
    * nothing, which is the difference between "not read" and "none".
    */
   checksReason?: string | null;
+  /**
+   * **What the owner asked Virgil, and what Virgil said back.**
+   *
+   * Phase 2 slice six. `.virgil/conversation.json`, written by the run that
+   * answered and read by `state.mjs`. The endpoint has already held it to a
+   * hand-written twin of the `Conversation` schema and sends `null` rather than
+   * something shaped wrongly — so what arrives here is either the file or
+   * nothing, never a half-read one.
+   */
+  conversation?: {
+    schema?: string;
+    updatedAt?: string;
+    exchanges?: unknown;
+  } | null;
+  conversationReason?: string | null;
+  conversationStatus?: 'read' | 'absent' | 'unreadable' | 'refused' | null;
 }
 
 export interface Live {
@@ -292,6 +308,89 @@ export interface Live {
  * them, it is counted as having returned nothing.
  */
 const CHECK_STATES: readonly string[] = ['running', 'passed', 'failed', 'skipped'];
+
+/** The three states an exchange can be in. `ConversationState` in the schema. */
+const EXCHANGE_STATES: readonly string[] = ['asked', 'answered', 'failed'];
+
+/** The four situations `state.mjs` distinguishes when it reports on a reading. */
+const CONVERSATION_STATUSES: readonly string[] = ['read', 'absent', 'unreadable', 'refused'];
+
+/**
+ * The conversation the answer carried, as messages the window can draw.
+ *
+ * **This re-checks what `state.mjs` already checked, and that is deliberate.**
+ * The endpoint's twin runs on the wire; this runs in the browser, against
+ * whatever actually arrived — a cached answer from an older deploy, a proxy, a
+ * hand-made stub in a check. The rule the whole project runs on is that what is
+ * not read is not drawn, and "the server promised" is not reading.
+ *
+ * So an exchange that does not hold together is **dropped, not repaired**: no
+ * empty answer becomes a reply bubble, no `answered` without an answer becomes
+ * a message the owner reads as Virgil speaking. `null` comes back when nothing
+ * survives, and the window says the conversation could not be read rather than
+ * drawing an empty thread.
+ */
+function conversationOf(answer: LiveAnswer): NonNullable<DemoState['conversation']> | null {
+  const read = answer.conversation;
+  if (!read || typeof read !== 'object') return null;
+  const raw = read.exchanges;
+  if (!Array.isArray(raw)) return null;
+
+  const exchanges: NonNullable<DemoState['conversation']>['exchanges'][number][] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const entry = item as Record<string, unknown>;
+    const { id, askedAt, question, state } = entry;
+    if (typeof id !== 'string' || id.length === 0) continue;
+    if (typeof askedAt !== 'string' || Number.isNaN(Date.parse(askedAt))) continue;
+    if (typeof question !== 'string' || question.length === 0) continue;
+    if (typeof state !== 'string' || !EXCHANGE_STATES.includes(state)) continue;
+
+    // Non-empty or absent. `''` is neither an answer nor a reason, and the two
+    // pairings below are the schema's `.refine`s: an exchange is answered
+    // exactly when it carries an answer, and failed exactly when it carries a
+    // reason. A row that fails either is a row that would draw a claim nothing
+    // supports.
+    const answerText =
+      typeof entry.answer === 'string' && entry.answer.length > 0 ? entry.answer : null;
+    const reason =
+      typeof entry.reason === 'string' && entry.reason.length > 0 ? entry.reason : null;
+    if ((state === 'answered') !== (answerText !== null)) continue;
+    if ((state === 'failed') !== (reason !== null)) continue;
+
+    const answeredAt =
+      typeof entry.answeredAt === 'string' && !Number.isNaN(Date.parse(entry.answeredAt))
+        ? entry.answeredAt
+        : null;
+    // A link the owner is invited to press, so the scheme is what is asked
+    // about rather than the shape. `javascript:` parses as a URL.
+    let runUrl: string | null = null;
+    if (typeof entry.runUrl === 'string' && entry.runUrl.length > 0) {
+      try {
+        const parsed = new URL(entry.runUrl);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') runUrl = entry.runUrl;
+      } catch {
+        runUrl = null;
+      }
+    }
+
+    exchanges.push({
+      id,
+      askedAt,
+      question,
+      state: state as 'asked' | 'answered' | 'failed',
+      answeredAt,
+      answer: answerText,
+      reason,
+      runUrl,
+    });
+  }
+
+  // Nothing usable is not an empty conversation. The file said something and
+  // none of it could be drawn, which the window must be able to say.
+  if (exchanges.length === 0 && raw.length > 0) return null;
+  return { exchanges };
+}
 
 /**
  * The checks the answer reported, as rows the Prover's window can draw.
@@ -372,6 +471,7 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
    * station screen. Two surfaces, one reading, no way for them to disagree.
    */
   const read = checksOf(answer);
+  const talk = conversationOf(answer);
   const known: { candidateId?: string; branch?: string } = {};
   if (answer.head?.shortSha) known.candidateId = answer.head.shortSha;
   if (answer.branch) known.branch = answer.branch;
@@ -511,6 +611,22 @@ export function stateFromAnswer(answer: LiveAnswer, now = Date.now()): DemoState
      * with `null` meaning the source said nothing about it.
      */
     checksReason: typeof answer.checksReason === 'string' ? answer.checksReason : null,
+    /**
+     * Present only on a live state, like `checks`. The recording keeps its
+     * scripted thread, which is a demonstration saying what it is.
+     */
+    conversation: talk,
+    conversationReason:
+      typeof answer.conversationReason === 'string' ? answer.conversationReason : null,
+    /**
+     * **Carried, and narrowed to the four words this build has.** A status
+     * outside them is not translated into one of them — it becomes `null`, and
+     * the window falls back to saying the conversation was not read, which is
+     * true.
+     */
+    conversationStatus: CONVERSATION_STATUSES.includes(answer.conversationStatus ?? '')
+      ? (answer.conversationStatus ?? null)
+      : null,
     content: {
       ...base.content,
       ...known,

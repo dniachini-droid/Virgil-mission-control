@@ -61,6 +61,7 @@
             "anyOf": [
               {
                 "type": "string",
+                "minLength": 1,
                 "maxLength": 20000
               },
               {
@@ -72,6 +73,7 @@
             "anyOf": [
               {
                 "type": "string",
+                "minLength": 1,
                 "maxLength": 600
               },
               {
@@ -83,7 +85,8 @@
             "anyOf": [
               {
                 "type": "string",
-                "format": "uri"
+                "minLength": 1,
+                "maxLength": 400
               },
               {
                 "type": "null"

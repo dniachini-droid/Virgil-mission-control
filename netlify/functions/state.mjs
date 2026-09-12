@@ -574,6 +574,27 @@ export function shapeComplaint(report) {
  * Returns a complaint or `null`, never a boolean: a reader told "no" is owed
  * which field and why.
  */
+/**
+ * **A link the window will invite the owner to press.** The twin of `WebUrl` in
+ * `packages/agent-contracts/src/live.ts`, which is why it is written as the same
+ * three lines rather than as a regular expression that agrees with it today.
+ *
+ * Length alone stood here, and the schema beside it said `.url()`. Neither was
+ * the property that matters: one accepted `actions/runs/1`, the other accepted
+ * `javascript:alert(1)`. A scheme a browser navigates to, and a length both
+ * checkers accept.
+ */
+function isWebUrl(value, max) {
+  if (typeof value !== 'string' || value.length === 0 || value.length > max) return false;
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return false;
+  }
+  return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+}
+
 export function conversationComplaint(value) {
   const isString = (v, max) => typeof v === 'string' && v.length > 0 && v.length <= max;
   // The one implementation, not a second copy of it. A copy written here agreed
@@ -629,7 +650,7 @@ export function conversationComplaint(value) {
     if (entry.reason !== null && !isString(entry.reason, 600)) {
       return `${at} has an unusable reason`;
     }
-    if (entry.runUrl !== null && !isString(entry.runUrl, 400)) {
+    if (entry.runUrl !== null && !isWebUrl(entry.runUrl, 400)) {
       return `${at} has an unusable runUrl`;
     }
     // The two the schema enforces with `.refine`, and they are the ones that
