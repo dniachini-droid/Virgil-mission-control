@@ -312,28 +312,22 @@ async function readChecks(repo, sha, token) {
  * the difference between agreeing on nine reports and agreeing on some hundreds,
  * and it fails the moment one side moves without the other.
  */
-export function shapeComplaint(report) {
-  const isString = (value) => typeof value === 'string' && value.length > 0;
-  const isSha = (value) => typeof value === 'string' && /^[0-9a-f]{40}$/.test(value);
-  /**
-   * ISO-8601 with an offset, which is what `Timestamp` in `common.ts` is.
-   *
-   * **The reason first given here was false, and the Keeper's KP4-05 caught it.**
-   * It said `liveState.ts` would read an unparseable timestamp as *fresh*. It
-   * would not: `reportIsCurrent` opens with `if (Number.isNaN(at)) return false`,
-   * and even without that line the comparison against `NaN` is `false`, which is
-   * *not current* — the opposite of what was claimed. A comment asserting a
-   * defect that does not exist is the same species of artefact as one asserting
-   * a guard that does not exist, and this file has been the subject of both.
-   *
-   * The true reason is narrower and is enough. The schema requires an instant
-   * and this must refuse exactly what the schema refuses, or the two disagree
-   * about a report and which is right depends on which you ask. Beyond that, a
-   * timestamp is the only thing in the report that says *when*, and a reader
-   * downstream of this one — a future one, not `reportIsCurrent` — has no way to
-   * tell a broken clock from an old one if this admits both.
-   */
-  const isInstant = (value) =>
+/**
+ * **One implementation of "is this an instant", used by every wire check here.**
+ *
+ * It lived inside `shapeComplaint`, and the conversation checker written for
+ * slice six grew a second copy. The two agreed on every case anyone thought to
+ * write and disagreed on `2026-02-30` — caught by the generated drift battery on
+ * its first run, which is what `KP3-05` built that battery for, and the second
+ * time this precise date has been the divergence.
+ *
+ * So there is one of it now. Two functions that must agree are a future finding;
+ * one function cannot disagree with itself. Everything below this line is the
+ * reasoning that accumulated in the original, kept because each paragraph is a
+ * defect that was actually shipped.
+ */
+function isTimestamp(value) {
+  return (
     typeof value === 'string' &&
     /^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d+)?(Z|[+-]([01]\d|2[0-3]):[0-5]\d)$/.test(
       value,
@@ -367,7 +361,14 @@ export function shapeComplaint(report) {
         asDate.getUTCMonth() === month - 1 &&
         asDate.getUTCDate() === day
       );
-    })();
+    })()
+  );
+}
+
+export function shapeComplaint(report) {
+  const isString = (value) => typeof value === 'string' && value.length > 0;
+  const isSha = (value) => typeof value === 'string' && /^[0-9a-f]{40}$/.test(value);
+  const isInstant = isTimestamp;
   // Safe, not merely integral: `2 ** 53` is an integer to JavaScript and is not
   // one the schema accepts. KP4-09's second divergence.
   const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
@@ -556,6 +557,139 @@ export function shapeComplaint(report) {
     return 'carries a note that is not one sentence of readable text.';
   }
   return null;
+}
+
+/**
+ * **The hand-written twin of `Conversation` in `@virgil/agent-contracts`.**
+ *
+ * Zod is not reachable from a Netlify function — it is deployed on its own, with
+ * no bundler and no workspace resolution — so the shape is checked here by hand,
+ * exactly as `shapeComplaint` checks the session report. And exactly as there, a
+ * second implementation of an intent is free to drift from the first: the drift
+ * test in `apps/mission-control/test/live-state-v11.test.ts` holds the two
+ * together, and `KP3-05` is the reason it is generated rather than hand-paired.
+ * Nine hand-written cases once proved agreement that a generated battery
+ * disproved on 106.
+ *
+ * Returns a complaint or `null`, never a boolean: a reader told "no" is owed
+ * which field and why.
+ */
+export function conversationComplaint(value) {
+  const isString = (v, max) => typeof v === 'string' && v.length > 0 && v.length <= max;
+  // The one implementation, not a second copy of it. A copy written here agreed
+  // with the original on every case anyone thought to write and disagreed on
+  // `2026-02-30`, which the generated drift battery caught on its first run.
+  const isInstant = isTimestamp;
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return 'is not an object';
+  }
+  if (value.schema !== 'virgil.conversation.v1') {
+    return `claims schema ${JSON.stringify(value.schema)}, which this build does not recognise`;
+  }
+  if (!isInstant(value.updatedAt)) return 'has no readable updatedAt';
+  if (!Array.isArray(value.exchanges)) return 'has no list of exchanges';
+  if (value.exchanges.length > 50)
+    return `carries ${value.exchanges.length} exchanges, over the 50 the schema allows`;
+  // Unknown keys travel through a schema declared `.strict()` unless something
+  // refuses them. KP3-05 found exactly that family.
+  const allowed = new Set(['schema', 'updatedAt', 'exchanges']);
+  for (const key of Object.keys(value)) {
+    if (!allowed.has(key)) return `carries an unknown key ${JSON.stringify(key)}`;
+  }
+  const entryKeys = new Set([
+    'id',
+    'askedAt',
+    'question',
+    'state',
+    'answeredAt',
+    'answer',
+    'reason',
+    'runUrl',
+  ]);
+  for (const [i, entry] of value.exchanges.entries()) {
+    const at = `exchange ${i}`;
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+      return `${at} is not an object`;
+    }
+    for (const key of Object.keys(entry)) {
+      if (!entryKeys.has(key)) return `${at} carries an unknown key ${JSON.stringify(key)}`;
+    }
+    if (!isString(entry.id, 64)) return `${at} has no usable id`;
+    if (!isInstant(entry.askedAt)) return `${at} has no readable askedAt`;
+    if (!isString(entry.question, 4000)) return `${at} has no question`;
+    if (!['asked', 'answered', 'failed'].includes(entry.state)) {
+      return `${at} claims state ${JSON.stringify(entry.state)}`;
+    }
+    if (entry.answeredAt !== null && !isInstant(entry.answeredAt)) {
+      return `${at} has an unreadable answeredAt`;
+    }
+    if (entry.answer !== null && !isString(entry.answer, 20_000)) {
+      return `${at} has an unusable answer`;
+    }
+    if (entry.reason !== null && !isString(entry.reason, 600)) {
+      return `${at} has an unusable reason`;
+    }
+    if (entry.runUrl !== null && !isString(entry.runUrl, 400)) {
+      return `${at} has an unusable runUrl`;
+    }
+    // The two the schema enforces with `.refine`, and they are the ones that
+    // matter: an exchange marked answered with no answer would draw as a reply
+    // that is not there, and one marked failed with no reason would say
+    // something went wrong and refuse to say what.
+    if ((entry.state === 'answered') !== (entry.answer !== null)) {
+      return `${at} is answered exactly when it carries an answer, and this one is not`;
+    }
+    if ((entry.state === 'failed') !== (entry.reason !== null)) {
+      return `${at} is failed exactly when it carries a reason, and this one is not`;
+    }
+  }
+  return null;
+}
+
+/**
+ * What the owner and Virgil have said to each other on this branch.
+ *
+ * Shaped like `readSessionReport` and for the same reasons: absent, unreadable
+ * and refused are three different facts and the page says a different thing
+ * about each. A conversation that cannot be read is never drawn as a
+ * conversation with nothing in it.
+ */
+async function readConversation(repo, ref, token) {
+  let file;
+  try {
+    file = await gh(
+      `/repos/${repo}/contents/.virgil/conversation.json?ref=${encodeURIComponent(ref)}`,
+      token,
+    );
+  } catch (error) {
+    return {
+      conversation: null,
+      status: error?.status === 404 ? 'absent' : 'unreadable',
+      reason:
+        error?.status === 404
+          ? 'Nothing has been said on this branch yet.'
+          : `.virgil/conversation.json could not be read (${error?.status ?? 'no status'}).`,
+    };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(Buffer.from(file.content ?? '', 'base64').toString('utf8'));
+  } catch {
+    return {
+      conversation: null,
+      status: 'unreadable',
+      reason: '.virgil/conversation.json is not readable JSON.',
+    };
+  }
+  const wrong = conversationComplaint(parsed);
+  if (wrong) {
+    return {
+      conversation: null,
+      status: 'refused',
+      reason: `.virgil/conversation.json ${wrong}`,
+    };
+  }
+  return { conversation: parsed, status: 'read', reason: null };
 }
 
 async function readSessionReport(repo, ref, token) {
@@ -889,6 +1023,9 @@ export default async function handler(request) {
         sessionReportedIn: null,
         sessionReportReason: `The branch ${wanted} is not in this repository, so no session report could be read from it.`,
         sessionReportStatus: 'absent',
+        conversation: null,
+        conversationReason: `The branch ${wanted} is not in this repository, so nothing said on it could be read.`,
+        conversationStatus: 'absent',
       });
       remember(key, answer);
       return new Response(answer, {
@@ -906,9 +1043,12 @@ export default async function handler(request) {
     // Either of these may fail on its own without making the rest unknowable, so
     // each failure becomes `null` — "not read" — rather than taking the whole
     // answer down or, worse, becoming a zero.
-    const [checkResult, session] = await Promise.all([
+    const [checkResult, session, talk] = await Promise.all([
       readChecks(repo, sha, token),
       readSessionReport(repo, ref, token),
+      // Slice six. One more call, in the same batch rather than after it, so the
+      // conversation costs latency rather than a round trip.
+      readConversation(repo, ref, token),
     ]);
     // Already fetched above for the list. Fetching it twice would be paying
     // twice for one answer, on a project a bill has already stopped once.
@@ -1009,6 +1149,17 @@ export default async function handler(request) {
       sessionReportedIn: session.reportedIn ?? null,
       sessionReportReason: session.reason,
       sessionReportStatus: session.status ?? null,
+      /**
+       * **What the owner asked and what Virgil answered — slice six.**
+       *
+       * Under its own name, beside the session report and for the same reason:
+       * both are things a session wrote about itself. An answer is a claim, and
+       * it travels with the run that produced it so the owner can check it
+       * against what actually ran rather than against how it reads.
+       */
+      conversation: talk.conversation,
+      conversationReason: talk.reason,
+      conversationStatus: talk.status,
     });
     remember(key, answer);
     return new Response(answer, {

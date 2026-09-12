@@ -35,6 +35,16 @@ The system audit found `instruct.yml` has run **zero times, ever**. The pipe fro
 
 ## What this is not, said plainly before it is built
 
+### The owner's decision on speed, 2026-09-12
+
+He asked for seconds — *"No I want it to be seconds. Like a live chat."* The design that gives seconds is different: the Netlify function calls the Anthropic API directly and streams the reply back in about a second, instead of dispatching a run that takes minutes.
+
+**It was put to him that this needs an Anthropic API key, and that `CLAUDE.md`'s hard limits say "No paid services, subscriptions or commercial assets."** His own rule, and not a session's to set aside. He was given the cost measured rather than guessed — roughly 3–10¢ a message on Opus 5, 1–3¢ on Sonnet 5 — and the choice of lifting the rule, using a cheaper model, or keeping it.
+
+**He chose to keep the rule.** So this slice is built as written below, on the free path, and replies take minutes.
+
+What that buys, beyond not spending money: the thread, the window, the conversation file and the room showing work happening are **identical either way**. Only where the reply comes from differs. If he ever changes his mind, the fast path is one new source for an existing thread, not a rebuild — and this slice is deliberately shaped to keep that true.
+
 - **It is not as fast as the chat you are reading.** Every message starts a GitHub Actions run. Expect **minutes**, not seconds. It is closer to messaging someone who is working than to talking to them. If that is not acceptable, it is better to know now than after it is built.
 - **It is capped at twenty a day**, by the workflow that already exists.
 - **It is not the agent runtime.** One session answers you; the Prover and the Keeper do not become real agents in this slice. The room will show one station lit, honestly, rather than three.

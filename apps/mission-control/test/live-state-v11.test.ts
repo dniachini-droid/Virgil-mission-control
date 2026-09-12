@@ -8,7 +8,7 @@ import matrix from '../../../constitution/permission-matrix.json' with { type: '
 // rather than in Zod. It is imported here so the two can be held against each
 // other; see the drift tests at the foot of this file.
 import * as stateFunction from '../../../netlify/functions/state.mjs';
-import { SessionStatusReport } from '../../../packages/agent-contracts/src/live.js';
+import { Conversation, SessionStatusReport } from '../../../packages/agent-contracts/src/live.js';
 
 /**
  * Taken off a namespace import rather than named directly, because the
@@ -17,7 +17,8 @@ import { SessionStatusReport } from '../../../packages/agent-contracts/src/live.
  * the directive cannot reach it — so the suppression silently stopped working
  * and the typecheck failed on a file that had not changed meaning.
  */
-const { isBranchName, readBranches, shapeComplaint, WATCHED_BRANCHES } = stateFunction;
+const { conversationComplaint, isBranchName, readBranches, shapeComplaint, WATCHED_BRANCHES } =
+  stateFunction;
 
 import {
   type LiveAnswer,
@@ -1389,5 +1390,116 @@ describe('what the Prover’s station screen knows matches what his window says'
       readSeconds: 0,
       counts: [],
     });
+  });
+});
+
+/**
+ * **Slice six: what the owner asked and what Virgil answered.**
+ *
+ * The reply is a claim — a session's account of what it did — so it is held to
+ * the same standard as the session report: a schema in `@virgil/agent-contracts`,
+ * a hand-written twin on the wire because Zod cannot reach a Netlify function,
+ * and a generated battery holding the two together.
+ *
+ * `KP3-05` is why this is generated rather than hand-paired. Nine hand-written
+ * cases once proved the report's two checkers agreed; a battery generated from
+ * the shape found **106** disagreements the same afternoon.
+ */
+describe('a conversation is refused by the wire exactly when the schema refuses it', () => {
+  const EXCHANGE = {
+    id: '34613415976',
+    askedAt: '2026-09-12T05:00:00Z',
+    question: 'What is the state of things?',
+    state: 'answered',
+    answeredAt: '2026-09-12T05:04:00Z',
+    answer: 'Two checks passed on this branch and nothing is in flight.',
+    reason: null,
+    runUrl: 'https://github.com/owner/repo/actions/runs/34613415976',
+  };
+  const GOOD = {
+    schema: 'virgil.conversation.v1',
+    updatedAt: '2026-09-12T05:04:00Z',
+    exchanges: [EXCHANGE],
+  };
+
+  it('accepts a conversation both checkers should accept', () => {
+    expect(Conversation.safeParse(GOOD).success).toBe(true);
+    expect(conversationComplaint(GOOD)).toBeNull();
+  });
+
+  /**
+   * Every mutation of the good shape that either checker should refuse. Each is
+   * a defect a screen would otherwise draw: an answer that is not there, a
+   * failure with no reason, a timestamp nobody can order by.
+   */
+  const MUTATIONS: { what: string; value: unknown }[] = [
+    { what: 'no schema', value: { ...GOOD, schema: undefined } },
+    { what: 'a schema from the future', value: { ...GOOD, schema: 'virgil.conversation.v2' } },
+    { what: 'an unknown top-level key', value: { ...GOOD, extra: 1 } },
+    { what: 'no updatedAt', value: { ...GOOD, updatedAt: undefined } },
+    { what: 'an unparseable updatedAt', value: { ...GOOD, updatedAt: 'yesterday' } },
+    { what: 'a date that does not exist', value: { ...GOOD, updatedAt: '2026-02-30T00:00:00Z' } },
+    { what: 'exchanges that are not a list', value: { ...GOOD, exchanges: {} } },
+    { what: 'an exchange that is not an object', value: { ...GOOD, exchanges: ['hello'] } },
+    {
+      what: 'an unknown key on an exchange',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, extra: 1 }] },
+    },
+    { what: 'no id', value: { ...GOOD, exchanges: [{ ...EXCHANGE, id: '' }] } },
+    { what: 'no question', value: { ...GOOD, exchanges: [{ ...EXCHANGE, question: '' }] } },
+    {
+      what: 'a state nobody has a word for',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, state: 'thinking' }] },
+    },
+    {
+      what: 'answered with no answer',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, answer: null }] },
+    },
+    {
+      what: 'an answer on an exchange that is still being worked',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, state: 'asked' }] },
+    },
+    {
+      what: 'failed with no reason',
+      value: {
+        ...GOOD,
+        exchanges: [{ ...EXCHANGE, state: 'failed', answer: null, answeredAt: null }],
+      },
+    },
+    {
+      what: 'a reason on an exchange that succeeded',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, reason: 'something' }] },
+    },
+    {
+      what: 'more exchanges than the shape allows',
+      value: { ...GOOD, exchanges: Array.from({ length: 51 }, () => EXCHANGE) },
+    },
+    {
+      what: 'a question longer than the shape allows',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, question: 'x'.repeat(4001) }] },
+    },
+  ];
+
+  for (const mutation of MUTATIONS) {
+    it(`both refuse ${mutation.what}`, () => {
+      const bySchema = Conversation.safeParse(mutation.value).success;
+      const byWire = conversationComplaint(mutation.value) === null;
+      // Stated as agreement rather than as two separate refusals: a case one
+      // accepts and the other refuses is the drift, and the message says which
+      // way round it went.
+      expect(
+        { schema: bySchema, wire: byWire },
+        `${mutation.what}: schema ${bySchema ? 'accepted' : 'refused'}, wire ${byWire ? 'accepted' : 'refused'}`,
+      ).toEqual({ schema: false, wire: false });
+    });
+  }
+
+  it('the wire says which field it refused, not merely that it did', () => {
+    // A reader told "no" is owed which field and why — the same rule the
+    // session report's checker follows.
+    expect(
+      conversationComplaint({ ...GOOD, exchanges: [{ ...EXCHANGE, state: 'thinking' }] }),
+    ).toMatch(/exchange 0 claims state/);
+    expect(conversationComplaint({ ...GOOD, updatedAt: 'yesterday' })).toMatch(/updatedAt/);
   });
 });
