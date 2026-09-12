@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -8,37 +9,33 @@ import { describe, expect, it } from 'vitest';
  * `docs/process/GATE_PROOF_AND_FINDINGS_BRIEF.md`, finding **XR-02**.
  * `constitution/REVIEW_POLICY.md` requires that findings are *"never renumbered,
  * merged silently or dropped"*, and `docs/process/PHASE_1_BACKLOG.md` already
- * records that they were: *"no file in the repository holds its text."* Until
- * `docs/process/FINDINGS.md` existed, answering "what is open right now?" meant
- * assembling it by hand from six kinds of document. A policy that findings are
- * never dropped is only as good as the one list that would show it if they were.
+ * recorded that they were: *"no file in the repository holds its text."*
  *
  * **What this file does not do: claim the register is complete.** No check can
  * know about a finding nobody wrote down, and a completeness rule would force
  * back-filled guesses into the register to make the suite green — the exact
  * failure it exists to prevent. What is checkable is that every row *in* it is
- * well-formed and points at text that exists, and that is what is checked.
+ * well-formed, points at text that exists, and cannot quietly change or leave.
  *
- * It lives here rather than in a package of its own because the brief's fourth
- * requirement is that this lands inside `pnpm test` with no new package, no new
- * script and no new workflow step: `KS4-05` and `KS4-06` are what a check too
- * expensive to finish costs, and a repair paid for out of that same budget would
- * be the same mistake.
+ * **Three reviews have attacked this file and each found a way past it.** The
+ * guards below are in the order they were forced to exist:
+ *
+ *  - `KXR-02` — four rows deleted, suite green at 40 passed.
+ *  - `KXR-06` — one row's status flipped from `open` to `repaired`, green at 78.
+ *  - `KXR-09` — all twenty detectors flipped from `review` to `gate`, green at 91.
+ *  - `KXR-10` — every row repointed at this register, green; and ids matched as
+ *    substrings, so a file naming only `KXR-01` satisfied `XR-01`.
+ *  - `KXR-11` — a finding in a table headed anything but `id` seen by nothing.
+ *
+ * Each was reproduced before being repaired. That is the pattern this file is
+ * for: a guard nobody has seen fail is the same class of thing as the eight
+ * gates `XR-01` was about.
  */
 
 const root = resolve(import.meta.dirname, '../../..');
 const REGISTER = 'docs/process/FINDINGS.md';
 const source = readFileSync(resolve(root, REGISTER), 'utf8');
 
-/**
- * The vocabularies, held in two places on purpose.
- *
- * They are hard-coded here **and** stated in the register, and a test below
- * asserts the two agree. Reading them only from the document would let a row
- * legalise its own status by editing the list beside it; hard-coding them only
- * here would let the document drift into describing a vocabulary nothing
- * enforces. Neither alone is the property wanted.
- */
 const STATUSES = [
   'open',
   'repaired',
@@ -46,10 +43,31 @@ const STATUSES = [
   'deferred',
   'caught_not_repaired',
   'by_design',
+  'withdrawn_gap_open',
 ] as const;
 
 /** A deterministic gate, a review, or the owner looking at the thing. */
 const DETECTORS = ['gate', 'review', 'owner'] as const;
+
+/**
+ * Findings inherited from earlier reviews, whose records state neither severity
+ * nor reproduction anywhere. Exempt from the five-attribute rule because the
+ * only way to comply would be to invent the missing three.
+ *
+ * **The list is closed.** A new id is not exempt, and nothing here can add to it.
+ */
+const INCOMPLETE_BY_INHERITANCE = new Set([
+  'KR-03',
+  'KR-06',
+  'KR-07',
+  'KR-09',
+  'KR-58',
+  'KP2-08',
+  'KP2-11',
+  'KP2-14',
+  'KP3-06',
+  'KP3-11',
+]);
 
 interface Row {
   id: string;
@@ -60,181 +78,301 @@ interface Row {
   line: number;
 }
 
+interface Attributes {
+  id: string;
+  severity: string;
+  surface: string;
+  reproduction: string;
+  authority: string;
+  line: number;
+}
+
+const REGISTER_HEAD = ['id', 'status', 'found by', 'what', 'where its text is'];
+const ATTRIBUTES_HEAD = [
+  'id',
+  'severity',
+  'affected surface',
+  'reproduction',
+  'criterion or authority',
+];
+
 /**
- * The register's one table, read as data.
+ * Every table in the register, read as data — **`KXR-11`**.
  *
- * Deliberately strict about shape: a row with the wrong number of cells is not
- * silently skipped, because a row that parses into nothing is a finding that has
- * been dropped by a typo — which is the thing this file exists to make
- * impossible.
+ * The first version entered a table only when it saw a header beginning `id`
+ * and left at the first non-pipe line, so a finding recorded in any other table
+ * was invisible to every check below. A register with a blind spot is worse
+ * than a shorter register: the row is there, a reader counts it, and nothing
+ * holds it to anything.
+ *
+ * So every table is read and each must be one of the two this file knows. An
+ * unrecognised table is a failure rather than a shrug, because the next one
+ * somebody adds will hold findings too.
  */
-export function rowsOf(markdown: string): {
-  rows: Row[];
-  malformed: { line: number; text: string }[];
-} {
-  const rows: Row[] = [];
-  const malformed: { line: number; text: string }[] = [];
-  let inTable = false;
+export function tablesOf(markdown: string): { head: string[]; cells: string[][]; line: number }[] {
+  const out: { head: string[]; cells: string[][]; line: number }[] = [];
+  let open: { head: string[]; cells: string[][]; line: number } | null = null;
   for (const [index, raw] of markdown.split('\n').entries()) {
     const line = raw.trim();
-    if (!line.startsWith('|')) {
-      inTable = false;
+    if (!line.startsWith('|') || !line.endsWith('|')) {
+      if (open) out.push(open);
+      open = null;
       continue;
     }
-    // The header and its underline open a table and are not rows.
-    if (/^\|\s*id\s*\|/i.test(line)) {
-      inTable = true;
-      continue;
-    }
-    if (/^\|[\s|:-]+\|$/.test(line)) continue;
-    if (!inTable) continue;
     const cells = line
       .slice(1, -1)
       .split('|')
       .map((cell) => cell.trim());
-    if (cells.length !== 5) {
-      malformed.push({ line: index + 1, text: line });
-      continue;
-    }
-    rows.push({
-      id: cells[0] as string,
-      status: cells[1] as string,
-      foundBy: cells[2] as string,
-      what: cells[3] as string,
-      where: cells[4] as string,
-      line: index + 1,
-    });
+    if (/^[\s|:-]+$/.test(line.slice(1, -1))) continue;
+    if (open === null) open = { head: cells, cells: [], line: index + 1 };
+    else open.cells.push(cells);
   }
-  return { rows, malformed };
+  if (open) out.push(open);
+  return out;
 }
 
-const { rows, malformed } = rowsOf(source);
+const allTables = tablesOf(source);
+const registerTable = allTables.find((t) => t.head.join('|') === REGISTER_HEAD.join('|'));
+const attributesTable = allTables.find((t) => t.head.join('|') === ATTRIBUTES_HEAD.join('|'));
+
+const malformed: { line: number; text: string }[] = [];
+const rows: Row[] = [];
+for (const cells of registerTable?.cells ?? []) {
+  if (cells.length !== 5) {
+    malformed.push({ line: registerTable?.line ?? 0, text: cells.join(' | ') });
+    continue;
+  }
+  rows.push({
+    id: cells[0] as string,
+    status: cells[1] as string,
+    foundBy: cells[2] as string,
+    what: cells[3] as string,
+    where: cells[4] as string,
+    line: registerTable?.line ?? 0,
+  });
+}
+const attributes: Attributes[] = (attributesTable?.cells ?? [])
+  .filter((cells) => cells.length === 5)
+  .map((cells) => ({
+    id: cells[0] as string,
+    severity: cells[1] as string,
+    surface: cells[2] as string,
+    reproduction: cells[3] as string,
+    authority: cells[4] as string,
+    line: attributesTable?.line ?? 0,
+  }));
 
 /**
- * **Every finding the register has ever carried, named here so it cannot leave
- * quietly.**
+ * **Every cell of every row, held in place — `KXR-06` then `KXR-09`.**
  *
- * `KXR-02`, from the Keeper review of `8b725b5`
- * (`claude/keeper-virgil-review-qu3pvr`, `5edc9ff`). The reviewer deleted four
- * rows — `XR-01` among them, one of the two findings the branch itself raised —
- * and the suite stayed green at 40 passed. Every other property of a row was
- * checked and the one thing `REVIEW_POLICY.md` actually names was not:
- * findings are *"never renumbered, merged silently or dropped"*, and **dropping
- * was the one thing nothing caught.** Reproduced here before repairing it, with
- * the same four rows and the same result.
+ * The first version pinned ids, so a row could not be deleted but could be
+ * closed. The second pinned the status, so a row could not be closed but its
+ * *detector* could be rewritten — and the final review flipped all twenty from
+ * `review` to `gate`, which would have this register assert that the gate
+ * engine caught every finding in a repository whose engine
+ * `ENFORCEMENT_BOUNDARIES.md` records as having no adapters. The register calls
+ * that column *"the point of the register rather than a decoration on it"*. It
+ * was false in the one direction the column exists to detect.
  *
- * Five of the twelve rows happened to be held in place by
- * `does not read as though recording a gap had closed it`, which pins them for a
- * different reason and was never designed as this guard. The other seven were
- * free to vanish.
- *
- * **Why a hand-written list is the right shape and not laziness.** The register
- * cannot check its own completeness — no check can know about a finding nobody
- * wrote down — but it can refuse to let go of what it already holds. Adding a
- * finding means adding it here too; removing one means deleting a line from this
- * list, in the diff, where a reviewer sees it. That converts a silent deletion
- * into a deliberate, visible act, which is the whole of what "never dropped" can
- * mean in a file.
- *
- * **And it pins the status, not merely the row — `KXR-06`.**
- *
- * The first version of this held ids alone, and the re-review found the hole
- * immediately: changing `KXR-03` from `open` to `repaired` and nothing else left
- * the suite green at 78 passed. The one row recording that the register carries
- * two of its five required attributes could be marked closed by a one-word edit.
- * That is `KXR-02` one level up — a finding not dropped but silently *declared
- * over*, which is the same loss by a quieter route, and worse because the row is
- * still there to point at.
- *
- * So closing a finding now costs an edit here, in the diff, exactly as dropping
- * one does. That is the right price: a status is the strongest claim this file
- * makes, and `CLAUDE.md` says a builder's success report is not evidence.
+ * **The summary is pinned by digest rather than by copy**, deliberately: a
+ * literal copy here would be a second register, free to drift from the first,
+ * and reviewers would have two texts and no way to know which is the finding.
+ * A digest cannot be read, so the failure message prints what the register says
+ * now and what changed.
  */
-const PINNED: Record<string, (typeof STATUSES)[number]> = {
-  'KR-03': 'open',
-  'KR-06': 'open',
-  'KR-07': 'open',
-  'KR-09': 'open',
-  'KR-58': 'caught_not_repaired',
-  'KP2-08': 'accepted',
-  'KP2-11': 'open',
-  'KP2-14': 'open',
-  'KP3-06': 'deferred',
-  'KP3-11': 'by_design',
-  'XR-01': 'repaired',
-  'XR-02': 'repaired',
-  'KXR-01': 'repaired',
-  'KXR-02': 'repaired',
-  'KXR-03': 'open',
-  'KXR-04': 'repaired',
-  'KXR-05': 'repaired',
-  'KXR-06': 'repaired',
-  'KXR-07': 'open',
-  'KXR-08': 'repaired',
+const PINNED: Record<
+  string,
+  { status: (typeof STATUSES)[number]; foundBy: string; where: string; what: string }
+> = {
+  'KR-03': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/architecture/ENFORCEMENT_BOUNDARIES.md',
+    what: '70b40875d28a',
+  },
+  'KR-06': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/architecture/ENFORCEMENT_BOUNDARIES.md',
+    what: '21e3d2368f62',
+  },
+  'KR-07': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/architecture/ENFORCEMENT_BOUNDARIES.md',
+    what: '39f625aacae9',
+  },
+  'KR-09': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/architecture/ENFORCEMENT_BOUNDARIES.md',
+    what: '7d97f086412e',
+  },
+  'KR-58': {
+    status: 'caught_not_repaired',
+    foundBy: 'review',
+    where: 'docs/architecture/ENFORCEMENT_BOUNDARIES.md',
+    what: '1c21be1c65e9',
+  },
+  'KP2-08': {
+    status: 'accepted',
+    foundBy: 'review',
+    where: 'docs/architecture/ENFORCEMENT_BOUNDARIES.md',
+    what: '0ba44f04dea0',
+  },
+  'KP2-11': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/architecture/ENFORCEMENT_BOUNDARIES.md',
+    what: 'ab6e31bce85a',
+  },
+  'KP2-14': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/architecture/ENFORCEMENT_BOUNDARIES.md',
+    what: '97df22c96dd6',
+  },
+  'KP3-06': {
+    status: 'deferred',
+    foundBy: 'review',
+    where: 'docs/architecture/ENFORCEMENT_BOUNDARIES.md',
+    what: 'ed410030ed31',
+  },
+  'KP3-11': {
+    status: 'by_design',
+    foundBy: 'review',
+    where: 'docs/architecture/ENFORCEMENT_BOUNDARIES.md',
+    what: 'fbeb15746aee',
+  },
+  'XR-01': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/FOUNDATION_REPAIR_RUN_RECORD.md',
+    what: 'd018923aca3a',
+  },
+  'XR-02': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/FOUNDATION_REPAIR_RUN_RECORD.md',
+    what: '75d17998d35d',
+  },
+  'KXR-01': {
+    status: 'withdrawn_gap_open',
+    foundBy: 'review',
+    where: 'docs/process/FOUNDATION_REPAIR_RUN_RECORD.md',
+    what: '25588d3c6886',
+  },
+  'KXR-02': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/FOUNDATION_REPAIR_RUN_RECORD.md',
+    what: '5bf53df43364',
+  },
+  'KXR-03': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/FOUNDATION_REPAIR_RUN_RECORD.md',
+    what: '00d2127e0533',
+  },
+  'KXR-04': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/FOUNDATION_REPAIR_RUN_RECORD.md',
+    what: 'c15bd0b0191c',
+  },
+  'KXR-05': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/FOUNDATION_REPAIR_RUN_RECORD.md',
+    what: '3df893022f8d',
+  },
+  'KXR-06': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/FOUNDATION_REPAIR_RUN_RECORD.md',
+    what: '7e38bc2590b4',
+  },
+  'KXR-07': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/FOUNDATION_REPAIR_RUN_RECORD.md',
+    what: 'eb980fe5f5bb',
+  },
+  'KXR-08': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/FOUNDATION_REPAIR_RUN_RECORD.md',
+    what: '99d68c278554',
+  },
+  'KXR-09': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_FINAL_REVIEW_GATE_PROOF_AND_FINDINGS.md',
+    what: 'bb2ed8d62c15',
+  },
+  'KXR-10': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_FINAL_REVIEW_GATE_PROOF_AND_FINDINGS.md',
+    what: '4a8c1aab5d98',
+  },
+  'KXR-11': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_FINAL_REVIEW_GATE_PROOF_AND_FINDINGS.md',
+    what: '53baa92a3c02',
+  },
+  'KXR-12': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_FINAL_REVIEW_GATE_PROOF_AND_FINDINGS.md',
+    what: 'c11ef2dae566',
+  },
 };
 
-describe('no finding leaves the register quietly, or is quietly declared over', () => {
-  const byId = new Map(rows.map((row) => [row.id, row]));
+const digest = (text: string) => createHash('sha256').update(text).digest('hex').slice(0, 12);
 
-  it('still carries every finding it has ever carried', () => {
-    const gone = Object.keys(PINNED).filter((id) => !byId.has(id));
-    expect(
-      gone,
-      `findings dropped from the register: ${gone.join(', ')}. REVIEW_POLICY.md: findings are never renumbered, merged silently or dropped. If one genuinely should go, delete it from PINNED in the same commit so the removal is in the diff.`,
-    ).toEqual([]);
-  });
-
-  it('has a row for everything pinned, and pins everything it has', () => {
-    // The other direction. A row added to the register and not to PINNED is a
-    // finding that can be dropped tomorrow without anything noticing — the
-    // condition KXR-02 named, re-entering one row at a time.
-    const unpinned = rows.map((row) => row.id).filter((id) => !(id in PINNED));
-    expect(
-      unpinned,
-      `rows in the register that nothing holds in place: ${unpinned.join(', ')}`,
-    ).toEqual([]);
-  });
-
-  it('does not let a finding be declared over by a one-word edit', () => {
-    // KXR-06. Dropping a row and silently closing it are the same loss by two
-    // routes, and the second is worse because the row is still there to point at.
-    const changed = Object.entries(PINNED)
-      .filter(([id, status]) => byId.has(id) && byId.get(id)?.status !== status)
-      .map(([id, status]) => `${id}: pinned ${status}, register says ${byId.get(id)?.status}`);
-    expect(
-      changed,
-      `findings whose status changed with nothing recording it: ${changed.join('; ')}. A status is the strongest claim this file makes. Changing one means editing PINNED in the same commit, so the change is in the diff.`,
-    ).toEqual([]);
-  });
-});
+/** Whole-id matching — **`KXR-10`**. `KXR-01` must not satisfy `XR-01`. */
+function names(text: string, id: string): boolean {
+  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?<![A-Za-z0-9-])${escaped}(?![A-Za-z0-9-])`).test(text);
+}
 
 describe('the findings register is a register', () => {
   it('has rows, or every assertion below is vacuous', () => {
-    // The failure this guards is a register emptied by a bad edit, which would
-    // otherwise pass every check in this file in silence.
+    expect(registerTable, 'the register table is missing or its header changed').toBeDefined();
     expect(rows.length, 'the register has no rows').toBeGreaterThan(0);
   });
 
   it('has no row the reader can see and the check cannot', () => {
     expect(
       malformed,
-      `rows in the register that do not parse: ${malformed.map((m) => `line ${m.line}`).join(', ')}`,
+      `rows in the register that do not parse: ${malformed.map((m) => m.text).join('; ')}`,
     ).toEqual([]);
   });
 
+  it('has no table the checks do not enter', () => {
+    // KXR-11. A finding recorded in an unrecognised table is a finding nothing
+    // holds to anything, and the next table somebody adds will hold findings too.
+    const strangers = allTables
+      .filter(
+        (t) =>
+          t.head.join('|') !== REGISTER_HEAD.join('|') &&
+          t.head.join('|') !== ATTRIBUTES_HEAD.join('|'),
+      )
+      .map((t) => `line ${t.line}: ${t.head.join(' | ')}`);
+    expect(strangers, `tables in the register no check reads: ${strangers.join('; ')}`).toEqual([]);
+  });
+
   it('gives every finding a stable identity, used once', () => {
-    // REVIEW_POLICY.md: findings are never renumbered or merged silently. Two
-    // rows sharing an id is one finding quietly absorbing another.
-    const seen = new Map<string, number>();
+    const seen = new Set<string>();
     const repeated: string[] = [];
     for (const row of rows) {
-      if (seen.has(row.id)) repeated.push(`${row.id} (lines ${seen.get(row.id)} and ${row.line})`);
-      else seen.set(row.id, row.line);
+      if (seen.has(row.id)) repeated.push(row.id);
+      else seen.add(row.id);
+      expect(row.id, 'a row has no id').not.toBe('');
     }
-    expect(repeated, `ids used more than once: ${repeated.join('; ')}`).toEqual([]);
-    for (const row of rows) {
-      expect(row.id, `a row at line ${row.line} has no id`).not.toBe('');
-    }
+    expect(repeated, `ids used more than once: ${repeated.join(', ')}`).toEqual([]);
   });
 
   it('says something about each finding rather than listing an id', () => {
@@ -247,25 +385,20 @@ describe('the findings register is a register', () => {
 describe('every row uses the vocabulary, and nothing else', () => {
   for (const row of rows) {
     it(`${row.id} has a status this repository has a word for`, () => {
-      expect(
-        STATUSES as readonly string[],
-        `${row.id} (line ${row.line}) claims status "${row.status}"`,
-      ).toContain(row.status);
+      expect(STATUSES as readonly string[], `${row.id} claims status "${row.status}"`).toContain(
+        row.status,
+      );
     });
 
     it(`${row.id} says what found it, in the vocabulary`, () => {
-      // The column is the only measure available of whether the review machinery
-      // works. A value outside the three is a measurement of nothing.
       expect(
         DETECTORS as readonly string[],
-        `${row.id} (line ${row.line}) claims it was found by "${row.foundBy}"`,
+        `${row.id} claims it was found by "${row.foundBy}"`,
       ).toContain(row.foundBy);
     });
   }
 
   it('the vocabularies the register states are the vocabularies enforced here', () => {
-    // Without this the document and the check drift, and a reader trusts a list
-    // that decides nothing.
     for (const status of STATUSES) {
       expect(source, `the register does not describe the status "${status}"`).toContain(
         `\`${status}\``,
@@ -276,9 +409,7 @@ describe('every row uses the vocabulary, and nothing else', () => {
         `\`${detector}\``,
       );
     }
-    // And the other direction: a status described in the register that this file
-    // would refuse is a promise the suite breaks.
-    const described = [...source.matchAll(/^- `([a-z_]+)` —/gm)].map((m) => m[1] as string);
+    const described = [...source.matchAll(/^- \`([a-z_]+)\` —/gm)].map((m) => m[1] as string);
     for (const status of described) {
       expect(
         STATUSES as readonly string[],
@@ -290,46 +421,128 @@ describe('every row uses the vocabulary, and nothing else', () => {
 
 describe('every row points at text that exists and names the finding', () => {
   for (const row of rows) {
-    it(`${row.id}'s pointer is a file in this repository`, () => {
+    it(`${row.id}'s pointer is a file in this repository, and is not this register`, () => {
+      // KXR-10. Every row trivially contains its own id, so the register
+      // satisfies its own pointer check — twenty rows repointed here passed.
+      expect(row.where, `${row.id} points at the register itself, which proves nothing`).not.toBe(
+        REGISTER,
+      );
       expect(
         existsSync(resolve(root, row.where)),
-        `${row.id} (line ${row.line}) points at ${row.where}, which is not in this repository`,
+        `${row.id} points at ${row.where}, which is not in this repository`,
       ).toBe(true);
     });
 
-    it(`${row.id}'s pointer names ${row.id}`, () => {
-      // A pointer at a file that never mentions the finding is a citation to a
-      // three-hundred-line document, which is how findings get lost inside
-      // documents that are technically still present.
+    it(`${row.id}'s pointer names ${row.id}, as a whole id`, () => {
       const path = resolve(root, row.where);
-      if (!existsSync(path)) return; // reported by the assertion above
-      expect(readFileSync(path, 'utf8'), `${row.where} does not mention ${row.id}`).toContain(
-        row.id,
-      );
+      if (!existsSync(path)) return;
+      expect(
+        names(readFileSync(path, 'utf8'), row.id),
+        `${row.where} does not mention ${row.id} as a whole id`,
+      ).toBe(true);
     });
   }
 });
 
+describe('no finding leaves the register quietly, or is quietly rewritten', () => {
+  const byId = new Map(rows.map((row) => [row.id, row]));
+
+  it('still carries every finding it has ever carried', () => {
+    const gone = Object.keys(PINNED).filter((id) => !byId.has(id));
+    expect(
+      gone,
+      `findings dropped from the register: ${gone.join(', ')}. REVIEW_POLICY.md: findings are never renumbered, merged silently or dropped. If one genuinely should go, delete it from PINNED in the same commit so the removal is in the diff.`,
+    ).toEqual([]);
+  });
+
+  it('has a row for everything pinned, and pins everything it has', () => {
+    const unpinned = rows.map((row) => row.id).filter((id) => !(id in PINNED));
+    expect(unpinned, `rows nothing holds in place: ${unpinned.join(', ')}`).toEqual([]);
+  });
+
+  it('does not let any cell of a row change with nothing recording it', () => {
+    // KXR-06 then KXR-09: the status, then the other three. A row has four cells
+    // that say something and all four are claims.
+    const changed: string[] = [];
+    for (const [id, pin] of Object.entries(PINNED)) {
+      const row = byId.get(id);
+      if (!row) continue;
+      if (row.status !== pin.status)
+        changed.push(`${id} status: pinned ${pin.status}, register says ${row.status}`);
+      if (row.foundBy !== pin.foundBy)
+        changed.push(`${id} detector: pinned ${pin.foundBy}, register says ${row.foundBy}`);
+      if (row.where !== pin.where)
+        changed.push(`${id} pointer: pinned ${pin.where}, register says ${row.where}`);
+      if (digest(row.what) !== pin.what) changed.push(`${id} summary rewritten to: "${row.what}"`);
+    }
+    expect(
+      changed,
+      `cells changed with nothing recording it: ${changed.join('; ')}. Each is a claim. Changing one means editing PINNED in the same commit, so the change is in the diff.`,
+    ).toEqual([]);
+  });
+});
+
+describe('a finding recorded from 2026-09-12 carries what REVIEW_POLICY requires', () => {
+  const byId = new Map(attributes.map((a) => [a.id, a]));
+
+  it('has an attributes table at all', () => {
+    expect(attributesTable, 'the attributes table is missing or its header changed').toBeDefined();
+    expect(attributes.length).toBeGreaterThan(0);
+  });
+
+  for (const row of rows.filter((r) => !INCOMPLETE_BY_INHERITANCE.has(r.id))) {
+    it(`${row.id} states its severity, surface, reproduction and authority`, () => {
+      const entry = byId.get(row.id);
+      expect(
+        entry,
+        `${row.id} has no attributes row, and is not one of the ten exempt`,
+      ).toBeDefined();
+      if (!entry) return;
+      for (const [name, value] of [
+        ['severity', entry.severity],
+        ['affected surface', entry.surface],
+        ['reproduction', entry.reproduction],
+        ['criterion or authority', entry.authority],
+      ] as const) {
+        expect(value.length, `${row.id} states no ${name}`).toBeGreaterThan(3);
+        expect(value, `${row.id}'s ${name} is a dash, which is not an answer`).not.toBe('—');
+      }
+    });
+  }
+
+  it('does not quietly widen the list of findings exempt from the rule', () => {
+    // The exemption exists because ten inherited findings state nothing to copy.
+    // It is a closed list, and a growing one would be the rule repealing itself.
+    expect(INCOMPLETE_BY_INHERITANCE.size).toBe(10);
+    for (const id of INCOMPLETE_BY_INHERITANCE) {
+      expect(source, `the register does not name ${id} as exempt and incomplete`).toContain(id);
+    }
+  });
+
+  it('attributes nothing to a finding the register does not carry', () => {
+    const ids = new Set(rows.map((r) => r.id));
+    const orphans = attributes.map((a) => a.id).filter((id) => !ids.has(id));
+    expect(
+      orphans,
+      `attributes rows for findings not in the register: ${orphans.join(', ')}`,
+    ).toEqual([]);
+  });
+});
+
 describe('what the register honestly is not', () => {
   it('says plainly that it is not complete', () => {
-    // A register read as exhaustive is worse than no register: it converts an
-    // unknown into a false all-clear.
     expect(source).toMatch(/does not claim to be complete/i);
   });
 
   it('names the findings it deliberately does not carry', () => {
-    // Seeded, not back-filled, by the owner's decision of 2026-09-12. The six
-    // are named so their absence is a record rather than a gap.
     for (const excluded of ['KR-01', 'KR-02', 'KR-04', 'KR-05', 'KS4-05', 'KS4-06']) {
       expect(source, `the register does not say why ${excluded} is absent`).toContain(excluded);
     }
   });
 
   it('does not read as though recording a gap had closed it', () => {
-    // KR-03, KR-06, KR-07, KR-09 and KR-58 are recorded, not closed, and the
-    // brief is explicit that the register must not suggest otherwise.
     const byId = new Map(rows.map((row) => [row.id, row]));
-    for (const stillOpen of ['KR-03', 'KR-06', 'KR-07', 'KR-09']) {
+    for (const stillOpen of ['KR-03', 'KR-06', 'KR-07', 'KR-09', 'KXR-03', 'KXR-07']) {
       expect(byId.get(stillOpen)?.status, `${stillOpen} is not recorded as open`).toBe('open');
     }
     expect(byId.get('KR-58')?.status).toBe('caught_not_repaired');
