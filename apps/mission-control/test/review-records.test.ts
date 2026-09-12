@@ -81,13 +81,29 @@ const RECORDS: Record_[] = [
     commit: 'f8bd148',
     sha256: '38ea0709e2d1592d0d4f12bda1a98e94f48d4ade97b94d3bebeb4344097cc670',
     reviewed: 'd7d80fdaf54663afe47d8bda60845cd4b6c9808b',
-    holds: ['KXR-19', 'KXR-20', 'KXR-21', 'KXR-22'],
+    holds: ['KXR-18', 'KXR-19', 'KXR-20', 'KXR-21', 'KXR-22'],
+  },
+  {
+    path: 'docs/process/KEEPER_PR11_REREVIEW_OD0016.md',
+    from: 'claude/keeper-pr11-rereview-od0016',
+    commit: '99f979c',
+    sha256: '2191784d9dca8aa01d8827f0b15b75026736b0eecf43deaab7b14564f152ba40',
+    reviewed: 'ff8f103dbed65032183d6d9eed105d64d05e67d4',
+    holds: ['KXR-23', 'KXR-24', 'KXR-25', 'KXR-26', 'KXR-27', 'KXR-28'],
+  },
+  {
+    path: 'docs/process/KEEPER_PR14_REVIEW.md',
+    from: 'claude/keeper-pr14-review',
+    commit: '73d5489',
+    sha256: '68df6a0d7567977fde75cad64a10df159c640542ca5a641a7b0dad1607675522',
+    reviewed: '4e331f5d45bb992d5a25fed606b22a699b116fa6',
+    holds: ['KXR-29', 'KXR-30', 'KXR-31'],
   },
 ];
 
 describe('the reviews are kept, exactly as they were written', () => {
   it('has records to check, or every assertion below is vacuous', () => {
-    expect(RECORDS.length).toBe(5);
+    expect(RECORDS.length).toBe(7);
   });
 
   for (const record of RECORDS) {

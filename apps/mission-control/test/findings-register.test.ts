@@ -390,6 +390,121 @@ const PINNED: Record<
     where: 'docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md',
     what: 'f799f16fcc4d',
   },
+  'KXR-18': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md',
+    what: '4a8fc993b963',
+  },
+  'KXR-23': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR11_REREVIEW_OD0016.md',
+    what: '3c6f1776e89f',
+  },
+  'KXR-24': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR11_REREVIEW_OD0016.md',
+    what: '9fa8b562f70d',
+  },
+  'KXR-25': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR11_REREVIEW_OD0016.md',
+    what: '107862b606e5',
+  },
+  'KXR-26': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR11_REREVIEW_OD0016.md',
+    what: '3727fb3a2178',
+  },
+  'KXR-27': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR11_REREVIEW_OD0016.md',
+    what: 'f107115f2cec',
+  },
+  'KXR-28': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR11_REREVIEW_OD0016.md',
+    what: '9e58b80d3c01',
+  },
+  'KXR-29': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR14_REVIEW.md',
+    what: 'f70a64b85a4a',
+  },
+  'KXR-30': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR14_REVIEW.md',
+    what: '30ec9c8e3c93',
+  },
+  'KXR-31': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR14_REVIEW.md',
+    what: '1517b926b9a3',
+  },
+};
+
+/**
+ * **The attributes, pinned too — `KXR-14`, raised twice and repaired once.**
+ *
+ * `KXR-03` added severity, affected surface, reproduction and the authority
+ * concerned, because `REVIEW_POLICY.md` requires all five of a finding and the
+ * register carried two. `PINNED` above covers the register table's cells and
+ * never covered these. Two reviewers ran the same attack — replace a severity
+ * and erase its reproduction — and the suite stayed green both times. The
+ * second noted that the first's repair was recorded as `repaired` while its own
+ * recorded reproduction still succeeded.
+ *
+ * A severity is the column that decides whether a finding waits or stops the
+ * work, and a reproduction is the only thing that makes a finding checkable by
+ * somebody who was not there. Both were free to be rewritten.
+ *
+ * The four cells are hashed together rather than one at a time: what matters is
+ * that the row has not changed, and a reader needs the row rather than which
+ * quarter of it moved. The failure message prints what it says now.
+ */
+const PINNED_ATTRIBUTES: Record<string, string> = {
+  'XR-01': '5a055f55eb66',
+  'XR-02': '66c763fb72be',
+  'KXR-01': '4ad9866eaf2b',
+  'KXR-02': '0495cc80d0f2',
+  'KXR-03': '81823ca7e588',
+  'KXR-04': 'a3812294a65f',
+  'KXR-05': 'a335d486153d',
+  'KXR-06': 'df1bfd15336b',
+  'KXR-07': '79778bc1e117',
+  'KXR-08': '27e761e38454',
+  'KXR-09': '3f9c4cbc8201',
+  'KXR-10': 'fde46610bf92',
+  'KXR-11': 'df4f9872b72b',
+  'KXR-12': 'ccad6481181b',
+  'KXR-13': '52698a0bef1e',
+  'KXR-14': '50eef525a500',
+  'KXR-15': '645ce32592ac',
+  'KXR-16': '236cf653ba9a',
+  'KXR-17': '762a12fdf052',
+  'KXR-19': 'fb1255c2fad4',
+  'KXR-20': '9fcab2ba6aae',
+  'KXR-21': '8f19f5852084',
+  'KXR-22': 'fa0d964548df',
+  'KXR-18': 'c4ac76e33bc2',
+  'KXR-23': 'c853ff608fd0',
+  'KXR-24': '1e7e5939cda9',
+  'KXR-25': '7ffd9d9e72ee',
+  'KXR-26': 'b8eabfd704b9',
+  'KXR-27': '9f5bb42f4431',
+  'KXR-28': '9ae098419c28',
+  'KXR-29': '007d32aae3ea',
+  'KXR-30': '04570f1156e5',
+  'KXR-31': 'c269b3ae1731',
 };
 
 const digest = (text: string) => createHash('sha256').update(text).digest('hex').slice(0, 12);
@@ -552,6 +667,31 @@ describe('no finding leaves the register quietly, or is quietly rewritten', () =
 });
 
 describe('a finding recorded from 2026-09-12 carries what REVIEW_POLICY requires', () => {
+  it('does not let an attributes row be rewritten with nothing recording it', () => {
+    // KXR-14. Gutting a row — severity replaced, reproduction erased — passed
+    // green for two reviews running.
+    const changed: string[] = [];
+    for (const entry of attributes) {
+      const pinned = PINNED_ATTRIBUTES[entry.id];
+      if (pinned === undefined) {
+        changed.push(`${entry.id} has an attributes row that nothing pins`);
+        continue;
+      }
+      const now = digest(
+        [entry.severity, entry.surface, entry.reproduction, entry.authority].join('|'),
+      );
+      if (now !== pinned) {
+        changed.push(
+          `${entry.id} now reads severity "${entry.severity}", reproduction "${entry.reproduction.slice(0, 60)}"`,
+        );
+      }
+    }
+    expect(
+      changed,
+      `attributes changed with nothing recording it: ${changed.join('; ')}. A severity decides whether a finding waits or stops the work, and a reproduction is what makes it checkable by somebody who was not there.`,
+    ).toEqual([]);
+  });
+
   const byId = new Map(attributes.map((a) => [a.id, a]));
 
   it('has an attributes table at all', () => {

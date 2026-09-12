@@ -75,6 +75,16 @@ This column is the point of the register rather than a decoration on it. It is t
 | KXR-20 | repaired | review | `CLAUDE.md` forbids reading another repository ten lines above a section installing one that every session loads | docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md |
 | KXR-21 | open | review | "MIT licensed, free" is asserted of Superpowers and is unverifiable from this container, with no record in `assets/licenses/` | docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md |
 | KXR-22 | repaired | review | A fourth review of `b27cde14` existed and its five findings were in no file, while the PR description called that commit unreviewed | docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md |
+| KXR-18 | repaired | review | `d7d80fd` changed the two files declaring this repository's own limits under no contract, with the authorisation recorded nowhere | docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md |
+| KXR-23 | repaired | review | The required check failed on three commits while each of their messages said `pnpm check` passed | docs/process/KEEPER_PR11_REREVIEW_OD0016.md |
+| KXR-24 | repaired | review | `KXR-14` was recorded and pinned `repaired` while its own recorded reproduction still succeeded | docs/process/KEEPER_PR11_REREVIEW_OD0016.md |
+| KXR-25 | open | review | `OD-0016` §5 states as current fact a repository state that exists only on an unmerged branch | docs/process/KEEPER_PR11_REREVIEW_OD0016.md |
+| KXR-26 | repaired | review | `KXR-18` was in no register row, no pin and no holds array, and the completeness check could not notice | docs/process/KEEPER_PR11_REREVIEW_OD0016.md |
+| KXR-27 | open | review | `KXR-22` is recorded `repaired` while the half of its summary about the pull request became more wrong, not less | docs/process/KEEPER_PR11_REREVIEW_OD0016.md |
+| KXR-28 | open | review | A hard limit was loosened and a layer-4 document still quotes the deleted text as live authority | docs/process/KEEPER_PR11_REREVIEW_OD0016.md |
+| KXR-29 | repaired | review | The `turbo.json` repair fixed the instance and not the class; the same failure reproduces through the commission | docs/process/KEEPER_PR14_REVIEW.md |
+| KXR-30 | repaired | review | The review that blocked pull request #14 was kept in no file, and its findings existed nowhere in the repository | docs/process/KEEPER_PR14_REVIEW.md |
+| KXR-31 | open | review | A pull request description called the last verdict fixed and named only half of it | docs/process/KEEPER_PR14_REVIEW.md |
 
 ## Attributes, for findings recorded from 2026-09-12
 
@@ -109,6 +119,16 @@ It is repaired **forward-only**, which is the same rule the register already run
 | KXR-20 | moderate | `CLAUDE.md` | Read line 19 against the Superpowers section below it | `CLAUDE.md`'s own first hard limit |
 | KXR-21 | minor | `CLAUDE.md`; `assets/licenses/` | `WebFetch` and `WebSearch` are denied and no licence record exists for the plugin | this repository's own licence-record practice |
 | KXR-22 | moderate | `docs/process/`; the PR #11 description | `git log claude/keeper-review-b27cde14-ug7ffo` — a review dated before the commit that called its subject unreviewed | `XR-02`; `REVIEW_POLICY.md` line 19 |
+| KXR-18 | major | `CLAUDE.md`; `.claude/settings.json` | Both files sit outside every `## Permitted paths` block and no contract governed the commit | `REVIEW_POLICY.md` on permitted paths; `SA-G-03` |
+| KXR-23 | major | `turbo.json`; every commit message on the branch | Actions runs `34701315086`, `34699907586`, `34699728719` — `lint, typecheck, tests` failure on each | `REVIEW_POLICY.md`, deterministic verification completed for the SHA |
+| KXR-24 | major | `apps/mission-control/test/findings-register.test.ts`, `PINNED` | Gut an attributes row — severity replaced, reproduction erased — and the suite stays green | `REVIEW_POLICY.md` line 19; `KXR-06`, `KXR-09`, `KXR-14` |
+| KXR-25 | moderate | `docs/decisions/OD-0016-superpowers-and-the-decisions-of-2026-09-12.md` | Read §5 against `main` at the time of filing | Accuracy of an authority-layer-1 record |
+| KXR-26 | moderate | `docs/process/FINDINGS.md`; `apps/mission-control/test/review-records.test.ts` | Nine findings were recorded from a review raising ten | `XR-02`; `REVIEW_POLICY.md` line 19 |
+| KXR-27 | minor | `docs/process/FINDINGS.md` | Read `KXR-22`'s summary against what the pull request now says | Accuracy of the register's status column |
+| KXR-28 | moderate | `docs/` — the document quoting the superseded line | Search for the old wording of the first hard limit outside `CLAUDE.md` | `CLAUDE.md` authority order; `OD-0016` §6 |
+| KXR-29 | major | `turbo.json`; `docs/product/VIRGIL_MASTER_COMMISSION.md` | Change the commission and watch the test task replay a cached pass | `REVIEW_POLICY.md`, deterministic verification; `KXR-23` |
+| KXR-30 | moderate | `docs/process/` | Search the candidate for `KXR-23` through `KXR-28` — absent | `XR-02`; `REVIEW_POLICY.md` line 19 |
+| KXR-31 | minor | the pull request description for #14 | Read it against the verdict it claims to answer | `CLAUDE.md`: a builder's success report is not evidence |
 
 ## Adding a row
 

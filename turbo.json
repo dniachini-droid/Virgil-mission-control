@@ -10,16 +10,19 @@
       "outputs": ["coverage/**"],
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/CLAUDE.md",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/turbo.json",
+        "$TURBO_ROOT$/netlify.toml",
+        "$TURBO_ROOT$/packages/**",
         "$TURBO_ROOT$/constitution/**",
-        "$TURBO_ROOT$/docs/decisions/**",
-        "$TURBO_ROOT$/docs/process/**",
-        "$TURBO_ROOT$/docs/architecture/**",
+        "$TURBO_ROOT$/docs/**",
         "$TURBO_ROOT$/knowledge/**",
         "$TURBO_ROOT$/schemas/**",
+        "$TURBO_ROOT$/netlify/**",
         "$TURBO_ROOT$/.claude/**",
-        "$TURBO_ROOT$/.github/workflows/**",
-        "$TURBO_ROOT$/CLAUDE.md",
-        "$TURBO_ROOT$/netlify/**"
+        "$TURBO_ROOT$/.github/**",
+        "$TURBO_ROOT$/.virgil/**"
       ]
     },
     "build": {
