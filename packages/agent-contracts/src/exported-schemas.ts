@@ -1,5 +1,5 @@
 import { schemaRegistry } from './index.js';
-import { SessionStatusReport } from './live.js';
+import { Conversation, SessionStatusReport } from './live.js';
 
 /**
  * **Every schema that is written to `/schemas`, which is not the same set as
@@ -20,6 +20,11 @@ import { SessionStatusReport } from './live.js';
 export const exportedSchemas = {
   ...schemaRegistry,
   'session-status-report': SessionStatusReport,
+  // Phase 2 slice six: what the owner asked and what Virgil answered. Published
+  // because the reply is a claim the owner is invited to check, and a claim
+  // nobody can check the shape of is the thing this repository publishes
+  // schemas to prevent.
+  conversation: Conversation,
 } as const;
 
 export type ExportedSchemaName = keyof typeof exportedSchemas;

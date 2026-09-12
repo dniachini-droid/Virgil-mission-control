@@ -124,3 +124,77 @@ export const SessionStatusReport = z
   );
 
 export type SessionStatusReport = z.infer<typeof SessionStatusReport>;
+
+/**
+ * **What the owner and Virgil have said to each other — Phase 2, slice six.**
+ *
+ * The owner's instruction of 2026-09-11: *"I want to use the UI to basically
+ * have this chat with Virgil and get useful stuff on it."*
+ *
+ * The transport for that already existed and had never been opened: the app can
+ * post to `/api/instruct`, and a workflow runs a real session with the message.
+ * What was missing was the reply coming back. This is the shape it comes back
+ * in, and the reason it is a **file in the repository** rather than a value the
+ * page holds: a reply that lives only on screen is gone on reload, cannot be
+ * checked against what the session actually did, and is exactly the kind of
+ * unverifiable claim this whole project exists not to make. In the repository it
+ * is committed, timestamped, and attached to the run that produced it.
+ *
+ * **One file, not one per message.** The page reads this through `/api/state`,
+ * which reads it from GitHub, and a directory of files would be a GitHub call
+ * per exchange on every poll. The cost of the endpoint is a thing this project
+ * has already been bitten by.
+ */
+export const ConversationState = z.enum(['asked', 'answered', 'failed']);
+
+export const ConversationExchange = z
+  .object({
+    /** The workflow run that carries this exchange. Unique, and checkable. */
+    id: z.string().min(1).max(64),
+    askedAt: Timestamp,
+    /** Exactly what the owner typed, never a summary of it. */
+    question: z.string().min(1).max(4000),
+    /**
+     * `asked` — a session is working and has not answered yet. `answered` — it
+     * finished and said this. `failed` — the run ended without an answer, and
+     * `reason` says what is known about why.
+     *
+     * There is deliberately no `sending` state: that is the page's own business
+     * before the run exists, and a state the repository cannot witness has no
+     * place in a file the repository holds.
+     */
+    state: ConversationState,
+    answeredAt: Timestamp.nullable(),
+    /** What the session said. Null until it has said it. */
+    answer: z.string().max(20_000).nullable(),
+    /** Why there is no answer, when there is none. Null when there is one. */
+    reason: z.string().max(600).nullable(),
+    /** The run on GitHub, so any answer can be checked against what ran. */
+    runUrl: z.string().url().nullable(),
+  })
+  .strict()
+  .refine((entry) => (entry.state === 'answered') === (entry.answer !== null), {
+    message: 'an exchange is answered exactly when it carries an answer',
+  })
+  .refine((entry) => (entry.state === 'failed') === (entry.reason !== null), {
+    message: 'an exchange is failed exactly when it carries a reason',
+  });
+
+export const Conversation = z
+  .object({
+    schema: z.literal('virgil.conversation.v1'),
+    updatedAt: Timestamp,
+    /**
+     * Newest last, so a reader appends and a screen scrolls to the bottom.
+     * Capped: older exchanges roll off this file and stay in git history, which
+     * is where the permanent record has always been.
+     */
+    exchanges: z.array(ConversationExchange).max(50),
+  })
+  .strict()
+  .describe(
+    'What the owner asked Virgil and what Virgil answered, written to .virgil/conversation.json by the session that answered.',
+  );
+
+export type ConversationExchange = z.infer<typeof ConversationExchange>;
+export type Conversation = z.infer<typeof Conversation>;
