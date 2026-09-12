@@ -1909,7 +1909,13 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
     context: contextOf(state),
     conclusion,
     actions: virgilActions(state),
-    messages: virgilThread(state),
+    /**
+     * **The recording keeps its script; a live room draws the real thread.**
+     * Slice six. The scripted turns are a demonstration saying what it is and
+     * are not carried onto a live page, where every message must be one that
+     * was actually sent.
+     */
+    messages: state.mode === 'live' ? liveVirgilThread(state) : virgilThread(state),
     sections,
     honesty: honestyOf(state),
     accent: ACCENT.virgil?.key ?? STATUS.gold,
@@ -2192,6 +2198,143 @@ function keeperThread(state: DemoState): Message[] {
  * Virgil's own thread: the summary that means the owner need not visit four
  * windows. Each turn describes what has **already** happened at that beat.
  */
+/**
+ * **Slice six: the owner's own thread, drawn from the repository.**
+ *
+ * `docs/process/PHASE_2_SLICE_6_BRIEF.md`. He asked for this in one sentence —
+ * *"I want to use the UI to basically have this chat with Virgil and get useful
+ * stuff on it"* — and what makes it possible to honour is that the messages are
+ * **evidence rather than screen state**: each one is in
+ * `.virgil/conversation.json`, committed by the run that wrote it, so the thread
+ * survives a reload because it was never on the screen in the first place.
+ *
+ * The rules it is held to are the room's, unchanged:
+ *
+ *  - **A message in flight is never drawn as answered.** An exchange still being
+ *    worked draws the question and a reply that says it is working. There is no
+ *    branch here that can produce an answer bubble without an answer, because
+ *    the answer is the thing being rendered.
+ *  - **A failure is not Virgil speaking.** It comes from `system`, with the
+ *    reason, because *"the run died"* is a fact about the machinery and putting
+ *    it in Virgil's voice would make the machinery sound like a person who had
+ *    considered the question.
+ *  - **Nothing read is never nothing said.** Four different situations produce an
+ *    empty thread and the window says which, rather than drawing the silence
+ *    that all four have in common.
+ */
+function stampAt(iso: string): string {
+  // UTC, and it says so. A time drawn without its zone is the kind of small
+  // confident wrongness this project spends its whole effort avoiding —
+  // localising it is a rendering improvement, not a reason to print an
+  // ambiguous number now.
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return 'time not read';
+  const hh = String(at.getUTCHours()).padStart(2, '0');
+  const mm = String(at.getUTCMinutes()).padStart(2, '0');
+  return `${hh}:${mm} UTC`;
+}
+
+/** What the run that carries this exchange can be found at, when it can. */
+function runNote(runUrl: string | null): Block[] {
+  return runUrl === null ? [] : [{ kind: 'note', text: `The run that did this: ${runUrl}` }];
+}
+
+/**
+ * The sentence for a conversation that was not read, by which of the four
+ * situations produced it. `state.mjs` distinguishes them; this is the only place
+ * that turns them into words.
+ */
+function nothingSaidYet(state: DemoState): Message[] {
+  const status = state.conversationStatus ?? null;
+  const why = state.conversationReason;
+  const text =
+    status === 'absent'
+      ? 'Nothing has been said on this branch yet. Type below and a session starts on your repository; the reply appears here when it has been written, which takes minutes rather than seconds.'
+      : status === 'unreadable'
+        ? 'There is a conversation on this branch and it could not be read, so nothing is shown. This is not the same as nothing having been said.'
+        : status === 'refused'
+          ? 'A conversation was read on this branch and refused, so none of it is drawn. A message that cannot be trusted to be what was said is not shown as what was said.'
+          : 'The conversation could not be read, so nothing is shown. This is not the same as nothing having been said.';
+  return [
+    {
+      id: 'talk:none',
+      from: 'system',
+      at: '',
+      blocks: [
+        para(text),
+        ...(typeof why === 'string' && why.length > 0
+          ? [{ kind: 'note' as const, text: why }]
+          : []),
+      ],
+    },
+  ];
+}
+
+function liveVirgilThread(state: DemoState): Message[] {
+  const talk = state.conversation;
+  if (!talk) return nothingSaidYet(state);
+  if (talk.exchanges.length === 0) return nothingSaidYet(state);
+
+  const out: Message[] = [];
+  for (const exchange of talk.exchanges) {
+    out.push({
+      id: `talk:${exchange.id}:asked`,
+      from: 'owner',
+      at: stampAt(exchange.askedAt),
+      // `para`, never `markdown`. What he typed is drawn as what he typed; a
+      // thread that reformats the owner's own words is a thread that has
+      // started editing him.
+      blocks: [para(exchange.question)],
+    });
+
+    if (exchange.state === 'asked') {
+      out.push({
+        id: `talk:${exchange.id}:working`,
+        from: 'virgil',
+        at: stampAt(exchange.askedAt),
+        // The one honest use of this flag on the live path: the exchange
+        // genuinely is unfinished, and the file says so.
+        streaming: true,
+        blocks: [
+          para(
+            'A session is working on this on your repository. It takes minutes rather than seconds, and the answer appears here when it has been written — including if you close this and come back.',
+          ),
+          ...runNote(exchange.runUrl),
+        ],
+      });
+      continue;
+    }
+
+    if (exchange.state === 'failed') {
+      out.push({
+        id: `talk:${exchange.id}:failed`,
+        from: 'system',
+        at: stampAt(exchange.answeredAt ?? exchange.askedAt),
+        blocks: [
+          para('No answer was written for this. Your message is kept; the run is not.'),
+          ...(exchange.reason === null ? [] : [{ kind: 'note' as const, text: exchange.reason }]),
+          ...runNote(exchange.runUrl),
+        ],
+      });
+      continue;
+    }
+
+    out.push({
+      id: `talk:${exchange.id}:answered`,
+      from: 'virgil',
+      at: stampAt(exchange.answeredAt ?? exchange.askedAt),
+      blocks: [
+        // The session's own output, in the restricted subset the block kind
+        // exists for. `Blocks.tsx` builds React elements and sets no HTML, so
+        // this is text being formatted rather than markup being executed.
+        { kind: 'markdown', markdown: exchange.answer ?? '' },
+        ...runNote(exchange.runUrl),
+      ],
+    });
+  }
+  return out;
+}
+
 function virgilThread(state: DemoState): Message[] {
   const proverTallyNow = proverTally(100, state.outcome);
   return thread(state, 'virgil', [

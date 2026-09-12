@@ -613,35 +613,44 @@ describe('a check that did not run is never counted as one that passed', () => {
  * it. It is deliberately written over all four agents rather than the two that
  * were wrong, because the next window added will be wrong in the same way.
  */
+/**
+ * A live answer shaped the way the endpoint sends one, about a repository and a
+ * branch the recording never names. Module-level because slice six's thread
+ * checks build on the same fixture: a live state must be built the way the
+ * product builds one, or an assertion about a live window is an assertion about
+ * a hand-made object.
+ */
+const LIVE_ANSWER: Record<string, unknown> = {
+  ok: true,
+  asOf: '2026-09-11T16:00:00Z',
+  repo: 'a-repository/that-is-not-the-fixture',
+  branch: 'claude/a-branch-the-recording-never-names',
+  branchExists: true,
+  head: {
+    sha: 'c0ffee11c0ffee11c0ffee11c0ffee11c0ffee11',
+    shortSha: 'c0ffee1',
+    message: 'A commit the recording never names',
+    committedAt: '2026-09-11T15:41:40Z',
+  },
+  pull: null,
+  checks: {
+    total: 2,
+    passed: 2,
+    failed: 0,
+    running: 0,
+    noResult: 0,
+    source: 'check runs',
+    runs: [
+      { name: 'a check the recording never names', state: 'passed' },
+      { name: 'another it never names', state: 'passed' },
+    ],
+  },
+  sessionReport: null,
+  sessionReportStatus: 'absent',
+};
+
 describe('no window on a live page may draw one word of the recording', () => {
-  const LIVE: Record<string, unknown> = {
-    ok: true,
-    asOf: '2026-09-11T16:00:00Z',
-    repo: 'a-repository/that-is-not-the-fixture',
-    branch: 'claude/a-branch-the-recording-never-names',
-    branchExists: true,
-    head: {
-      sha: 'c0ffee11c0ffee11c0ffee11c0ffee11c0ffee11',
-      shortSha: 'c0ffee1',
-      message: 'A commit the recording never names',
-      committedAt: '2026-09-11T15:41:40Z',
-    },
-    pull: null,
-    checks: {
-      total: 2,
-      passed: 2,
-      failed: 0,
-      running: 0,
-      noResult: 0,
-      source: 'check runs',
-      runs: [
-        { name: 'a check the recording never names', state: 'passed' },
-        { name: 'another it never names', state: 'passed' },
-      ],
-    },
-    sessionReport: null,
-    sessionReportStatus: 'absent',
-  };
+  const LIVE = LIVE_ANSWER;
 
   const live = () => {
     const state = stateFromAnswer(LIVE as never, Date.parse('2026-09-11T16:00:30Z'));
@@ -698,5 +707,203 @@ describe('no window on a live page may draw one word of the recording', () => {
   it('the recording is untouched: a scripted state still draws its own record', () => {
     const said = allText(windowDoc(demoAt(20, 0, true), { agent: 'fabricator' })).join(' ');
     expect(said).toContain('src/world/window/AgentWindow.tsx');
+  });
+});
+
+/**
+ * **Slice six: Virgil's window is the owner's own thread.**
+ *
+ * `docs/process/PHASE_2_SLICE_6_BRIEF.md`, and his own sentence for it:
+ *
+ * > "I want to use the UI to basically have this chat with Virgil and get useful
+ * > stuff on it. If you can't do it. I'll just throw this away."
+ *
+ * The brief names what must be proved by a stub rather than by hoping: a stubbed
+ * conversation drawn as a thread, in order, with the in-flight message marked as
+ * in flight and **never** as answered, and a message whose run failed shown as
+ * failed with its reason.
+ *
+ * The failure being prevented is `SA-U-01`'s, one surface over and worse: that
+ * window drew eight invented file paths on a healthy live page. Here an invented
+ * message would be read as **Virgil's own words to him**.
+ */
+describe('the owner’s thread is what the repository says was said', () => {
+  const ASKED = {
+    id: '900',
+    askedAt: '2026-09-12T05:00:00Z',
+    question: 'What is the state of things?',
+    state: 'asked',
+    answeredAt: null,
+    answer: null,
+    reason: null,
+    runUrl: 'https://github.com/owner/repo/actions/runs/900',
+  };
+  const ANSWERED = {
+    ...ASKED,
+    id: '901',
+    askedAt: '2026-09-12T04:00:00Z',
+    question: 'Did the branch cap fix land?',
+    state: 'answered',
+    answeredAt: '2026-09-12T04:06:00Z',
+    answer: 'Yes. **Twenty** branches are watched now, and the cap is named once.',
+  };
+  const FAILED = {
+    ...ASKED,
+    id: '902',
+    askedAt: '2026-09-12T03:00:00Z',
+    question: 'Run the checks.',
+    state: 'failed',
+    answeredAt: '2026-09-12T03:20:00Z',
+    reason: 'The session did not finish with an answer (the step that runs it reported failure).',
+  };
+
+  const withTalk = (exchanges: unknown[], extra: Record<string, unknown> = {}) => {
+    const state = stateFromAnswer(
+      {
+        ...LIVE_ANSWER,
+        conversation: {
+          schema: 'virgil.conversation.v1',
+          updatedAt: '2026-09-12T05:00:00Z',
+          exchanges,
+        },
+        conversationStatus: 'read',
+        ...extra,
+      } as never,
+      Date.parse('2026-09-12T05:01:00Z'),
+    );
+    if (!state) throw new Error('the fixture no longer produces a live state');
+    return windowDoc(state, { agent: 'virgil' });
+  };
+
+  const textOf = (doc: WindowDoc) =>
+    doc.messages.flatMap((message) => message.blocks.map((block) => blockText(block))).join('\n');
+
+  it('draws each exchange as a question and a reply, in the order the file holds', () => {
+    const doc = withTalk([FAILED, ANSWERED, ASKED]);
+    expect(doc.messages.map((m) => m.id)).toEqual([
+      'talk:902:asked',
+      'talk:902:failed',
+      'talk:901:asked',
+      'talk:901:answered',
+      'talk:900:asked',
+      'talk:900:working',
+    ]);
+    expect(doc.messages.map((m) => m.from)).toEqual([
+      'owner',
+      'system',
+      'owner',
+      'virgil',
+      'owner',
+      'virgil',
+    ]);
+  });
+
+  it('draws the owner’s words as he typed them', () => {
+    const doc = withTalk([ANSWERED]);
+    const question = doc.messages.find((m) => m.from === 'owner');
+    expect(question?.blocks).toEqual([{ kind: 'para', text: 'Did the branch cap fix land?' }]);
+  });
+
+  it('draws what the session actually said, and nothing else', () => {
+    const doc = withTalk([ANSWERED]);
+    expect(textOf(doc)).toContain('Twenty');
+    expect(textOf(doc)).toContain(ANSWERED.runUrl);
+  });
+
+  it('marks a message in flight as in flight, and never as answered', () => {
+    const doc = withTalk([ASKED]);
+    const reply = doc.messages.find((m) => m.id === 'talk:900:working');
+    expect(reply?.streaming).toBe(true);
+    expect(reply?.from).toBe('virgil');
+    expect(textOf(doc)).toContain('working on this');
+    // Nothing in the whole document claims an answer for it.
+    expect(doc.messages.some((m) => m.id.endsWith(':answered'))).toBe(false);
+  });
+
+  it('says a failed run failed, with its reason, in nobody’s voice but the system’s', () => {
+    const doc = withTalk([FAILED]);
+    const failure = doc.messages.find((m) => m.id === 'talk:902:failed');
+    // Not `from: 'virgil'`. "The run died" is a fact about the machinery, and
+    // putting it in Virgil's voice would make the machinery sound like someone
+    // who had considered the question.
+    expect(failure?.from).toBe('system');
+    expect(textOf(doc)).toContain('No answer was written');
+    expect(textOf(doc)).toContain('the step that runs it reported failure');
+    expect(failure?.streaming).not.toBe(true);
+  });
+
+  it('never carries one line of the recording’s scripted thread onto a live page', () => {
+    const doc = withTalk([ANSWERED]);
+    for (const scripted of [
+      'Good evening',
+      'I’ve given the Fabricator the task',
+      'The Prover is running the checks',
+      'All checks passed',
+    ]) {
+      expect(textOf(doc), scripted).not.toContain(scripted);
+    }
+  });
+
+  it('keeps the recording’s scripted thread on a recording', () => {
+    // The other half of the same rule: a demonstration saying what it is is not
+    // a lie, and removing its thread would leave the demo mute.
+    const doc = windowDoc(demoAt(0, 0, false), { agent: 'virgil' });
+    expect(doc.messages.some((m) => m.id.startsWith('talk:'))).toBe(false);
+    expect(doc.messages.length).toBeGreaterThan(0);
+  });
+
+  it('says nothing has been said yet, rather than drawing an empty thread', () => {
+    const doc = withTalk([], { conversationStatus: 'absent' });
+    expect(doc.messages).toHaveLength(1);
+    expect(doc.messages[0]?.from).toBe('system');
+    expect(textOf(doc)).toContain('Nothing has been said on this branch yet');
+    // And it tells him what it costs, which is the thing the brief insisted be
+    // said before it was built.
+    expect(textOf(doc)).toContain('minutes rather than seconds');
+  });
+
+  it('distinguishes a conversation that could not be read from one with nothing in it', () => {
+    const state = stateFromAnswer(
+      {
+        ...LIVE_ANSWER,
+        conversation: null,
+        conversationStatus: 'unreadable',
+        conversationReason: '.virgil/conversation.json could not be read (500).',
+      } as never,
+      Date.parse('2026-09-12T05:01:00Z'),
+    );
+    const doc = windowDoc(state as never, { agent: 'virgil' });
+    expect(textOf(doc)).toContain('could not be read');
+    expect(textOf(doc)).toContain('not the same as nothing having been said');
+    expect(textOf(doc)).toContain('(500)');
+    expect(textOf(doc)).not.toContain('Nothing has been said on this branch yet');
+  });
+
+  it('says a refused conversation was refused, rather than showing it', () => {
+    const state = stateFromAnswer(
+      {
+        ...LIVE_ANSWER,
+        conversation: null,
+        conversationStatus: 'refused',
+        conversationReason: 'exchange 0 has no usable id',
+      } as never,
+      Date.parse('2026-09-12T05:01:00Z'),
+    );
+    expect(textOf(windowDoc(state as never, { agent: 'virgil' }))).toContain(
+      'was read on this branch and refused',
+    );
+  });
+
+  it('stamps a message with a time that says which clock it is on', () => {
+    // A time drawn without its zone is a small confident wrongness, and this
+    // project spends its whole effort on not producing those.
+    const doc = withTalk([ANSWERED]);
+    expect(doc.messages[0]?.at).toBe('04:00 UTC');
+    expect(doc.messages[1]?.at).toBe('04:06 UTC');
+  });
+
+  it('draws no link when the file carries none, rather than inventing one', () => {
+    const doc = withTalk([{ ...ANSWERED, runUrl: null }]);
+    expect(textOf(doc)).not.toContain('The run that did this');
   });
 });

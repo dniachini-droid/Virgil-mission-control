@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -258,14 +258,39 @@ describe('the file stays inside the shape the site will accept', () => {
   it('rolls the oldest message off at the cap rather than writing a file that is refused', () => {
     // The cap is the schema's. The uncapped record is git, which is where the
     // permanent record has always been.
-    for (let i = 1; i <= 53; i += 1) {
-      run(['--ask', '--id', String(i)], { VIRGIL_QUESTION: `message ${i}` });
-    }
+    //
+    // **Seeded rather than spoken fifty times.** The first version of this ran
+    // the script 53 times, which passed alone and timed out under the parallel
+    // suite — a check that goes red for how busy the machine is teaches everyone
+    // to ignore it. The behaviour under test is the roll-off, and two real runs
+    // against a full file exercise it exactly.
+    mkdirSync(resolve(root, '.virgil'), { recursive: true });
+    writeFileSync(
+      resolve(root, '.virgil/conversation.json'),
+      JSON.stringify({
+        schema: 'virgil.conversation.v1',
+        updatedAt: '2026-09-12T05:00:00Z',
+        exchanges: Array.from({ length: 50 }, (_, i) => ({
+          id: String(i + 1),
+          askedAt: '2026-09-12T05:00:00Z',
+          question: `message ${i + 1}`,
+          state: 'asked',
+          answeredAt: null,
+          answer: null,
+          reason: null,
+          runUrl: null,
+        })),
+      }),
+    );
+
+    run(['--ask', '--id', '51'], { VIRGIL_QUESTION: 'message 51' });
+    run(['--ask', '--id', '52'], { VIRGIL_QUESTION: 'message 52' });
+
     const value = read();
     bothAccept(value);
     expect(value.exchanges).toHaveLength(50);
-    expect(value.exchanges[0]?.id).toBe('4');
-    expect(value.exchanges.at(-1)?.id).toBe('53');
+    expect(value.exchanges[0]?.id).toBe('3');
+    expect(value.exchanges.at(-1)?.id).toBe('52');
   });
 
   it('shortens a message longer than the shape holds rather than losing it', () => {
