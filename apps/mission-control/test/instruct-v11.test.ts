@@ -355,3 +355,97 @@ describe('the workflow that does the work', () => {
     }
   });
 });
+
+/**
+ * **Slice six: the owner's question and Virgil's reply both survive the run.**
+ *
+ * `docs/process/PHASE_2_SLICE_6_BRIEF.md` states the property these hold:
+ *
+ * > "A run that dies still leaves the question and the reason, because a message
+ * > that disappears is worse than a message that fails."
+ *
+ * The writing is done by the workflow rather than by the agent, for the reason
+ * slice two's shelf life exists: a guarantee that depends on a session
+ * remembering is not a guarantee. So what is checked here is the ordering and
+ * the conditions, which is the whole of it — `conversation-writer.test.ts`
+ * checks what the script does once it is called.
+ */
+describe('the owner gets an answer, or is told why he did not', () => {
+  const stepsOf = () => WORKFLOW.split(/\n      - (?=name:|uses:)/).slice(1);
+  const named = (part: string) => {
+    const step = stepsOf().find((s) => s.startsWith(`name: ${part}`));
+    expect(step, `there is no step named "${part}"`).toBeDefined();
+    return step as string;
+  };
+  const positionOf = (part: string) => stepsOf().findIndex((s) => s.startsWith(`name: ${part}`));
+
+  it('writes the question down before the agent that answers it starts', () => {
+    // Not after. A run that dies during install must still leave the message in
+    // the thread, because the owner typed it and is waiting for it.
+    const question = positionOf('Write the question into the conversation');
+    const agent = positionOf('Work on the instruction');
+    expect(question).toBeGreaterThan(-1);
+    expect(agent).toBeGreaterThan(question);
+  });
+
+  it('commits the question before running the agent, rather than only in memory', () => {
+    // The container is thrown away. A file written and not pushed is a message
+    // that never existed.
+    expect(positionOf('Commit the instruction and the status')).toBeGreaterThan(
+      positionOf('Write the question into the conversation'),
+    );
+    expect(positionOf('Work on the instruction')).toBeGreaterThan(
+      positionOf('Commit the instruction and the status'),
+    );
+  });
+
+  it('writes the reply whatever happened to the run', () => {
+    const step = named('Write what the session said, or why it did not');
+    expect(step).toContain('if: always()');
+    // Both outcomes, from one step. Two steps with opposite conditions is the
+    // shape where a third outcome — cancelled, or a step that never ran — falls
+    // between them and leaves the thread silent.
+    expect(step).toContain('--answer');
+    expect(step).toContain('--fail');
+  });
+
+  it('is pushed, so the reply reaches the owner rather than the container', () => {
+    expect(positionOf('Commit whatever the session changed')).toBeGreaterThan(
+      positionOf('Write what the session said, or why it did not'),
+    );
+  });
+
+  it('keeps what the agent said rather than only printing it', () => {
+    const step = named('Work on the instruction');
+    expect(step).toContain('ANSWER_FILE');
+    expect(step).toContain('tee "$ANSWER_FILE"');
+  });
+
+  it('does not let a succeeding tee hide a failing agent', () => {
+    // Without `pipefail` the exit status is `tee`'s, which is always zero. The
+    // step would report success, the reply step would take the answered branch,
+    // and a run that died would be drawn as Virgil replying.
+    expect(named('Work on the instruction')).toContain('set -o pipefail');
+  });
+
+  it('judges the run by what the agent step did, not by what it was recoloured to', () => {
+    const step = named('Write what the session said, or why it did not');
+    expect(step).toContain('steps.agent.outcome');
+    expect(step).not.toContain('steps.agent.conclusion');
+  });
+
+  it('holds the answer outside the checkout, so it is never committed as a stray file', () => {
+    // `git add -A` runs after this. An answer file inside the repository would
+    // be committed to the owner's branch as well as written into the thread.
+    expect(named('Work on the instruction')).toContain('ANSWER_FILE: ${{ runner.temp }}');
+  });
+
+  it("passes the owner's words through the environment here too", () => {
+    for (const part of [
+      'Write the question into the conversation',
+      'Write what the session said, or why it did not',
+    ]) {
+      expect(named(part)).toContain('VIRGIL_QUESTION: ${{ inputs.instruction }}');
+    }
+  });
+});

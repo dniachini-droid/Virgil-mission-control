@@ -1478,6 +1478,84 @@ describe('a conversation is refused by the wire exactly when the schema refuses 
       what: 'a question longer than the shape allows',
       value: { ...GOOD, exchanges: [{ ...EXCHANGE, question: 'x'.repeat(4001) }] },
     },
+    {
+      what: 'an id longer than the shape allows',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, id: 'x'.repeat(65) }] },
+    },
+    {
+      what: 'an answer longer than the shape allows',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, answer: 'x'.repeat(20_001) }] },
+    },
+    {
+      what: 'a reason longer than the shape allows',
+      value: {
+        ...GOOD,
+        exchanges: [
+          {
+            ...EXCHANGE,
+            state: 'failed',
+            answer: null,
+            answeredAt: null,
+            reason: 'x'.repeat(601),
+          },
+        ],
+      },
+    },
+    /**
+     * **The four below were written because the workflow step that writes this
+     * file forced the question "what does the writer do when the agent prints
+     * nothing?"** — and the honest answer was that nobody knew, because neither
+     * checker had ever been asked. They are drift, in both directions, in a pair
+     * of checkers a generated battery had already passed: the battery generates
+     * from the *shape*, and an empty string and a string that is not a URL are
+     * values, not shapes.
+     */
+    {
+      // A blank reply bubble. The schema allowed it (`z.string()` accepts the
+      // empty string and `.max()` does not change that) while the wire refused
+      // it, so a run whose agent printed nothing would have been accepted by the
+      // contract and refused by the site — and drawn, if it ever got through, as
+      // Virgil answering with silence.
+      what: 'an answer that is the empty string',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, answer: '' }] },
+    },
+    {
+      // The same hole in the other field: failed, with a reason that says
+      // nothing, which is what `state: 'failed'` already said.
+      what: 'a reason that is the empty string',
+      value: {
+        ...GOOD,
+        exchanges: [{ ...EXCHANGE, state: 'failed', answer: null, answeredAt: null, reason: '' }],
+      },
+    },
+    {
+      // Drift the other way: the schema said `.url()` and the wire only asked
+      // whether it was a non-empty string under 400 characters. Whatever went in
+      // here becomes an `href` the owner is invited to press.
+      what: 'a runUrl that is not a URL',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, runUrl: 'actions/runs/1' }] },
+    },
+    {
+      // The value becomes an `href` on the owner's phone. `z.string().url()`
+      // accepted this one — it asks for a scheme and does not ask which — so
+      // both checkers now ask what a browser would do with it rather than
+      // whether it parses.
+      what: 'a runUrl a browser would execute rather than fetch',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, runUrl: 'javascript:alert(1)' }] },
+    },
+    {
+      what: 'a runUrl with a scheme no browser navigates to',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, runUrl: 'ftp://example.test/run' }] },
+    },
+    {
+      // And the length: the wire capped it at 400 and the schema capped it
+      // nowhere.
+      what: 'a runUrl longer than the wire accepts',
+      value: {
+        ...GOOD,
+        exchanges: [{ ...EXCHANGE, runUrl: `https://github.com/${'x'.repeat(400)}` }],
+      },
+    },
   ];
 
   for (const mutation of MUTATIONS) {
@@ -1501,5 +1579,143 @@ describe('a conversation is refused by the wire exactly when the schema refuses 
       conversationComplaint({ ...GOOD, exchanges: [{ ...EXCHANGE, state: 'thinking' }] }),
     ).toMatch(/exchange 0 claims state/);
     expect(conversationComplaint({ ...GOOD, updatedAt: 'yesterday' })).toMatch(/updatedAt/);
+  });
+});
+
+/**
+ * **Slice six: the conversation reaches the room, or is honestly absent.**
+ *
+ * `state.mjs` already holds the file to a hand-written twin of the `Conversation`
+ * schema before it sends it. This is checked **again** here, in the browser,
+ * against whatever actually arrived — a cached answer from an older deploy, a
+ * stub in a check, anything between. The project's rule is that what is not read
+ * is not drawn, and "the server promised" is not reading.
+ *
+ * The failure being prevented is specific and it has happened before, one field
+ * over: `KP7-01` drew fourteen invented checks marked "verified" beside a badge
+ * saying they could not be read. Here the equivalent is worse, because the owner
+ * will read what is drawn as **Virgil's own words**.
+ */
+describe('what the owner asked and what Virgil answered', () => {
+  const ASKED = {
+    id: '34613415976',
+    askedAt: '2026-09-12T05:00:00Z',
+    question: 'What is the state of things?',
+    state: 'asked',
+    answeredAt: null,
+    answer: null,
+    reason: null,
+    runUrl: 'https://github.com/owner/repo/actions/runs/34613415976',
+  };
+  const ANSWERED = {
+    ...ASKED,
+    state: 'answered',
+    answeredAt: '2026-09-12T05:04:00Z',
+    answer: 'Two checks passed on this branch and nothing is in flight.',
+  };
+  const withTalk = (exchanges: unknown, extra: Record<string, unknown> = {}) =>
+    stateFromAnswer({
+      ...FULL,
+      conversation: { schema: 'virgil.conversation.v1', updatedAt: ASKED.askedAt, exchanges },
+      conversationStatus: 'read',
+      ...extra,
+    } as never);
+
+  it('carries the exchanges that were read', () => {
+    const state = withTalk([ASKED, ANSWERED]);
+    expect(state?.conversation?.exchanges).toHaveLength(2);
+    expect(state?.conversation?.exchanges[1]).toMatchObject({
+      state: 'answered',
+      answer: ANSWERED.answer,
+      question: ASKED.question,
+    });
+  });
+
+  it('never invents a conversation on a state built from a recording', () => {
+    // Absent, not null. The recording has its own scripted thread and must keep
+    // it; a demonstration that says what it is is not a lie.
+    expect(demoAt(0, 0, false)).not.toHaveProperty('conversation');
+  });
+
+  it('says nothing was read rather than drawing a thread with nothing in it', () => {
+    const state = stateFromAnswer({
+      ...FULL,
+      conversation: null,
+      conversationStatus: 'absent',
+      conversationReason: 'Nobody has said anything on this branch yet.',
+    } as never);
+    expect(state?.conversation).toBeNull();
+    expect(state?.conversationStatus).toBe('absent');
+    expect(state?.conversationReason).toContain('Nobody has said anything');
+  });
+
+  it('distinguishes an unread conversation from an empty one', () => {
+    // Both draw nothing, and the window says a different thing about each.
+    expect(withTalk([])?.conversation).toEqual({ exchanges: [] });
+    expect(stateFromAnswer({ ...FULL, conversation: null } as never)?.conversation).toBeNull();
+  });
+
+  it('refuses a status this build has no word for, rather than passing it through', () => {
+    expect(withTalk([ASKED], { conversationStatus: 'pending' })?.conversationStatus).toBeNull();
+    expect(withTalk([ASKED], { conversationStatus: 'refused' })?.conversationStatus).toBe(
+      'refused',
+    );
+  });
+
+  /**
+   * Each of these is an exchange that would draw a claim nothing supports. They
+   * are dropped rather than repaired: there is no correct way to guess what
+   * Virgil said.
+   */
+  const UNDRAWABLE: { what: string; entry: unknown }[] = [
+    { what: 'answered with no answer', entry: { ...ANSWERED, answer: null } },
+    { what: 'answered with an empty answer', entry: { ...ANSWERED, answer: '' } },
+    { what: 'an answer on an exchange still being worked', entry: { ...ASKED, answer: 'hello' } },
+    {
+      what: 'failed with no reason',
+      entry: { ...ASKED, state: 'failed', reason: null },
+    },
+    { what: 'failed with an empty reason', entry: { ...ASKED, state: 'failed', reason: '' } },
+    { what: 'a state nobody has a word for', entry: { ...ASKED, state: 'thinking' } },
+    { what: 'no question', entry: { ...ASKED, question: '' } },
+    { what: 'no id', entry: { ...ASKED, id: '' } },
+    { what: 'an askedAt nobody can order by', entry: { ...ASKED, askedAt: 'yesterday' } },
+    { what: 'nothing at all', entry: null },
+    { what: 'a string where an exchange should be', entry: 'hello' },
+  ];
+
+  for (const { what, entry } of UNDRAWABLE) {
+    it(`drops ${what} rather than drawing it`, () => {
+      // Beside a good one, so this proves the bad row is dropped rather than the
+      // whole read being refused for an unrelated reason.
+      const state = withTalk([ANSWERED, entry]);
+      expect(state?.conversation?.exchanges).toHaveLength(1);
+      expect(state?.conversation?.exchanges[0]?.id).toBe(ANSWERED.id);
+    });
+  }
+
+  it('says nothing was read when nothing in the file could be drawn', () => {
+    // Not an empty thread. The file said something and none of it holds
+    // together, which is a different fact from nobody having spoken.
+    expect(withTalk([{ ...ANSWERED, answer: '' }])?.conversation).toBeNull();
+  });
+
+  it('drops a link a browser would execute rather than fetch, and keeps the message', () => {
+    // The value becomes an `href` on the owner's phone. Losing the whole message
+    // over its link would be the wrong repair; the link is what goes.
+    const state = withTalk([{ ...ANSWERED, runUrl: 'javascript:alert(1)' }]);
+    expect(state?.conversation?.exchanges).toHaveLength(1);
+    expect(state?.conversation?.exchanges[0]?.runUrl).toBeNull();
+    expect(state?.conversation?.exchanges[0]?.answer).toBe(ANSWERED.answer);
+  });
+
+  it('keeps an http link, which is a link', () => {
+    const state = withTalk([{ ...ANSWERED, runUrl: 'http://localhost:3000/run' }]);
+    expect(state?.conversation?.exchanges[0]?.runUrl).toBe('http://localhost:3000/run');
+  });
+
+  it('refuses a conversation whose exchanges are not a list', () => {
+    expect(withTalk({})?.conversation).toBeNull();
+    expect(withTalk(undefined)?.conversation).toBeNull();
   });
 });

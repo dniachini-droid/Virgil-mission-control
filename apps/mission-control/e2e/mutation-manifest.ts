@@ -58,7 +58,11 @@ const MUTATIONS: Mutation[] = [
   {
     id: 'head-guard',
     file: 'apps/mission-control/src/world/live/liveState.ts',
-    find: 'if (!answer.head?.sha) return null;',
+    // The anchor moved when `SA-U-04`/`KP9-02` added `shortSha` to the guard,
+    // and this manifest refused the whole run rather than reporting the
+    // mutation as surviving. That refusal is the feature: a drifted anchor
+    // reads as a coverage catastrophe or as a clean bill, and neither is true.
+    find: 'if (!answer.head?.sha || !answer.head?.shortSha) return null;',
     replace: 'if (false as boolean) return null;',
     caughtBy: 'test/live-state-v11.test.ts',
     why: 'KP8-02. Without it a live page that read nothing draws the recording’s 9abcdef under “Exact version being worked on”, beside a real branch name.',
@@ -110,6 +114,59 @@ const MUTATIONS: Mutation[] = [
     replace: '  return true;',
     caughtBy: 'test/live-state-v11.test.ts',
     why: 'A session that stopped looks exactly like one still working. Without the shelf life the room would show a Fabricator working for ever.',
+  },
+  /**
+   * **Slice six.** Added as each guard was written, not retrofitted — which is
+   * the brief's own requirement for this slice, and the difference between a
+   * ledger and an alibi.
+   */
+  {
+    id: 'empty-answer-is-not-an-answer',
+    file: 'scripts/virgil-conversation.mjs',
+    find: '  if (!text) {',
+    replace: '  if (false) {',
+    caughtBy: 'test/conversation-writer.test.ts',
+    why: 'A run whose agent printed nothing would be written as answered, and the owner would be shown Virgil replying with silence in a bubble beside his question.',
+  },
+  {
+    id: 'answer-is-never-blank',
+    file: 'packages/agent-contracts/src/live.ts',
+    find: '    answer: z.string().min(1).max(20_000).nullable(),',
+    replace: '    answer: z.string().max(20_000).nullable(),',
+    caughtBy: 'test/live-state-v11.test.ts',
+    why: 'Real drift, found while writing the step that decides what to do with an empty reply: `.max()` implies no minimum, so the schema accepted the empty string the deployed wire check refused. A file the contract allows and the site will not draw.',
+  },
+  {
+    id: 'run-url-is-a-link',
+    file: 'netlify/functions/state.mjs',
+    find: "  return parsed.protocol === 'http:' || parsed.protocol === 'https:';",
+    replace: '  return true;',
+    caughtBy: 'test/live-state-v11.test.ts',
+    why: 'The value becomes an href on the owner\u2019s phone. Without the scheme check, javascript:alert(1) written into the conversation by a run is a link he is invited to press.',
+  },
+  {
+    id: 'broken-conversation-is-kept',
+    file: 'scripts/virgil-conversation.mjs',
+    find: '    renameSync(FILE, BROKEN);',
+    replace: '    void BROKEN;',
+    caughtBy: 'test/conversation-writer.test.ts',
+    why: 'An unreadable conversation would be silently overwritten. Git history would still hold it, but nothing on the surface would say anything had been replaced.',
+  },
+  {
+    id: 'reply-written-whatever-happened',
+    file: '.github/workflows/instruct.yml',
+    find: '      - name: Write what the session said, or why it did not\n        if: always()',
+    replace: '      - name: Write what the session said, or why it did not',
+    caughtBy: 'test/instruct-v11.test.ts',
+    why: 'The brief\u2019s rule, in one line of YAML: a run that dies leaves the question and the reason. Without it, a failed run leaves the owner\u2019s message in the thread for ever with nothing beside it.',
+  },
+  {
+    id: 'a-dead-agent-does-not-report-success',
+    file: '.github/workflows/instruct.yml',
+    find: '          set -o pipefail',
+    replace: '          true',
+    caughtBy: 'test/instruct-v11.test.ts',
+    why: 'tee always exits zero. Without pipefail the agent step reports success over a run that died, the reply step takes the answered branch, and whatever partial output reached the pipe is drawn as Virgil\u2019s reply.',
   },
   {
     id: 'handler-existence',
