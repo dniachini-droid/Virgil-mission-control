@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 /**
  * **The guards on the one thing in this project that can act.**
@@ -63,10 +63,38 @@ describe('the endpoint that can start work', () => {
     expect(FUNCTION).toMatch(/const MAX_INSTRUCTION = \d+;/);
   });
 
+  /**
+   * **What is scanned is what is sent.**
+   *
+   * This banned four substrings anywhere in the file, which made it a check on
+   * the endpoint's vocabulary rather than on its requests. It went red when the
+   * attempt limiter called `attempts.delete(address)` — a `Map`, in this
+   * process's memory, nowhere near GitHub — and the only ways to make a
+   * whole-file word scan pass are to rename local code around it or to delete
+   * the check. Both teach the wrong thing.
+   *
+   * So it reads what actually reaches `gh(`, which is the single door to the
+   * GitHub API in this file, and every HTTP method the file uses. That is
+   * strictly stronger: a path built for `/merge` now fails even if the word is
+   * spelled some other way in the source, and a `DELETE` fails wherever it is
+   * issued from.
+   */
   it('asks GitHub for nothing it does not need, and asks for no merge', () => {
-    for (const forbidden of ['/merge', 'pulls', 'deployments', 'delete']) {
-      expect(FUNCTION.includes(forbidden), forbidden).toBe(false);
+    const paths = [...FUNCTION.matchAll(/\bgh\(\s*`([^`]*)`/g)].map((m) => m[1] ?? '');
+    expect(paths.length, 'no GitHub request paths were found to check').toBeGreaterThan(2);
+    for (const path of paths) {
+      for (const forbidden of ['/merge', 'pulls', 'deployments', 'issues', 'releases']) {
+        expect(path.includes(forbidden), `${path} asks for ${forbidden}`).toBe(false);
+      }
     }
+    const methods = [...FUNCTION.matchAll(/method:\s*'([A-Z]+)'/g)].map((m) => m[1] ?? '');
+    // POST is the dispatch. Anything that removes or replaces is not this
+    // endpoint's business.
+    for (const method of methods) {
+      expect(['POST'], `the file issues a ${method}`).toContain(method);
+    }
+    // And the workflow it is allowed to start is still the only one it names.
+    expect(FUNCTION).toContain("const WORKFLOW = 'instruct.yml';");
   });
 
   it('is routed on its own, above the catch-all', () => {
@@ -447,5 +475,152 @@ describe('the owner gets an answer, or is told why he did not', () => {
     ]) {
       expect(named(part)).toContain('VIRGIL_QUESTION: ${{ inputs.instruction }}');
     }
+  });
+});
+
+/**
+ * **Slice six's precondition, and the first checks in this project that run the
+ * endpoint rather than read it.**
+ *
+ * The system audit's `SA-S-02`: there was no limit of any kind on wrong guesses
+ * at `INSTRUCT_SECRET`, and a landed guess reaches a session running
+ * `--dangerously-skip-permissions` with the owner's Claude subscription token in
+ * scope. `docs/process/PHASE_2_SLICE_6_BRIEF.md` makes the fix a precondition of
+ * switching the composer on, not a recommendation.
+ *
+ * Everything above is source-level because GitHub is unreachable here. **These
+ * are not.** Every refusal below happens before any network call — that is the
+ * whole point of checking the limit before the comparison — so the handler can
+ * be driven for real, and is. `KP9-04` records that the sibling endpoint's
+ * handler is invoked by no test; this is what closing that looks like.
+ */
+describe('a wrong guess at the secret costs something', () => {
+  const SECRET = 'a-secret-long-enough-to-be-a-secret';
+
+  const post = async (headers: Record<string, string>) => {
+    const { default: handler, forgetAttempts } = (await import(
+      '../../../netlify/functions/instruct.mjs'
+      // Deliberately outside this app's TypeScript program, like `state.mjs`.
+    )) as { default: (request: Request) => Promise<Response>; forgetAttempts: () => void };
+    void forgetAttempts;
+    return handler(
+      new Request('https://example.test/api/instruct', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ instruction: 'what is the state of things?' }),
+      }),
+    );
+  };
+
+  const clear = async () => {
+    const { forgetAttempts } = (await import('../../../netlify/functions/instruct.mjs')) as {
+      forgetAttempts: () => void;
+    };
+    forgetAttempts();
+  };
+
+  beforeEach(async () => {
+    process.env.INSTRUCT_SECRET = SECRET;
+    process.env.GITHUB_DISPATCH_TOKEN = 'not-a-real-token';
+    process.env.GITHUB_REPO = 'owner/repo';
+    process.env.GITHUB_BRANCH = 'claude/some-branch';
+    await clear();
+  });
+
+  it('refuses a wrong secret without saying anything about it', async () => {
+    const response = await post({ 'x-virgil-secret': 'wrong', 'x-nf-client-connection-ip': '1.1.1.1' });
+    expect(response.status).toBe(401);
+    const body = (await response.json()) as { reason: string };
+    // Not "wrong secret", not "3 attempts left", not "no secret installed".
+    expect(body.reason).toBe('Refused.');
+  });
+
+  it('stops looking at guesses from an address that has spent its attempts', async () => {
+    const from = { 'x-virgil-secret': 'wrong', 'x-nf-client-connection-ip': '2.2.2.2' };
+    for (let i = 0; i < 5; i += 1) expect((await post(from)).status).toBe(401);
+    const sixth = await post(from);
+    expect(sixth.status).toBe(429);
+  });
+
+  it('refuses the locked-out address even when it then guesses correctly', async () => {
+    // The limit is checked before the comparison. Checking after it would let an
+    // attacker keep testing and merely change what they are told.
+    const from = '3.3.3.3';
+    for (let i = 0; i < 5; i += 1) {
+      await post({ 'x-virgil-secret': 'wrong', 'x-nf-client-connection-ip': from });
+    }
+    const right = await post({ 'x-virgil-secret': SECRET, 'x-nf-client-connection-ip': from });
+    expect(right.status).toBe(429);
+  });
+
+  it('counts a missing header as the wrong guess it is', async () => {
+    const from = { 'x-nf-client-connection-ip': '4.4.4.4' };
+    for (let i = 0; i < 5; i += 1) expect((await post(from)).status).toBe(401);
+    expect((await post(from)).status).toBe(429);
+  });
+
+  it('does not lock out everyone because one address guessed', async () => {
+    const guesser = { 'x-virgil-secret': 'wrong', 'x-nf-client-connection-ip': '5.5.5.5' };
+    for (let i = 0; i < 6; i += 1) await post(guesser);
+    const someoneElse = await post({
+      'x-virgil-secret': 'wrong',
+      'x-nf-client-connection-ip': '6.6.6.6',
+    });
+    expect(someoneElse.status).toBe(401);
+  });
+
+  it('counts a request it cannot attribute, rather than waving it through', async () => {
+    // KP2-07's rule one endpoint over: a limit that cannot be attributed has not
+    // been satisfied. The version that returns null for "unknown" is the version
+    // where sending no headers is the way around it.
+    for (let i = 0; i < 5; i += 1) {
+      expect((await post({ 'x-virgil-secret': 'wrong' })).status).toBe(401);
+    }
+    expect((await post({ 'x-virgil-secret': 'wrong' })).status).toBe(429);
+  });
+
+  it('trusts the connection address over one the client can write', async () => {
+    // `x-forwarded-for` is client-settable. If it were preferred, an attacker
+    // would get a fresh allowance per forged header and the limit would be
+    // decoration.
+    const connection = '7.7.7.7';
+    for (let i = 0; i < 5; i += 1) {
+      await post({
+        'x-virgil-secret': 'wrong',
+        'x-nf-client-connection-ip': connection,
+        'x-forwarded-for': `9.9.9.${i}`,
+      });
+    }
+    const next = await post({
+      'x-virgil-secret': 'wrong',
+      'x-nf-client-connection-ip': connection,
+      'x-forwarded-for': '9.9.9.99',
+    });
+    expect(next.status).toBe(429);
+  });
+
+  it('forgets an address once it gets the secret right', async () => {
+    const from = '8.8.8.8';
+    for (let i = 0; i < 4; i += 1) {
+      await post({ 'x-virgil-secret': 'wrong', 'x-nf-client-connection-ip': from });
+    }
+    // The correct secret goes on to talk to GitHub, which is unreachable here —
+    // so this asserts only that it was not refused by the limit.
+    const right = await post({ 'x-virgil-secret': SECRET, 'x-nf-client-connection-ip': from });
+    expect(right.status).not.toBe(429);
+    expect(right.status).not.toBe(401);
+
+    for (let i = 0; i < 5; i += 1) {
+      expect((await post({ 'x-virgil-secret': 'wrong', 'x-nf-client-connection-ip': from })).status)
+        .toBe(401);
+    }
+  });
+
+  it('still refuses everything when no secret is installed', async () => {
+    // Absent configuration is a closed door. Checked here by running it, where
+    // before it was a line of source read by a check.
+    process.env.INSTRUCT_SECRET = '';
+    const response = await post({ 'x-virgil-secret': 'anything' });
+    expect(response.status).toBe(503);
   });
 });
