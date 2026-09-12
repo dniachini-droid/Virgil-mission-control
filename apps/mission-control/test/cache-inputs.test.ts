@@ -27,12 +27,26 @@ import { describe, expect, it } from 'vitest';
  * `new URL('../../../…')`. A test reaching the root by a shape nobody wrote yet
  * is invisible to it, exactly as `KXR-29` was invisible to the list it replaces.
  * It is narrower than the problem and wider than the last attempt.
+ *
+ * **And `root` does not always mean the repository root.** A test that writes
+ * into a scratch directory binds `root = mkdtempSync(…)` and then resolves
+ * against it, which is the same shape and none of this check's business — the
+ * cache cannot replay a stale pass over a directory created fresh each run.
+ * Read textually, those reads were reported as undeclared inputs named
+ * `answer.txt` and `nothing.txt`, which no `turbo.json` could ever declare.
+ * So the binding is consulted, not just the call.
  */
 
 const root = resolve(import.meta.dirname, '../../..');
 const turbo = JSON.parse(readFileSync(resolve(root, 'turbo.json'), 'utf8')) as {
   tasks: Record<string, { inputs?: string[] }>;
 };
+
+/**
+ * A file that binds `root` to a fresh temporary directory is not reaching the
+ * repository root when it resolves against it, whatever the call looks like.
+ */
+const ROOT_IS_SCRATCH = /\broot\s*=\s*mkdtempSync\s*\(/;
 
 /** The three ways a test in this repository reaches out of its own package. */
 const REACHES = [
@@ -63,7 +77,10 @@ function rootSegmentsRead(): Map<string, string[]> {
     // it did, on its first run.
     if (file.endsWith('cache-inputs.test.ts')) continue;
     const text = readFileSync(file, 'utf8');
-    for (const pattern of REACHES) {
+    // `REACHES[0]` is the `resolve(root, …)` shape. When this file's `root` is a
+    // scratch directory, that shape says nothing about the repository.
+    const patterns = ROOT_IS_SCRATCH.test(text) ? REACHES.slice(1) : REACHES;
+    for (const pattern of patterns) {
       pattern.lastIndex = 0;
       let match = pattern.exec(text);
       while (match !== null) {

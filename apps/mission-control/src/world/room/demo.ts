@@ -197,6 +197,45 @@ export interface DemoState {
    * anything.
    */
   checksReason?: string | null;
+  /**
+   * **What the owner asked Virgil, and what Virgil said back.**
+   *
+   * Phase 2 slice six (`docs/process/PHASE_2_SLICE_6_BRIEF.md`). Written into
+   * `.virgil/conversation.json` by the run that answered, read by
+   * `/api/state`, and carried here so the window can draw a thread rather than
+   * a form.
+   *
+   * The same three-way discrimination `checks` uses, and for the same reason.
+   * **Absent** is the recording, which has a scripted thread and must keep it: a
+   * demonstration saying what it is. **`null`** is live, and nothing was read —
+   * drawn as "not read", never as a conversation with nothing in it. **Present**
+   * is live and read, and is the only case that draws messages.
+   */
+  conversation?: {
+    exchanges: readonly {
+      id: string;
+      askedAt: string;
+      question: string;
+      state: 'asked' | 'answered' | 'failed';
+      answeredAt: string | null;
+      /** What the session said. Never the empty string: see `answer` in the schema. */
+      answer: string | null;
+      reason: string | null;
+      runUrl: string | null;
+    }[];
+  } | null;
+  /**
+   * Why the conversation could not be read, when it could not be. Present and
+   * `null` on a live state whose conversation was read.
+   */
+  conversationReason?: string | null;
+  /**
+   * Which of four situations produced `conversation: null` — nobody has spoken
+   * yet, a file exists and could not be fetched, or one was read and refused.
+   * The window says a different thing about each and cannot tell them apart
+   * from the prose.
+   */
+  conversationStatus?: 'read' | 'absent' | 'unreadable' | 'refused' | null;
 }
 
 /** The beats, in seconds from the loop's start. */

@@ -12,6 +12,7 @@ Generated from `packages/agent-contracts/src` by `pnpm --filter @virgil/agent-co
 - `authority-config.schema.json`
 - `candidate-artifact.schema.json`
 - `check-run.schema.json`
+- `conversation.schema.json`
 - `domain-event.schema.json`
 - `epistemic-visual-projection-contract.schema.json`
 - `evidence-ref.schema.json`

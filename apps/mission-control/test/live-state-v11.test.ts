@@ -7,8 +7,19 @@ import matrix from '../../../constitution/permission-matrix.json' with { type: '
 // workspace resolution, which is exactly why its shape check is written by hand
 // rather than in Zod. It is imported here so the two can be held against each
 // other; see the drift tests at the foot of this file.
-import { isBranchName, readBranches, shapeComplaint } from '../../../netlify/functions/state.mjs';
-import { SessionStatusReport } from '../../../packages/agent-contracts/src/live.js';
+import * as stateFunction from '../../../netlify/functions/state.mjs';
+import { Conversation, SessionStatusReport } from '../../../packages/agent-contracts/src/live.js';
+
+/**
+ * Taken off a namespace import rather than named directly, because the
+ * `@ts-expect-error` above applies to the line that follows it and a named
+ * import long enough to wrap puts the unresolved module on a later line, where
+ * the directive cannot reach it — so the suppression silently stopped working
+ * and the typecheck failed on a file that had not changed meaning.
+ */
+const { conversationComplaint, isBranchName, readBranches, shapeComplaint, WATCHED_BRANCHES } =
+  stateFunction;
+
 import {
   type LiveAnswer,
   REPORT_GOES_COLD_MS,
@@ -1200,32 +1211,41 @@ describe('the branch list, and what it will and will not claim', () => {
    * is only ever a drawing decision.
    */
   it('knows every branch exists, including the ones past the cap it draws', async () => {
-    const many = Array.from({ length: 9 }, (_, i) => ({
-      name: i === 0 ? 'main' : `claude/branch-${String(i).padStart(2, '0')}`,
+    /**
+     * **Constructed so the cap actually bites, rather than relying on the
+     * repository happening to be bigger than it.**
+     *
+     * Written against a fixed nine branches and a cap of eight, this test passed
+     * for the right reason by luck — and stopped exercising anything the moment
+     * the cap moved to twenty. It now generates one more branch than the cap,
+     * whatever the cap is, so the condition it is about always exists.
+     */
+    const many = Array.from({ length: WATCHED_BRANCHES + 1 }, (_, i) => ({
+      name: i === 0 ? 'main' : `claude/branch-${String(i).padStart(3, '0')}`,
       commit: { sha: 'd'.repeat(40) },
     }));
     const read = await withFetch(() => many);
-    expect(read.branches).toHaveLength(8);
-    // Nine names, not eight: the list the interface draws has no vote on what is
-    // true of the repository.
-    expect(read.names).toHaveLength(9);
-    const ninth = many[8]?.name as string;
-    expect(read.names).toContain(ninth);
-    // The exact expression the handler uses, held against the exact defect.
-    expect(read.names.includes(ninth)).toBe(true);
-    expect(read.branches?.some((entry: { name: string }) => entry.name === ninth)).toBe(false);
+    expect(read.branches).toHaveLength(WATCHED_BRANCHES);
+    // Every name, whatever the cap: the list the interface draws has no vote on
+    // what is true of the repository.
+    expect(read.names).toHaveLength(WATCHED_BRANCHES + 1);
+    const past = many[WATCHED_BRANCHES]?.name as string;
+    // The exact expression the handler uses, held against the exact defect: the
+    // branch is not drawn, and is still known to exist.
+    expect(read.branches?.some((entry: { name: string }) => entry.name === past)).toBe(false);
+    expect(read.names.includes(past)).toBe(true);
   });
 
   it('caps the list and still reports how many exist', async () => {
-    const many = Array.from({ length: 20 }, (_, i) => ({
+    const many = Array.from({ length: WATCHED_BRANCHES + 12 }, (_, i) => ({
       name: i === 0 ? 'main' : `branch-${String(i).padStart(2, '0')}`,
       commit: { sha: 'd'.repeat(40) },
     }));
     const read = await withFetch(() => many);
-    expect(read.branches).toHaveLength(8);
-    // A list silently cut to eight is a list lying about what the repository
-    // has. The count of what exists travels beside it.
-    expect(read.total).toBe(20);
+    expect(read.branches).toHaveLength(WATCHED_BRANCHES);
+    // A list silently cut is a list lying about what the repository has. The
+    // count of what exists travels beside it, whatever the cap happens to be.
+    expect(read.total).toBe(WATCHED_BRANCHES + 12);
   });
 
   it('drops an entry with no usable name rather than drawing a blank row', async () => {
@@ -1250,6 +1270,22 @@ describe('a branch name is refused before it is put in a URL', () => {
     const refused = [
       '../../etc/passwd',
       'a/../b',
+      /**
+       * **Found by the mutation manifest on its first run, and it is the reason
+       * that mechanism exists.**
+       *
+       * Deleting `value.includes('..')` from `isBranchName` left every test in
+       * this file passing. Not because the tests were weak in general, but
+       * because every traversal case listed here is *also* refused by another
+       * rule: `../../etc/passwd` and `a/../b` have a component beginning with a
+       * dot, and `double//slash` has an empty component. The one guard nothing
+       * exercised was the one that matters on its own.
+       *
+       * `a..b` has no dot-leading component and no empty one. Git forbids `..`
+       * anywhere in a ref, and this line is the only thing here that refuses it.
+       */
+      'a..b',
+      'refs..heads',
       '/leading',
       'trailing/',
       'double//slash',
@@ -1280,5 +1316,406 @@ describe('a branch name is refused before it is put in a URL', () => {
     for (const value of [null, undefined, 42, {}, [], true]) {
       expect(isBranchName(value as never)).toBe(false);
     }
+  });
+});
+
+/**
+ * **SA-U-06: the room and the window must not disagree about the same checks.**
+ *
+ * The audit found the Prover's window saying *"All 2 checks passed"* while his
+ * station screen, on the same page at the same instant, said `NOT READ`. Both
+ * were drawing the same live answer. The window read `state.checks`; the screen
+ * read a schedule that the live path deliberately left empty and nothing ever
+ * refilled.
+ */
+describe('what the Prover’s station screen knows matches what his window says', () => {
+  const NOW = Date.parse('2026-09-11T12:00:00Z');
+  const withRuns = (runs: { name: string; state: string }[]) =>
+    stateFromAnswer(
+      {
+        ...FULL,
+        checks: { total: runs.length, passed: 0, failed: 0, running: 0, noResult: 0, runs },
+      } as never,
+      NOW,
+    );
+
+  it('carries the counts GitHub reported to the station, not a schedule', () => {
+    const state = withRuns([
+      { name: 'one', state: 'passed' },
+      { name: 'two', state: 'passed' },
+      { name: 'three', state: 'failed' },
+      { name: 'four', state: 'skipped' },
+      { name: 'five', state: 'running' },
+    ]);
+    const work = state?.cast.prover.work;
+    expect(work?.kind).toBe('checks');
+    if (work?.kind !== 'checks') throw new Error('the Prover lost his checks');
+    expect(work.read).toEqual({ passed: 2, failed: 1, running: 1, skipped: 1, total: 5 });
+    // The schedule stays empty: a Check carries a start time and a duration,
+    // GitHub returns neither, and the console animates them. Filling it in
+    // would be inventing the motion.
+    expect(work.checks).toEqual([]);
+  });
+
+  it('counts a check with no result in the total, as the window’s heading does', () => {
+    const work = withRuns([
+      { name: 'named', state: 'passed' },
+      { name: 'cancelled', state: 'noResult' },
+    ])?.cast.prover.work;
+    if (work?.kind !== 'checks') throw new Error('the Prover lost his checks');
+    expect(work.read?.total).toBe(2);
+    expect(work.read?.passed).toBe(1);
+  });
+
+  it('leaves the station saying nothing was read when nothing was', () => {
+    // The whole point of the original guard, and it must survive the repair:
+    // an answer with no checks leaves the rail at NOT READ rather than at zero.
+    const work = stateFromAnswer(FULL, NOW)?.cast.prover.work;
+    if (work?.kind !== 'checks') throw new Error('the Prover lost his checks');
+    expect(work.read).toBeUndefined();
+    expect(work.checks).toEqual([]);
+  });
+
+  it('leaves the Fabricator and the Keeper saying nothing was read, because nothing is', () => {
+    const state = withRuns([{ name: 'one', state: 'passed' }]);
+    expect(state?.cast.fabricator.work).toEqual({
+      kind: 'build',
+      files: [],
+      commits: [],
+      counts: [],
+    });
+    expect(state?.cast.keeper.work).toEqual({
+      kind: 'review',
+      findings: [],
+      readSeconds: 0,
+      counts: [],
+    });
+  });
+});
+
+/**
+ * **Slice six: what the owner asked and what Virgil answered.**
+ *
+ * The reply is a claim — a session's account of what it did — so it is held to
+ * the same standard as the session report: a schema in `@virgil/agent-contracts`,
+ * a hand-written twin on the wire because Zod cannot reach a Netlify function,
+ * and a generated battery holding the two together.
+ *
+ * `KP3-05` is why this is generated rather than hand-paired. Nine hand-written
+ * cases once proved the report's two checkers agreed; a battery generated from
+ * the shape found **106** disagreements the same afternoon.
+ */
+describe('a conversation is refused by the wire exactly when the schema refuses it', () => {
+  const EXCHANGE = {
+    id: '34613415976',
+    askedAt: '2026-09-12T05:00:00Z',
+    question: 'What is the state of things?',
+    state: 'answered',
+    answeredAt: '2026-09-12T05:04:00Z',
+    answer: 'Two checks passed on this branch and nothing is in flight.',
+    reason: null,
+    runUrl: 'https://github.com/owner/repo/actions/runs/34613415976',
+  };
+  const GOOD = {
+    schema: 'virgil.conversation.v1',
+    updatedAt: '2026-09-12T05:04:00Z',
+    exchanges: [EXCHANGE],
+  };
+
+  it('accepts a conversation both checkers should accept', () => {
+    expect(Conversation.safeParse(GOOD).success).toBe(true);
+    expect(conversationComplaint(GOOD)).toBeNull();
+  });
+
+  /**
+   * Every mutation of the good shape that either checker should refuse. Each is
+   * a defect a screen would otherwise draw: an answer that is not there, a
+   * failure with no reason, a timestamp nobody can order by.
+   */
+  const MUTATIONS: { what: string; value: unknown }[] = [
+    { what: 'no schema', value: { ...GOOD, schema: undefined } },
+    { what: 'a schema from the future', value: { ...GOOD, schema: 'virgil.conversation.v2' } },
+    { what: 'an unknown top-level key', value: { ...GOOD, extra: 1 } },
+    { what: 'no updatedAt', value: { ...GOOD, updatedAt: undefined } },
+    { what: 'an unparseable updatedAt', value: { ...GOOD, updatedAt: 'yesterday' } },
+    { what: 'a date that does not exist', value: { ...GOOD, updatedAt: '2026-02-30T00:00:00Z' } },
+    { what: 'exchanges that are not a list', value: { ...GOOD, exchanges: {} } },
+    { what: 'an exchange that is not an object', value: { ...GOOD, exchanges: ['hello'] } },
+    {
+      what: 'an unknown key on an exchange',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, extra: 1 }] },
+    },
+    { what: 'no id', value: { ...GOOD, exchanges: [{ ...EXCHANGE, id: '' }] } },
+    { what: 'no question', value: { ...GOOD, exchanges: [{ ...EXCHANGE, question: '' }] } },
+    {
+      what: 'a state nobody has a word for',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, state: 'thinking' }] },
+    },
+    {
+      what: 'answered with no answer',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, answer: null }] },
+    },
+    {
+      what: 'an answer on an exchange that is still being worked',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, state: 'asked' }] },
+    },
+    {
+      what: 'failed with no reason',
+      value: {
+        ...GOOD,
+        exchanges: [{ ...EXCHANGE, state: 'failed', answer: null, answeredAt: null }],
+      },
+    },
+    {
+      what: 'a reason on an exchange that succeeded',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, reason: 'something' }] },
+    },
+    {
+      what: 'more exchanges than the shape allows',
+      value: { ...GOOD, exchanges: Array.from({ length: 51 }, () => EXCHANGE) },
+    },
+    {
+      what: 'a question longer than the shape allows',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, question: 'x'.repeat(4001) }] },
+    },
+    {
+      what: 'an id longer than the shape allows',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, id: 'x'.repeat(65) }] },
+    },
+    {
+      what: 'an answer longer than the shape allows',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, answer: 'x'.repeat(20_001) }] },
+    },
+    {
+      what: 'a reason longer than the shape allows',
+      value: {
+        ...GOOD,
+        exchanges: [
+          {
+            ...EXCHANGE,
+            state: 'failed',
+            answer: null,
+            answeredAt: null,
+            reason: 'x'.repeat(601),
+          },
+        ],
+      },
+    },
+    /**
+     * **The four below were written because the workflow step that writes this
+     * file forced the question "what does the writer do when the agent prints
+     * nothing?"** — and the honest answer was that nobody knew, because neither
+     * checker had ever been asked. They are drift, in both directions, in a pair
+     * of checkers a generated battery had already passed: the battery generates
+     * from the *shape*, and an empty string and a string that is not a URL are
+     * values, not shapes.
+     */
+    {
+      // A blank reply bubble. The schema allowed it (`z.string()` accepts the
+      // empty string and `.max()` does not change that) while the wire refused
+      // it, so a run whose agent printed nothing would have been accepted by the
+      // contract and refused by the site — and drawn, if it ever got through, as
+      // Virgil answering with silence.
+      what: 'an answer that is the empty string',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, answer: '' }] },
+    },
+    {
+      // The same hole in the other field: failed, with a reason that says
+      // nothing, which is what `state: 'failed'` already said.
+      what: 'a reason that is the empty string',
+      value: {
+        ...GOOD,
+        exchanges: [{ ...EXCHANGE, state: 'failed', answer: null, answeredAt: null, reason: '' }],
+      },
+    },
+    {
+      // Drift the other way: the schema said `.url()` and the wire only asked
+      // whether it was a non-empty string under 400 characters. Whatever went in
+      // here becomes an `href` the owner is invited to press.
+      what: 'a runUrl that is not a URL',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, runUrl: 'actions/runs/1' }] },
+    },
+    {
+      // The value becomes an `href` on the owner's phone. `z.string().url()`
+      // accepted this one — it asks for a scheme and does not ask which — so
+      // both checkers now ask what a browser would do with it rather than
+      // whether it parses.
+      what: 'a runUrl a browser would execute rather than fetch',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, runUrl: 'javascript:alert(1)' }] },
+    },
+    {
+      what: 'a runUrl with a scheme no browser navigates to',
+      value: { ...GOOD, exchanges: [{ ...EXCHANGE, runUrl: 'ftp://example.test/run' }] },
+    },
+    {
+      // And the length: the wire capped it at 400 and the schema capped it
+      // nowhere.
+      what: 'a runUrl longer than the wire accepts',
+      value: {
+        ...GOOD,
+        exchanges: [{ ...EXCHANGE, runUrl: `https://github.com/${'x'.repeat(400)}` }],
+      },
+    },
+  ];
+
+  for (const mutation of MUTATIONS) {
+    it(`both refuse ${mutation.what}`, () => {
+      const bySchema = Conversation.safeParse(mutation.value).success;
+      const byWire = conversationComplaint(mutation.value) === null;
+      // Stated as agreement rather than as two separate refusals: a case one
+      // accepts and the other refuses is the drift, and the message says which
+      // way round it went.
+      expect(
+        { schema: bySchema, wire: byWire },
+        `${mutation.what}: schema ${bySchema ? 'accepted' : 'refused'}, wire ${byWire ? 'accepted' : 'refused'}`,
+      ).toEqual({ schema: false, wire: false });
+    });
+  }
+
+  it('the wire says which field it refused, not merely that it did', () => {
+    // A reader told "no" is owed which field and why — the same rule the
+    // session report's checker follows.
+    expect(
+      conversationComplaint({ ...GOOD, exchanges: [{ ...EXCHANGE, state: 'thinking' }] }),
+    ).toMatch(/exchange 0 claims state/);
+    expect(conversationComplaint({ ...GOOD, updatedAt: 'yesterday' })).toMatch(/updatedAt/);
+  });
+});
+
+/**
+ * **Slice six: the conversation reaches the room, or is honestly absent.**
+ *
+ * `state.mjs` already holds the file to a hand-written twin of the `Conversation`
+ * schema before it sends it. This is checked **again** here, in the browser,
+ * against whatever actually arrived — a cached answer from an older deploy, a
+ * stub in a check, anything between. The project's rule is that what is not read
+ * is not drawn, and "the server promised" is not reading.
+ *
+ * The failure being prevented is specific and it has happened before, one field
+ * over: `KP7-01` drew fourteen invented checks marked "verified" beside a badge
+ * saying they could not be read. Here the equivalent is worse, because the owner
+ * will read what is drawn as **Virgil's own words**.
+ */
+describe('what the owner asked and what Virgil answered', () => {
+  const ASKED = {
+    id: '34613415976',
+    askedAt: '2026-09-12T05:00:00Z',
+    question: 'What is the state of things?',
+    state: 'asked',
+    answeredAt: null,
+    answer: null,
+    reason: null,
+    runUrl: 'https://github.com/owner/repo/actions/runs/34613415976',
+  };
+  const ANSWERED = {
+    ...ASKED,
+    state: 'answered',
+    answeredAt: '2026-09-12T05:04:00Z',
+    answer: 'Two checks passed on this branch and nothing is in flight.',
+  };
+  const withTalk = (exchanges: unknown, extra: Record<string, unknown> = {}) =>
+    stateFromAnswer({
+      ...FULL,
+      conversation: { schema: 'virgil.conversation.v1', updatedAt: ASKED.askedAt, exchanges },
+      conversationStatus: 'read',
+      ...extra,
+    } as never);
+
+  it('carries the exchanges that were read', () => {
+    const state = withTalk([ASKED, ANSWERED]);
+    expect(state?.conversation?.exchanges).toHaveLength(2);
+    expect(state?.conversation?.exchanges[1]).toMatchObject({
+      state: 'answered',
+      answer: ANSWERED.answer,
+      question: ASKED.question,
+    });
+  });
+
+  it('never invents a conversation on a state built from a recording', () => {
+    // Absent, not null. The recording has its own scripted thread and must keep
+    // it; a demonstration that says what it is is not a lie.
+    expect(demoAt(0, 0, false)).not.toHaveProperty('conversation');
+  });
+
+  it('says nothing was read rather than drawing a thread with nothing in it', () => {
+    const state = stateFromAnswer({
+      ...FULL,
+      conversation: null,
+      conversationStatus: 'absent',
+      conversationReason: 'Nobody has said anything on this branch yet.',
+    } as never);
+    expect(state?.conversation).toBeNull();
+    expect(state?.conversationStatus).toBe('absent');
+    expect(state?.conversationReason).toContain('Nobody has said anything');
+  });
+
+  it('distinguishes an unread conversation from an empty one', () => {
+    // Both draw nothing, and the window says a different thing about each.
+    expect(withTalk([])?.conversation).toEqual({ exchanges: [] });
+    expect(stateFromAnswer({ ...FULL, conversation: null } as never)?.conversation).toBeNull();
+  });
+
+  it('refuses a status this build has no word for, rather than passing it through', () => {
+    expect(withTalk([ASKED], { conversationStatus: 'pending' })?.conversationStatus).toBeNull();
+    expect(withTalk([ASKED], { conversationStatus: 'refused' })?.conversationStatus).toBe(
+      'refused',
+    );
+  });
+
+  /**
+   * Each of these is an exchange that would draw a claim nothing supports. They
+   * are dropped rather than repaired: there is no correct way to guess what
+   * Virgil said.
+   */
+  const UNDRAWABLE: { what: string; entry: unknown }[] = [
+    { what: 'answered with no answer', entry: { ...ANSWERED, answer: null } },
+    { what: 'answered with an empty answer', entry: { ...ANSWERED, answer: '' } },
+    { what: 'an answer on an exchange still being worked', entry: { ...ASKED, answer: 'hello' } },
+    {
+      what: 'failed with no reason',
+      entry: { ...ASKED, state: 'failed', reason: null },
+    },
+    { what: 'failed with an empty reason', entry: { ...ASKED, state: 'failed', reason: '' } },
+    { what: 'a state nobody has a word for', entry: { ...ASKED, state: 'thinking' } },
+    { what: 'no question', entry: { ...ASKED, question: '' } },
+    { what: 'no id', entry: { ...ASKED, id: '' } },
+    { what: 'an askedAt nobody can order by', entry: { ...ASKED, askedAt: 'yesterday' } },
+    { what: 'nothing at all', entry: null },
+    { what: 'a string where an exchange should be', entry: 'hello' },
+  ];
+
+  for (const { what, entry } of UNDRAWABLE) {
+    it(`drops ${what} rather than drawing it`, () => {
+      // Beside a good one, so this proves the bad row is dropped rather than the
+      // whole read being refused for an unrelated reason.
+      const state = withTalk([ANSWERED, entry]);
+      expect(state?.conversation?.exchanges).toHaveLength(1);
+      expect(state?.conversation?.exchanges[0]?.id).toBe(ANSWERED.id);
+    });
+  }
+
+  it('says nothing was read when nothing in the file could be drawn', () => {
+    // Not an empty thread. The file said something and none of it holds
+    // together, which is a different fact from nobody having spoken.
+    expect(withTalk([{ ...ANSWERED, answer: '' }])?.conversation).toBeNull();
+  });
+
+  it('drops a link a browser would execute rather than fetch, and keeps the message', () => {
+    // The value becomes an `href` on the owner's phone. Losing the whole message
+    // over its link would be the wrong repair; the link is what goes.
+    const state = withTalk([{ ...ANSWERED, runUrl: 'javascript:alert(1)' }]);
+    expect(state?.conversation?.exchanges).toHaveLength(1);
+    expect(state?.conversation?.exchanges[0]?.runUrl).toBeNull();
+    expect(state?.conversation?.exchanges[0]?.answer).toBe(ANSWERED.answer);
+  });
+
+  it('keeps an http link, which is a link', () => {
+    const state = withTalk([{ ...ANSWERED, runUrl: 'http://localhost:3000/run' }]);
+    expect(state?.conversation?.exchanges[0]?.runUrl).toBe('http://localhost:3000/run');
+  });
+
+  it('refuses a conversation whose exchanges are not a list', () => {
+    expect(withTalk({})?.conversation).toBeNull();
+    expect(withTalk(undefined)?.conversation).toBeNull();
   });
 });

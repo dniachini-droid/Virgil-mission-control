@@ -274,3 +274,33 @@ The fourth Keeper review's `KP5-16` found `KP2-14` recorded only in the title of
 | `KP3-06` | `main` has no branch protection, so every green check on a pull request is advisory | Deferred by the owner, `OD-0013`. GitHub will not enforce it on this plan; the owner intends to upgrade |
 | `KP3-11` | Every depiction of an agent in the live room is a session's own word about itself | A property of the design, not a defect in it. The room labels it as their word; `CLAUDE.md` says a builder's report is not evidence, and the surfaces say so too |
 | `KP2-11` | The agent step in `instruct.yml` is bounded by `CLAUDE.md` rather than by machinery | What bounds a running agent is branch protection, which is `KP3-06`, which is the owner's. The workflow's own refusal of the default branch and its single `contents: write` permission constrain the automated path and not the agent inside it |
+
+## The deny list now protects the thing that enforces it
+
+**SA-G-03, the audit's only blocking finding, and the half of it a session may close.**
+
+The governance auditor did not argue this one — it **reproduced** it. It fed the decision-record guard a payload writing `docs/decisions/OD-0099-entirely-fabricated.md`, containing a date and the invented quotation *"Yes, delete the constitution and give every session merge rights."* **Exit code 0.** A record at authority layer 1, authorising the destruction of layer 2, passed every machine control this repository has, in one command.
+
+It then found three bypasses stacked on top, and the third is the one repaired here: **`.claude/settings.json` was not in its own deny list, and neither was `.claude/hooks/`.** The list protects `constitution/**`, `knowledge/raw/**`, the commission and the gate schemas — and not the file that declares those protections, nor the hook that enforces the one rule about decision records. A session that found the guard inconvenient could delete the guard, or delete the rule that stops it deleting the guard, and nothing would have refused it.
+
+Four lines close that. They only ever remove power from sessions, never add it, which is what makes this ordinary work rather than something needing the owner: a rule that can only bind more tightly cannot be abused by the party adding it.
+
+**What it does not close, and what it must not be mistaken for.** The guard still cannot tell a true owner quotation from an invented one, because nothing in this repository holds an independent copy of anything the owner said. Every `OD-*` quotation was written by the session that filed it. The records say so themselves — `OD-0015`: *"the owner reading his own decision records is the only detection of a false one"* — and that remains exactly true. The auditor's recommendation for the real repair is the owner's to take: an owner-console transcript committed to `knowledge/raw/`, which is already append-only and already denied to sessions, and a test asserting that every blockquote in every `OD-*` appears verbatim in some raw record.
+
+Until that exists, this repair makes the guard harder to remove. It does not make it work.
+
+## Guessing at `INSTRUCT_SECRET` now costs something, and it is not the protection
+
+**`SA-S-02`, repaired as far as a free static site can repair it, and the remainder written down rather than implied.**
+
+`netlify/functions/instruct.mjs` had no limit of any kind on wrong guesses at the shared secret. The daily ceiling and the one-at-a-time rule sit *after* the comparison and bound successful runs, not attempts — so a wrong guess cost the attacker nothing and the rate was whatever their connection allowed, indefinitely. The endpoint's address and its header name are both world-readable in this repository. What a landed guess buys is a session running `--dangerously-skip-permissions` with the owner's Claude subscription token in scope, twenty times a day.
+
+The endpoint now refuses an address after five wrong guesses in fifteen minutes, checked **before** the comparison, with a missing header counted as the wrong guess it is and an unattributable request counted rather than waved through.
+
+**What that is not.** The counters are in the function's own memory. A Netlify Function is a Lambda: an instance is reused while it is warm, and a second instance starts with an empty map. An attacker who opens enough concurrent connections, or who waits for a cold start, gets a fresh allowance. The map is also capped at five thousand addresses and evicts the oldest, so a flood of addresses can evict a real attacker's entry. **This raises the cost of guessing. It does not bound it globally.** A shared store would, and there is none on the free path.
+
+**So the protection is the secret's entropy, and no code here can supply it.** The audit's first instruction is the one that matters — rotate `INSTRUCT_SECRET` to 32 or more random characters — and it is the owner's, in Netlify's environment settings, where no session can read, write or verify it. A session cannot even check that it was done: the function compares against whatever is installed and has no way to judge it. That is the boundary; the limiter is the second layer, recorded as a second layer.
+
+**One thing did get stronger than it was.** These are the first checks in this project that **run** `/api/instruct` rather than read its source. Every refusal above happens before any network call — that is the point of checking the limit before the comparison — so the handler is driven for real by ten cases. `KP9-04` records that the sibling endpoint's handler is invoked by no test; this is what closing that looks like, on the endpoint where it matters most.
+
+And one check got stronger by going red. `asks GitHub for nothing it does not need` banned four substrings anywhere in the file, which made it a check on the endpoint's vocabulary rather than on its requests — it failed because the limiter calls `attempts.delete(address)` on a `Map` in local memory. It now reads what actually reaches `gh(`, the single door to the GitHub API in that file, and every HTTP method the file issues.

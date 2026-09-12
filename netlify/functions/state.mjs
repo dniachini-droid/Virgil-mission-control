@@ -53,11 +53,26 @@ const cached = new Map();
 const CACHE_BRANCHES = 16;
 
 /**
- * How many branches the list carries. The count of what exists is reported
- * beside it, so a repository with forty branches shows eight and says forty
- * rather than showing eight and implying eight.
+ * How many branches the list carries.
+ *
+ * **It was eight, and the owner found the defect within minutes of the slice
+ * going live: "I can see the branches. But not the most recent slice."**
+ *
+ * This repository has nine branches. The list is ordered default-first, then the
+ * branches whose time is known, then by name — and alphabetically the ninth,
+ * the one that fell off the end, was `claude/virgil-phase-2-slice-4`: the slice
+ * he had just merged and was looking for. A cap chosen for tidiness hid exactly
+ * the row the whole feature existed to show him.
+ *
+ * Twenty is not a better guess than eight; it is a number large enough that this
+ * repository, and most repositories a person reads on a phone, have nothing
+ * hidden at all. The count of what exists still travels beside the list, so a
+ * repository that does exceed it is told the truth rather than shown a tidy lie.
+ * The real fix is an ordering that puts what is happening at the top, and that
+ * needs commit dates the branch list does not carry — recorded rather than
+ * pretended away.
  */
-const WATCHED_BRANCHES = 8;
+export const WATCHED_BRANCHES = 20;
 
 function remember(key, body) {
   if (cached.size >= CACHE_BRANCHES && !cached.has(key)) {
@@ -118,6 +133,17 @@ async function gh(path, token) {
     // The status and the path. Never the token, and never the headers.
     const error = new Error(`GitHub answered ${response.status} for ${path}`);
     error.status = response.status;
+    /**
+     * **SA-S-08: enough to tell a refused token from a used-up allowance.**
+     *
+     * Both arrive as 403. GitHub distinguishes them in two headers, and without
+     * them the owner is told his token was refused when in fact his hourly limit
+     * ran out — which sends him to rotate a credential that was never the
+     * matter. Two headers, never the token and never the rest of them.
+     */
+    error.remaining = response.headers.get('x-ratelimit-remaining');
+    const reset = response.headers.get('x-ratelimit-reset');
+    error.resetAt = reset ? new Date(Number(reset) * 1000).toISOString().slice(11, 16) : null;
     throw error;
   }
   return response.json();
@@ -286,28 +312,22 @@ async function readChecks(repo, sha, token) {
  * the difference between agreeing on nine reports and agreeing on some hundreds,
  * and it fails the moment one side moves without the other.
  */
-export function shapeComplaint(report) {
-  const isString = (value) => typeof value === 'string' && value.length > 0;
-  const isSha = (value) => typeof value === 'string' && /^[0-9a-f]{40}$/.test(value);
-  /**
-   * ISO-8601 with an offset, which is what `Timestamp` in `common.ts` is.
-   *
-   * **The reason first given here was false, and the Keeper's KP4-05 caught it.**
-   * It said `liveState.ts` would read an unparseable timestamp as *fresh*. It
-   * would not: `reportIsCurrent` opens with `if (Number.isNaN(at)) return false`,
-   * and even without that line the comparison against `NaN` is `false`, which is
-   * *not current* — the opposite of what was claimed. A comment asserting a
-   * defect that does not exist is the same species of artefact as one asserting
-   * a guard that does not exist, and this file has been the subject of both.
-   *
-   * The true reason is narrower and is enough. The schema requires an instant
-   * and this must refuse exactly what the schema refuses, or the two disagree
-   * about a report and which is right depends on which you ask. Beyond that, a
-   * timestamp is the only thing in the report that says *when*, and a reader
-   * downstream of this one — a future one, not `reportIsCurrent` — has no way to
-   * tell a broken clock from an old one if this admits both.
-   */
-  const isInstant = (value) =>
+/**
+ * **One implementation of "is this an instant", used by every wire check here.**
+ *
+ * It lived inside `shapeComplaint`, and the conversation checker written for
+ * slice six grew a second copy. The two agreed on every case anyone thought to
+ * write and disagreed on `2026-02-30` — caught by the generated drift battery on
+ * its first run, which is what `KP3-05` built that battery for, and the second
+ * time this precise date has been the divergence.
+ *
+ * So there is one of it now. Two functions that must agree are a future finding;
+ * one function cannot disagree with itself. Everything below this line is the
+ * reasoning that accumulated in the original, kept because each paragraph is a
+ * defect that was actually shipped.
+ */
+function isTimestamp(value) {
+  return (
     typeof value === 'string' &&
     /^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d+)?(Z|[+-]([01]\d|2[0-3]):[0-5]\d)$/.test(
       value,
@@ -341,7 +361,14 @@ export function shapeComplaint(report) {
         asDate.getUTCMonth() === month - 1 &&
         asDate.getUTCDate() === day
       );
-    })();
+    })()
+  );
+}
+
+export function shapeComplaint(report) {
+  const isString = (value) => typeof value === 'string' && value.length > 0;
+  const isSha = (value) => typeof value === 'string' && /^[0-9a-f]{40}$/.test(value);
+  const isInstant = isTimestamp;
   // Safe, not merely integral: `2 ** 53` is an integer to JavaScript and is not
   // one the schema accepts. KP4-09's second divergence.
   const isCount = (value) => Number.isSafeInteger(value) && value >= 0;
@@ -530,6 +557,160 @@ export function shapeComplaint(report) {
     return 'carries a note that is not one sentence of readable text.';
   }
   return null;
+}
+
+/**
+ * **The hand-written twin of `Conversation` in `@virgil/agent-contracts`.**
+ *
+ * Zod is not reachable from a Netlify function — it is deployed on its own, with
+ * no bundler and no workspace resolution — so the shape is checked here by hand,
+ * exactly as `shapeComplaint` checks the session report. And exactly as there, a
+ * second implementation of an intent is free to drift from the first: the drift
+ * test in `apps/mission-control/test/live-state-v11.test.ts` holds the two
+ * together, and `KP3-05` is the reason it is generated rather than hand-paired.
+ * Nine hand-written cases once proved agreement that a generated battery
+ * disproved on 106.
+ *
+ * Returns a complaint or `null`, never a boolean: a reader told "no" is owed
+ * which field and why.
+ */
+/**
+ * **A link the window will invite the owner to press.** The twin of `WebUrl` in
+ * `packages/agent-contracts/src/live.ts`, which is why it is written as the same
+ * three lines rather than as a regular expression that agrees with it today.
+ *
+ * Length alone stood here, and the schema beside it said `.url()`. Neither was
+ * the property that matters: one accepted `actions/runs/1`, the other accepted
+ * `javascript:alert(1)`. A scheme a browser navigates to, and a length both
+ * checkers accept.
+ */
+function isWebUrl(value, max) {
+  if (typeof value !== 'string' || value.length === 0 || value.length > max) return false;
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return false;
+  }
+  return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+}
+
+export function conversationComplaint(value) {
+  const isString = (v, max) => typeof v === 'string' && v.length > 0 && v.length <= max;
+  // The one implementation, not a second copy of it. A copy written here agreed
+  // with the original on every case anyone thought to write and disagreed on
+  // `2026-02-30`, which the generated drift battery caught on its first run.
+  const isInstant = isTimestamp;
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return 'is not an object';
+  }
+  if (value.schema !== 'virgil.conversation.v1') {
+    return `claims schema ${JSON.stringify(value.schema)}, which this build does not recognise`;
+  }
+  if (!isInstant(value.updatedAt)) return 'has no readable updatedAt';
+  if (!Array.isArray(value.exchanges)) return 'has no list of exchanges';
+  if (value.exchanges.length > 50)
+    return `carries ${value.exchanges.length} exchanges, over the 50 the schema allows`;
+  // Unknown keys travel through a schema declared `.strict()` unless something
+  // refuses them. KP3-05 found exactly that family.
+  const allowed = new Set(['schema', 'updatedAt', 'exchanges']);
+  for (const key of Object.keys(value)) {
+    if (!allowed.has(key)) return `carries an unknown key ${JSON.stringify(key)}`;
+  }
+  const entryKeys = new Set([
+    'id',
+    'askedAt',
+    'question',
+    'state',
+    'answeredAt',
+    'answer',
+    'reason',
+    'runUrl',
+  ]);
+  for (const [i, entry] of value.exchanges.entries()) {
+    const at = `exchange ${i}`;
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) {
+      return `${at} is not an object`;
+    }
+    for (const key of Object.keys(entry)) {
+      if (!entryKeys.has(key)) return `${at} carries an unknown key ${JSON.stringify(key)}`;
+    }
+    if (!isString(entry.id, 64)) return `${at} has no usable id`;
+    if (!isInstant(entry.askedAt)) return `${at} has no readable askedAt`;
+    if (!isString(entry.question, 4000)) return `${at} has no question`;
+    if (!['asked', 'answered', 'failed'].includes(entry.state)) {
+      return `${at} claims state ${JSON.stringify(entry.state)}`;
+    }
+    if (entry.answeredAt !== null && !isInstant(entry.answeredAt)) {
+      return `${at} has an unreadable answeredAt`;
+    }
+    if (entry.answer !== null && !isString(entry.answer, 20_000)) {
+      return `${at} has an unusable answer`;
+    }
+    if (entry.reason !== null && !isString(entry.reason, 600)) {
+      return `${at} has an unusable reason`;
+    }
+    if (entry.runUrl !== null && !isWebUrl(entry.runUrl, 400)) {
+      return `${at} has an unusable runUrl`;
+    }
+    // The two the schema enforces with `.refine`, and they are the ones that
+    // matter: an exchange marked answered with no answer would draw as a reply
+    // that is not there, and one marked failed with no reason would say
+    // something went wrong and refuse to say what.
+    if ((entry.state === 'answered') !== (entry.answer !== null)) {
+      return `${at} is answered exactly when it carries an answer, and this one is not`;
+    }
+    if ((entry.state === 'failed') !== (entry.reason !== null)) {
+      return `${at} is failed exactly when it carries a reason, and this one is not`;
+    }
+  }
+  return null;
+}
+
+/**
+ * What the owner and Virgil have said to each other on this branch.
+ *
+ * Shaped like `readSessionReport` and for the same reasons: absent, unreadable
+ * and refused are three different facts and the page says a different thing
+ * about each. A conversation that cannot be read is never drawn as a
+ * conversation with nothing in it.
+ */
+async function readConversation(repo, ref, token) {
+  let file;
+  try {
+    file = await gh(
+      `/repos/${repo}/contents/.virgil/conversation.json?ref=${encodeURIComponent(ref)}`,
+      token,
+    );
+  } catch (error) {
+    return {
+      conversation: null,
+      status: error?.status === 404 ? 'absent' : 'unreadable',
+      reason:
+        error?.status === 404
+          ? 'Nothing has been said on this branch yet.'
+          : `.virgil/conversation.json could not be read (${error?.status ?? 'no status'}).`,
+    };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(Buffer.from(file.content ?? '', 'base64').toString('utf8'));
+  } catch {
+    return {
+      conversation: null,
+      status: 'unreadable',
+      reason: '.virgil/conversation.json is not readable JSON.',
+    };
+  }
+  const wrong = conversationComplaint(parsed);
+  if (wrong) {
+    return {
+      conversation: null,
+      status: 'refused',
+      reason: `.virgil/conversation.json ${wrong}`,
+    };
+  }
+  return { conversation: parsed, status: 'read', reason: null };
 }
 
 async function readSessionReport(repo, ref, token) {
@@ -730,7 +911,21 @@ export default async function handler(request) {
   if (!repo) return fail('No repository is configured, so nothing has been read.');
 
   const url = new URL(request.url);
-  const forced = url.searchParams.get('fresh') === '1';
+  /**
+   * **`?fresh=1` is gone — the audit's SA-S-03.**
+   *
+   * It skipped the 25-second cache outright, and **no client in this application
+   * ever sent it** — `liveState.ts` sends only `?branch=`. It was a debugging
+   * affordance, and the moment this repository went public its only remaining
+   * function was to let a stranger switch off the one rate-limiting mechanism
+   * the endpoint has. Measured: 5,000 GitHub calls an hour divided by nine per
+   * uncached answer is about 556 requests — thirty seconds of one laptop — to
+   * exhaust the owner's hourly limit and turn his command centre off.
+   *
+   * `?branch=` still defeats the cache past sixteen distinct names, which is a
+   * narrower hole and a separate repair.
+   */
+  const forced = false;
   /**
    * **Which branch is being asked about, and why the caller may say.**
    *
@@ -785,8 +980,17 @@ export default async function handler(request) {
      * `GITHUB_BRANCH` is now what it was demoted to be: the branch shown when
      * nobody has said which. The row sends its own name explicitly
      * (`MobileRoom.tsx`), so the interface never depends on this precedence at
-     * all — but the precedence is wrong on its own terms and is fixed here too,
-     * because two defences against one defect is the point.
+     * all.
+     *
+     * **The Keeper's KP9-01, and it was about this comment rather than the
+     * code.** An earlier version of this paragraph said the precedence "is fixed
+     * here too". It was not: the line below is byte-identical to the one the
+     * previous review read, and `git diff` shows it as unchanged context. The
+     * commit message said the same thing. The behaviour is right — it is what
+     * `PHASE_2_SLICE_5_BRIEF.md` approved, `GITHUB_BRANCH` as the default
+     * selection — but a comment asserting an edit that does not exist is the
+     * species of artefact this file has been the subject of twice before, and
+     * the correction belongs where the false claim stood.
      */
     const wanted = asked || branch || repository.default_branch;
 
@@ -840,6 +1044,9 @@ export default async function handler(request) {
         sessionReportedIn: null,
         sessionReportReason: `The branch ${wanted} is not in this repository, so no session report could be read from it.`,
         sessionReportStatus: 'absent',
+        conversation: null,
+        conversationReason: `The branch ${wanted} is not in this repository, so nothing said on it could be read.`,
+        conversationStatus: 'absent',
       });
       remember(key, answer);
       return new Response(answer, {
@@ -857,15 +1064,33 @@ export default async function handler(request) {
     // Either of these may fail on its own without making the rest unknowable, so
     // each failure becomes `null` — "not read" — rather than taking the whole
     // answer down or, worse, becoming a zero.
-    const [checkResult, session] = await Promise.all([
+    const [checkResult, session, talk] = await Promise.all([
       readChecks(repo, sha, token),
       readSessionReport(repo, ref, token),
+      // Slice six. One more call, in the same batch rather than after it, so the
+      // conversation costs latency rather than a round trip.
+      readConversation(repo, ref, token),
     ]);
     // Already fetched above for the list. Fetching it twice would be paying
     // twice for one answer, on a project a bill has already stopped once.
     const pulls = pullsForList;
 
-    const pull = Array.isArray(pulls) ? pulls.find((entry) => entry.head?.ref === ref) : undefined;
+    /**
+     * **Matched on the full label, not the bare ref — SA-S-07.**
+     *
+     * `head.ref` on a pull request from a fork is the *fork's* branch name, and
+     * fork pull requests appear in this repository's list. So anyone could fork,
+     * name a branch `main`, open a pull request, and have their number and draft
+     * state drawn on the owner's row. `head.label` carries the owner prefix
+     * (`someone:main`), so comparing against `<this repo's owner>:<ref>` admits
+     * only branches that are actually here.
+     */
+    const mine = `${repo.split('/')[0]}:${ref}`;
+    const pull = Array.isArray(pulls)
+      ? pulls.find(
+          (entry) => (entry.head?.label ?? `${repo.split('/')[0]}:${entry.head?.ref}`) === mine,
+        )
+      : undefined;
 
     let reviews = null;
     if (pull) {
@@ -945,6 +1170,17 @@ export default async function handler(request) {
       sessionReportedIn: session.reportedIn ?? null,
       sessionReportReason: session.reason,
       sessionReportStatus: session.status ?? null,
+      /**
+       * **What the owner asked and what Virgil answered — slice six.**
+       *
+       * Under its own name, beside the session report and for the same reason:
+       * both are things a session wrote about itself. An answer is a claim, and
+       * it travels with the run that produced it so the owner can check it
+       * against what actually ran rather than against how it reads.
+       */
+      conversation: talk.conversation,
+      conversationReason: talk.reason,
+      conversationStatus: talk.status,
     });
     remember(key, answer);
     return new Response(answer, {
@@ -956,6 +1192,18 @@ export default async function handler(request) {
   } catch (error) {
     const status = error?.status;
     if (status === 401 || status === 403) {
+      /**
+       * **SA-S-08.** Now that this endpoint is public and unauthenticated, an
+       * exhausted hourly limit is by far the likeliest cause of a 403 — and it
+       * was reported as a permissions problem, which sends the owner to rotate a
+       * token that was never the matter. GitHub says which it is in a header, so
+       * this says which it is.
+       */
+      const remaining = error?.remaining;
+      if (status === 403 && remaining === '0') {
+        const resets = error?.resetAt ? ` It resets at ${error.resetAt}.` : '';
+        return fail(`GitHub's hourly request limit is used up, so nothing was read.${resets}`);
+      }
       return fail('The token was refused, or it is not permitted to read this repository.');
     }
     if (status === 404) {
