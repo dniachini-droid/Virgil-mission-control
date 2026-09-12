@@ -5,9 +5,23 @@ import { claimComplaint, GOVERNED, tierOf } from '../src/tiers.js';
 /**
  * **The tier is derived, and this proves it against work already done.**
  *
- * Every path list below was taken from a real commit in this repository, named
- * by its SHA, rather than invented to make the check agree with itself. A
- * fixture a builder wrote to pass is not evidence about anything.
+ * Every path list below is the **complete** set of files a real commit in this
+ * repository touched, named by its SHA, rather than invented to make the check
+ * agree with itself. A fixture a builder wrote to pass is not evidence about
+ * anything.
+ *
+ * **Complete rather than a selection, because of `KXR-39`.** The first draft
+ * carried a case citing `67a2067` for paths that commit never touched — the
+ * assertion was true and the provenance was invented, which is worse than no
+ * citation at all in a file whose whole advertised value is that it is not a
+ * fixture written to pass. A subset invites the same error more quietly: omit
+ * the governed path and a tier-3 commit reads as tier 2. So the lists are whole
+ * ones, and `git show --name-only <sha>` checks any of them in one command.
+ *
+ * They are not checked by a test. `actions/checkout` clones to depth 1, so a
+ * check reading commit history would pass here and fail in CI — which is the
+ * class of defect this repository has already paid for twice. Stated rather
+ * than left for a reader to discover: these citations are verified by hand.
  */
 
 const REVIEW_POLICY = readFileSync(
@@ -30,17 +44,21 @@ describe('the tier is derived from the diff, not declared', () => {
   });
 
   it('documentation alone is tier 1', () => {
-    // 92476d4 — "The order, written down, so it stops being re-litigated"
+    // 92476d4 — "The order, written down, so it stops being re-litigated",
+    // whose whole diff is one file.
     expect(tierOf(['docs/process/ROADMAP.md']).tier).toBe(1);
     expect(tierOf(['docs/process/ROADMAP.md', 'docs/process/PHASE_1_BRIEF.md']).tier).toBe(1);
   });
 
   it('product code inside an existing boundary is tier 2', () => {
-    // e98dd63 — the KP10-13 repair, before it touched anything governed.
+    // e98dd63 — the KP10-13 repair, all five files it touched.
     expect(
       tierOf([
+        'apps/mission-control/e2e/verify-web-build.ts',
         'apps/mission-control/src/world/mobile/MobileRoom.tsx',
+        'apps/mission-control/src/world/panel/Panel.tsx',
         'apps/mission-control/src/world/panel/panelStore.ts',
+        'apps/mission-control/src/world/window/AgentWindow.tsx',
       ]).tier,
     ).toBe(2);
   });
@@ -54,20 +72,28 @@ describe('the tier is derived from the diff, not declared', () => {
     const cases: { what: string; sha: string; paths: string[]; tier: 1 | 2 | 3 }[] = [
       {
         what: 'installing Superpowers edited what every session may do',
-        sha: 'OD-0016 lineage',
-        paths: ['CLAUDE.md', '.claude/settings.json'],
+        sha: 'ae29185',
+        paths: ['.claude/settings.json', 'CLAUDE.md', 'docs/process/INSPECTOR_PHASE_1_BRIEF.md'],
         tier: 3,
       },
       {
         what: 'the record-keeping commit wrote to the register',
         sha: '5667063',
-        paths: ['docs/process/FINDINGS.md', 'apps/mission-control/test/findings-register.test.ts'],
+        paths: [
+          'apps/mission-control/test/cache-inputs.test.ts',
+          'apps/mission-control/test/findings-register.test.ts',
+          'apps/mission-control/test/review-records.test.ts',
+          'docs/process/FINDINGS.md',
+          'docs/process/KEEPER_PR11_REREVIEW_OD0016.md',
+          'docs/process/KEEPER_PR14_REVIEW.md',
+          'turbo.json',
+        ],
         tier: 3,
       },
       {
-        what: 'the seed-graph regeneration touched no governed path',
-        sha: '67a2067',
-        paths: ['packages/test-fixtures/knowledge/seed-graph.json'],
+        what: 'the cache-staleness repair touched no governed path',
+        sha: '0756b78',
+        paths: ['packages/test-fixtures/knowledge/seed-graph.json', 'turbo.json'],
         tier: 2,
       },
       {
