@@ -76,7 +76,17 @@ Recorded in `CLAUDE.md` as: no session merges into `main` unless the owner has w
 
 `CLAUDE.md`'s first hard limit forbids reading any other repository. The owner authorised three by name on 2026-09-12: `obra/superpowers`, `NicholasSpisak/second-brain`, `toolboxmd/karpathy-wiki`. Read-only, for comparison; nothing was copied from `second-brain`, which carries no licence.
 
-`KXR-20` observes that `CLAUDE.md` now forbids reading another repository ten lines above a section installing one that every session loads. That reconciliation exists in a commit message and not in the file that governs, and it is a finding rather than something this record resolves.
+`KXR-20` observed that `CLAUDE.md` forbade reading another repository ten lines above a section installing one that every session loads, and that the reconciliation existed in a commit message rather than in the file that governs.
+
+**The owner resolved it on 2026-09-12 by changing the rule rather than the practice:**
+
+> "Should be allowed to read and clone other repositories."
+
+**This is the first time a hard limit in `CLAUDE.md` has been loosened**, and every other change to that file has only ever tightened one. It is recorded here as a decision rather than folded in as a repair, because a session must not be the thing that widens what sessions may do.
+
+**Bounded as given.** Reading and cloning: permitted. Modifying, pushing to, or opening anything on another repository: forbidden, unchanged, absolute. The owner's words name reading and cloning and nothing else, and the rule is written to that and no wider.
+
+The honest reason for the change, recorded so it is not mistaken for convenience: the old rule had been set aside three times in one day by owner authorisation, and was then contradicted outright by the file that carries it. A rule broken whenever it is inconvenient teaches sessions that rules are negotiable. The narrower rule is the one that can actually be kept.
 
 ## What the owner should check in this record
 
