@@ -51,8 +51,21 @@ import { demoAt } from '../room/demo.js';
  * one press away the window narrates the project.
  *
  * So the store can hold nothing, and a surface with nothing says so.
+ *
+ * **And the initial value is that nothing — `KP10-28`.** Everything above was
+ * written while this line still read `demoAt(0, 0, false)`, so the paragraph
+ * describing the repair shipped and the repair did not. `publishNothingRead`
+ * is called by the room, and on a live page that has read nothing the room is
+ * never mounted to call it: the outer layer draws the notice, the branch list
+ * and *"Talk to Virgil"* on its own. Nothing ever published, so the store kept
+ * the recording and the window drew it — which CI caught and three local runs
+ * did not.
+ *
+ * A store that starts holding the recording is a store that answers a question
+ * nobody has asked yet. It starts holding nothing, and the first real state
+ * replaces it.
  */
-let current: DemoState | null = demoAt(0, 0, false);
+let current: DemoState | null = null;
 const listeners = new Set<() => void>();
 
 function announce(): void {
