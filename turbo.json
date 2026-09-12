@@ -2,20 +2,47 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "typecheck": {
-      "dependsOn": ["^typecheck"],
+      "dependsOn": [
+        "^typecheck"
+      ],
       "outputs": []
     },
     "test": {
-      "dependsOn": ["^build"],
-      "outputs": ["coverage/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "coverage/**"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/constitution/**",
+        "$TURBO_ROOT$/docs/decisions/**",
+        "$TURBO_ROOT$/docs/process/**",
+        "$TURBO_ROOT$/docs/architecture/**",
+        "$TURBO_ROOT$/knowledge/**",
+        "$TURBO_ROOT$/schemas/**",
+        "$TURBO_ROOT$/.claude/**",
+        "$TURBO_ROOT$/.github/workflows/**",
+        "$TURBO_ROOT$/CLAUDE.md",
+        "$TURBO_ROOT$/netlify/**"
+      ]
     },
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
     },
     "build:owner": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/owner-build/**"],
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/owner-build/**"
+      ],
       "cache": false,
       "env": [
         "VIRGIL_OWNER_SHA",
@@ -25,14 +52,23 @@
       ]
     },
     "verify:owner": {
-      "dependsOn": ["build:owner"],
+      "dependsOn": [
+        "build:owner"
+      ],
       "outputs": [],
       "cache": false,
-      "env": ["CHROMIUM_EXECUTABLE", "PLAYWRIGHT_BROWSERS_PATH"]
+      "env": [
+        "CHROMIUM_EXECUTABLE",
+        "PLAYWRIGHT_BROWSERS_PATH"
+      ]
     },
     "build:owner:v11": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/owner-build-v11/**"],
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/owner-build-v11/**"
+      ],
       "cache": false,
       "env": [
         "VIRGIL_OWNER_SHA",
@@ -42,17 +78,26 @@
       ]
     },
     "verify:owner:v11": {
-      "dependsOn": ["build:owner:v11"],
+      "dependsOn": [
+        "build:owner:v11"
+      ],
       "outputs": [],
       "cache": false,
-      "env": ["CHROMIUM_EXECUTABLE", "PLAYWRIGHT_BROWSERS_PATH"]
+      "env": [
+        "CHROMIUM_EXECUTABLE",
+        "PLAYWRIGHT_BROWSERS_PATH"
+      ]
     },
     "build:web": {
       "cache": false,
-      "outputs": ["dist/web/**"]
+      "outputs": [
+        "dist/web/**"
+      ]
     },
     "verify:web": {
-      "dependsOn": ["build:web"],
+      "dependsOn": [
+        "build:web"
+      ],
       "cache": false
     }
   }
