@@ -52,7 +52,16 @@
       "Edit(./schemas/gate-*)",
       "Write(./schemas/gate-*)",
       "WebFetch",
-      "WebSearch"
+      "WebSearch",
+      "Write(./.claude/settings.json)",
+      "Edit(./.claude/settings.json)",
+      "Write(./.claude/hooks/**)",
+      "Edit(./.claude/hooks/**)"
+    ],
+    "ask": [
+      "Bash(gh pr merge*)",
+      "mcp__github__enable_pr_auto_merge",
+      "mcp__github__merge_pull_request"
     ]
   },
   "hooks": {

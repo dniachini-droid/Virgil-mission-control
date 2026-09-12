@@ -26,6 +26,25 @@ Only the owner may change layers 1 and 2. A session that finds a contradiction r
 - Every role performs one hop. A session assigned one role does not perform the next role's work.
 - A builder's success report is not evidence. Deterministic checks and independent review are.
 
+## Merging
+
+**No session merges anything into `main` unless the owner has written `merge approved` in the owner console, in that turn, naming the pull request.**
+
+Not implied by "yes", not by "go", not by "clean it up", not by having authorised the pull request that carries the work, and not by having said it about a different pull request an hour earlier. The phrase, and which pull request it applies to. It authorises that one merge and expires with it.
+
+**A session may propose a merge, and should.** The owner's instruction of 2026-09-12 is that a session does the merging and asks first — it suggests when the moment is right, says what is and is not reviewed, and waits. What it may not do is decide.
+
+**What enforces it, in descending order of how much it is worth:**
+
+1. **GitHub branch protection requiring an approving review from the owner.** The only one that cannot be touched by a session, because it lives in the repository's ruleset rather than in the tree. It is the one that matters.
+2. **The `ask` rules in `.claude/settings.json`** — `mcp__github__merge_pull_request`, `mcp__github__enable_pr_auto_merge`, `Bash(gh pr merge*)`. `ask` rather than `deny` deliberately: a flat refusal would stop the owner having a session merge on his word, which is what he asked for. These stop the tool and put the decision in front of him. They are enumerated, so a route nobody listed stays open — `curl` against GitHub's API is the obvious one and is not enumerable.
+3. **`Bash(git merge*)` stays denied outright.** A local merge is not a thing a session here has any reason to do.
+4. **This paragraph**, which works on a session that reads it and means nothing to one that does not.
+
+**And one thing this does not do, found by doing it rather than by reasoning about it.** `.claude/settings.json` and `.claude/hooks/` carry `Write` and `Edit` deny rules so the list cannot be widened by the party it constrains — `SA-G-03`, whose auditor demonstrated that gap rather than arguing it. **Those rules did not stop the session that wrote this paragraph from editing that same file**, because it used `python3` from `Bash`, and the rules name the `Write` and `Edit` tools rather than the file. The same is true of `sed -i`, `cat >`, `tee`, and every other way a shell writes.
+
+So the self-protection is thinner than it reads. It stops an honest session reaching for the obvious tool. It does not stop a determined one, and it is written down here as a hurdle rather than a wall — which is the only thing that makes the difference safe to rely on.
+
 ## Repository map
 
 - `apps/mission-control/` — the web application and both 3D worlds (Phase 0: two spikes only).

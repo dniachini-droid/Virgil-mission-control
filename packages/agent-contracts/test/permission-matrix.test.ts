@@ -371,3 +371,97 @@ describe('session tool surface', () => {
     }
   });
 });
+
+/**
+ * **Nothing merges into `main` without the owner saying so, in those words.**
+ *
+ * The owner set this on 2026-09-12, tightening the hard limit `CLAUDE.md`
+ * already carried. It is a rule about the one action in this repository that
+ * cannot be undone by another commit.
+ *
+ * **Why a phrase and not a judgement.** A session reading "go", "yes", "clean it
+ * up" or "proceed" can construct a reading in which merging is obviously
+ * intended, and on 12 September one did exactly that and had to stop itself. The
+ * cost of asking is one message. The cost of being wrong is a branch on `main`
+ * that nobody reviewed.
+ *
+ * **What these assertions are worth, stated rather than implied.** They check
+ * that the deny list still says what it says. They do not stop a session from
+ * merging by a route nobody enumerated — `curl` against GitHub's API is the
+ * obvious one — and they do not stop a session that rewrites the list before the
+ * harness reads it. The thing that actually cannot be bypassed is GitHub branch
+ * protection requiring the owner's approving review, and that lives outside this
+ * tree where no session can reach it. These are the hurdle; that is the wall.
+ */
+describe('merging is the owner’s, and the tools to do it are not in a session’s hands', () => {
+  const deny = settings.permissions.deny as string[];
+
+  it('puts every merge route this session has in front of the owner', () => {
+    // `ask`, not `deny`. The owner's instruction was that a session does the
+    // merging and asks first — a flat refusal would stop him having one merge on
+    // his word, which is the thing he asked for.
+    const ask = (settings.permissions as { ask?: string[] }).ask ?? [];
+    for (const route of [
+      'mcp__github__merge_pull_request',
+      'mcp__github__enable_pr_auto_merge',
+      'Bash(gh pr merge*)',
+    ]) {
+      expect(ask, `${route} does not stop to ask, so a session can merge unasked`).toContain(route);
+      expect(
+        deny,
+        `${route} is denied outright, so the owner cannot authorise a merge`,
+      ).not.toContain(route);
+    }
+    // A local merge is a different thing and a session here has no reason to do one.
+    expect(deny, 'a session can run git merge').toContain('Bash(git merge*)');
+  });
+
+  it('protects the list from the sessions it constrains, as far as it goes', () => {
+    /**
+     * **And it does not go as far as it reads.** These rules name the `Write` and
+     * `Edit` tools, not the file. The session that added them edited this very
+     * settings file afterwards using `python3` from `Bash`, and nothing refused
+     * it; `sed -i`, `cat >` and `tee` are the same hole. Recorded in `CLAUDE.md`
+     * rather than left for someone to find, because a protection believed to be
+     * stronger than it is is worse than one known to be weak.
+     */
+    // SA-G-03, whose auditor demonstrated this rather than arguing it: the deny
+    // list protected the constitution, the commission and the gate schemas, and
+    // not the file declaring those protections. A session that found the rule
+    // inconvenient could delete the rule.
+    for (const path of [
+      'Write(./.claude/settings.json)',
+      'Edit(./.claude/settings.json)',
+      'Write(./.claude/hooks/**)',
+      'Edit(./.claude/hooks/**)',
+    ]) {
+      expect(deny, `${path} is not denied, so a session can widen its own permissions`).toContain(
+        path,
+      );
+    }
+  });
+
+  it('still refuses to push to the default branch by every spelling', () => {
+    // The older half of the same rule, kept honest here rather than assumed.
+    for (const route of [
+      'Bash(git push origin main*)',
+      'Bash(git push * main)',
+      'Bash(git push *:main*)',
+      'Bash(git push *:refs/heads/main*)',
+      'Bash(git push --force*)',
+      'Bash(git push -f*)',
+    ]) {
+      expect(deny, `${route} is not denied`).toContain(route);
+    }
+  });
+
+  it('CLAUDE.md states the phrase, so a session reading only the rules finds it', () => {
+    // A permission list nobody reads is enforcement; a rule nobody can find is
+    // not. Both, because they fail in different ways.
+    const rules = readFileSync(new URL('../../../CLAUDE.md', import.meta.url), 'utf8');
+    expect(rules, 'CLAUDE.md does not carry the merge rule').toContain('merge approved');
+    expect(rules, 'CLAUDE.md does not say the phrase is required rather than implied').toMatch(
+      /not implied by/i,
+    );
+  });
+});
