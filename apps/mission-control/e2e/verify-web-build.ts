@@ -187,6 +187,21 @@ function serve(
       const asked = new URLSearchParams(query).get('branch');
       askedFor.push(asked);
       const answer = state(asked);
+      /**
+       * **Answered immediately here, and deliberately not always.**
+       *
+       * `KP10-02` was found by making this line answer four seconds late, which
+       * is what a loaded CI runner does to a local stub. Under that delay eleven
+       * assertions across four case families failed against a build that was
+       * correct — the badge, the four report states, the Prover's window, the
+       * branch-choice badge, the endpoint-failure notice, and the two slice-six
+       * threads the reviewer reported. Every one was the same defect: acting on a
+       * page whose `/api/state` had not answered yet.
+       *
+       * Re-inserting a `setTimeout` of a few seconds around these two lines
+       * reproduces all of it, and is how a future change to this file should be
+       * tested before it is trusted.
+       */
       response.writeHead(answer.status, { 'content-type': 'application/json; charset=utf-8' });
       response.end(answer.body);
       return;
@@ -510,6 +525,168 @@ async function worldStill(budget: number): Promise<boolean> {
  * a word of it is read. Returns `null` with the reason pushed as a failure when
  * it is not.
  */
+/**
+ * **The world is drawn *and* the endpoint has answered — the root of `KP10-02`.**
+ *
+ * Nine places in this file waited for `document.querySelectorAll('canvas')` after
+ * navigating and then acted. A canvas appears as soon as the world draws, which
+ * is before `/api/state` has said anything — so every one of them could act on a
+ * page that had read nothing yet.
+ *
+ * The reviewer found two. Reproducing the condition — the stub answering four
+ * seconds late, which is what a loaded runner does — found it in the badge
+ * cases, the four report-state cases, and the Prover's, where the page correctly
+ * covers the world with `.v11-live-notice` while it has nothing, so a press on
+ * the Prover is correctly refused and the check reads that as a defect.
+ *
+ * `.v11-live-notice` is the page saying it has nothing to draw. Its absence,
+ * with a canvas present, is the page saying it has an answer. That is the
+ * condition these cases always meant, and it is one line rather than nine.
+ *
+ * **Not for the cases whose whole subject is an unreadable answer** — those wait
+ * for the notice to *appear*, and are right to.
+ */
+async function worldReady(wait: number): Promise<boolean> {
+  return page
+    .waitForFunction(
+      () =>
+        document.querySelectorAll('canvas').length > 0 &&
+        document.querySelector('.v11-live-notice') === null,
+      undefined,
+      { timeout: wait },
+    )
+    .then(() => true)
+    .catch(() => false);
+}
+
+/**
+ * **Reads the badge, and not before the endpoint has answered — `KP10-02`, one
+ * case family wider than it was found.**
+ *
+ * The reviewer found the race in the two slice-six cases. Reproducing it — by
+ * making the stub answer four seconds late, which is what a loaded CI runner
+ * does — showed the badge and report-state cases have exactly the same defect:
+ * they press and read with only a canvas wait between, and a canvas appears
+ * before `/api/state` has said anything. Under that delay eight of them failed
+ * against a correct build, with the badge reading *"branch —, read from GitHub
+ * never yet"* — the page honestly saying it had nothing yet, and the check
+ * calling that a lie.
+ *
+ * Fixing only the two that were reported would have left the same fault in the
+ * same file, already known, which is the shape of every finding this file keeps
+ * producing.
+ */
+async function readBadge(marker: string | RegExp, what: string, wait: number): Promise<string> {
+  await press('.v11-badge');
+  // Tolerant, as before: when `press` has already refused — a control nothing
+  // can reach — the panel never opens, and the run must end with that finding
+  // rather than a stack trace about a selector.
+  await page
+    .waitForSelector('.v11-badge-body', { state: 'visible', timeout: wait })
+    .catch(() => {});
+  await page
+    .waitForFunction(
+      (needle: string) => {
+        const text =
+          (document.querySelector('.v11-badge-body') as HTMLElement | null)?.innerText ?? '';
+        return needle.startsWith('re:')
+          ? new RegExp(needle.slice(3)).test(text)
+          : text.includes(needle);
+      },
+      marker instanceof RegExp ? `re:${marker.source}` : marker,
+      { timeout: wait },
+    )
+    .catch(() => {
+      // Not a failure here. The assertions that follow say precisely what was
+      // missing; this only stops them being asked too early.
+      void what;
+    });
+  return page.evaluate(
+    () => (document.querySelector('.v11-badge-body') as HTMLElement | null)?.innerText ?? '',
+  );
+}
+
+/**
+ * **Opens a window the way a person does, and does not read it until it is
+ * actually there — `KP10-02`.**
+ *
+ * The slice-six cases pressed `.v11-talk` and read the sheet with nothing
+ * between them but a wait for a canvas. A canvas appears as soon as the world
+ * draws; the conversation appears only once `/api/state` has answered. On a busy
+ * machine the read landed between the two, the thread was drawn by
+ * `nothingSaidYet` — one turn, which is exactly the `1 messages` the failure
+ * reported — and ten assertions failed against a build that was correct.
+ *
+ * It is `K11-04` for the third time in this file, and the second time in the
+ * commit that repaired it 150 lines above for the branch list, in a paragraph
+ * saying a check that reddens for how busy the machine is "teaches everyone to
+ * ignore it". A reviewer found it by running the candidate's own acceptance
+ * check in CI, where this file had never run.
+ *
+ * So it is a helper rather than two patched call sites. Three conditions, in the
+ * order they become true, each a **positive** signal so a premature read cannot
+ * pass by being early:
+ *
+ *  1. the press is read and the window the product opens is the one expected —
+ *    the condition the Prover's cases have always waited on and these did not;
+ *  2. the sheet is on screen;
+ *  3. **something only the answer being present can produce** is in it.
+ *
+ * A timeout on (3) is a real failure and is reported as one: it means the page
+ * never drew what the endpoint gave it. What it can no longer be is a race.
+ */
+async function openAndRead(
+  control: string,
+  agent: string,
+  marker: string,
+  what: string,
+  /** The frame-derived wait, passed in because it is block-scoped below — the
+   * same convention `worldStill` follows. */
+  wait: number,
+): Promise<string | null> {
+  await press(control);
+  const opened = await page
+    .waitForFunction(
+      (want) =>
+        (window as { __virgilV11?: { window?: string | null } }).__virgilV11?.window === want,
+      agent,
+      { timeout: wait },
+    )
+    .then(() => true)
+    .catch(() => false);
+  if (!opened) {
+    const actual = await page.evaluate(
+      () => (window as { __virgilV11?: { window?: string | null } }).__virgilV11?.window ?? null,
+    );
+    failures.push(
+      `${what}: pressing ${control} opened ${actual ?? 'no window'}, not the ${agent}’s`,
+    );
+    return null;
+  }
+  await page.waitForSelector('.v11w-sheet', { state: 'visible', timeout: wait }).catch(() => {});
+  const arrived = await page
+    .waitForFunction(
+      (needle) =>
+        ((document.querySelector('.v11w-sheet') as HTMLElement | null)?.innerText ?? '').includes(
+          needle,
+        ),
+      marker,
+      { timeout: wait },
+    )
+    .then(() => true)
+    .catch(() => false);
+  if (!arrived) {
+    const seen = await page.evaluate(
+      () => (document.querySelector('.v11w-sheet') as HTMLElement | null)?.innerText ?? '',
+    );
+    failures.push(
+      `${what}: the window never drew "${marker}", which the answer carried. It shows: "${seen.slice(0, 240)}"`,
+    );
+    return null;
+  }
+  return readSheet(what);
+}
+
 async function readSheet(what: string): Promise<string | null> {
   return readVisible('.v11w-sheet', what);
 }
@@ -583,9 +760,13 @@ try {
   // 1. **It asks**, unprompted. The defect this catches is a transport that
   //    exists and is never called, which shipped once already.
   await page.goto(url, { waitUntil: 'load' });
-  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
-    timeout: 120_000,
-  });
+  // A literal, because the frame-derived budget is measured from this page and
+  // does not exist yet. Sixty seconds is the floor that budget itself takes.
+  if (!(await worldReady(60_000))) {
+    failures.push(
+      'the page never finished reading /api/state, so nothing after this is a fact about the product',
+    );
+  }
   const frame = await framePeriodMs();
   const budget = Math.max(60_000, Math.round(frame * 30));
   context.setDefaultTimeout(budget);
@@ -609,14 +790,7 @@ try {
   //    canvas, so the readable statement of what was read is the badge — which
   //    is also what the owner taps to find out where the numbers came from, and
   //    therefore the thing that must not be wrong.
-  await press('.v11-badge');
-  // Tolerant, like the two below it: when `press` has already refused — a
-  // control nothing can reach — the panel never opens, and the run must end with
-  // that finding rather than with a stack trace about a selector.
-  await page.waitForSelector('.v11-badge-body', { state: 'visible' }).catch(() => {});
-  const badge = await page.evaluate(
-    () => (document.querySelector('.v11-badge-body') as HTMLElement | null)?.innerText ?? '',
-  );
+  const badge = await readBadge(ANSWER.branch, 'the badge', budget);
   if (!badge.includes(ANSWER.branch)) {
     failures.push(`the badge does not name the branch it was told (${ANSWER.branch})`);
   }
@@ -639,14 +813,12 @@ try {
   for (const scenario of REPORT_STATES) {
     answer = { status: 200, body: JSON.stringify({ ...ANSWER, ...scenario.answer }) };
     await page.goto(`${url}?state=${scenario.state}`, { waitUntil: 'load' });
-    await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
-      timeout: budget,
-    });
-    await press('.v11-badge');
-    await page.waitForSelector('.v11-badge-body', { state: 'visible' }).catch(() => {});
-    const said = await page.evaluate(
-      () => (document.querySelector('.v11-badge-body') as HTMLElement | null)?.innerText ?? '',
-    );
+    if (!(await worldReady(budget))) {
+      failures.push(
+        'the page never finished reading /api/state, so nothing after this is a fact about the product',
+      );
+    }
+    const said = await readBadge(scenario.must, `the ${scenario.state} report badge`, budget);
     if (!scenario.must.test(said)) {
       failures.push(
         `with a ${scenario.state} report the badge does not say so (${scenario.must}): "${said.slice(0, 200)}"`,
@@ -697,9 +869,11 @@ try {
     }),
   };
   await page.goto(`${url}?checks=1`, { waitUntil: 'load' });
-  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
-    timeout: budget,
-  });
+  if (!(await worldReady(budget))) {
+    failures.push(
+      'the page never finished reading /api/state, so nothing after this is a fact about the product',
+    );
+  }
   /**
    * The Prover's window is opened the way a person opens it: two taps on the
    * world — the first travels to him, the second opens the record on his screen.
@@ -810,9 +984,11 @@ try {
     body: JSON.stringify({ ...ANSWER, checks: null, checksReason: WHY }),
   };
   await page.goto(`${url}?unread=1`, { waitUntil: 'load' });
-  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
-    timeout: budget,
-  });
+  if (!(await worldReady(budget))) {
+    failures.push(
+      'the page never finished reading /api/state, so nothing after this is a fact about the product',
+    );
+  }
   await page.waitForSelector('[data-touch-target="prover"]', { state: 'attached' }).catch(() => {});
   if (!(await worldStill(budget))) {
     failures.push('the world never settled, so no press on it could be read as a tap');
@@ -968,9 +1144,11 @@ try {
   };
   askedFor.length = 0;
   await page.goto(`${url}?branches=1`, { waitUntil: 'load' });
-  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
-    timeout: budget,
-  });
+  if (!(await worldReady(budget))) {
+    failures.push(
+      'the page never finished reading /api/state, so nothing after this is a fact about the product',
+    );
+  }
   await press('[data-touch-target="branches"]');
   await page.waitForSelector('.v11-branch-rows', { state: 'visible' }).catch(() => {});
   const rows = await page.evaluate(() =>
@@ -1038,10 +1216,14 @@ try {
       `choosing a branch never asked the endpoint for it; it asked for ${JSON.stringify(askedFor)}`,
     );
   }
-  const afterTap = await press('.v11-badge').then(() =>
-    page.evaluate(
-      () => (document.querySelector('.v11-badge-body') as HTMLElement | null)?.innerText ?? '',
-    ),
+  // The badge is read only once it carries the branch that was chosen. Reading
+  // it the instant the press lands reads the *previous* branch's answer, which
+  // is the confusion this whole case exists to catch — in the check rather than
+  // in the product.
+  const afterTap = await readBadge(
+    'claude/a-branch-the-recording-never-names',
+    'the badge after choosing a branch',
+    budget,
   );
   if (!afterTap.includes('claude/a-branch-the-recording-never-names')) {
     failures.push(
@@ -1166,9 +1348,11 @@ try {
   await page.goto(`${url}?ninth=1&branch=${encodeURIComponent(PAST_THE_CAP)}`, {
     waitUntil: 'load',
   });
-  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
-    timeout: budget,
-  });
+  if (!(await worldReady(budget))) {
+    failures.push(
+      'the page never finished reading /api/state, so nothing after this is a fact about the product',
+    );
+  }
   /**
    * **Waited for, not assumed — and this went red once before it was.**
    *
@@ -1376,14 +1560,23 @@ try {
     }),
   };
   await page.goto(`${url}?talk=1`, { waitUntil: 'load' });
-  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
-    timeout: budget,
-  });
+  if (!(await worldReady(budget))) {
+    failures.push(
+      'the page never finished reading /api/state, so nothing after this is a fact about the product',
+    );
+  }
   // The dock button, not a world target: "Talk to Virgil" is how a person opens
-  // this, and pressing it the way a person does is the point of this file.
-  await press('.v11-talk');
-  await page.waitForSelector('.v11w-sheet', { state: 'visible' }).catch(() => {});
-  const thread = (await readSheet('Virgil’s window with a conversation')) ?? '';
+  // this, and pressing it the way a person does is the point of this file. The
+  // marker is the oldest exchange the stub carries, so the wait ends only when
+  // the whole thread has been drawn rather than the first line of it.
+  const thread =
+    (await openAndRead(
+      '.v11-talk',
+      'virgil',
+      'A question only this stub asks',
+      'Virgil’s window with a conversation',
+      budget,
+    )) ?? '';
 
   for (const said of [
     'A question only this stub asks',
@@ -1515,12 +1708,22 @@ try {
     }),
   };
   await page.goto(`${url}?talkgone=1`, { waitUntil: 'load' });
-  await page.waitForFunction(() => document.querySelectorAll('canvas').length > 0, undefined, {
-    timeout: budget,
-  });
-  await press('.v11-talk');
-  await page.waitForSelector('.v11w-sheet', { state: 'visible' }).catch(() => {});
-  const unreadThread = (await readSheet('Virgil’s window with nothing read')) ?? '';
+  if (!(await worldReady(budget))) {
+    failures.push(
+      'the page never finished reading /api/state, so nothing after this is a fact about the product',
+    );
+  }
+  // The marker here is the refusal's own sentence, for the same reason: the
+  // window opens before the endpoint answers, and the state before the answer
+  // and the state this case is about both draw a single system turn.
+  const unreadThread =
+    (await openAndRead(
+      '.v11-talk',
+      'virgil',
+      'A refusal only this stub gives.',
+      'Virgil’s window with nothing read',
+      budget,
+    )) ?? '';
   if (!/could not be read/i.test(unreadThread)) {
     failures.push(
       `with no conversation read, the window does not say so: "${unreadThread.slice(0, 240)}"`,
@@ -1570,7 +1773,19 @@ try {
    */
   answer = { status: 500, body: JSON.stringify({ ok: false, reason: 'the endpoint failed' }) };
   await page.goto(`${url}?again=1`, { waitUntil: 'load' });
-  await page.waitForSelector('.v11-live-notice', { state: 'visible' }).catch(() => {});
+  // The notice exists before it says anything useful — it reads "Reading this
+  // repository…" while the request is in flight and only then becomes the
+  // refusal. Waiting for the element is waiting for the wrong thing.
+  await page
+    .waitForFunction(
+      () =>
+        /could not be read/i.test(
+          (document.querySelector('.v11-live-notice') as HTMLElement | null)?.innerText ?? '',
+        ),
+      undefined,
+      { timeout: budget },
+    )
+    .catch(() => {});
   const notice = await page.evaluate(
     () => (document.querySelector('.v11-live-notice') as HTMLElement | null)?.innerText ?? '',
   );

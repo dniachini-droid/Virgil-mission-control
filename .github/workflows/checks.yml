@@ -189,9 +189,24 @@ jobs:
   #     have failed if `build:web` broke. Its own job rather than a step of
   #     another, because it is quick and because a check folded into a slow job
   #     is a check that gets skipped when the slow job times out.
+  #
+  #     **It now runs on every push — `KP10-01`.** It did not, and the cost of
+  #     that was measured rather than argued: eleven commits went in over four
+  #     days, the five push runs each ran lint, typecheck and tests only, and the
+  #     first time this job ran at all was when the pull request opened. It was
+  #     red, on the two cases the slice's own brief names by name.
+  #
+  #     The reason it sat behind the push exclusion was cost, and that reason
+  #     does not apply to this job. The exclusion was written for `checks` and
+  #     the V11 verify matrix, which are the expensive ones — 582 machine-minutes
+  #     across 22 pull requests for `checks` alone. This one builds a single web
+  #     target and drives it: a handful of minutes, against a branch that
+  #     otherwise goes days without its acceptance check running once.
+  #
+  #     The expensive jobs below keep the exclusion. A gate nobody can afford to
+  #     run is a different problem from a gate nobody runs.
   verify-web:
     name: hosted build, read and refused
-    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
