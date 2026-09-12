@@ -32,6 +32,7 @@
 - `deferred` — the owner deferred it, by a decision the pointer names.
 - `caught_not_repaired` — a check now catches the class of defect; the defect itself is unrepaired. Two different statements, and neither substitutes for the other.
 - `by_design` — examined and found to be a property of the design rather than a defect in it.
+- `withdrawn_gap_open` — the claim the finding named was corrected, and the gap that claim exposed still stands. The final review raised this as an observation rather than a finding: `KXR-01` read `repaired` and `KXR-07` read `open` for what is one gap, so the register was overstating itself by exactly one row. A vocabulary with no word for a thing describes it wrongly or not at all.
 
 **Found by** — one of `gate`, `review`, `owner`.
 
@@ -53,7 +54,7 @@ This column is the point of the register rather than a decoration on it. It is t
 | KP3-11 | by_design | review | Every depiction of an agent in the live room is a session's own word about itself | docs/architecture/ENFORCEMENT_BOUNDARIES.md |
 | XR-01 | repaired | review | Twenty gates existed and eight had never been observed refusing anything, so a passing suite could not distinguish a working gate from one that cannot fire | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
 | XR-02 | repaired | review | Findings had no single home, so `REVIEW_POLICY.md`'s rule that they are never dropped could not be checked | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
-| KXR-01 | repaired | review | The register asserted an owner approval that no file in the repository supported; the sentence now says where the approval came from and that no record is filed | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
+| KXR-01 | withdrawn_gap_open | review | The register asserted an owner approval that no file in the repository supported. The sentence was corrected; the gap it exposed — no decision record for any of 2026-09-12 — is `KXR-07` and stands | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
 | KXR-02 | repaired | review | Rows could be deleted from the register in silence — four were removed, including both findings this branch raised, and the suite stayed green | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
 | KXR-03 | open | review | The register carries two of the five attributes `REVIEW_POLICY.md` requires of a finding: severity, affected surface and reproduction evidence are absent | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
 | KXR-04 | repaired | review | The red-before-green proofs lived only in commit messages, where the brief asked for a run record | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
@@ -61,10 +62,45 @@ This column is the point of the register rather than a decoration on it. It is t
 | KXR-06 | repaired | review | The register pinned that a row existed, not what it said: one row could be flipped from `open` to `repaired` by a one-word edit with the suite still green | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
 | KXR-07 | open | review | Two of the five files in this branch's diff are outside the brief's permitted paths, authorised only by prose the same sessions wrote | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
 | KXR-08 | repaired | review | `XR-01` and `XR-02` pointed at a document that says of itself "Nothing in this document is authority" | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
+| KXR-09 | repaired | review | The register pinned one cell of four, so a finding could be neutralised without touching its status: all twenty detectors flipped from `review` to `gate` left the suite green | docs/process/KEEPER_FINAL_REVIEW_GATE_PROOF_AND_FINDINGS.md |
+| KXR-10 | repaired | review | The pointer check was satisfied by the register itself, since every row contains its own id, and matched ids as substrings, so a file naming only `KXR-01` satisfied `XR-01` | docs/process/KEEPER_FINAL_REVIEW_GATE_PROOF_AND_FINDINGS.md |
+| KXR-11 | repaired | review | A finding recorded in a second table headed anything but `id` was invisible to every check | docs/process/KEEPER_FINAL_REVIEW_GATE_PROOF_AND_FINDINGS.md |
+| KXR-12 | repaired | review | The register told readers that adding a row meant two edits "and nothing else", and listed what the check enforces without mentioning two of its guards | docs/process/KEEPER_FINAL_REVIEW_GATE_PROOF_AND_FINDINGS.md |
+
+## Attributes, for findings recorded from 2026-09-12
+
+`constitution/REVIEW_POLICY.md` is authority layer 2 and requires that **every** finding has a stable identity, a severity, an affected surface, reproduction evidence, and the acceptance criterion or authority it concerns. The table above carries two of those. That was `KXR-03`, and it was not a preference — it was non-compliance with layer 2.
+
+It is repaired **forward-only**, which is the same rule the register already runs on and for the same reason: the ten findings inherited from earlier reviews state neither severity nor reproduction anywhere, and inventing them would be the guessing this file exists to keep out. So every finding recorded from 2026-09-12 carries all five, a check refuses one that does not, and the ten that cannot are named below as exempt and incomplete.
+
+**Exempt, and incomplete, and that is the finding rather than a footnote:** `KR-03`, `KR-06`, `KR-07`, `KR-09`, `KR-58`, `KP2-08`, `KP2-11`, `KP2-14`, `KP3-06`, `KP3-11`.
+
+| id | severity | affected surface | reproduction | criterion or authority |
+|---|---|---|---|---|
+| XR-01 | moderate | `packages/gate-engine/src/gates.ts`, `packages/test-fixtures/src/candidates.ts` | Read `gateIds` against every `failingGates` array at `91409d0`: eight ids appear in none | `REVIEW_POLICY.md`; `ENFORCEMENT_BOUNDARIES.md` on the engine having no adapters |
+| XR-02 | moderate | `docs/process/` as a whole | `ls docs/process/FINDINGS.md` at `91409d0`: absent. `PHASE_1_BACKLOG.md`: "no file in the repository holds its text" | `REVIEW_POLICY.md` line 19 |
+| KXR-01 | moderate | `docs/process/FINDINGS.md` | `grep -rl "2026-09-12" docs/decisions/` returns nothing; the only files carrying that date are ones this lineage added | `REVIEW_POLICY.md` on governed identity; `OD-0006` |
+| KXR-02 | major | `apps/mission-control/test/findings-register.test.ts` | Delete four rows including `XR-01`; suite green at 40 passed | `REVIEW_POLICY.md` line 19 |
+| KXR-03 | moderate | `docs/process/FINDINGS.md` | Count the columns against the five `REVIEW_POLICY.md` names | `REVIEW_POLICY.md` line 19 |
+| KXR-04 | minor | `docs/process/` | The brief requires a run record; no run record existed | The brief's "How you will know it works" |
+| KXR-05 | minor | `docs/process/FOUNDATION_REPAIR_RUN_RECORD.md` | Actions run `34685933061` on `57d7829`: lint failed, typecheck and tests skipped | The brief's requirement that the record show what happened |
+| KXR-06 | moderate | `apps/mission-control/test/findings-register.test.ts` | Change `KXR-03` from `open` to `repaired`, nothing else; suite green at 78 passed | `REVIEW_POLICY.md` line 19 |
+| KXR-07 | moderate | the brief's permitted-paths contract | Two of five files in the diff are outside the list, authorised by prose the same sessions wrote | The brief's "Permitted paths"; `diff_within_permitted_paths` |
+| KXR-08 | minor | `docs/process/FINDINGS.md` | `XR-01` and `XR-02` pointed at a document reading "Nothing in this document is authority" | `REVIEW_POLICY.md` on a finding's text having a home |
+| KXR-09 | moderate | `apps/mission-control/test/findings-register.test.ts`, `docs/process/FINDINGS.md` | Flip all twenty detectors from `review` to `gate`; suite green at 91 passed. Rewrite a summary; green | `REVIEW_POLICY.md` line 19; the brief's requirement 3 |
+| KXR-10 | moderate | `apps/mission-control/test/findings-register.test.ts` | Repoint twenty rows at `FINDINGS.md`; green. Point `XR-01` at a file naming only `KXR-01`; green | The brief's requirement 2; `KXR-08` as raised |
+| KXR-11 | minor | `apps/mission-control/test/findings-register.test.ts`, `rowsOf` | Record a finding in a table headed anything but `id`; no check sees it | `REVIEW_POLICY.md` line 19 |
+| KXR-12 | minor | `docs/process/FINDINGS.md` | Read "Adding a row" against what the check enforces | Accuracy of this file's own instructions |
 
 ## Adding a row
 
-Add it to the table **and to `PINNED`** in `apps/mission-control/test/findings-register.test.ts`, and nothing else. Two places on purpose: a row held in only one of them can be deleted without anything noticing, which is `KXR-02`. The pointer must be a file that exists and that names the finding's id, or the suite fails.
+Three edits, and the check refuses anything less. `KXR-12` was this paragraph saying "two edits and nothing else" while the check enforced more than it listed — instructions that are wrong about their own guard teach the reader to distrust the guard.
+
+1. **A row in the register table**, above.
+2. **A row in the attributes table**, carrying all five of what `REVIEW_POLICY.md` requires. The four historical exemptions are named there and the list is closed; a new id is not exempt.
+3. **An entry in `PINNED`** in `apps/mission-control/test/findings-register.test.ts`, pinning the row's status, its detector, its pointer and a digest of its summary.
+
+What the check refuses, stated in full so this paragraph cannot drift from it again: a status or detector outside the vocabulary; a pointer that is not a file in this repository; a pointer that does not name the finding **as a whole id**, so a file mentioning only `KXR-01` does not satisfy `XR-01`; a pointer at this register itself, since every row trivially contains its own id; a row in a table the parser does not recognise; an id in the register that nothing pins; a pinned id missing from the register; any pinned cell that has changed; and a non-exempt finding with no attributes row.
 
 The identity is governed — `REVIEW_POLICY.md` — so a session does not mint a prefix for itself. **`XR` and `KXR` were approved by the owner in the owner console on 2026-09-12, and no decision record is filed for either. This sentence is the only trace of that approval in the repository.**
 
