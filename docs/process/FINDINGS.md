@@ -18,6 +18,8 @@
 
 **Everything from `KR-26` onward that was reported by the owner console is not here.** `docs/process/PHASE_1_BACKLOG.md` records that *"no file in the repository holds its text"*. A register cannot point at text that does not exist, and inventing it would be worse than the gap.
 
+**It carries two of the five attributes a finding is supposed to have.** `REVIEW_POLICY.md` requires a stable identity, a severity, an affected surface, reproduction evidence and the acceptance criterion or authority the finding concerns. The table below has an identity and a pointer. The other three are missing, and adding columns for them would mean inferring severity and reproduction for ten historical findings whose text never states either — the back-filled guesses this register exists to keep out. So it is carried as `KXR-03`, open, in the table below: a finding about this file, recorded in this file.
+
 **A status is what the repository claims, and is not a review verdict.** Each row's pointer is how a reader checks it. `repaired` on a finding repaired on the same branch has not been independently reviewed — `CLAUDE.md`: a builder's success report is not evidence.
 
 ## Vocabularies
@@ -51,7 +53,16 @@ This column is the point of the register rather than a decoration on it. It is t
 | KP3-11 | by_design | review | Every depiction of an agent in the live room is a session's own word about itself | docs/architecture/ENFORCEMENT_BOUNDARIES.md |
 | XR-01 | repaired | review | Twenty gates existed and eight had never been observed refusing anything, so a passing suite could not distinguish a working gate from one that cannot fire | docs/process/GATE_PROOF_AND_FINDINGS_BRIEF.md |
 | XR-02 | repaired | review | Findings had no single home, so `REVIEW_POLICY.md`'s rule that they are never dropped could not be checked | docs/process/GATE_PROOF_AND_FINDINGS_BRIEF.md |
+| KXR-01 | repaired | review | The register asserted an owner approval that no file in the repository supported; the sentence now says where the approval came from and that no record is filed | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
+| KXR-02 | repaired | review | Rows could be deleted from the register in silence — four were removed, including both findings this branch raised, and the suite stayed green | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
+| KXR-03 | open | review | The register carries two of the five attributes `REVIEW_POLICY.md` requires of a finding: severity, affected surface and reproduction evidence are absent | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
+| KXR-04 | repaired | review | The red-before-green proofs lived only in commit messages, where the brief asked for a run record | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
+| KXR-05 | repaired | review | The record did not say that CI was red at the intermediate commit 57d7829 | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
 
 ## Adding a row
 
-Add it to the table and nothing else. The identity is governed — `REVIEW_POLICY.md` — so a session does not mint a prefix for itself; `XR` was approved by the owner on 2026-09-12 for findings raised by an external review. The pointer must be a file that exists and that names the finding's id, or the suite fails.
+Add it to the table **and to `PINNED`** in `apps/mission-control/test/findings-register.test.ts`, and nothing else. Two places on purpose: a row held in only one of them can be deleted without anything noticing, which is `KXR-02`. The pointer must be a file that exists and that names the finding's id, or the suite fails.
+
+The identity is governed — `REVIEW_POLICY.md` — so a session does not mint a prefix for itself. **`XR` and `KXR` were approved by the owner in the owner console on 2026-09-12, and no decision record is filed for either. This sentence is the only trace of that approval in the repository.**
+
+That is a weaker statement than the one that stood here before, which said simply that the prefix *"was approved by the owner"* — and a reviewer, who can read only the repository, correctly found nothing supporting it (`KXR-01`). The owner console is outside this repository, so its absence here proves the record is missing, not that the instruction was. `docs/decisions/OD-0006` describes the mechanism that would close the gap — the owner instructs, the instruction is transcribed verbatim, a session files the record — and states its own cost: *"the owner reading their own decision records is the only detection of a false one."* The owner was offered a filed record for today's decisions and chose the corrected sentence instead. So the gap is named here rather than papered over.
