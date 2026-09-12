@@ -82,7 +82,18 @@ interface Refusal {
   /** What is wrong with the candidate, in the words a reader needs. */
   what: string;
   /** The one thing spoiled, against an otherwise healthy candidate. */
-  spoil: Partial<GateEvidence>;
+  spoil?: Partial<GateEvidence>;
+  /**
+   * Evidence this candidate simply does not have.
+   *
+   * Separate from `spoil` because `exactOptionalPropertyTypes` is on and the
+   * distinction is load-bearing rather than pedantic: a field set to `undefined`
+   * is a collected value that came back empty, and a field that is absent was
+   * never collected. `commit_and_push_complete` refuses on the second — a
+   * candidate committed locally and never pushed has no remote head, it does not
+   * have one that is undefined — and writing it the other way did not compile.
+   */
+  without?: (keyof GateEvidence)[];
   /** A fragment the refusal's own reason must contain, so it refuses for this. */
   because: RegExp;
 }
@@ -124,7 +135,7 @@ const REFUSALS: Refusal[] = [
   {
     gate: 'commit_and_push_complete',
     what: 'a candidate committed locally and never pushed, which exists only in one container',
-    spoil: { remoteHeadSha: undefined },
+    without: ['remoteHeadSha'],
     because: /push not confirmed/,
   },
   {
@@ -144,7 +155,13 @@ const REFUSALS: Refusal[] = [
     what: 'a required check that was skipped rather than run',
     spoil: {
       checks: [
-        { checkId: 'typecheck', required: true, result: 'passed', exitCode: 0, ranAgainstSha: HEAD },
+        {
+          checkId: 'typecheck',
+          required: true,
+          result: 'passed',
+          exitCode: 0,
+          ranAgainstSha: HEAD,
+        },
         { checkId: 'unit', required: true, result: 'skipped', skipReason: 'not today' },
       ],
     },
@@ -155,7 +172,13 @@ const REFUSALS: Refusal[] = [
     what: 'a required check that ran and failed',
     spoil: {
       checks: [
-        { checkId: 'typecheck', required: true, result: 'passed', exitCode: 0, ranAgainstSha: HEAD },
+        {
+          checkId: 'typecheck',
+          required: true,
+          result: 'passed',
+          exitCode: 0,
+          ranAgainstSha: HEAD,
+        },
         { checkId: 'unit', required: true, result: 'failed', exitCode: 1, ranAgainstSha: HEAD },
       ],
     },
@@ -257,7 +280,9 @@ describe('the candidate this suite calls healthy really is healthy', () => {
 describe('every gate can refuse, and has been seen to', () => {
   for (const refusal of REFUSALS) {
     it(`${refusal.gate} refuses ${refusal.what}`, () => {
-      const decision = gates[refusal.gate]({ ...HEALTHY, ...refusal.spoil });
+      const evidence: GateEvidence = { ...HEALTHY, ...refusal.spoil };
+      for (const absent of refusal.without ?? []) delete evidence[absent];
+      const decision = gates[refusal.gate](evidence);
       expect(decision.result, `${refusal.gate}: ${decision.reason}`).toBe('fail');
       // And refuses for the reason this case is about, not an unrelated one.
       expect(decision.reason).toMatch(refusal.because);
