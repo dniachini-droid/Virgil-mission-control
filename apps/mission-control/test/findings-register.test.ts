@@ -135,32 +135,49 @@ const { rows, malformed } = rowsOf(source);
  * list, in the diff, where a reviewer sees it. That converts a silent deletion
  * into a deliberate, visible act, which is the whole of what "never dropped" can
  * mean in a file.
+ *
+ * **And it pins the status, not merely the row — `KXR-06`.**
+ *
+ * The first version of this held ids alone, and the re-review found the hole
+ * immediately: changing `KXR-03` from `open` to `repaired` and nothing else left
+ * the suite green at 78 passed. The one row recording that the register carries
+ * two of its five required attributes could be marked closed by a one-word edit.
+ * That is `KXR-02` one level up — a finding not dropped but silently *declared
+ * over*, which is the same loss by a quieter route, and worse because the row is
+ * still there to point at.
+ *
+ * So closing a finding now costs an edit here, in the diff, exactly as dropping
+ * one does. That is the right price: a status is the strongest claim this file
+ * makes, and `CLAUDE.md` says a builder's success report is not evidence.
  */
-const PINNED = [
-  'KR-03',
-  'KR-06',
-  'KR-07',
-  'KR-09',
-  'KR-58',
-  'KP2-08',
-  'KP2-11',
-  'KP2-14',
-  'KP3-06',
-  'KP3-11',
-  'XR-01',
-  'XR-02',
-  'KXR-01',
-  'KXR-02',
-  'KXR-03',
-  'KXR-04',
-  'KXR-05',
-] as const;
+const PINNED: Record<string, (typeof STATUSES)[number]> = {
+  'KR-03': 'open',
+  'KR-06': 'open',
+  'KR-07': 'open',
+  'KR-09': 'open',
+  'KR-58': 'caught_not_repaired',
+  'KP2-08': 'accepted',
+  'KP2-11': 'open',
+  'KP2-14': 'open',
+  'KP3-06': 'deferred',
+  'KP3-11': 'by_design',
+  'XR-01': 'repaired',
+  'XR-02': 'repaired',
+  'KXR-01': 'repaired',
+  'KXR-02': 'repaired',
+  'KXR-03': 'open',
+  'KXR-04': 'repaired',
+  'KXR-05': 'repaired',
+  'KXR-06': 'repaired',
+  'KXR-07': 'open',
+  'KXR-08': 'repaired',
+};
 
-describe('no finding leaves the register quietly', () => {
-  const present = new Set(rows.map((row) => row.id));
+describe('no finding leaves the register quietly, or is quietly declared over', () => {
+  const byId = new Map(rows.map((row) => [row.id, row]));
 
   it('still carries every finding it has ever carried', () => {
-    const gone = PINNED.filter((id) => !present.has(id));
+    const gone = Object.keys(PINNED).filter((id) => !byId.has(id));
     expect(
       gone,
       `findings dropped from the register: ${gone.join(', ')}. REVIEW_POLICY.md: findings are never renumbered, merged silently or dropped. If one genuinely should go, delete it from PINNED in the same commit so the removal is in the diff.`,
@@ -171,10 +188,22 @@ describe('no finding leaves the register quietly', () => {
     // The other direction. A row added to the register and not to PINNED is a
     // finding that can be dropped tomorrow without anything noticing — the
     // condition KXR-02 named, re-entering one row at a time.
-    const unpinned = rows.map((row) => row.id).filter((id) => !PINNED.includes(id as never));
+    const unpinned = rows.map((row) => row.id).filter((id) => !(id in PINNED));
     expect(
       unpinned,
       `rows in the register that nothing holds in place: ${unpinned.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('does not let a finding be declared over by a one-word edit', () => {
+    // KXR-06. Dropping a row and silently closing it are the same loss by two
+    // routes, and the second is worse because the row is still there to point at.
+    const changed = Object.entries(PINNED)
+      .filter(([id, status]) => byId.has(id) && byId.get(id)?.status !== status)
+      .map(([id, status]) => `${id}: pinned ${status}, register says ${byId.get(id)?.status}`);
+    expect(
+      changed,
+      `findings whose status changed with nothing recording it: ${changed.join('; ')}. A status is the strongest claim this file makes. Changing one means editing PINNED in the same commit, so the change is in the diff.`,
     ).toEqual([]);
   });
 });

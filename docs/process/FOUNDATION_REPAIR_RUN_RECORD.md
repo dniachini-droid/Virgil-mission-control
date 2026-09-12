@@ -119,6 +119,32 @@ check ━━━━━━━━━━━━━━━━━━━━━━━━�
 
 It is recorded because a branch whose history contains a red commit is a different thing from one whose history does not, and a record that omits it is choosing the flattering version.
 
+## The two findings this branch raised, stated here rather than only in the brief
+
+`KXR-08`. `XR-01` and `XR-02` pointed at `GATE_PROOF_AND_FINDINGS_BRIEF.md`, which says of itself *"Status: proposed, not started. Nothing in this document is authority"* and still carries its three questions unanswered — because it is committed verbatim as the record of what was asked, and correcting it afterwards would destroy exactly what it is for. So the register cited, as the home of two findings' text, a document that disclaims being one. Both rows now point here.
+
+**XR-01 — eight of twenty gates had never been observed refusing anything.** `packages/gate-engine/test/gates.test.ts` asserted that a harmless candidate raises no false blockers on any gate; nothing asserted the other direction. For `repository_allowlisted`, `working_tree_clean`, `branch_identity`, `approved_base_ancestry`, `commit_and_push_complete`, `required_checks_ran`, `deploy_authority` and `merge_authority`, a passing suite could not distinguish a gate that works from one that cannot fire. `ENFORCEMENT_BOUNDARIES.md` records that the engine has *"no evidence until Phase 2 adapters exist; today only fixtures feed it"* — so a gate no fixture refuses had never run its refusal path anywhere. Repaired by `packages/gate-engine/test/refusals.test.ts`, with the coverage enforced rather than remembered.
+
+**XR-02 — findings had no single home.** `constitution/REVIEW_POLICY.md` requires that findings are *"never renumbered, merged silently or dropped"*, and `PHASE_1_BACKLOG.md` already recorded that they were: *"no file in the repository holds its text."* Answering "what is open right now?" meant assembling it by hand from six kinds of document. A policy that findings are never dropped is only as good as the one list that would show it if they were. Repaired by `docs/process/FINDINGS.md` and the check that reads it.
+
+The brief remains the fuller statement of both, and remains unedited. It is the record of what was asked; this is the record of what was done.
+
+## The re-review of `23af6ac`, and the three findings it raised
+
+`PASS_WITH_NON_BLOCKING_FINDINGS`, by a third session — `claude/keeper-review-candidate-23af6acf-3ed0pw` at `5f932ab`. It confirmed `KXR-01` to `KXR-05` against what the candidate does rather than what its commit message says, and did not replay the builder's proofs: it deleted four different register rows, a third gate (`deploy_authority`), and independently confirmed the red CI run at `57d7829` (Actions run `34685933061`: lint failed, typecheck and tests skipped).
+
+### KXR-06 — a finding could be declared over by a one-word edit — repaired
+
+`PINNED` held ids alone, so it caught a row being **deleted** and not a row being **closed**. Changing `KXR-03` from `open` to `repaired` and nothing else left the suite green at 78 passed — and `KXR-03` is the row recording that the register carries two of the five attributes `REVIEW_POLICY.md` requires. The one row admitting the register's incompleteness could be marked closed in a word.
+
+That is `KXR-02` one level up, and worse by a degree: a dropped row is missing and a silently closed one is still there to point at. Reproduced before repairing it. `PINNED` now maps each id to its status, and a third assertion fails when the register and the pin disagree. Closing a finding now costs an edit in the diff, exactly as dropping one does.
+
+### KXR-07 — the permitted-paths contract is satisfied by trusting the candidate — open
+
+Two of the five files in this branch's diff — the brief itself and this run record — are outside the brief's permitted-paths list. Both exceptions were declared rather than hidden, and one of them resolves a contradiction inside the contract (the brief requires a run record and permits no path for one). But the authority for both is prose written by the same sessions that took the exception, so `diff_within_permitted_paths` is currently satisfied by trusting the candidate about its own contract.
+
+**Not repaired, because a session cannot repair it.** The authority is the owner's instruction in the owner console, which is outside this repository; writing a machine-readable exceptions list would convert "trust the prose" into "trust the list the same session wrote", which is the same claim in a new format. It is `KXR-01`'s family: the only thing that closes it is a filed decision record, and the owner was offered one and chose the corrected sentence instead. Recorded as `open`.
+
 ## What this work did not do
 
 - **It did not repair any open finding.** `KR-03`, `KR-06`, `KR-07`, `KR-09` and `KR-58` are recorded, not closed.
