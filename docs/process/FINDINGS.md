@@ -85,6 +85,7 @@ This column is the point of the register rather than a decoration on it. It is t
 | KXR-29 | repaired | review | The `turbo.json` repair fixed the instance and not the class; the same failure reproduces through the commission | docs/process/KEEPER_PR14_REVIEW.md |
 | KXR-30 | repaired | review | The review that blocked pull request #14 was kept in no file, and its findings existed nowhere in the repository | docs/process/KEEPER_PR14_REVIEW.md |
 | KXR-31 | open | review | A pull request description called the last verdict fixed and named only half of it | docs/process/KEEPER_PR14_REVIEW.md |
+| KXR-38 | repaired | gate | A guard read `resolve(root, …)` as a repository read where `root` is a scratch directory, and named two temporary files as undeclared cache inputs | docs/process/SLICE_SIX_INTEGRATION_RECORD.md |
 
 ## Attributes, for findings recorded from 2026-09-12
 
@@ -129,6 +130,7 @@ It is repaired **forward-only**, which is the same rule the register already run
 | KXR-29 | major | `turbo.json`; `docs/product/VIRGIL_MASTER_COMMISSION.md` | Change the commission and watch the test task replay a cached pass | `REVIEW_POLICY.md`, deterministic verification; `KXR-23` |
 | KXR-30 | moderate | `docs/process/` | Search the candidate for `KXR-23` through `KXR-28` — absent | `XR-02`; `REVIEW_POLICY.md` line 19 |
 | KXR-31 | minor | the pull request description for #14 | Read it against the verdict it claims to answer | `CLAUDE.md`: a builder's success report is not evidence |
+| KXR-38 | moderate | `apps/mission-control/test/cache-inputs.test.ts` | Combine #12 and #14 and run the suite: `answer.txt` and `nothing.txt` are reported as undeclared inputs | `KXR-29`; `CLAUDE.md`: never skip, disable or weaken a test |
 
 ## Adding a row
 

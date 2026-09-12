@@ -158,7 +158,32 @@ describe('the reviews are kept, exactly as they were written', () => {
       carried.length,
       'the register carries no KXR findings, so this proves nothing',
     ).toBeGreaterThan(12);
-    const missing = carried.filter((id) => !held.has(id));
+
+    /**
+     * **`KXR-38`: not every finding comes from a review.**
+     *
+     * This check was written when every `KXR` finding had been raised by a
+     * Keeper, so "held" meant "quoted in a kept review document". The register's
+     * detector vocabulary has always allowed `gate`, and the first gate-caught
+     * finding has no review to be kept in — it has the record written where it
+     * was caught.
+     *
+     * So a row whose detector is `gate` is held by the document its own pointer
+     * names, and the requirement is unchanged in substance: **a finding whose
+     * text is in no file still fails here.** The pointer must exist and must
+     * name the finding. What is not accepted is a gate row pointing at nothing,
+     * which is the failure this check exists to catch and which stays caught.
+     */
+    const gateHeld = new Set<string>();
+    for (const row of register.matchAll(/^\| (KXR-\d+) \| \S+ \| gate \| [^|]+ \| ([^|]+?) \|/gm)) {
+      const id = row[1] as string;
+      const pointer = (row[2] as string).trim();
+      if (!existsSync(resolve(root, pointer))) continue;
+      if (!readFileSync(resolve(root, pointer), 'utf8').includes(id)) continue;
+      gateHeld.add(id);
+    }
+
+    const missing = carried.filter((id) => !held.has(id) && !gateHeld.has(id));
     expect(missing, `findings whose text is in no kept record: ${missing.join(', ')}`).toEqual([]);
   });
 });
