@@ -1,0 +1,14 @@
+{
+  "name": "@virgil/repo-checks",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Checks about the repository rather than about any application in it: the findings register, the kept reviews, the workflow's required checks, the test cache's declared inputs, and the shapes that make a check unable to fail. Imports no application code, by design and by check.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@virgil/agent-contracts": "workspace:*"
+  }
+}

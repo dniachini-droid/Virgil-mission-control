@@ -136,6 +136,12 @@ importers:
         specifier: ^4.5.4
         version: 4.5.4
 
+  packages/repo-checks:
+    devDependencies:
+      '@virgil/agent-contracts':
+        specifier: workspace:*
+        version: link:../agent-contracts
+
   packages/test-fixtures:
     dependencies:
       '@virgil/agent-contracts':
