@@ -85,7 +85,18 @@ export function AgentWindow({
   const state = useDemoState();
   const [leaving, setLeaving] = useState<WindowTarget | null>(null);
   const shown = target ?? leaving;
-  const doc = useMemo(() => (shown ? windowDoc(state, shown) : null), [state, shown]);
+  /**
+   * **No state, no document — `KP10-13`.**
+   *
+   * `useDemoState` returns `null` on a live page that has read nothing, and
+   * this is where that has to mean something. It used to be impossible: the
+   * store always held the recording's first frame, so a surface with nothing
+   * to say drew the recording instead. `windowDoc` is given a state or it is not
+   * called, and `!doc` below already renders nothing at all.
+   *
+   * Nothing is the correct drawing. The page's own notice says why.
+   */
+  const doc = useMemo(() => (shown && state ? windowDoc(state, shown) : null), [state, shown]);
   const key = doc?.key ?? '';
   const memory = useWindowMemory(key);
   const sheet = useRef<HTMLElement>(null);
