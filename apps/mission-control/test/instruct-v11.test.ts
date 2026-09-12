@@ -1,5 +1,17 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+// @ts-expect-error — the deployed Netlify function, deliberately outside this
+// app's TypeScript program: it ships on its own, with no bundler and no
+// workspace resolution. Imported here so the checks below can run the endpoint
+// rather than read it. Namespace import for the reason `live-state-v11.test.ts`
+// gives: a named import long enough to wrap moves the unresolved module off the
+// line this directive covers.
+import * as instructFunction from '../../../netlify/functions/instruct.mjs';
+
+const { default: instruct, forgetAttempts } = instructFunction as {
+  default: (request: Request) => Promise<Response>;
+  forgetAttempts: () => void;
+};
 
 /**
  * **The guards on the one thing in this project that can act.**
@@ -63,10 +75,38 @@ describe('the endpoint that can start work', () => {
     expect(FUNCTION).toMatch(/const MAX_INSTRUCTION = \d+;/);
   });
 
+  /**
+   * **What is scanned is what is sent.**
+   *
+   * This banned four substrings anywhere in the file, which made it a check on
+   * the endpoint's vocabulary rather than on its requests. It went red when the
+   * attempt limiter called `attempts.delete(address)` — a `Map`, in this
+   * process's memory, nowhere near GitHub — and the only ways to make a
+   * whole-file word scan pass are to rename local code around it or to delete
+   * the check. Both teach the wrong thing.
+   *
+   * So it reads what actually reaches `gh(`, which is the single door to the
+   * GitHub API in this file, and every HTTP method the file uses. That is
+   * strictly stronger: a path built for `/merge` now fails even if the word is
+   * spelled some other way in the source, and a `DELETE` fails wherever it is
+   * issued from.
+   */
   it('asks GitHub for nothing it does not need, and asks for no merge', () => {
-    for (const forbidden of ['/merge', 'pulls', 'deployments', 'delete']) {
-      expect(FUNCTION.includes(forbidden), forbidden).toBe(false);
+    const paths = [...FUNCTION.matchAll(/\bgh\(\s*`([^`]*)`/g)].map((m) => m[1] ?? '');
+    expect(paths.length, 'no GitHub request paths were found to check').toBeGreaterThan(2);
+    for (const path of paths) {
+      for (const forbidden of ['/merge', 'pulls', 'deployments', 'issues', 'releases']) {
+        expect(path.includes(forbidden), `${path} asks for ${forbidden}`).toBe(false);
+      }
     }
+    const methods = [...FUNCTION.matchAll(/method:\s*'([A-Z]+)'/g)].map((m) => m[1] ?? '');
+    // POST is the dispatch. Anything that removes or replaces is not this
+    // endpoint's business.
+    for (const method of methods) {
+      expect(['POST'], `the file issues a ${method}`).toContain(method);
+    }
+    // And the workflow it is allowed to start is still the only one it names.
+    expect(FUNCTION).toContain("const WORKFLOW = 'instruct.yml';");
   });
 
   it('is routed on its own, above the catch-all', () => {
@@ -353,5 +393,239 @@ describe('the workflow that does the work', () => {
     for (const forbidden of ['gh pr ', 'pull_request', 'git merge', 'deploy']) {
       expect(runs.includes(forbidden), forbidden).toBe(false);
     }
+  });
+});
+
+/**
+ * **Slice six: the owner's question and Virgil's reply both survive the run.**
+ *
+ * `docs/process/PHASE_2_SLICE_6_BRIEF.md` states the property these hold:
+ *
+ * > "A run that dies still leaves the question and the reason, because a message
+ * > that disappears is worse than a message that fails."
+ *
+ * The writing is done by the workflow rather than by the agent, for the reason
+ * slice two's shelf life exists: a guarantee that depends on a session
+ * remembering is not a guarantee. So what is checked here is the ordering and
+ * the conditions, which is the whole of it — `conversation-writer.test.ts`
+ * checks what the script does once it is called.
+ */
+describe('the owner gets an answer, or is told why he did not', () => {
+  const stepsOf = () => WORKFLOW.split(/\n      - (?=name:|uses:)/).slice(1);
+  const named = (part: string) => {
+    const step = stepsOf().find((s) => s.startsWith(`name: ${part}`));
+    expect(step, `there is no step named "${part}"`).toBeDefined();
+    return step as string;
+  };
+  const positionOf = (part: string) => stepsOf().findIndex((s) => s.startsWith(`name: ${part}`));
+
+  it('writes the question down before the agent that answers it starts', () => {
+    // Not after. A run that dies during install must still leave the message in
+    // the thread, because the owner typed it and is waiting for it.
+    const question = positionOf('Write the question into the conversation');
+    const agent = positionOf('Work on the instruction');
+    expect(question).toBeGreaterThan(-1);
+    expect(agent).toBeGreaterThan(question);
+  });
+
+  it('commits the question before running the agent, rather than only in memory', () => {
+    // The container is thrown away. A file written and not pushed is a message
+    // that never existed.
+    expect(positionOf('Commit the instruction and the status')).toBeGreaterThan(
+      positionOf('Write the question into the conversation'),
+    );
+    expect(positionOf('Work on the instruction')).toBeGreaterThan(
+      positionOf('Commit the instruction and the status'),
+    );
+  });
+
+  it('writes the reply whatever happened to the run', () => {
+    const step = named('Write what the session said, or why it did not');
+    expect(step).toContain('if: always()');
+    // Both outcomes, from one step. Two steps with opposite conditions is the
+    // shape where a third outcome — cancelled, or a step that never ran — falls
+    // between them and leaves the thread silent.
+    expect(step).toContain('--answer');
+    expect(step).toContain('--fail');
+  });
+
+  it('is pushed, so the reply reaches the owner rather than the container', () => {
+    expect(positionOf('Commit whatever the session changed')).toBeGreaterThan(
+      positionOf('Write what the session said, or why it did not'),
+    );
+  });
+
+  it('keeps what the agent said rather than only printing it', () => {
+    const step = named('Work on the instruction');
+    expect(step).toContain('ANSWER_FILE');
+    expect(step).toContain('tee "$ANSWER_FILE"');
+  });
+
+  it('does not let a succeeding tee hide a failing agent', () => {
+    // Without `pipefail` the exit status is `tee`'s, which is always zero. The
+    // step would report success, the reply step would take the answered branch,
+    // and a run that died would be drawn as Virgil replying.
+    expect(named('Work on the instruction')).toContain('set -o pipefail');
+  });
+
+  it('judges the run by what the agent step did, not by what it was recoloured to', () => {
+    const step = named('Write what the session said, or why it did not');
+    expect(step).toContain('steps.agent.outcome');
+    expect(step).not.toContain('steps.agent.conclusion');
+  });
+
+  it('holds the answer outside the checkout, so it is never committed as a stray file', () => {
+    // `git add -A` runs after this. An answer file inside the repository would
+    // be committed to the owner's branch as well as written into the thread.
+    expect(named('Work on the instruction')).toContain('ANSWER_FILE: ${{ runner.temp }}');
+  });
+
+  it("passes the owner's words through the environment here too", () => {
+    for (const part of [
+      'Write the question into the conversation',
+      'Write what the session said, or why it did not',
+    ]) {
+      expect(named(part)).toContain('VIRGIL_QUESTION: ${{ inputs.instruction }}');
+    }
+  });
+});
+
+/**
+ * **Slice six's precondition, and the first checks in this project that run the
+ * endpoint rather than read it.**
+ *
+ * The system audit's `SA-S-02`: there was no limit of any kind on wrong guesses
+ * at `INSTRUCT_SECRET`, and a landed guess reaches a session running
+ * `--dangerously-skip-permissions` with the owner's Claude subscription token in
+ * scope. `docs/process/PHASE_2_SLICE_6_BRIEF.md` makes the fix a precondition of
+ * switching the composer on, not a recommendation.
+ *
+ * Everything above is source-level because GitHub is unreachable here. **These
+ * are not.** Every refusal below happens before any network call — that is the
+ * whole point of checking the limit before the comparison — so the handler can
+ * be driven for real, and is. `KP9-04` records that the sibling endpoint's
+ * handler is invoked by no test; this is what closing that looks like.
+ */
+describe('a wrong guess at the secret costs something', () => {
+  const SECRET = 'a-secret-long-enough-to-be-a-secret';
+
+  const post = (headers: Record<string, string>) =>
+    instruct(
+      new Request('https://example.test/api/instruct', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ instruction: 'what is the state of things?' }),
+      }),
+    );
+
+  beforeEach(() => {
+    process.env.INSTRUCT_SECRET = SECRET;
+    process.env.GITHUB_DISPATCH_TOKEN = 'not-a-real-token';
+    process.env.GITHUB_REPO = 'owner/repo';
+    process.env.GITHUB_BRANCH = 'claude/some-branch';
+    // The counters are module state and would otherwise leak between cases,
+    // which is exactly the kind of check that passes for the wrong reason.
+    forgetAttempts();
+  });
+
+  it('refuses a wrong secret without saying anything about it', async () => {
+    const response = await post({
+      'x-virgil-secret': 'wrong',
+      'x-nf-client-connection-ip': '1.1.1.1',
+    });
+    expect(response.status).toBe(401);
+    const body = (await response.json()) as { reason: string };
+    // Not "wrong secret", not "3 attempts left", not "no secret installed".
+    expect(body.reason).toBe('Refused.');
+  });
+
+  it('stops looking at guesses from an address that has spent its attempts', async () => {
+    const from = { 'x-virgil-secret': 'wrong', 'x-nf-client-connection-ip': '2.2.2.2' };
+    for (let i = 0; i < 5; i += 1) expect((await post(from)).status).toBe(401);
+    const sixth = await post(from);
+    expect(sixth.status).toBe(429);
+  });
+
+  it('refuses the locked-out address even when it then guesses correctly', async () => {
+    // The limit is checked before the comparison. Checking after it would let an
+    // attacker keep testing and merely change what they are told.
+    const from = '3.3.3.3';
+    for (let i = 0; i < 5; i += 1) {
+      await post({ 'x-virgil-secret': 'wrong', 'x-nf-client-connection-ip': from });
+    }
+    const right = await post({ 'x-virgil-secret': SECRET, 'x-nf-client-connection-ip': from });
+    expect(right.status).toBe(429);
+  });
+
+  it('counts a missing header as the wrong guess it is', async () => {
+    const from = { 'x-nf-client-connection-ip': '4.4.4.4' };
+    for (let i = 0; i < 5; i += 1) expect((await post(from)).status).toBe(401);
+    expect((await post(from)).status).toBe(429);
+  });
+
+  it('does not lock out everyone because one address guessed', async () => {
+    const guesser = { 'x-virgil-secret': 'wrong', 'x-nf-client-connection-ip': '5.5.5.5' };
+    for (let i = 0; i < 6; i += 1) await post(guesser);
+    const someoneElse = await post({
+      'x-virgil-secret': 'wrong',
+      'x-nf-client-connection-ip': '6.6.6.6',
+    });
+    expect(someoneElse.status).toBe(401);
+  });
+
+  it('counts a request it cannot attribute, rather than waving it through', async () => {
+    // KP2-07's rule one endpoint over: a limit that cannot be attributed has not
+    // been satisfied. The version that returns null for "unknown" is the version
+    // where sending no headers is the way around it.
+    for (let i = 0; i < 5; i += 1) {
+      expect((await post({ 'x-virgil-secret': 'wrong' })).status).toBe(401);
+    }
+    expect((await post({ 'x-virgil-secret': 'wrong' })).status).toBe(429);
+  });
+
+  it('trusts the connection address over one the client can write', async () => {
+    // `x-forwarded-for` is client-settable. If it were preferred, an attacker
+    // would get a fresh allowance per forged header and the limit would be
+    // decoration.
+    const connection = '7.7.7.7';
+    for (let i = 0; i < 5; i += 1) {
+      await post({
+        'x-virgil-secret': 'wrong',
+        'x-nf-client-connection-ip': connection,
+        'x-forwarded-for': `9.9.9.${i}`,
+      });
+    }
+    const next = await post({
+      'x-virgil-secret': 'wrong',
+      'x-nf-client-connection-ip': connection,
+      'x-forwarded-for': '9.9.9.99',
+    });
+    expect(next.status).toBe(429);
+  });
+
+  it('forgets an address once it gets the secret right', async () => {
+    const from = '8.8.8.8';
+    for (let i = 0; i < 4; i += 1) {
+      await post({ 'x-virgil-secret': 'wrong', 'x-nf-client-connection-ip': from });
+    }
+    // The correct secret goes on to talk to GitHub, which is unreachable here —
+    // so this asserts only that it was not refused by the limit.
+    const right = await post({ 'x-virgil-secret': SECRET, 'x-nf-client-connection-ip': from });
+    expect(right.status).not.toBe(429);
+    expect(right.status).not.toBe(401);
+
+    for (let i = 0; i < 5; i += 1) {
+      expect(
+        (await post({ 'x-virgil-secret': 'wrong', 'x-nf-client-connection-ip': from })).status,
+      ).toBe(401);
+    }
+  });
+
+  it('still refuses everything when no secret is installed', async () => {
+    // Absent configuration is a closed door. Checked here by running it, where
+    // before it was a line of source read by a check.
+    process.env.INSTRUCT_SECRET = '';
+    const response = await post({ 'x-virgil-secret': 'anything' });
+    expect(response.status).toBe(503);
   });
 });

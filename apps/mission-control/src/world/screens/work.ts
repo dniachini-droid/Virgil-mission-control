@@ -34,6 +34,32 @@ export type HopWork =
       kind: 'checks';
       checks: readonly Check[];
       counts: readonly string[];
+      /**
+       * **What was actually read, when something was — SA-U-06.**
+       *
+       * `checks` is a *playback* shape: each entry carries a start time and a
+       * duration, because the console animates a schedule. GitHub returns
+       * neither, so live results could never be expressed as a schedule without
+       * inventing the timings — which is why the live path left this empty and
+       * the station screen drew `NOT READ`.
+       *
+       * The audit found the cost of that: the Prover's window said *"All 2
+       * checks passed"* while his station screen, on the same page at the same
+       * instant, said `NOT READ`. The owner walks to the Prover to find out
+       * whether his checks passed and the station tells him nobody knows.
+       *
+       * So the counts travel separately from the schedule. The rail draws these;
+       * the picture still draws nothing, because a schedule nobody read is still
+       * a schedule nobody read. Real numbers, no invented motion.
+       */
+      read?: {
+        passed: number;
+        failed: number;
+        running: number;
+        skipped: number;
+        /** Every check GitHub named, including any it had no word for. */
+        total: number;
+      };
     }
   | {
       kind: 'review';

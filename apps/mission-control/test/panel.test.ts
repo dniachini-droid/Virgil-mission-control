@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   FABRICATOR_PATHS,
   FABRICATOR_SUBJECTS,
@@ -403,5 +403,49 @@ describe('one tap does both, and back is one step per level', () => {
         expect(doc.lead.length, doc.key).toBeLessThan(520);
       }
     }
+  });
+});
+
+/**
+ * **`KP10-28`: the store's initial value is the claim it makes before anyone
+ * has told it anything.**
+ *
+ * `panelStore.ts` carried a long paragraph explaining that a store starting at
+ * `demoAt(0, 0, false)` is the defect slice six exists to prevent. The
+ * paragraph shipped; the line under it still read `demoAt(0, 0, false)`.
+ *
+ * `publishNothingRead()` is the room's job, and on a live page that has read
+ * nothing **the room is never mounted to do it** — the outer layer draws the
+ * notice, the branch list and "Talk to Virgil" by itself. So the store kept
+ * the recording and a press drew it, permanently, on any page whose endpoint
+ * failed.
+ *
+ * `verify:web` caught it once, in CI, and passed three consecutive local runs
+ * and a run under doubled CPU load. A defect that needs a fast machine to
+ * appear needs a check that does not care how fast the machine is. This one
+ * reads the value and cannot race.
+ */
+describe('the panel store before anything is published', () => {
+  it('holds nothing, so a surface reading it first draws nothing', async () => {
+    vi.resetModules();
+    const fresh = await import('../src/world/panel/panelStore.js');
+    expect(fresh.demoSnapshot()).toBeNull();
+  });
+
+  it('still holds nothing after a reader subscribes but nothing is published', async () => {
+    vi.resetModules();
+    const fresh = await import('../src/world/panel/panelStore.js');
+    const seen: (unknown | null)[] = [];
+    seen.push(fresh.demoSnapshot());
+    expect(seen).toEqual([null]);
+  });
+
+  it('holds the state once one is published, and nothing again when nothing is read', async () => {
+    vi.resetModules();
+    const fresh = await import('../src/world/panel/panelStore.js');
+    fresh.publishDemoState(demoAt(0, 0, false));
+    expect(fresh.demoSnapshot()).not.toBeNull();
+    fresh.publishNothingRead();
+    expect(fresh.demoSnapshot()).toBeNull();
   });
 });

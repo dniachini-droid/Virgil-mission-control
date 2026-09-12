@@ -176,6 +176,21 @@ jobs:
             );
           '
 
+      # 4. **And written into the conversation the owner reads**, which is the
+      #    same fact in the shape a thread can draw. The instruction file is the
+      #    record; this is the message. Both are written before the agent runs,
+      #    by the workflow rather than by the agent, for the reason the brief
+      #    gives: a message that disappears is worse than a message that fails.
+      - name: Write the question into the conversation
+        env:
+          # The owner's prose reaches the script the way it reaches everything
+          # else here — through the environment, never through command text.
+          VIRGIL_QUESTION: ${{ inputs.instruction }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node scripts/virgil-conversation.mjs --ask --id "$RUN_ID" --run-url "$RUN_URL"
+
       - name: Commit the instruction and the status
         env:
           TARGET: ${{ inputs.branch }}
@@ -200,6 +215,7 @@ jobs:
       #    a branch that is not `main`, a token that can only write contents, and
       #    a repository whose worst case is a branch the owner deletes.
       - name: Work on the instruction
+        id: agent
         env:
           # Both are passed and neither is required. The subscription token is
           # what the owner installed; the API key is the metered fallback for
@@ -208,7 +224,14 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           INSTRUCTION: ${{ inputs.instruction }}
+          # Outside the checkout, so `git add -A` below never commits it. What
+          # the session said is committed as the conversation, not as a stray
+          # file beside it.
+          ANSWER_FILE: ${{ runner.temp }}/virgil-answer.txt
         run: |
+          # `tee` without this would hide a failing agent behind a succeeding
+          # `tee`, and the step would report success over a run that died.
+          set -o pipefail
           if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
             echo "instruct: running on the owner's Claude subscription. No per-run charge."
             unset ANTHROPIC_API_KEY
@@ -220,7 +243,39 @@ jobs:
             exit 1
           fi
           npm install -g @anthropic-ai/claude-code
-          claude -p "$INSTRUCTION" --dangerously-skip-permissions
+          # Kept as well as printed. The log is the record of the run; the file
+          # is what the owner is shown, and the step after this one writes it
+          # into the conversation whether this succeeded or not.
+          claude -p "$INSTRUCTION" --dangerously-skip-permissions | tee "$ANSWER_FILE"
+
+      # 6. **What it said, or why it did not say anything.** `if: always()`, and
+      #    the two outcomes are written by the same step, because the failure
+      #    this exists to prevent is a question left sitting in the owner's
+      #    thread for ever with nothing beside it. A run that times out, is
+      #    cancelled, or dies before the agent starts all land here and all
+      #    leave a reason.
+      - name: Write what the session said, or why it did not
+        if: always()
+        env:
+          VIRGIL_QUESTION: ${{ inputs.instruction }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ANSWER_FILE: ${{ runner.temp }}/virgil-answer.txt
+          # `outcome` rather than `conclusion`: what the step actually did,
+          # before any `continue-on-error` could recolour it. Nothing here sets
+          # that today, and the honest field should not depend on nobody adding
+          # it later.
+          AGENT: ${{ steps.agent.outcome }}
+        run: |
+          if [ "$AGENT" = "success" ] && [ -s "$ANSWER_FILE" ]; then
+            node scripts/virgil-conversation.mjs \
+              --answer --id "$RUN_ID" --run-url "$RUN_URL" --answer-file "$ANSWER_FILE"
+          else
+            # Exported rather than written into the command, so the value is
+            # data on the way in as well as on the way out.
+            export VIRGIL_REASON="The session did not finish with an answer (the step that runs it reported $AGENT). The question stands; the run log is the record of what happened."
+            node scripts/virgil-conversation.mjs --fail --id "$RUN_ID" --run-url "$RUN_URL"
+          fi
 
       - name: Commit whatever the session changed
         if: always()

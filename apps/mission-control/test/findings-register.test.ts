@@ -450,6 +450,12 @@ const PINNED: Record<
     where: 'docs/process/KEEPER_PR14_REVIEW.md',
     what: '1517b926b9a3',
   },
+  'KXR-38': {
+    status: 'repaired',
+    foundBy: 'gate',
+    where: 'docs/process/SLICE_SIX_INTEGRATION_RECORD.md',
+    what: 'ed8d6508df17',
+  },
 };
 
 /**
@@ -505,6 +511,7 @@ const PINNED_ATTRIBUTES: Record<string, string> = {
   'KXR-29': '007d32aae3ea',
   'KXR-30': '04570f1156e5',
   'KXR-31': 'c269b3ae1731',
+  'KXR-38': '87f779b24970',
 };
 
 const digest = (text: string) => createHash('sha256').update(text).digest('hex').slice(0, 12);

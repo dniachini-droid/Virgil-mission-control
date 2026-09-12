@@ -336,7 +336,101 @@ const BUILD_COMMANDS: readonly { command: string; lines: string[]; exit: number 
   },
 ];
 
+/**
+ * **The window of an agent this app has read nothing about — SA-U-01 and
+ * SA-U-02, and it is the worst defect the audit found.**
+ *
+ * `fabricatorDoc` and `keeperDoc` both open with
+ * `tally(station === 'WORKING' ? since : 100)`. A live state's stations are
+ * `READY`, never `WORKING`, so `100` is passed — "the scripted build, fully
+ * complete" — and the recording's fixtures come back in full. Not on a broken
+ * page: **on a healthy live page about a real branch, with a real commit and
+ * real checks passing.** Two presses from the world — `TALK TO VIRGIL`, then
+ * `Go to the Fabricator` — and the owner reads:
+ *
+ *  - `Files changed — 8 of 8`, with eight invented paths and `+486` lines;
+ *  - a terminal reporting `Tests 801 passed (801)` and `exit 0`;
+ *  - `BRANCH claude/virgil-mobile-v11` beside his own real `HEAD`;
+ *  - a `DRAFT` pull request that does not exist;
+ *  - and, in the Keeper's window, three review findings `KV-01`…`KV-03`.
+ *
+ * None of it happened. The `BRANCH … HEAD` row is the sharpest of them: his
+ * real commit inside a card naming a branch he never chose.
+ *
+ * `proverDoc` was brought under this rule by `KP7-01` and these two were not,
+ * which is the whole of the defect — the same file, the same shape, two windows
+ * over. `liveState.ts` refuses to carry a verdict at length and on principle,
+ * and then the Keeper's own window listed three findings from a review that
+ * never ran.
+ *
+ * **Why the repair is not "pass `since` instead of `100`".** That would draw
+ * `0 of 8` — a different false claim, about a build that was never attempted.
+ * The list must be *absent*, not zero. So: no live source, no section.
+ */
+function nothingReadDoc(
+  state: DemoState,
+  agent: 'fabricator' | 'keeper',
+  about: string,
+): WindowDoc {
+  const role = agent as Role;
+  return {
+    key: agent,
+    agent,
+    name: NAME[agent],
+    remit: REMIT[agent],
+    status: statusOf(role, state),
+    progression: progressionOf(state, agent),
+    context: contextOf(state),
+    conclusion: {
+      headline: `Nothing has been read about ${about}`,
+      meaning: `This build reads the branch, the commit and the check results from GitHub, and nothing else. ${about[0]?.toUpperCase()}${about.slice(1)} is not among them, so this screen has nothing to show — which is not the same as nothing having happened.`,
+      next: 'A later slice gives this window a real source. Until then it says so rather than drawing the demonstration.',
+    },
+    actions: [
+      {
+        id: 'open-facts',
+        label: 'What is and is not known',
+        goes: { kind: 'section', id: 'facts' },
+      },
+    ],
+    // No scripted dialogue: no agent has said anything about this repository.
+    messages: [],
+    sections: [
+      {
+        id: 'facts',
+        title: 'What is proven and what is only reported',
+        summary: `Nothing about ${about} has been read`,
+        open: true,
+        blocks: [
+          {
+            kind: 'facts',
+            rows: [
+              {
+                text: `Whether anything happened here is unknown: this build has no source for ${about}`,
+                standing: 'unresolved' as Standing,
+              },
+              {
+                text: 'The branch, the commit and the check results are read from GitHub and are on the other screens',
+                standing: 'verified' as Standing,
+              },
+            ],
+          },
+          {
+            kind: 'note',
+            text: 'A check result is evidence. An agent’s statement is a claim. Nothing read is neither, and this screen draws neither.',
+          },
+        ],
+      },
+    ],
+    accent: ACCENT[agent]?.key ?? STATUS.cyan,
+    reaction: state.cast[role].face,
+  };
+}
+
 function fabricatorDoc(state: DemoState): WindowDoc {
+  // SA-U-01. A live page has no source for build activity, so this window says
+  // so rather than drawing the recording's eight files and its green terminal.
+  if (state.mode === 'live') return nothingReadDoc(state, 'fabricator', 'what was built');
   const { station, since } = beatOf(state, 'fabricator');
   const tally = fabricatorTally(station === 'WORKING' ? since : 100);
   const conclusion: Conclusion =
@@ -1366,6 +1460,10 @@ const REFUSALS: readonly { refused: string; reason: string; authority: string }[
 ];
 
 function keeperDoc(state: DemoState): WindowDoc {
+  // SA-U-02, and the sharper half: `liveState` refuses to carry a verdict on
+  // principle, and this window then listed three findings from a review that
+  // never ran.
+  if (state.mode === 'live') return nothingReadDoc(state, 'keeper', 'any review');
   const { station, since } = beatOf(state, 'keeper');
   const tally = keeperTally(station === 'WORKING' ? since : 100);
   const proverReported = state.cast.prover.station === 'REPORTED';
@@ -1811,7 +1909,13 @@ function virgilDoc(state: DemoState, at?: string): WindowDoc {
     context: contextOf(state),
     conclusion,
     actions: virgilActions(state),
-    messages: virgilThread(state),
+    /**
+     * **The recording keeps its script; a live room draws the real thread.**
+     * Slice six. The scripted turns are a demonstration saying what it is and
+     * are not carried onto a live page, where every message must be one that
+     * was actually sent.
+     */
+    messages: state.mode === 'live' ? liveVirgilThread(state) : virgilThread(state),
     sections,
     honesty: honestyOf(state),
     accent: ACCENT.virgil?.key ?? STATUS.gold,
@@ -2094,6 +2198,143 @@ function keeperThread(state: DemoState): Message[] {
  * Virgil's own thread: the summary that means the owner need not visit four
  * windows. Each turn describes what has **already** happened at that beat.
  */
+/**
+ * **Slice six: the owner's own thread, drawn from the repository.**
+ *
+ * `docs/process/PHASE_2_SLICE_6_BRIEF.md`. He asked for this in one sentence —
+ * *"I want to use the UI to basically have this chat with Virgil and get useful
+ * stuff on it"* — and what makes it possible to honour is that the messages are
+ * **evidence rather than screen state**: each one is in
+ * `.virgil/conversation.json`, committed by the run that wrote it, so the thread
+ * survives a reload because it was never on the screen in the first place.
+ *
+ * The rules it is held to are the room's, unchanged:
+ *
+ *  - **A message in flight is never drawn as answered.** An exchange still being
+ *    worked draws the question and a reply that says it is working. There is no
+ *    branch here that can produce an answer bubble without an answer, because
+ *    the answer is the thing being rendered.
+ *  - **A failure is not Virgil speaking.** It comes from `system`, with the
+ *    reason, because *"the run died"* is a fact about the machinery and putting
+ *    it in Virgil's voice would make the machinery sound like a person who had
+ *    considered the question.
+ *  - **Nothing read is never nothing said.** Four different situations produce an
+ *    empty thread and the window says which, rather than drawing the silence
+ *    that all four have in common.
+ */
+function stampAt(iso: string): string {
+  // UTC, and it says so. A time drawn without its zone is the kind of small
+  // confident wrongness this project spends its whole effort avoiding —
+  // localising it is a rendering improvement, not a reason to print an
+  // ambiguous number now.
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return 'time not read';
+  const hh = String(at.getUTCHours()).padStart(2, '0');
+  const mm = String(at.getUTCMinutes()).padStart(2, '0');
+  return `${hh}:${mm} UTC`;
+}
+
+/** What the run that carries this exchange can be found at, when it can. */
+function runNote(runUrl: string | null): Block[] {
+  return runUrl === null ? [] : [{ kind: 'note', text: `The run that did this: ${runUrl}` }];
+}
+
+/**
+ * The sentence for a conversation that was not read, by which of the four
+ * situations produced it. `state.mjs` distinguishes them; this is the only place
+ * that turns them into words.
+ */
+function nothingSaidYet(state: DemoState): Message[] {
+  const status = state.conversationStatus ?? null;
+  const why = state.conversationReason;
+  const text =
+    status === 'absent'
+      ? 'Nothing has been said on this branch yet. Type below and a session starts on your repository; the reply appears here when it has been written, which takes minutes rather than seconds.'
+      : status === 'unreadable'
+        ? 'There is a conversation on this branch and it could not be read, so nothing is shown. This is not the same as nothing having been said.'
+        : status === 'refused'
+          ? 'A conversation was read on this branch and refused, so none of it is drawn. A message that cannot be trusted to be what was said is not shown as what was said.'
+          : 'The conversation could not be read, so nothing is shown. This is not the same as nothing having been said.';
+  return [
+    {
+      id: 'talk:none',
+      from: 'system',
+      at: '',
+      blocks: [
+        para(text),
+        ...(typeof why === 'string' && why.length > 0
+          ? [{ kind: 'note' as const, text: why }]
+          : []),
+      ],
+    },
+  ];
+}
+
+function liveVirgilThread(state: DemoState): Message[] {
+  const talk = state.conversation;
+  if (!talk) return nothingSaidYet(state);
+  if (talk.exchanges.length === 0) return nothingSaidYet(state);
+
+  const out: Message[] = [];
+  for (const exchange of talk.exchanges) {
+    out.push({
+      id: `talk:${exchange.id}:asked`,
+      from: 'owner',
+      at: stampAt(exchange.askedAt),
+      // `para`, never `markdown`. What he typed is drawn as what he typed; a
+      // thread that reformats the owner's own words is a thread that has
+      // started editing him.
+      blocks: [para(exchange.question)],
+    });
+
+    if (exchange.state === 'asked') {
+      out.push({
+        id: `talk:${exchange.id}:working`,
+        from: 'virgil',
+        at: stampAt(exchange.askedAt),
+        // The one honest use of this flag on the live path: the exchange
+        // genuinely is unfinished, and the file says so.
+        streaming: true,
+        blocks: [
+          para(
+            'A session is working on this on your repository. It takes minutes rather than seconds, and the answer appears here when it has been written — including if you close this and come back.',
+          ),
+          ...runNote(exchange.runUrl),
+        ],
+      });
+      continue;
+    }
+
+    if (exchange.state === 'failed') {
+      out.push({
+        id: `talk:${exchange.id}:failed`,
+        from: 'system',
+        at: stampAt(exchange.answeredAt ?? exchange.askedAt),
+        blocks: [
+          para('No answer was written for this. Your message is kept; the run is not.'),
+          ...(exchange.reason === null ? [] : [{ kind: 'note' as const, text: exchange.reason }]),
+          ...runNote(exchange.runUrl),
+        ],
+      });
+      continue;
+    }
+
+    out.push({
+      id: `talk:${exchange.id}:answered`,
+      from: 'virgil',
+      at: stampAt(exchange.answeredAt ?? exchange.askedAt),
+      blocks: [
+        // The session's own output, in the restricted subset the block kind
+        // exists for. `Blocks.tsx` builds React elements and sets no HTML, so
+        // this is text being formatted rather than markup being executed.
+        { kind: 'markdown', markdown: exchange.answer ?? '' },
+        ...runNote(exchange.runUrl),
+      ],
+    });
+  }
+  return out;
+}
+
 function virgilThread(state: DemoState): Message[] {
   const proverTallyNow = proverTally(100, state.outcome);
   return thread(state, 'virgil', [

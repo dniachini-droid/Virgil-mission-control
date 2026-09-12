@@ -155,44 +155,33 @@ jobs:
       - name: Tests
         run: pnpm test
 
-  # 1. The whole gate, in one command, exactly as a session runs it — and the
-  #    only place `verify:owner:v11` runs **whole** rather than in parts.
-  #    Sixty minutes because the measured work is about thirty and a cap has to
-  #    have margin over the measurement, not equal it.
-  checks:
-    name: lint, typecheck, tests, owner build, owner verify
-    if: github.event_name != 'push'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      # 1. The committed lockfile, or nothing.
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      # `verify:owner` needs a browser. The version is not chosen here: this
-      # installs whatever Chromium the `@playwright/test` pinned in
-      # `pnpm-lock.yaml` asks for, so the browser follows the lockfile and a
-      # reviewer can name it. The run prints the browser build it used.
-      - name: Install the Chromium the lockfile pins
-        run: pnpm --filter mission-control run install:browser
-
-      # 2 + 4 + 5. `pnpm check` is biome, turbo typecheck, every workspace test,
-      # and then `verify:owner` and `verify:owner:v11` — which the turbo graph
-      # makes depend on their builds, so both Owner Builds are built and opened
-      # from `file://` before this step can pass. Neither verify is given
-      # `VIRGIL_V11_VIEWPORTS` or `VIRGIL_V11_TAIL`, so the V11 one runs every
-      # viewport and the tail and prints a bare `PASS`.
-      - name: pnpm check
-        run: pnpm check
+  # 1. **The whole gate in one command used to run here on every pull request,
+  #    and the system audit of 2026-09-11 established it should not — `SA-P-02`.**
+  #
+  #    It ran `pnpm check`, whose six commands each already have their own job
+  #    below, and it was **32.8% of every pull request** — 582 machine-minutes
+  #    across the 22 pull requests measured. What it uniquely held was that
+  #    `verify:owner:v11` ran in **one browser context** across all viewports.
+  #    That turns out to be nothing: `verify-owner-build-v11.ts` reloads the
+  #    document at the start of every viewport precisely so that nothing survives
+  #    between them, and `required-checks-v11.test.ts` already proves the four
+  #    matrix parts cover every viewport exactly once plus the tail.
+  #
+  #    It had also passed once with **57 seconds of margin** against its
+  #    60-minute cap, on a runner whose speed varies by a factor of two between
+  #    runs of identical code. The next slow run would have timed out and been
+  #    reported as a gate failure indistinguishable from broken code — the exact
+  #    failure this file's header was written to cure, recurring at the new cap.
+  #
+  #    Cutting it roughly **halves the time from push to verdict**, which is what
+  #    the cost of CI actually is here: `SA-P-01` measured the billing API and
+  #    found `billable total_ms: 0` on every run, because standard runners are
+  #    free on public repositories.
+  #
+  #    **The whole run is still obtainable**, and a run record that wants a bare
+  #    `PASS` from `verify:owner:v11` rather than four `PASS (partial: …)` lines
+  #    should take it from `workflow_dispatch` above, which runs everything on
+  #    demand.
 
   # 1b. **The hosted build, which had no check of any kind — the Keeper's
   #     KP2-09.** It is the target the owner opens on his phone and the only one
@@ -200,9 +189,24 @@ jobs:
   #     have failed if `build:web` broke. Its own job rather than a step of
   #     another, because it is quick and because a check folded into a slow job
   #     is a check that gets skipped when the slow job times out.
+  #
+  #     **It now runs on every push — `KP10-01`.** It did not, and the cost of
+  #     that was measured rather than argued: eleven commits went in over four
+  #     days, the five push runs each ran lint, typecheck and tests only, and the
+  #     first time this job ran at all was when the pull request opened. It was
+  #     red, on the two cases the slice's own brief names by name.
+  #
+  #     The reason it sat behind the push exclusion was cost, and that reason
+  #     does not apply to this job. The exclusion was written for `checks` and
+  #     the V11 verify matrix, which are the expensive ones — 582 machine-minutes
+  #     across 22 pull requests for `checks` alone. This one builds a single web
+  #     target and drives it: a handful of minutes, against a branch that
+  #     otherwise goes days without its acceptance check running once.
+  #
+  #     The expensive jobs below keep the exclusion. A gate nobody can afford to
+  #     run is a different problem from a gate nobody runs.
   verify-web:
     name: hosted build, read and refused
-    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

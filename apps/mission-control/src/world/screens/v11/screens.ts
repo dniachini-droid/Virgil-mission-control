@@ -200,10 +200,31 @@ export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScree
       assembly(ctx, m, well, t, progress, tally.files, files.length, accent.key, accent.second);
   } else if (role === 'prover') {
     const schedule = work?.kind === 'checks' ? work.checks : proverChecks(outcome);
-    const tally = proverTally(working, outcome, schedule);
-    // KP2-05 again: `proverChecks(outcome)` is the scripted schedule, and an
-    // empty one means no check result has been read rather than no check exists.
-    const unknownChecks = schedule.length === 0;
+    const scripted = proverTally(working, outcome, schedule);
+    /**
+     * **SA-U-06: real counts reach the rail, and nothing else does.**
+     *
+     * `read` is present only when `/api/state` actually returned checks. When it
+     * is, these four numbers are GitHub's and the rail draws them. When it is
+     * not, `NOT READ` stands — which is what `KP2-05` established and is still
+     * right: an empty schedule means no result was read, not that no check
+     * exists.
+     *
+     * The picture below is untouched either way. It animates a schedule, and a
+     * live answer has no timings to animate; drawing one would be inventing the
+     * motion this repair exists to avoid.
+     */
+    const read = work?.kind === 'checks' ? work.read : undefined;
+    const tally = read
+      ? {
+          ...scripted,
+          passed: read.passed,
+          failed: read.failed,
+          skipped: read.skipped,
+          total: read.total,
+        }
+      : scripted;
+    const unknownChecks = read === undefined && schedule.length === 0;
     rail = [
       {
         label: 'passed',
@@ -220,7 +241,17 @@ export function drawConsoleScreen(canvas: HTMLCanvasElement, input: ConsoleScree
         value: unknownChecks ? '—' : `${tally.skipped}`,
         colour: !unknownChecks && tally.skipped > 0 ? STATUS.amber : undefined,
       },
-      { label: 'of', value: unknownChecks ? 'NOT READ' : `${tally.total} required` },
+      {
+        label: 'of',
+        // "required" is the recording's word: its fourteen come from a fixed
+        // list the project requires. GitHub's are the checks that *reported*,
+        // which is a different claim, so the live case says so.
+        value: unknownChecks
+          ? 'NOT READ'
+          : read
+            ? `${tally.total} reported`
+            : `${tally.total} required`,
+      },
     ];
     picture = () =>
       scanning(
