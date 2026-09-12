@@ -95,11 +95,22 @@ describe('a verifier waits before it asserts an absence', () => {
          * page's readiness a condition before a failure can be asserted. A rule
          * that flags correct code gets relaxed until it means nothing, so it is
          * taught rather than loosened.
+         *
+         * **`worldReady`, `openAndRead` and `readBadge` join for `KP10-02`**, and
+         * the moment they were written this rule flagged all eight sites that
+         * used them — correctly, by its own lights, since it had never heard of
+         * them. Each is a helper whose body is a wait and nothing else:
+         * `worldReady` waits for a canvas *and* for the page to have finished
+         * reading `/api/state`, `openAndRead` waits for the product to open the
+         * window it was asked for and then for the answer's own words to appear
+         * in it, and `readBadge` waits for the badge to carry what the endpoint
+         * gave it. Teaching the rule their names is the correction; what it
+         * demands of them is unchanged.
          */
         const waited = after
           .slice(0, asserts)
           .search(
-            /waitFor\w*\(|\.waitFor\(|worldStill\(|framePeriodMs\(|pressUntil\(|requestAnimationFrame|frames\(/,
+            /waitFor\w*\(|\.waitFor\(|worldStill\(|framePeriodMs\(|pressUntil\(|requestAnimationFrame|frames\(|worldReady\(|openAndRead\(|readBadge\(/,
           );
         if (waited === -1) {
           const line = text.slice(0, from).split('\n').length;
