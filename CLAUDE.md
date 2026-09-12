@@ -16,7 +16,9 @@ Only the owner may change layers 1 and 2. A session that finds a contradiction r
 
 ## Hard limits for every session
 
-- Work only inside this repository. Never read, clone or modify any other repository.
+- **Change only this repository.** Never modify, push to, open a pull request on, or in any way write to another repository. Reading and cloning one is permitted — the owner decided this on 2026-09-12 (`docs/decisions/OD-0016`), replacing the blanket prohibition that stood here. What a session may never do is act on another repository, and that half of the rule is unchanged and absolute.
+  - **Why it changed.** The old line read *"Never read, clone or modify any other repository"*, and by 2026-09-12 it had been set aside three times in one day by owner authorisation — to compare `obra/superpowers`, `NicholasSpisak/second-brain` and `toolboxmd/karpathy-wiki` — and then contradicted outright by a section ten lines below installing a plugin every session loads. That is `KXR-20`. A rule broken whenever it is inconvenient teaches sessions that rules are negotiable; a rule that contradicts itself makes them guess which half to obey. Both are worse than the honest narrower rule.
+  - **What reading another repository still does not confer.** Nothing from it is authority here. Its code is not copied without checking its licence, and a repository with no licence is read and not copied at all. What is taken is recorded in the work that takes it.
 - Commit only to the branch assigned to the session. Never touch `main`. Never open a pull request, merge, deploy, or connect credentials unless the owner explicitly authorised it in writing for that session.
 - No paid services, subscriptions or commercial assets.
 - Never write secrets, tokens or credential material into files, logs, fixtures or the interface.
@@ -44,6 +46,16 @@ Not implied by "yes", not by "go", not by "clean it up", not by having authorise
 **And one thing this does not do, found by doing it rather than by reasoning about it.** `.claude/settings.json` and `.claude/hooks/` carry `Write` and `Edit` deny rules so the list cannot be widened by the party it constrains — `SA-G-03`, whose auditor demonstrated that gap rather than arguing it. **Those rules did not stop the session that wrote this paragraph from editing that same file**, because it used `python3` from `Bash`, and the rules name the `Write` and `Edit` tools rather than the file. The same is true of `sed -i`, `cat >`, `tee`, and every other way a shell writes.
 
 So the self-protection is thinner than it reads. It stops an honest session reaching for the obvious tool. It does not stop a determined one, and it is written down here as a hurdle rather than a wall — which is the only thing that makes the difference safe to rely on.
+
+## Superpowers
+
+`obra/superpowers` is installed at project scope (`.claude/settings.json`), so every session on this repository has it — including the ones `instruct.yml` runs in a fresh container. It is a methodology: brainstorming, writing plans, test-first development, systematic debugging, verification before claiming completion. MIT licensed, free, and it makes a session build better.
+
+**It advises on method. The hard limits above govern.** Where a Superpowers skill and this file disagree, this file wins, and a session that finds them in conflict reports it rather than choosing. Superpowers does not widen what a session may touch, does not relax the branch rule, and does not make a session's own verification into evidence — its `verification-before-completion` skill produces a better builder's report, and a builder's report is still not evidence here.
+
+**What it does not replace:** the roles in `.claude/agents/`. Superpowers is how a session works; a role is what it is allowed to do. A Fabricator with Superpowers is still bounded by its permitted paths, still hands off to an independent reviewer, and is still counted against the repair limit.
+
+**One thing to know about it:** the marketplace entry tracks `obra/superpowers` with no pinned version, so a change they publish reaches this repository's next session without anyone here approving it. That is the ordinary cost of a live plugin and it is written down rather than discovered.
 
 ## Repository map
 

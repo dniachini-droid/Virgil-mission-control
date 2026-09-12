@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:4ea731dec4d7bbfe534a31f3c259173f06c02dfdb9c3fe9356aa0a836f4ae3cf",
+  "graphHash": "sha256:f5c6b54df0ce654dec93c62386d7dd069170685b0b7800670aaa728ff6694c44",
   "nodes": [
     {
       "id": "agent-roster",
@@ -167,6 +167,16 @@
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0014 — A fifth repair round, and the cycle ceiling (Tier 3)",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0016-superpowers-and-the-decisions-of-2026-09-12.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0016 — Superpowers, the record-keeping cycle, and the path exceptions of 2026-09-12",
       "epistemicClass": "owner_approved_decision",
       "authorityClass": "owner_decision",
       "status": null,
