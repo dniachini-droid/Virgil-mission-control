@@ -132,8 +132,16 @@ export function tablesOf(markdown: string): { head: string[]; cells: string[][];
 }
 
 const allTables = tablesOf(source);
-const registerTable = allTables.find((t) => t.head.join('|') === REGISTER_HEAD.join('|'));
-const attributesTable = allTables.find((t) => t.head.join('|') === ATTRIBUTES_HEAD.join('|'));
+/**
+ * **`KXR-13`: `find` takes the first and ignores the rest.** A second table with
+ * the register's exact header was read by nothing — a finding false in every
+ * cell sat inside one and the suite stayed green at 125 — while `KXR-11`'s check
+ * passed it, because its header *is* recognised. Duplicates are refused below.
+ */
+const registerTables = allTables.filter((t) => t.head.join('|') === REGISTER_HEAD.join('|'));
+const attributesTables = allTables.filter((t) => t.head.join('|') === ATTRIBUTES_HEAD.join('|'));
+const registerTable = registerTables[0];
+const attributesTable = attributesTables[0];
 
 const malformed: { line: number; text: string }[] = [];
 const rows: Row[] = [];
@@ -328,6 +336,60 @@ const PINNED: Record<
     where: 'docs/process/KEEPER_FINAL_REVIEW_GATE_PROOF_AND_FINDINGS.md',
     what: 'c11ef2dae566',
   },
+  'KXR-13': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_RECORD_KEEPING_REVIEW.md',
+    what: 'fd1b7efad5cc',
+  },
+  'KXR-14': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_RECORD_KEEPING_REVIEW.md',
+    what: '8107c97c0192',
+  },
+  'KXR-15': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_RECORD_KEEPING_REVIEW.md',
+    what: 'ff244e48570f',
+  },
+  'KXR-16': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_RECORD_KEEPING_REVIEW.md',
+    what: 'feaebec894b0',
+  },
+  'KXR-17': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_RECORD_KEEPING_REVIEW.md',
+    what: '23a010a3e32d',
+  },
+  'KXR-19': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md',
+    what: '4afc95d25502',
+  },
+  'KXR-20': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md',
+    what: 'bf198acc04ed',
+  },
+  'KXR-21': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md',
+    what: '5e2f0df36b1d',
+  },
+  'KXR-22': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR11_UNREVIEWED_COMMITS_REVIEW.md',
+    what: 'f799f16fcc4d',
+  },
 };
 
 const digest = (text: string) => createHash('sha256').update(text).digest('hex').slice(0, 12);
@@ -349,6 +411,13 @@ describe('the findings register is a register', () => {
       malformed,
       `rows in the register that do not parse: ${malformed.map((m) => m.text).join('; ')}`,
     ).toEqual([]);
+  });
+
+  it('has exactly one register table and one attributes table', () => {
+    // KXR-13. Two tables with the same header is not a formatting choice: it is
+    // a second register nothing reads.
+    expect(registerTables.length, 'the register table appears more than once').toBe(1);
+    expect(attributesTables.length, 'the attributes table appears more than once').toBe(1);
   });
 
   it('has no table the checks do not enter', () => {
