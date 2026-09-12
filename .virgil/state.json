@@ -1,7 +1,7 @@
 {
   "schema": "virgil.session-status.v1",
-  "reportedAt": "2026-09-11T17:19:58Z",
-  "aboutCommit": "2a18c8ef3414f8d3b96cf7fa71f1d9989f0fee04",
+  "reportedAt": "2026-09-12T03:50:23Z",
+  "aboutCommit": "94c2a61b2aad59e15e2a2fba5e0e148ddb140acf",
   "branch": "claude/virgil-checks-and-records",
   "candidate": null,
   "holder": "fabricator",
@@ -10,7 +10,7 @@
       "role": "fabricator",
       "activity": "WORKING",
       "reported": null,
-      "at": "2026-09-11T17:19:58Z"
+      "at": "2026-09-12T03:50:23Z"
     },
     {
       "role": "prover",
@@ -20,11 +20,11 @@
     },
     {
       "role": "keeper",
-      "activity": "REPORTED",
-      "reported": "BLOCKED",
-      "at": "2026-09-11T17:19:58Z"
+      "activity": "READY",
+      "reported": null,
+      "at": null
     }
   ],
   "review": null,
-  "note": "The system audit ran; its worst finding is repaired and two need the owner."
+  "note": "Halved the review loop, then starting the slice that lets the owner talk to Virgil."
 }

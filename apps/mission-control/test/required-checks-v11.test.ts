@@ -278,31 +278,49 @@ describe('the V11 verify’s CI split covers the whole check', () => {
     expect(running[0]?.[1]).toBe('none');
   });
 
-  it('still runs the check whole, once, and not only in parts', () => {
-    // `pnpm check` sets neither variable, which is the only arrangement in
-    // which the script prints a bare `PASS` (`verify-owner-build-v11.ts`).
-    expect(workflow).toContain('run: pnpm check');
-    const checkJob = workflow.slice(
-      workflow.indexOf('  checks:'),
-      workflow.indexOf('  artifacts:'),
-    );
-    expect(checkJob).toContain('run: pnpm check');
-    // No `env:` sets either variable in this job — the prose above the step
-    // names them, and naming is not setting.
-    expect(checkJob).not.toMatch(/^\s+VIRGIL_V11_VIEWPORTS:/m);
-    expect(checkJob).not.toMatch(/^\s+VIRGIL_V11_TAIL:/m);
+  /**
+   * **These two assertions used to require the whole run on the critical path,
+   * and the system audit established it should not be there — `SA-P-02`.**
+   *
+   * They pinned `run: pnpm check` inside a `checks:` job and a 45-minute cap on
+   * it. That job was 32.8% of every pull request and held nothing the matrix
+   * does not: its one unique property — the V11 verify running in a single
+   * browser context — is destroyed on purpose by the script itself, which
+   * reloads the document at the start of every viewport so that nothing carries
+   * between them.
+   *
+   * What the tests above hold is the thing that actually matters and is
+   * unchanged: **the split stays complete.** Every viewport the script defines
+   * is covered by exactly one part, and exactly one part runs the tail. Take a
+   * viewport out of the matrix and they fail.
+   *
+   * What is held here instead is that the whole run is still *obtainable*. Four
+   * partial runs are four partial runs, and a run record quoting a bare `PASS`
+   * needs somewhere to get one — so `workflow_dispatch` must stay, and this
+   * asserts it does rather than asserting it runs on every pull request.
+   */
+  it('keeps the whole run obtainable on demand, rather than on every pull request', () => {
+    expect(workflow).toContain('workflow_dispatch:');
+    // And the duplicate job is gone: no job may run `pnpm check`, because every
+    // command inside it already has its own job below.
+    expect(workflow).not.toMatch(/^\s+- name: pnpm check$/m);
+    expect(workflow).not.toMatch(/^\s+run: pnpm check$/m);
   });
 
-  it('gives the whole run a cap with margin over the work it is measured at', () => {
-    const checkJob = workflow.slice(
-      workflow.indexOf('  checks:'),
-      workflow.indexOf('  artifacts:'),
-    );
-    const cap = Number(/timeout-minutes: (\d+)/.exec(checkJob)?.[1]);
-    // The V11 verify alone is about fifteen minutes on this class of machine,
-    // and the reviewed candidate's run was cancelled at 30 m 17 s against a cap
-    // of 30. A cap has to be more than the measurement, not equal to it.
-    expect(cap).toBeGreaterThanOrEqual(45);
+  it('still runs every part of the gate, in jobs of its own', () => {
+    // The commands `pnpm check` used to run. Each must appear somewhere in the
+    // workflow, or removing that job quietly removed coverage — which is the
+    // one way this change could have been wrong.
+    for (const command of [
+      'pnpm lint',
+      'pnpm typecheck',
+      'pnpm test',
+      'run verify:owner',
+      'run verify:owner:v11',
+      'run verify:web',
+    ]) {
+      expect(workflow, `${command} lost its job`).toContain(command);
+    }
   });
 
   it('does not let the Mind Scan or the digests queue behind a browser check', () => {

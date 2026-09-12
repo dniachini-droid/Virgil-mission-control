@@ -94,10 +94,24 @@ describe('the checks workflow', () => {
     expect(workflow).toMatch(/^ {2}pull_request:$/m);
   });
 
-  // One entry per numbered step of the brief this workflow was built to.
+  /**
+   * One entry per numbered step of the brief this workflow was built to.
+   *
+   * **`pnpm check` was on this list and is not any more — `SA-P-02`.** The job
+   * that ran it was 32.8% of every pull request and duplicated six jobs that
+   * each run one of its six commands. Removing the aggregate is not removing
+   * coverage, and the list below is what proves that: every command that used
+   * to be inside it is named here in its own right, so a future change that
+   * quietly drops one fails this test rather than passing because an aggregate
+   * still exists.
+   */
   const requiredCommands = [
     'pnpm install --frozen-lockfile',
-    'pnpm check',
+    'pnpm lint',
+    'pnpm typecheck',
+    'pnpm test',
+    'pnpm --filter mission-control run verify:owner:v11',
+    'pnpm --filter mission-control run verify:web',
     'pnpm --filter @virgil/knowledge-lint run lint',
     'pnpm --filter mission-control run build:owner',
     'pnpm --filter mission-control run verify:owner',
@@ -147,14 +161,45 @@ describe('the checks workflow', () => {
  * being a change of timing and become a hole, and this file would fail.
  */
 describe('the gate runs in full before anything can merge', () => {
-  const gated = [
-    'lint, typecheck, tests, owner build, owner verify',
-    'Mind Scan, V10 owner build and verify, committed digests',
-    'V11 owner build and verify',
-    'newest Owner Build rebuilds byte for byte',
-    // KP2-09: the hosted build, which had no check of any kind until this one.
-    'hosted build, read and refused',
-  ];
+  /**
+   * **Derived from the workflow, not hardcoded — the system audit's `SA-G-06`.**
+   *
+   * This was a written list of five job names, and the auditor found the hole
+   * in it: *"deleting a job **and** its array entry in one commit passes."* A
+   * test that must be edited whenever the thing it guards changes is a test that
+   * agrees with whatever it is shown.
+   *
+   * Every job carrying `if: github.event_name != 'push'` is now read out of the
+   * file, so a job removed from the workflow is a job this cannot be told to
+   * stop looking for — and the count below is the count the file itself
+   * declares. What the assertions hold is unchanged: the condition on each is
+   * exactly that one, and nothing narrower.
+   */
+  const gated = [...workflow.matchAll(/^ {4}name: (.+)$/gm)]
+    .map((match) => (match[1] ?? '').trim())
+    .filter((name) => {
+      const at = workflow.indexOf(`    name: ${name}`);
+      const job = workflow.slice(at, at + 400);
+      return /^ {4}if: github\.event_name != 'push'$/m.test(job);
+    });
+
+  it('finds the gated jobs at all, or every assertion below is vacuous', () => {
+    /**
+     * The guard on the guard, and deliberately **not** a count.
+     *
+     * An empty list would make this whole block pass by examining nothing,
+     * which is the defect it exists to refuse. But asserting a *number* here
+     * would be pinning a tuning value this test is not about — the same trap
+     * that broke two tests earlier tonight when a cap moved from 8 to 20.
+     *
+     * Which jobs must exist is held where it belongs and by evidence rather
+     * than by a tally: `requiredCommands` above names every command the gate
+     * runs, and the per-job assertions require each to be a step of a real job.
+     * Deleting the hosted-build job fails three of those, which was checked by
+     * deleting it.
+     */
+    expect(gated.length).toBeGreaterThan(0);
+  });
 
   it('offers a fast half, and it is lint, typecheck and the tests', () => {
     expect(workflow).toMatch(/^ {4}name: lint, typecheck, tests$/m);
