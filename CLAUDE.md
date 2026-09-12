@@ -26,6 +26,16 @@ Only the owner may change layers 1 and 2. A session that finds a contradiction r
 - Every role performs one hop. A session assigned one role does not perform the next role's work.
 - A builder's success report is not evidence. Deterministic checks and independent review are.
 
+## Superpowers
+
+`obra/superpowers` is installed at project scope (`.claude/settings.json`), so every session on this repository has it — including the ones `instruct.yml` runs in a fresh container. It is a methodology: brainstorming, writing plans, test-first development, systematic debugging, verification before claiming completion. MIT licensed, free, and it makes a session build better.
+
+**It advises on method. The hard limits above govern.** Where a Superpowers skill and this file disagree, this file wins, and a session that finds them in conflict reports it rather than choosing. Superpowers does not widen what a session may touch, does not relax the branch rule, and does not make a session's own verification into evidence — its `verification-before-completion` skill produces a better builder's report, and a builder's report is still not evidence here.
+
+**What it does not replace:** the roles in `.claude/agents/`. Superpowers is how a session works; a role is what it is allowed to do. A Fabricator with Superpowers is still bounded by its permitted paths, still hands off to an independent reviewer, and is still counted against the repair limit.
+
+**One thing to know about it:** the marketplace entry tracks `obra/superpowers` with no pinned version, so a change they publish reaches this repository's next session without anyone here approving it. That is the ordinary cost of a live plugin and it is written down rather than discovered.
+
 ## Repository map
 
 - `apps/mission-control/` — the web application and both 3D worlds (Phase 0: two spikes only).

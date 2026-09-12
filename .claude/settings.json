@@ -1,7 +1,5 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "timeZone": "Australia/Sydney",
-  "timeFormat": "12-hour",
   "permissions": {
     "allow": [
       "Bash(pnpm install)",
@@ -67,5 +65,18 @@
         ]
       }
     ]
+  },
+  "timeFormat": "12-hour",
+  "timeZone": "Australia/Sydney",
+  "enabledPlugins": {
+    "superpowers@superpowers-dev": true
+  },
+  "extraKnownMarketplaces": {
+    "superpowers-dev": {
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers"
+      }
+    }
   }
 }
