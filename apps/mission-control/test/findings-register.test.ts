@@ -110,6 +110,75 @@ export function rowsOf(markdown: string): {
 
 const { rows, malformed } = rowsOf(source);
 
+/**
+ * **Every finding the register has ever carried, named here so it cannot leave
+ * quietly.**
+ *
+ * `KXR-02`, from the Keeper review of `8b725b5`
+ * (`claude/keeper-virgil-review-qu3pvr`, `5edc9ff`). The reviewer deleted four
+ * rows — `XR-01` among them, one of the two findings the branch itself raised —
+ * and the suite stayed green at 40 passed. Every other property of a row was
+ * checked and the one thing `REVIEW_POLICY.md` actually names was not:
+ * findings are *"never renumbered, merged silently or dropped"*, and **dropping
+ * was the one thing nothing caught.** Reproduced here before repairing it, with
+ * the same four rows and the same result.
+ *
+ * Five of the twelve rows happened to be held in place by
+ * `does not read as though recording a gap had closed it`, which pins them for a
+ * different reason and was never designed as this guard. The other seven were
+ * free to vanish.
+ *
+ * **Why a hand-written list is the right shape and not laziness.** The register
+ * cannot check its own completeness — no check can know about a finding nobody
+ * wrote down — but it can refuse to let go of what it already holds. Adding a
+ * finding means adding it here too; removing one means deleting a line from this
+ * list, in the diff, where a reviewer sees it. That converts a silent deletion
+ * into a deliberate, visible act, which is the whole of what "never dropped" can
+ * mean in a file.
+ */
+const PINNED = [
+  'KR-03',
+  'KR-06',
+  'KR-07',
+  'KR-09',
+  'KR-58',
+  'KP2-08',
+  'KP2-11',
+  'KP2-14',
+  'KP3-06',
+  'KP3-11',
+  'XR-01',
+  'XR-02',
+  'KXR-01',
+  'KXR-02',
+  'KXR-03',
+  'KXR-04',
+  'KXR-05',
+] as const;
+
+describe('no finding leaves the register quietly', () => {
+  const present = new Set(rows.map((row) => row.id));
+
+  it('still carries every finding it has ever carried', () => {
+    const gone = PINNED.filter((id) => !present.has(id));
+    expect(
+      gone,
+      `findings dropped from the register: ${gone.join(', ')}. REVIEW_POLICY.md: findings are never renumbered, merged silently or dropped. If one genuinely should go, delete it from PINNED in the same commit so the removal is in the diff.`,
+    ).toEqual([]);
+  });
+
+  it('has a row for everything pinned, and pins everything it has', () => {
+    // The other direction. A row added to the register and not to PINNED is a
+    // finding that can be dropped tomorrow without anything noticing — the
+    // condition KXR-02 named, re-entering one row at a time.
+    const unpinned = rows.map((row) => row.id).filter((id) => !PINNED.includes(id as never));
+    expect(
+      unpinned,
+      `rows in the register that nothing holds in place: ${unpinned.join(', ')}`,
+    ).toEqual([]);
+  });
+});
+
 describe('the findings register is a register', () => {
   it('has rows, or every assertion below is vacuous', () => {
     // The failure this guards is a register emptied by a bad edit, which would
