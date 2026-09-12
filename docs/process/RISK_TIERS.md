@@ -33,9 +33,34 @@ no idea how much care a change deserves, applying the maximum to everything.
 | **2 — ordinary** | code that changes behaviour inside an existing boundary | one independent review. A brief only when a reviewer would otherwise have to guess the intent. |
 | **3 — governed** | anything that changes **what a session may do, or what a check can catch** | the full treatment: brief committed first, independent review, run record, red-before-green, register rows. |
 
-**Tier 1 still runs every machine check.** What tier 1 skips is the ceremony —
-the brief, the independent review, the run record — never the verification. A
-tier-1 change with a red suite does not merge, exactly like every other change.
+**Tier 1 skips the ceremony — the brief, the independent review, the run
+record — and one narrow class of check.** A tier-1 change with a red suite does
+not merge, exactly like every other change.
+
+### The one amendment, and the line it draws — `KXR-42`
+
+This section first read *"tier 1 still runs every machine check … never the
+verification."* It was written before anything consumed the tier, and the first
+change the system classified — a single documentation file — waited twenty
+minutes for four browsers to confirm the 3D world renders at 390 pixels.
+
+**A check may be skipped only when the diff provably cannot change its inputs.**
+Not when it seems unlikely to, and not when it would be convenient. The V11 and
+hosted builds are compiled from `src/`; a markdown file is not an input to
+either, so running them over a prose change verifies nothing that could have
+moved. `.github/workflows/checks.yml` skips those two at tier 1 and nothing
+else.
+
+**What still runs at every tier, and why it must.** `turbo.json` declares
+`docs/**` and `knowledge/**` as inputs to the test task, so a prose change
+really can change what the suite sees — `packages/knowledge-graph` derives its
+graph from those files. The suite, the Mind Scan and the standalone check are
+therefore never gated on the tier, and
+`packages/repo-checks/test/tier-gating.test.ts` fails if anybody gates them.
+
+**The derivation fails safe.** A bad base, a missing ref, an unreadable output
+or an unanticipated exit code all derive tier 3 and run everything. The
+expensive path is the default; the cheap one has to be earned.
 
 **Merging is unchanged and remains the owner's.** No tier merges itself. The
 phrase is `merge approved`, naming the pull request, in that turn.

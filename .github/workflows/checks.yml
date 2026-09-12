@@ -155,6 +155,61 @@ jobs:
       - name: Tests
         run: pnpm test
 
+  # 0a. **How much of this file a change has to pay for — `KXR-42`.**
+  #
+  #     `docs/process/RISK_TIERS.md` classifies a change from the paths it
+  #     touches, and until now nothing consumed the answer. A one-file
+  #     documentation change waited twenty minutes for four browsers to confirm
+  #     the 3D world still renders at 390 pixels, which no prose file can alter.
+  #
+  #     **Fail-safe, and that is the whole design.** Any failure here — a bad
+  #     base, a missing ref, an unreadable output, an exit code nobody
+  #     anticipated — derives tier 3 and runs everything. The expensive path is
+  #     the default and the cheap one has to be earned.
+  tier:
+    name: the tier this change derives
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      tier: ${{ steps.derive.outputs.tier }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The derivation is a diff against the base, so the base has to exist
+          # locally. The default depth of 1 has neither.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Derive the tier from the changed paths
+        id: derive
+        run: |
+          set +e
+          ref="${{ github.event.pull_request.base.ref || github.event.repository.default_branch }}"
+          git fetch --no-tags --quiet origin "$ref"
+          out="$(pnpm --silent tier --base "origin/$ref" 2>&1)"
+          status=$?
+          echo "$out"
+          if [ "$status" -ne 0 ]; then
+            echo "tier: derivation exited $status, so this change is treated as governed"
+            echo "tier=3" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          t="$(printf '%s\n' "$out" | sed -n 's/^tier \([123]\),.*/\1/p' | head -1)"
+          case "$t" in
+            1|2|3) ;;
+            *) echo "tier: no tier in the output, so this change is treated as governed"; t=3 ;;
+          esac
+          echo "tier=$t" >> "$GITHUB_OUTPUT"
+
   # 1. **The whole gate in one command used to run here on every pull request,
   #    and the system audit of 2026-09-11 established it should not — `SA-P-02`.**
   #
@@ -222,6 +277,9 @@ jobs:
 
   verify-web:
     name: hosted build, read and refused
+    needs: tier
+    # Skipped at tier 1: the hosted build is compiled from src/; no prose file is an input to it.
+    if: needs.tier.outputs.tier != '1'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -310,7 +368,12 @@ jobs:
   #    That suppresses nothing: every part's own exit code is the job's.
   verify-v11:
     name: V11 owner build and verify (${{ matrix.part.name }})
-    if: github.event_name != 'push'
+    needs: tier
+    # Skipped at tier 1: the V11 build is compiled from src/; no prose file is an
+    # input to it. Both conditions in one expression — YAML keeps the last key of
+    # a duplicated pair, so writing them as two `if:` lines silently discards the
+    # first, which is how this was written the first time.
+    if: github.event_name != 'push' && needs.tier.outputs.tier != '1'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
