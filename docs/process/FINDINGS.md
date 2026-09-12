@@ -51,13 +51,16 @@ This column is the point of the register rather than a decoration on it. It is t
 | KP2-14 | open | review | `apps/mission-control/vite.owner.config.ts` defines no `__LIVE__` while four of the five configs do | docs/architecture/ENFORCEMENT_BOUNDARIES.md |
 | KP3-06 | deferred | review | `main` has no branch protection, so every green check on a pull request is advisory | docs/architecture/ENFORCEMENT_BOUNDARIES.md |
 | KP3-11 | by_design | review | Every depiction of an agent in the live room is a session's own word about itself | docs/architecture/ENFORCEMENT_BOUNDARIES.md |
-| XR-01 | repaired | review | Twenty gates existed and eight had never been observed refusing anything, so a passing suite could not distinguish a working gate from one that cannot fire | docs/process/GATE_PROOF_AND_FINDINGS_BRIEF.md |
-| XR-02 | repaired | review | Findings had no single home, so `REVIEW_POLICY.md`'s rule that they are never dropped could not be checked | docs/process/GATE_PROOF_AND_FINDINGS_BRIEF.md |
+| XR-01 | repaired | review | Twenty gates existed and eight had never been observed refusing anything, so a passing suite could not distinguish a working gate from one that cannot fire | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
+| XR-02 | repaired | review | Findings had no single home, so `REVIEW_POLICY.md`'s rule that they are never dropped could not be checked | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
 | KXR-01 | repaired | review | The register asserted an owner approval that no file in the repository supported; the sentence now says where the approval came from and that no record is filed | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
 | KXR-02 | repaired | review | Rows could be deleted from the register in silence — four were removed, including both findings this branch raised, and the suite stayed green | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
 | KXR-03 | open | review | The register carries two of the five attributes `REVIEW_POLICY.md` requires of a finding: severity, affected surface and reproduction evidence are absent | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
 | KXR-04 | repaired | review | The red-before-green proofs lived only in commit messages, where the brief asked for a run record | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
 | KXR-05 | repaired | review | The record did not say that CI was red at the intermediate commit 57d7829 | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
+| KXR-06 | repaired | review | The register pinned that a row existed, not what it said: one row could be flipped from `open` to `repaired` by a one-word edit with the suite still green | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
+| KXR-07 | open | review | Two of the five files in this branch's diff are outside the brief's permitted paths, authorised only by prose the same sessions wrote | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
+| KXR-08 | repaired | review | `XR-01` and `XR-02` pointed at a document that says of itself "Nothing in this document is authority" | docs/process/FOUNDATION_REPAIR_RUN_RECORD.md |
 
 ## Adding a row
 
