@@ -187,6 +187,17 @@ function serve(
       const asked = new URLSearchParams(query).get('branch');
       askedFor.push(asked);
       const answer = state(asked);
+      if (answerDelay) {
+        // Held open on purpose by the KP10-13 case, so the page can be acted on
+        // while it genuinely has no answer. Null for every other case.
+        void answerDelay.then(() => {
+          response.writeHead(answer.status, {
+            'content-type': 'application/json; charset=utf-8',
+          });
+          response.end(answer.body);
+        });
+        return;
+      }
       /**
        * **Answered immediately here, and deliberately not always.**
        *
@@ -234,6 +245,9 @@ function serve(
     });
   });
 }
+
+/** Held by the `KP10-13` case to enter the interval before the answer. */
+let answerDelay: Promise<void> | null = null;
 
 const built = readdirSync(outDir);
 if (!built.includes('owner-v11.html')) {
@@ -1498,6 +1512,100 @@ try {
   answer = { status: 200, body: JSON.stringify(ANSWER) };
 
   /**
+   * **`KP10-13`: the window before the answer, which is where it could lie.**
+   *
+   * The tenth review found this by running the repair's own documented
+   * reproduction. On the hosted build, tapping *"Talk to Virgil"* while
+   * `/api/state` was still in flight opened a window carrying *"Good evening.
+   * No work has started…"*, three agents' statuses and a claim about a review —
+   * every line of it the recording, none of it a fact about the repository. And
+   * not only in the gap: an endpoint answering 500 left the page there
+   * permanently.
+   *
+   * **The repair for `KP10-02` closed the only window through which this file
+   * could ever have seen it.** `openAndRead` waits for the answer's own words
+   * before reading the sheet, deliberately and correctly — so the interval when
+   * the recording is on screen is now stepped over every time. Before that
+   * commit the check saw this by accident under load. After it, never.
+   *
+   * So this case opens the window **on purpose, in that interval**, and asserts
+   * the absence there. It is the assertion the file already owned, moved to the
+   * one moment where it can fail.
+   */
+  const beforeEarly = failures.length;
+  {
+    const holder: { release: () => void } = { release: () => {} };
+    const held = new Promise<void>((resolve) => {
+      holder.release = resolve;
+    });
+    answerDelay = held;
+    answer = { status: 200, body: JSON.stringify(ANSWER) };
+    await page.goto(`${url}?early=1`, { waitUntil: 'load' });
+    // Not `worldReady`: the whole point is to act before the answer arrives.
+    await page.waitForSelector('.v11-talk', { state: 'visible', timeout: budget }).catch(() => {});
+    await press('.v11-talk');
+    await page.waitForTimeout(500);
+    const early = await page.evaluate(
+      () => (document.querySelector('.v11w-sheet') as HTMLElement | null)?.innerText ?? '',
+    );
+    for (const scripted of [
+      'Good evening',
+      'I’ve given the Fabricator the task',
+      'The Prover is running the checks',
+      'No review has been reported',
+      'Nothing is sent — there is nothing running behind this build',
+    ]) {
+      if (early.includes(scripted)) {
+        failures.push(
+          `before the endpoint answered, Virgil’s window drew the recording: "${scripted}"`,
+        );
+      }
+    }
+    holder.release();
+    await page.waitForTimeout(200);
+  }
+
+  /**
+   * **And permanently, when the endpoint fails.** The same gesture on a page
+   * that has been told the repository could not be read. This is the half that
+   * is not a race: it does not pass by being quick.
+   */
+  answerDelay = null;
+  answer = { status: 500, body: JSON.stringify({ ok: false, reason: 'the endpoint failed' }) };
+  await page.goto(`${url}?early500=1`, { waitUntil: 'load' });
+  await page
+    .waitForFunction(
+      () =>
+        /could not be read/i.test(
+          (document.querySelector('.v11-live-notice') as HTMLElement | null)?.innerText ?? '',
+        ),
+      undefined,
+      { timeout: budget },
+    )
+    .catch(() => {});
+  await press('.v11-talk');
+  await page.waitForTimeout(500);
+  const onFailure = await page.evaluate(
+    () => (document.querySelector('.v11w-sheet') as HTMLElement | null)?.innerText ?? '',
+  );
+  for (const scripted of ['Good evening', 'No review has been reported', 'Fabricator: standby']) {
+    if (onFailure.includes(scripted)) {
+      failures.push(
+        `with the endpoint failing, Virgil’s window still narrates the recording: "${scripted}"`,
+      );
+    }
+  }
+  // The 500 above is this case's own stimulus. The file already refuses to count
+  // a deliberate failure as a defect for the phase below; the same applies here.
+  consoleErrors.length = 0;
+  if (failures.length === beforeEarly) {
+    mark(
+      'before the answer, and when it never comes, the window draws nothing rather than the recording',
+    );
+  }
+  answer = { status: 200, body: JSON.stringify(ANSWER) };
+
+  /**
    * **Phase 2 slice six, proved on the page rather than described.**
    *
    * `PHASE_2_SLICE_6_BRIEF.md` names these by name, under *"How you will know it
@@ -1798,8 +1906,21 @@ try {
   const windowText = await page.evaluate(
     () => (document.querySelector('.v11w-sheet') as HTMLElement | null)?.innerText ?? '',
   );
-  if (windowText.length < 50) {
-    failures.push('with the endpoint failing, no window opened to be checked');
+  /**
+   * **This asserted that a window opened, and `KP10-13`'s repair means one does
+   * not.** The case was written when a failed answer still produced a window,
+   * and its job was to prove that window carried no recorded value. The repair
+   * makes the window absent instead, which is the stronger answer: there is
+   * nothing to be wrong.
+   *
+   * So the demand is inverted rather than deleted. An empty sheet is now the
+   * expected outcome, and the recorded-value assertions below still run — they
+   * pass trivially on an empty string and would catch a window that came back.
+   */
+  if (windowText.length >= 50) {
+    failures.push(
+      `with the endpoint failing, a window opened at all: "${windowText.slice(0, 200)}"`,
+    );
   }
   const recorded = [
     /(^|\W)0 \/ 8(\W|$)/,

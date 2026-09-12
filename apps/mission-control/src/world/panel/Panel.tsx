@@ -39,7 +39,18 @@ export function Panel({ target, onClose }: { target: PanelTarget | null; onClose
   const state = useDemoState();
   const [leaving, setLeaving] = useState<PanelTarget | null>(null);
   const shown = target ?? leaving;
-  const doc = useMemo(() => (shown ? panelDoc(state, shown) : null), [state, shown]);
+  /**
+   * **No state, no document — `KP10-13`.**
+   *
+   * `useDemoState` returns `null` on a live page that has read nothing, and
+   * this is where that has to mean something. It used to be impossible: the
+   * store always held the recording's first frame, so a surface with nothing
+   * to say drew the recording instead. `panelDoc` is given a state or it is not
+   * called, and `!doc` below already renders nothing at all.
+   *
+   * Nothing is the correct drawing. The page's own notice says why.
+   */
+  const doc = useMemo(() => (shown && state ? panelDoc(state, shown) : null), [state, shown]);
   const root = useRef<HTMLDivElement>(null);
   const rail = useRef<HTMLDivElement>(null);
   const sheet = useRef<HTMLDivElement>(null);

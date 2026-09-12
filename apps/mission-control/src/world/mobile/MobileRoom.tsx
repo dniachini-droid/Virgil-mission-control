@@ -29,7 +29,7 @@ import {
   useLive,
 } from '../live/liveState.js';
 import type { SlabName } from '../panel/panelContent.js';
-import { demoSnapshot, publishDemoState } from '../panel/panelStore.js';
+import { demoSnapshot, publishDemoState, publishNothingRead } from '../panel/panelStore.js';
 import { RUN, RUN_SECONDS, recordedClock, recordedDuration } from '../replay/recordedRun.js';
 import {
   compressionOf,
@@ -345,7 +345,7 @@ export function MobileRoom({ build }: { build: BuildIdentity }) {
     // window carries the whole of it.
     openWindow(
       anchor.id,
-      row === undefined ? step.window : windowForLedgerRow(demoSnapshot(), row),
+      row === undefined ? step.window : windowForLedgerRow(demoSnapshot() ?? demoAt(0, 0, false), row),
     );
   };
   /**
@@ -1546,7 +1546,18 @@ function Cast({
    * the DOM says what happened instead.
    */
   const state = forced ? forcedState(forced) : mode === 'live' ? live.state : (frozen ?? running);
-  if (!state) return null;
+  if (!state) {
+    /**
+     * **`KP10-13`.** This returned here and left the store holding whatever it
+     * held last — which, on a page that had never had a live state, is the
+     * recording's first frame. The world was correctly absent; the window one
+     * press away was narrating a scripted run in Virgil's voice.
+     *
+     * Saying so is the repair. A surface handed nothing draws nothing.
+     */
+    publishNothingRead();
+    return null;
+  }
   publishDemoState(state);
   // The recorded run's real duration and real branch, for the two surfaces
   // that were inventing them (KS4-02, KS4-04). Added here rather than in
