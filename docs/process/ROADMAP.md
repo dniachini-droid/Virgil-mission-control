@@ -1,8 +1,10 @@
 # Roadmap — what gets built, in what order, and what happens after
 
-**Status: true as of 2026-09-13, 12:40 UTC, against `main` at `515373f`.** Every section below carries its own state line. Items 1 to 4 and item 7 are done and merged; items 5, 6 and 8 to 10 are agreed in sequence and not started. Each still gets its own brief, and a brief is where the detail is settled.
+**Status: true as of 2026-09-13, against `main` at `f2aa068`** — the merge of `#32`, and the head of `main` when this pass was written. The three commits of the record-keeping pull request described under "Now" sit on top of it and change nothing this plan asserts about merged work. Every section below carries its own state line. Items 1 to 4 and item 7 are done and merged; items 5, 6 and 8 to 10 are agreed in sequence and not started. Each still gets its own brief, and a brief is where the detail is settled.
 
 **This document was a day stale and the owner caught it, not a check.** It was written on 2026-09-12 and still described three pull requests as in flight — `#12`, `#13`, `#14` — all of which closed before the following morning, while eight further pull requests merged without appearing here at all. His words: *"I'm worried we are losing our way and not keeping track of our project and where we are headed."* He was right, and the cause was mechanical: **nothing fails when this file goes stale.** `docs/process/FINDINGS.md` cannot lose a finding because twenty checks read it on every run. This file is read by nobody but a person, so it rots silently and then misleads the one reader it exists for.
+
+**And it happened again, inside twelve hours, which is the measurement worth having.** The correction above stamped this file at `515373f`. Five pull requests then merged — `#30`, `#28`, `#31`, `#33` and `#32`, twenty-one commits — and none of them appeared here. The line below the in-flight table went on saying *"thirteen findings owed a row … none filed"* on the very day twenty-four were filed; the next session to read the plan would have been sent to do work already done. A reviewer found it (`KXR-76/PR33`) rather than a check, and this pass is its repair. **The named mechanism is still absent** — see the last section — and the honest reading of this file is that it is a label maintained by hand, twice now behind the tree, and to be distrusted whenever `main` is ahead of the commit in its status line.
 
 **What this document is for.** On 2026-09-12 the owner asked *"I don't know when to move on, otherwise we'll just keep finding stuff."* A list nobody wrote down is a list that gets re-litigated every time somebody asks what is next. This is the list.
 
@@ -20,17 +22,20 @@ Everything below serves that. The 3D interface is the test subject, not the goal
 
 ## Now — in flight
 
+**Nothing merged is in flight. `main` is at `f2aa068` and no pull request opened before this one is still open.**
+
 | | what | state |
 |---|---|---|
-| **#27** | the knowledge system and its repair | two independent reviews, both passed; blocked on a clash with `main` in one generated file, being regenerated |
-| **#28** | the owner's window rewritten in plain English | review running |
+| **the record-keeping pull request** | hold the ten captured reviews in place, file the eleven findings the three reviews of `#32` and `#33` raise, and re-stamp this plan | built on `claude/hold-the-captures-and-file-pr32-pr33`; unreviewed, and a builder's report is not evidence |
 
-**And two jobs queued behind them, neither started:**
+**And two jobs queued behind it, neither started:**
 
 | | what | why it matters |
 |---|---|---|
-| the two loopholes in the chain | a repair session that labels itself `builder` is never counted, and comments read newest-first commission reviews without bound | **the chain must not run unattended until both are closed** |
-| thirteen findings owed a row | across `#26`, `#27` and `#28`, none filed, because recording a finding is a repair and no reviewer may perform one | the register is the one place nothing can be dropped from, and thirteen things are outside it |
+| `KEEPER_PR20_REVIEW.md` and the eight rows it owes | `KXR-39/PR20` to `KXR-46/PR20` are referenced in two captured reviews and the review itself is in no part of this tree | a row must point at a file that holds the finding's text, so those eight cannot be filed until the review is captured — the same two-step every other batch used |
+| **item 5, Phase 1** | the inspector looks at a real piece of work for the first time | it is the phase everything below waits on, and it is the first thing on this list that is not record-keeping |
+
+**The two loopholes in the chain are closed.** They were queued here as the thing that had to happen before the chain ran unattended: a repair session labelling itself `builder` went uncounted, and comments read newest-first commissioned reviews without bound. `#32` closed both, was reviewed twice, and merged at `f2aa068`. **Whether the chain is switched on is the owner's**, and it has still never run end to end — which is what `#32`'s own reviewers said of it.
 
 ## Done on 2026-09-13, none of which this list mentioned before now
 
@@ -44,8 +49,13 @@ Everything below serves that. The 3D interface is the test subject, not the goal
 | `#21`, `#22` | the application deleted, and every trace of it |
 | `#24` | `OD-0018` — a builder opens its own pull request |
 | `#26` | the automatic chain: build, review, fix, review, and then it stops |
+| `#30` | the knowledge system, replayed onto current `main` — this is what `#27` became |
+| `#28` | the owner's window rewritten in plain English |
+| `#31` | name the work, then number it |
+| `#33` | twenty-four findings from seven reviews filed, and the seven reviews captured |
+| `#32` | the two ways the unattended chain could have run without stopping |
 
-Closed rather than merged: `#10`, `#12`, `#20`, `#23`, `#25`, each superseded and each carrying the reason on it.
+Closed rather than merged: `#10`, `#12`, `#20`, `#23`, `#25`, `#27` and `#29`, each superseded and each carrying the reason on it. `#27` was replaced by `#30`; `#29` by the pass that produced this file's previous stamp.
 
 ---
 
@@ -55,7 +65,7 @@ Closed rather than merged: `#10`, `#12`, `#20`, `#23`, `#25`, each superseded an
 
 Both reviews come back, the owner reads the verdicts, and merges what he is satisfied with. `PASS_WITH_NON_BLOCKING_FINDINGS` is not `SAFE_TO_MERGE` — `STATE_LANGUAGE.md` — so merging is his decision every time, and the phrase is `merge approved`, naming the pull request.
 
-**Non-blocking findings are recorded, not repaired.** That is what the verdict means and it is how the loop ends. Fifteen are open today and every one is in `docs/process/FINDINGS.md`, where nothing can drop them.
+**Non-blocking findings are recorded, not repaired.** That is what the verdict means and it is how the loop ends. **The register carries eighty-five rows today and forty-two of them are open**, and every one is in `docs/process/FINDINGS.md`, where nothing can drop them. The number rose by thirty-five in one day because thirty-five findings that had existed only as comments on a website were written down — a register growing is the machinery working, not the repository getting worse.
 
 ## 2. Risk tiers
 
@@ -77,11 +87,11 @@ Brief written and queued: `docs/process/RISK_TIERS_BRIEF.md`.
 
 **Measured on 2026-09-12, and the news was mostly good.** None of `gate-engine`, `domain`, `agent-contracts`, `knowledge-graph` or `knowledge-lint` depends on the application, on `visual-language`, or on anything 3D. The inspector is already standalone.
 
-**The exception is real and was created by the work itself.** `findings-register.test.ts` (619 lines) and `review-records.test.ts` (148 lines) live in `apps/mission-control/test/`, and the mutation manifest and check-quality battery live in `apps/mission-control/e2e/` and `test/`. None of them imports a line of application code. They are there because a brief's permitted paths pointed there, and a session put them where it was allowed rather than where they belonged.
+**The exception was real and was created by the work itself, and it is now gone.** `findings-register.test.ts` and `review-records.test.ts` lived in `apps/mission-control/test/`, and the mutation manifest and check-quality battery in `apps/mission-control/e2e/` and `test/`. None of them imported a line of application code; they were there because a brief's permitted paths pointed there, and a session put them where it was allowed rather than where they belonged. So "run the inspector's checks" required the 3D application's test setup to exist. That was the coupling, and it was the whole of it.
 
-So "run the inspector's checks" currently requires the 3D application's test setup to exist. That is the coupling, and it is the whole of it.
+**It was settled by deletion rather than by the move.** `#21` and `#22` removed the application, and the repository checks now live in `packages/repo-checks/test/` — `findings-register.test.ts` at 1,102 lines and `review-records.test.ts` at 337. The check that was proposed for this item — *delete `apps/mission-control` and everything else must still pass* — was run for real, and everything else passed.
 
-They move to a package of their own. **The check is the point: delete `apps/mission-control` and everything else must still pass.** A line nothing enforces is not a line.
+**Two things this file still says that are stale here rather than false**, and they are named so the next reader is not misled: the passage below quotes the owner about keeping the building system separate from the thing it builds, and there is no longer a thing it builds in this tree at all.
 
 The owner's position, 2026-09-12: *"if it impacts the building system I want it separate."* This is what makes separating possible later without breaking the inspector — and makes it unnecessary to hurry.
 
@@ -89,7 +99,7 @@ The owner's position, 2026-09-12: *"if it impacts the building system I want it 
 
 ## 4. The knowledge system, which absorbs the cleanup
 
-**State: built and twice reviewed — `#27`, not yet merged.** A lesson becomes a page, the code points at it, it points back, and a check fails if either side breaks. One lesson page exists: *"A check nobody has watched fail is not a check."* The machinery works; the library is empty, and filling it is a lesson at a time.
+**State: done — `#30`, merged at `cc21dd3`.** `#27` carried this work, was twice reviewed, and could not be merged: a generated file clashed with `main`. It was closed and the work was replayed onto current `main` as `#30`, which was reviewed again and merged. Two findings from that review are open in the register — `KXR-57/PR30` and `KXR-58/PR30`. A lesson becomes a page, the code points at it, it points back, and a check fails if either side breaks. One lesson page exists: *"A check nobody has watched fail is not a check."* The machinery works; the library is empty, and filling it is a lesson at a time.
 
 **The cleanup that was proposed and abandoned.** A list of twenty-six documents to delete was prepared and was wrong: `PHASE_1_RUN_RECORD.md` cites all eleven `HOW_TO_LOOK` versions and a run record is evidence, live source cites another, and the unsuffixed file turned out to be the oldest rather than the survivor.
 
@@ -101,7 +111,7 @@ Not a bloat problem. An index problem. Deleting would have made it worse.
 
 What is added: a way in (`knowledge/inbox/`, captures written mid-work), a place for engineering lessons, the link checked in **both** directions, a loader held to a byte budget so it cannot grow into the context cost it exists to avoid, and the numeric thresholds that stop a knowledge base becoming forty-six files with eleven versions of one document.
 
-**Built on 2026-09-13, on `claude/virgil-knowledge`, and not yet reviewed.** The inbox, the lessons category, the link checked in both directions, the loader under its byte budget, the numeric thresholds, and one source file converted as proof. What it cost and what it left open is in `docs/process/KNOWLEDGE_LESSONS_RUN_RECORD.md`; the brief is `docs/process/KNOWLEDGE_LESSONS_BRIEF.md`, amended after the fact by `docs/decisions/OD-0017`. Five findings are filed under the new `BR` prefix. Four ideas taken from `toolboxmd/karpathy-wiki` (MIT, design only). Nothing taken from `NicholasSpisak/second-brain`, which carries no licence.
+**Built on 2026-09-13, reviewed, and merged as `#30`.** The inbox, the lessons category, the link checked in both directions, the loader under its byte budget, the numeric thresholds, and one source file converted as proof. What it cost and what it left open is in `docs/process/KNOWLEDGE_LESSONS_RUN_RECORD.md`; the brief is `docs/process/KNOWLEDGE_LESSONS_BRIEF.md`, amended after the fact by `docs/decisions/OD-0017`. Five findings are filed under the new `BR` prefix. Four ideas taken from `toolboxmd/karpathy-wiki` (MIT, design only). Nothing taken from `NicholasSpisak/second-brain`, which carries no licence.
 
 ## 5. Phase 1 — the inspector looks at the real thing
 
@@ -133,7 +143,7 @@ Then *"did this stay in scope"* stops being a judgement call — and `KXR-07` cl
 
 ## 7. One command, then automatic
 
-**State: done — `#26`, merged, and not switched on.** The conductor starts a build session, the pull request wakes it, it starts an inspection, the inspection wakes it, and it runs one repair round and stops. Every session that pushes posts machine-derived facts first. **It has never run end to end and must not until the two loopholes above are closed.**
+**State: done — `#26`, merged; hardened by `#32`, merged; and not switched on.** The conductor starts a build session, the pull request wakes it, it starts an inspection, the inspection wakes it, and it runs one repair round and stops. Every session that pushes posts machine-derived facts first. **The two loopholes that had to close before it ran unattended are closed** — `#32`, reviewed twice, with the order guard proved firing on the real seven-character and forty-character markers this repository emits. **It has still never run end to end**, and three non-blocking findings against that repair are open in the register: `KXR-80/PR32`, `KXR-81/PR32`, `KXR-82/PR32`. Switching it on is the owner's.
 
 `pnpm inspect` → a verdict with reasons. Then it runs on every push as a check, so the verdict appears beside the work without anyone asking.
 
@@ -211,7 +221,7 @@ Nothing below can be done by a session.
 
 ## What would change this order
 
-- **A `BLOCKED` verdict on `#14` or `#12`** stops item 1 until repaired.
+- **A `BLOCKED` verdict on any open pull request** stops item 1 until repaired. This line named `#14` and `#12` when it was written; both closed on 2026-09-13 and nothing is open today but the record-keeping pull request above.
 - **The owner deciding the interface is not worth keeping as the test subject** moves item 3 earlier and makes it larger.
 - **Anything found in Phase 1 that a gate decides wrongly** is a finding to record, not a licence to edit gate logic inside that work.
 
@@ -228,4 +238,6 @@ Nothing below can be done by a session.
 1. **This file carries the commit it was last true at**, in its status line. A reader who finds `main` far ahead of that commit knows to distrust it before acting on it. That is a label, not a guard.
 2. **The owner's window reads this file at the start of every turn and says so when it disagrees with what the repository shows.** `.claude/skills/raphael/SKILL.md` already requires exactly that — *"Check before you assert… never from what it believes"* — and on 2026-09-13 it did not, for a whole day. A rule a session skips is not a mechanism either.
 
-**So the state of this is: no mechanism yet, and the gap is named rather than papered over.** The owner found it first and that is the measurement that matters.
+**Neither held, and both failed the same day they were written.** The label went stale again within twelve hours: five pull requests merged and the status line still read `515373f`. And the window did not catch it. What caught it was a Keeper reviewing an unrelated pull request and noticing that the change in front of it had falsified line 33 of this file — `KXR-76/PR33`, filed open and repaired by the pass you are reading.
+
+**So the state of this is: no mechanism yet, twice now, and the gap is named rather than papered over.** The owner found it the first time and a reviewer found it the second. Neither is a check. The one thing that would be a check is something that reads this file's claims against the repository and fails when they disagree — and nothing has been commissioned to build it, because nobody has yet said which of these claims a machine could read.
