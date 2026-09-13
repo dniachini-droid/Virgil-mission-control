@@ -28,6 +28,15 @@ import { describe, expect, it } from 'vitest';
  */
 
 const root = resolve(import.meta.dirname, '../../..');
+/**
+ * The resolved binary and the resolved script, never `npx`. `npx` run with a
+ * working directory outside this project cannot resolve `tsx` locally and
+ * **goes to the network for it**: the unpushed-commit guard below runs in a
+ * throwaway repository and took 71 seconds, timing out. On a machine with no
+ * network it would not have been slow, it would have failed.
+ */
+const TSX = resolve(root, 'node_modules/.bin/tsx');
+const CHAIN = resolve(root, 'scripts/virgil-chain.ts');
 const read = (p: string) => readFileSync(resolve(root, p), 'utf8');
 
 const SKILL = '.claude/skills/raphael/SKILL.md';
@@ -115,7 +124,6 @@ describe('the commands the chain is told to run exist', () => {
   it('every --emit line in the role files is one the script accepts', () => {
     // A documented command that the script rejects is worse than none: the
     // session runs it, gets exit 2, and improvises a marker by hand.
-    const script = resolve(root, 'scripts/virgil-chain.ts');
     const seen: string[] = [];
     for (const file of ROLE_FILES) {
       const body = read(file).replace(/\\\n\s*/g, ' ');
@@ -134,10 +142,7 @@ describe('the commands the chain is told to run exist', () => {
               return /n>$/.test(a) ? '1' : 'abc1234';
             }) ?? [];
         seen.push(args.join(' '));
-        const out = execFileSync('npx', ['tsx', script, ...args], {
-          cwd: root,
-          encoding: 'utf8',
-        });
+        const out = execFileSync(TSX, [CHAIN, ...args], { cwd: root, encoding: 'utf8' });
         expect(out.trim(), `${file}: ${args.join(' ')}`).toMatch(/^<!-- virgil:handoff .* -->$/);
       }
     }
@@ -214,14 +219,7 @@ describe('the facts block binds every session that pushes', () => {
   });
 
   it('the reviewer is not asked for facts, because it pushes nothing', () => {
-    const out = spawnSync(
-      'npx',
-      ['tsx', resolve(root, 'scripts/virgil-chain.ts'), '--facts', 'reviewer'],
-      {
-        cwd: root,
-        encoding: 'utf8',
-      },
-    );
+    const out = spawnSync(TSX, [CHAIN, '--facts', 'reviewer'], { cwd: root, encoding: 'utf8' });
     expect(out.status, 'the script accepted a facts block from a reviewer').not.toBe(0);
   });
 
@@ -290,10 +288,9 @@ describe('the facts block answers the contract that specifies it', () => {
 
   it('a fixer must name the findings it repaired', () => {
     const out = spawnSync(
-      'npx',
+      TSX,
       [
-        'tsx',
-        resolve(root, 'scripts/virgil-chain.ts'),
+        CHAIN,
         '--facts',
         'fixer',
         '--round',
@@ -334,10 +331,9 @@ describe('the facts block answers the contract that specifies it', () => {
     run('commit', '-qm', 'unpushed');
 
     const out = spawnSync(
-      'npx',
+      TSX,
       [
-        'tsx',
-        resolve(root, 'scripts/virgil-chain.ts'),
+        CHAIN,
         '--facts',
         'builder',
         '--round',
