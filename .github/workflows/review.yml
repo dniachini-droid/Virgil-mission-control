@@ -1,0 +1,155 @@
+# **The review commissions itself.**
+#
+# The owner, 2026-09-13: *"I want automatic handoff. Brief, build, review, fix,
+# review."* This is the review half, and it is deliberately the half that cannot
+# write anything.
+#
+# **What it does.** When a pull request opens or gets new commits, it derives the
+# change's risk tier from the paths it touches, and — only if that tier is 2 or
+# 3 — runs an independent session that reads the candidate and posts a verdict
+# as a comment.
+#
+# **Why it is gated on the tier.** On 2026-09-12 a change of two test files and a
+# markdown register took eleven independent reviews. A reviewer that fires on
+# every pull request, including a typo in a document, reproduces that by
+# construction. `docs/process/RISK_TIERS.md` decides what deserves a review;
+# `pnpm tier` derives it from the diff and cannot be talked out of the answer.
+#
+# **Why it cannot write.** `permissions: pull-requests: write` and nothing else:
+# no `contents: write`, no token that can push. The session runs with
+# `--allowedTools` naming only reads. A reviewer that could edit the candidate
+# would be a builder, and `CLAUDE.md` is explicit that one session performs one
+# hop. The repair half is a separate workflow, is not built yet, and must carry
+# the cycle cap from `constitution/REPAIR_LIMITS.md` before it is.
+#
+# **What it costs.** Nothing. This repository is public, so Actions minutes are
+# free and unlimited, and the session runs on the owner's own Claude
+# subscription through `CLAUDE_CODE_OAUTH_TOKEN` rather than a paid API key —
+# which is what keeps it inside his `No paid services` limit.
+name: review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Read the code; comment on the pull request. Nothing else.
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  tier:
+    name: does this change need a review
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      tier: ${{ steps.derive.outputs.tier }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Derive the tier from the changed paths
+        id: derive
+        run: |
+          set +e
+          ref="${{ github.event.pull_request.base.ref }}"
+          git fetch --no-tags --quiet origin "$ref"
+          out="$(pnpm --silent tier --base "origin/$ref" 2>&1)"
+          status=$?
+          echo "$out"
+          if [ "$status" -ne 0 ]; then
+            echo "tier: derivation exited $status — treating this as governed"
+            echo "tier=3" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          t="$(printf '%s\n' "$out" | sed -n 's/^tier \([123]\),.*/\1/p' | head -1)"
+          case "$t" in
+            1|2|3) ;;
+            *) echo "tier: unreadable output — treating this as governed"; t=3 ;;
+          esac
+          echo "tier=$t" >> "$GITHUB_OUTPUT"
+
+  review:
+    name: independent review
+    needs: tier
+    # Tier 1 is prose and nothing else. It gets the checks and no ceremony.
+    if: needs.tier.outputs.tier != '1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Refuse to run without a token, rather than appearing to review
+        env:
+          TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::CLAUDE_CODE_OAUTH_TOKEN is not set. A workflow that" \
+                 "silently skips the review is worse than one that fails: the" \
+                 "pull request would look reviewed and would not be."
+            exit 1
+          fi
+
+      - name: Review the candidate
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+          TIER: ${{ needs.tier.outputs.tier }}
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude -p "$(cat .github/review-prompt.md)" \
+            --allowedTools "Read,Grep,Glob,Bash(git *),Bash(pnpm *),Bash(npx *)" \
+            --dangerously-skip-permissions \
+            > verdict.md 2>&1 || true
+          # A crashed session must not read as a clean verdict.
+          if ! grep -qE "PASS|BLOCKED|INSUFFICIENT_EVIDENCE" verdict.md; then
+            {
+              echo "## Review did not produce a verdict"
+              echo
+              echo "The session ran and its output carries none of the four"
+              echo "verdicts \`constitution/STATE_LANGUAGE.md\` allows. That is"
+              echo "reported rather than hidden: **this pull request is"
+              echo "unreviewed.** The tail of the output follows."
+              echo
+              echo '```'
+              tail -40 verdict.md
+              echo '```'
+            } > comment.md
+          else
+            cp verdict.md comment.md
+          fi
+
+      - name: Post the verdict on the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file comment.md
