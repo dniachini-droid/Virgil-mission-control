@@ -149,17 +149,18 @@ because anyone remembered to ask.
 This is `constitution/REVIEW_POLICY.md`'s staleness rule, applied by the machine rather than by
 a reader: *a review vouches for the exact version it read and is broken by any later push.*
 
-### 4a. Two ways it could have run without stopping, and how both were shut
+### 4a. Two ways it could have run without stopping
 
 Both were found by an independent inspector attacking the counter rather than reading it, and
 neither could bite while a person was driving. They bite on the night nobody is watching, which
-is the night this exists for.
+is the night this exists for. Each was answered, and **4b is the record of a second inspector
+showing that neither answer worked** — read the two sections together.
 
 **A repair session that called itself a builder was never counted.** The count read the role
 each session declared for itself, and both spellings are commands this system offers. A repair
 labelled `builder` left the count at zero for ever, so the chain would authorise "round 1 of 1"
 again and again. **A round is now counted by position: a push that follows a review is a repair
-round, whatever it calls itself.** Position cannot be misdeclared.
+round, whatever it calls itself.**
 
 **Comments read newest-first commissioned reviews without bound.** The order was load-bearing,
 undocumented and unchecked; reviews are not repair rounds, so the cap never engaged. **The
@@ -170,6 +171,49 @@ that had not been pushed yet cannot happen in a chain that ran forwards.
 misdeclares its role also writes round zero, so they fall legitimately, and the check cried wolf
 over the very chain the first fix exists to catch. The two repairs collided, a test caught it,
 and the signal became one no session declares at all.
+
+### 4b. Both of those fixes were half a fix, and what finished them
+
+An independent inspector attacked the two repairs above the same way, and neither survived
+first contact. This is what was wrong with them and what closes them.
+
+**The order check could not fire on a chain this repository produces.** It matched the
+reviewer's marker against the builder's by exact string, and the two are written by different
+code paths that disagree about how long a SHA is: the facts block writes the first seven
+characters, and a reviewer is handed the full forty of the version it read. Seven against forty
+never matches, so the check found nothing to object to in any chain, including a reversed one —
+the original failure, unchanged, behind a guard that read as if it were closed. The tests passed
+because they used one seven-character literal on both sides. **The two markers are now matched
+on the prefix they share**, and a case with a forty-character reviewer marker holds it there.
+
+**"Position cannot be misdeclared" was not true, and that sentence used to be here.** Position
+is read off `role` on a marker that parsed, and both halves are the session's own output, so
+the old defect was narrowed to one spelling rather than closed. A session that spells its push
+`reviewer` is not counted as a push — `--emit reviewer` is a legal command for anyone, needing
+only a verdict — and a session whose marker is missing or malformed is not counted at all,
+because unreadable markers are ignored by design. Ten repairs of the first kind, or six of the
+second, still read as "round 1 of 1 is authorised".
+
+**What closes it is counting the reviews, which is the one number no session declares about
+itself.** A chain that ran forwards pushes something before each review: the first review reads
+the build, and every review after it reads work pushed in answer to the one before. So *r*
+reviews mean at least *r − 1* repair rounds are spent, and the count is now the larger of the
+pushes seen and that floor. It takes from each attack what the attack gives it — spelling a push
+`reviewer` adds to the review count exactly what it removes from the push count, and a repair
+too quiet to be counted was still read by a reviewer who was not.
+
+**It over-counts in one place, on purpose.** Two reviews of the same push — a re-review after
+`INSUFFICIENT_EVIDENCE`, say — read as a round that nobody spent, and the chain stops one round
+early. That is the direction this whole file leans: a chain that cannot tell where it is stops
+at you rather than starting another session.
+
+**One gap is left open, and it is left open knowingly.** If a repair posts no readable marker
+*and* the review that follows it posts none either, the pull request holds no record that either
+happened, and nothing counted over markers can see them. That chain resolves towards another
+session rather than towards the owner, which is the unsafe direction. It needs every session in
+the chain to skip a step the tooling refuses to skip for them — `pnpm chain --facts` will not
+print without its three answers, and `--emit` will not print a marker the counter cannot read —
+but nothing enforces that they are posted. It is written here rather than left to be found.
 
 ### 5. One round without you, two with you, and never three
 

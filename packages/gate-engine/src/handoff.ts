@@ -83,7 +83,11 @@ export interface Handoff {
 }
 
 export interface ChainState {
-  /** Fix rounds already spent, counted from the markers. */
+  /**
+   * Fix rounds already spent: the pushes that followed a review, or one fewer
+   * than the number of reviews, whichever is larger. The second is a floor no
+   * session declares about itself. See the count in `readChain`.
+   */
   readonly roundsUsed: number;
   /**
    * Fix rounds this chain may spend. `ROUNDS_WITHOUT_OWNER` unless the owner
@@ -130,15 +134,44 @@ function fields(text: string): Record<string, string> {
 }
 
 /**
+ * **Whether two markers name the same commit, compared on the prefix they
+ * share rather than character for character.**
+ *
+ * `KXR-70/PR32`. The order guard below used an exact string lookup, and the
+ * two markers it compares are written by two different code paths that do not
+ * agree on how long a SHA is. `scripts/virgil-chain.ts` `--facts` always writes
+ * `head.slice(0, 7)`; `--emit` passes `--sha` through verbatim, and
+ * `.claude/agents/keeper.md` hands the reviewer the full forty characters of
+ * the version it read. Seven on one side and forty on the other: the lookup
+ * missed every time, so the guard concluded that every chain was in order,
+ * including a reversed one. It could not fire on a chain this repository
+ * produces.
+ *
+ * **A false match here is the safe direction, so no minimum length is
+ * imposed.** Matching too eagerly can only make the guard find a review that
+ * appears to precede its own push, and that resolves to the owner. Matching too
+ * strictly is what let a reversed chain through. Where the opposite is true —
+ * the facts block, where a loose match would let one comment vouch for another
+ * commit's push — the comparison stays exact, deliberately.
+ */
+function sameSha(a: string, b: string): boolean {
+  const x = a.toLowerCase();
+  const y = b.toLowerCase();
+  return x.startsWith(y) || y.startsWith(x);
+}
+
+/**
  * Read the chain's state from the pull request's comments, oldest first.
  *
  * **Anything unparseable is ignored rather than guessed at.** A malformed
  * marker is not a round; a round nobody can read is not evidence that a round
- * happened. The failure this protects against is a chain that under-counts and
- * runs one more time, so ambiguity resolves towards fewer rounds spent — which
- * is the *unsafe* direction, and is therefore compensated by
- * `nextStep` refusing whenever the count is not strictly below the
- * authorisation.
+ * happened. That resolves ambiguity towards *fewer* rounds spent, which is the
+ * unsafe direction, and it used to be left there: the compensation this
+ * paragraph once claimed — `nextStep` refusing whenever the count is not
+ * strictly below the authorisation — never engaged, because the count it reads
+ * was pinned at zero by the same silence (`KXR-71/PR32`). The count now carries
+ * a floor taken from the number of reviews, which a session cannot lower by
+ * writing its own marker badly or by writing none. See the count below.
  */
 export function readChain(comments: readonly string[]): ChainState {
   const handoffs: Handoff[] = [];
@@ -181,17 +214,7 @@ export function readChain(comments: readonly string[]): ChainState {
       });
     }
   }
-  // **A repair round is a push that follows a review, whatever it calls itself.**
-  //
-  // `KXR-44/PR26`. This counted handoffs whose declared role was `fixer`, and
-  // the role is the session's own word: `--facts builder` is a legal command
-  // for any session, so a repair session spelling itself `builder` left the
-  // count at zero for ever and the chain authorised "round 1 of 1" without
-  // bound — on the one night nobody is watching.
-  //
-  // Position cannot be misdeclared. A pushing handoff before any review is the
-  // build; every pushing handoff after one is a repair round.
-  // **And the order the count depends on is checked rather than assumed.**
+  // **The order the count depends on is checked rather than assumed.**
   //
   // `KXR-45/PR26`. `readChain` requires the comments oldest first, nothing said
   // so and nothing checked it. Handed them newest first the chain commissioned
@@ -206,23 +229,80 @@ export function readChain(comments: readonly string[]): ChainState {
   // of a version that has not been pushed yet cannot happen in a chain that ran
   // forwards, and needs no session to have declared anything truthfully.
   //
+  // The two markers are matched on the prefix they share, because the tooling
+  // writes seven characters on one side and forty on the other and an exact
+  // comparison here fired on nothing at all — `sameSha`, `KXR-70/PR32`.
+  //
   // Ambiguity resolves to the owner rather than to another session.
-  const pushedBy = new Map<string, number>();
-  handoffs.forEach((h, i) => {
-    if (h.role !== 'reviewer' && !pushedBy.has(h.sha)) pushedBy.set(h.sha, i);
-  });
+  const firstPushOf = (sha: string): number | undefined => {
+    for (let i = 0; i < handoffs.length; i++) {
+      const h = handoffs[i];
+      if (h !== undefined && h.role !== 'reviewer' && sameSha(h.sha, sha)) return i;
+    }
+    return undefined;
+  };
   const ordered = !handoffs.some((h, i) => {
     if (h.role !== 'reviewer') return false;
-    const pushed = pushedBy.get(h.sha);
+    const pushed = firstPushOf(h.sha);
     return pushed !== undefined && pushed > i;
   });
 
-  let roundsUsed = 0;
+  // **A repair round is a push that follows a review, whatever it calls itself
+  // — under a floor that no session writes at all.**
+  //
+  // `KXR-44/PR26`. This counted handoffs whose declared role was `fixer`, and
+  // the role is the session's own word: `--facts builder` is a legal command
+  // for any session, so a repair session spelling itself `builder` left the
+  // count at zero for ever and the chain authorised "round 1 of 1" without
+  // bound — on the one night nobody is watching.
+  //
+  // **Counting by position narrowed that to one spelling rather than closing
+  // it**, which is `KXR-71/PR32`. Position is derived from `role !== 'reviewer'`
+  // on a marker that parsed, and both halves are still the session's own
+  // output. Two ways through, both unbounded:
+  //
+  //   (a) a pushing session that spells itself `reviewer` is not counted as a
+  //       push at all — `--emit reviewer` is a legal command for any session,
+  //       needing only a verdict — so ten repairs posted that way counted zero;
+  //   (b) a repair whose marker is absent or unparseable is not there to count.
+  //       `readChain` ignores it by design, so a fix session that pushes and
+  //       posts prose is invisible and six silent rounds counted zero too.
+  //
+  // **The floor is the number of reviews, and it is the one quantity here that
+  // no session declares about itself.** A chain that ran forwards pushes
+  // something before each review: the first review reads the build, and every
+  // review after it reads work pushed in answer to the one before. So `r`
+  // reviews mean at least `r - 1` repair rounds have been spent, whatever the
+  // pushes say they are, and the count is the larger of the two.
+  //
+  // It closes both from the far side of the ledger. (a) adds to the review
+  // count exactly what it takes from the push count, so lying costs the liar a
+  // round rather than saving one. (b) cannot hide a repair that a reviewer then
+  // read, because that review is counted even when the push it read is not.
+  //
+  // **What the floor costs, which is over-counting.** Two reviews of one push —
+  // a re-review after `INSUFFICIENT_EVIDENCE`, say — read as a round spent that
+  // nobody spent. That is deliberate and is not repaired here: it resolves
+  // towards the owner, and every ambiguity in this file is meant to.
+  //
+  // **What this still does not do, said plainly, because the claim it replaces
+  // was too strong.** Position remains misdeclarable; what a misdeclaration can
+  // no longer do is lower the count. The residue is the chain where *nobody*
+  // records anything — a fix that posts prose followed by a review that posts
+  // prose, repeatedly. No count over markers can see that, because there is
+  // nothing to count. It resolves towards another session rather than towards
+  // the owner, and it is written down in
+  // `docs/process/AUTOMATIC_HANDOFF_CHAIN.md` rather than left to be found.
+  let pushesAfterAReview = 0;
+  let reviews = 0;
   let reviewSeen = false;
   for (const h of handoffs) {
-    if (h.role === 'reviewer') reviewSeen = true;
-    else if (reviewSeen) roundsUsed++;
+    if (h.role === 'reviewer') {
+      reviews++;
+      reviewSeen = true;
+    } else if (reviewSeen) pushesAfterAReview++;
   }
+  const roundsUsed = Math.max(pushesAfterAReview, Math.max(0, reviews - 1));
 
   // Newest first, so the first pushing handoff found with no review after it is
   // the work that is owed one. `findLast` is not available at this target.
