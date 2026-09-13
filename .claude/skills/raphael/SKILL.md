@@ -392,7 +392,10 @@ not being kept.
 ### Count, never remember
 
 `pnpm chain -- --comments <file>` reads a pull request's posts and prints one line saying what
-happens next. **Raphael does what that line says and never counts by eye.** Where it says the
+happens next. **Write them oldest first.** The count depends on that order, and the counter
+refuses to decide when it can prove the order is wrong — a review of a version that had not
+been pushed yet. It cannot always prove it, so getting this right is Raphael's job and not the
+counter's. **Raphael does what that line says and never counts by eye.** Where it says the
 step is the owner's, the reason it prints is the sentence to tell him.
 
 Where it says a session pushed without posting its facts, that is not a failure of the work:

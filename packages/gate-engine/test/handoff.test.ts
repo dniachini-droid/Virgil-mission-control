@@ -20,8 +20,8 @@ const handoff = (role: string, round: number, sha = 'abc1234', extra = '') =>
 /** A pushing handoff with its facts block, as `pnpm chain --facts` emits it. */
 const built = (role: string, round: number, sha = 'abc1234') =>
   `<!-- virgil:facts sha=${sha} -->\n${handoff(role, round, sha, 'next=review')}`;
-const review = (verdict: string, round = 0) =>
-  handoff('reviewer', round, 'abc1234', `verdict=${verdict} next=owner`);
+const review = (verdict: string, round = 0, sha = 'abc1234') =>
+  handoff('reviewer', round, sha, `verdict=${verdict} next=owner`);
 
 describe('reading the chain from the pull request', () => {
   it('counts fix rounds and nothing else as a round', () => {
@@ -80,6 +80,7 @@ describe('what happens next', () => {
     roundsAuthorised: ROUNDS_WITHOUT_OWNER,
     handoffs: [],
     unreviewed: null,
+    ordered: true,
     lastVerdict: null,
     ...o,
   });
@@ -188,5 +189,215 @@ describe('what happens next', () => {
 
   it('an empty pull request cannot be talked into a fix round', () => {
     expect(nextStep(state({ roundsAuthorised: 99 })).step).toBe('owner');
+  });
+});
+
+/**
+ * **The two ways an unattended chain could run without bound, and the reason
+ * neither is closed by a paragraph.**
+ *
+ * Both were found by an independent reviewer of `7e1f719` attacking the counter
+ * rather than reading it, and both defeat the round cap only when nobody is
+ * watching — which is the night the chain exists for.
+ */
+describe('the round cap holds against a session that misdeclares itself', () => {
+  it('counts a push after a review as a repair round, whatever it calls itself', () => {
+    // KXR-44/PR26. `--facts builder` is a legal command for any session, so a
+    // repair session spelling itself `builder` used to leave the count at zero
+    // for ever and the chain authorised "round 1 of 1" without bound.
+    const chain = readChain([
+      built('builder', 0, 'aaa1111'),
+      review('BLOCKED'),
+      built('builder', 0, 'bbb2222'), // a repair, lying about what it is
+      review('BLOCKED', 1, 'bbb2222'),
+      built('builder', 0, 'ccc3333'), // and another
+    ]);
+    expect(chain.roundsUsed, 'a push after a review is a repair round').toBe(2);
+    expect(nextStep(chain).step).toBe('review');
+  });
+
+  it('stops the same chain at the owner once the rounds are spent', () => {
+    const chain = readChain([
+      built('builder', 0, 'aaa1111'),
+      review('BLOCKED'),
+      built('builder', 0, 'bbb2222'),
+      review('BLOCKED', 1, 'bbb2222'),
+    ]);
+    // One round without the owner. The second push above spent it.
+    expect(chain.roundsUsed).toBe(1);
+    const step = nextStep(chain);
+    expect(step.step).toBe('owner');
+    expect(step.because).toContain('only the owner can authorise another');
+  });
+
+  it('still counts an honest fixer exactly once', () => {
+    const chain = readChain([
+      built('builder', 0, 'aaa1111'),
+      review('BLOCKED'),
+      built('fixer', 1, 'bbb2222'),
+    ]);
+    expect(chain.roundsUsed).toBe(1);
+  });
+
+  it('a build before any review is not a repair round', () => {
+    expect(readChain([built('builder', 0, 'aaa1111')]).roundsUsed).toBe(0);
+  });
+
+  // KXR-71/PR32. Counting by position narrowed KXR-44 to one spelling rather
+  // than closing it: position is read off a marker the session writes, so a
+  // session that writes a different word, or no readable word at all, is still
+  // uncounted. The floor is the number of reviews, which no session declares
+  // about itself.
+
+  it('counts a repair that spells itself a reviewer, because the review count rises', () => {
+    // (a) `--emit reviewer` is a legal command for any session; the only
+    // condition is a verdict, and no facts block is owed. Ten repairs posted
+    // that way used to leave roundsUsed at zero and the chain at "round 1 of 1".
+    const comments = [built('builder', 0, 'aaa1111'), review('BLOCKED', 0, 'aaa1111')];
+    for (let i = 0; i < 10; i++) {
+      comments.push(review('BLOCKED', 0, `rep${i}000`));
+    }
+    const chain = readChain(comments);
+    expect(chain.roundsUsed, 'eleven reviews cannot have happened inside one round').toBe(10);
+    const step = nextStep(chain);
+    expect(step.step, 'a chain this far past its cap must not start a fix session').toBe('owner');
+  });
+
+  it('counts a repair whose marker never parsed, because the review count rises', () => {
+    // (b) Nobody lies at all: the fix session pushes and posts prose, or posts
+    // a marker with no sha. `readChain` ignores both by design, so the pushes
+    // are invisible — but the reviews that read them are not.
+    const chain = readChain([
+      built('builder', 0, 'aaa1111'),
+      review('BLOCKED', 0, 'aaa1111'),
+      'Fixed it. Pushed as bbb2222.', // no marker at all
+      review('BLOCKED', 0, 'bbb2222'),
+      '<!-- virgil:handoff role=fixer round=2 -->', // a marker with no sha is not a marker
+      review('BLOCKED', 0, 'ccc3333'),
+    ]);
+    expect(
+      chain.handoffs.filter((h) => h.role !== 'reviewer'),
+      'both repairs are invisible',
+    ).toHaveLength(1);
+    expect(chain.roundsUsed, 'three reviews mean at least two repairs preceded them').toBe(2);
+    expect(nextStep(chain).step).toBe('owner');
+  });
+
+  it('does not invent a round out of the first review, which reads the build', () => {
+    // The floor is reviews minus one, not reviews. The build is not a repair,
+    // so a chain that has been reviewed once has spent nothing and is owed the
+    // one round the owner allowed without being asked.
+    const chain = readChain([built('builder', 0, 'aaa1111'), review('BLOCKED', 0, 'aaa1111')]);
+    expect(chain.roundsUsed).toBe(0);
+    expect(nextStep(chain)).toMatchObject({ step: 'fix', round: 1 });
+  });
+
+  it('leaves the honest chain exactly where it was: one round, then the owner', () => {
+    // build, review(BLOCKED), fix, review(BLOCKED) is the chain the owner
+    // asked for, and the floor must not move it. One round spent of one.
+    const chain = readChain([
+      built('builder', 0, 'aaa1111'),
+      review('BLOCKED', 0, 'aaa1111'),
+      built('fixer', 1, 'bbb2222'),
+      review('BLOCKED', 1, 'bbb2222'),
+    ]);
+    expect(chain.roundsUsed).toBe(1);
+    expect(chain.roundsAuthorised).toBe(ROUNDS_WITHOUT_OWNER);
+    const step = nextStep(chain);
+    expect(step.step).toBe('owner');
+    expect(step.because).toContain('only the owner can authorise another');
+  });
+
+  it('gives the owner his second round when he authorised one', () => {
+    const chain = readChain([
+      '<!-- virgil:authorisation rounds=2 -->',
+      built('builder', 0, 'aaa1111'),
+      review('BLOCKED', 0, 'aaa1111'),
+      built('fixer', 1, 'bbb2222'),
+      review('BLOCKED', 1, 'bbb2222'),
+    ]);
+    expect(chain.roundsUsed).toBe(1);
+    expect(nextStep(chain)).toMatchObject({ step: 'fix', round: 2 });
+  });
+});
+
+describe('the order the count depends on is checked, not assumed', () => {
+  const forwards = [
+    built('builder', 0, 'aaa1111'),
+    review('BLOCKED', 0, 'aaa1111'),
+    built('fixer', 1, 'bbb2222'),
+    review('PASS', 1, 'bbb2222'),
+  ];
+
+  it('reads a chain that ran forwards', () => {
+    const chain = readChain(forwards);
+    expect(chain.ordered).toBe(true);
+    expect(nextStep(chain).step).toBe('owner');
+  });
+
+  it('refuses to decide from comments that are not oldest first', () => {
+    // KXR-45/PR26. Handed them newest first the chain used to commission a
+    // review of already-reviewed work, and never stop: reviews are not repair
+    // rounds, so the cap never engaged.
+    const chain = readChain([...forwards].reverse());
+    expect(chain.ordered, 'a falling round number is proof the order is wrong').toBe(false);
+    const step = nextStep(chain);
+    expect(step.step, 'a chain that cannot tell where it is must not start a session').toBe(
+      'owner',
+    );
+    expect(step.because).toContain('not in the order this count depends on');
+  });
+
+  it('does not cry wolf over a chain that never left round zero', () => {
+    expect(readChain([built('builder', 0, 'aaa1111'), review('PASS', 0, 'aaa1111')]).ordered).toBe(
+      true,
+    );
+  });
+
+  // KXR-70/PR32. The guard above compared the two markers with an exact string
+  // lookup, and the tooling guarantees they never match: `--facts` writes
+  // `head.slice(0, 7)` and `--emit` passes `--sha` through verbatim, which
+  // `.claude/agents/keeper.md` gives the reviewer as the full forty characters
+  // of the version it read. The tests above passed because their helper used
+  // one 7-character literal on both sides, so nothing exercised the mismatch.
+
+  /** What `.claude/agents/keeper.md` hands `--emit --sha`: the whole thing. */
+  const full = (short: string) => `${short}${'f'.repeat(40 - short.length)}`;
+
+  const realistic = [
+    built('builder', 0, 'aaa1111'), // seven, from --facts
+    review('BLOCKED', 0, full('aaa1111')), // forty, from --emit
+    built('fixer', 1, 'bbb2222'),
+    review('PASS', 1, full('bbb2222')),
+  ];
+
+  it('matches a forty-character reviewer marker to a seven-character push', () => {
+    expect(full('aaa1111')).toHaveLength(40);
+    const chain = readChain(realistic);
+    expect(chain.ordered).toBe(true);
+    expect(nextStep(chain).step).toBe('owner');
+  });
+
+  it('catches a reversed chain whose markers disagree about how long a sha is', () => {
+    // This is the case the guard was written for and could not reach. Before
+    // the prefix comparison it returned ordered=true and next=review here,
+    // which is KXR-45/PR26's original failure unchanged.
+    const chain = readChain([...realistic].reverse());
+    expect(chain.ordered, 'the review of aaa1111 precedes the push of aaa1111').toBe(false);
+    const step = nextStep(chain);
+    expect(step.step).toBe('owner');
+    expect(step.because).toContain('not in the order this count depends on');
+  });
+
+  it('still holds the facts block to an exact sha, where a loose match would be unsafe', () => {
+    // The two comparisons point opposite ways on purpose. A loose match on
+    // order can only stop the chain at the owner; a loose match on facts would
+    // let one comment's facts vouch for another commit's push, which is the
+    // stale-head failure. So facts stay exact even against a prefix.
+    const chain = readChain([
+      `<!-- virgil:facts sha=aaa1111 -->\n${handoff('fixer', 1, full('aaa1111'), 'next=review')}`,
+    ]);
+    expect(chain.unreviewed?.facts).toBe(false);
+    expect(nextStep(chain).step).toBe('owner');
   });
 });
