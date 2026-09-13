@@ -9,7 +9,7 @@ When documents conflict, the higher one governs:
 1. `docs/product/VIRGIL_MASTER_COMMISSION.md` (including its amendments register) and owner decisions in `docs/decisions/OD-*.md`.
 2. `constitution/` (VIRGIL_CONSTITUTION, AUTHORITY_TIERS, REVIEW_POLICY, REPAIR_LIMITS, STATE_LANGUAGE) and `constitution/authority.json`.
 3. Accepted ADRs in `docs/decisions/ADR-*.md`.
-4. `docs/architecture/`, `docs/art-direction/`, `docs/security/`, `docs/testing/`, `docs/process/`.
+4. `docs/architecture/`, `docs/security/`, `docs/testing/`, `docs/process/`.
 5. `knowledge/wiki/` explains; it never overrides the layers above and never holds live operational values.
 
 Only the owner may change layers 1 and 2. A session that finds a contradiction reports it; it does not resolve it silently.
@@ -63,13 +63,11 @@ So the self-protection is thinner than it reads. It stops an honest session reac
 - `packages/domain/` — states, events, transition table, reducer, replay.
 - `packages/gate-engine/` — deterministic eligibility and integrity checks over evidence objects.
 - `packages/agent-contracts/` — Zod schemas for every structured contract; exported to `schemas/`.
-- `packages/visual-language/` — epistemic visual contract, operational animation grammar, role performance data, tokens.
 - `packages/knowledge-graph/` — ontology, derivation of the provenance graph from files and events.
 - `packages/test-fixtures/` — defective candidates, event logs, knowledge scan cases.
 - `constitution/` — governance authority. `.claude/agents/` — versioned role definitions.
 - `knowledge/` — raw sources, wiki, outputs, SCHEMA, index, log.
-- `docs/` — product, architecture, art direction, process, security, decisions, testing. `docs/art-direction/approved/` — the owner-approved visual references and the bundle they arrived in.
-- `assets/` — concept sheets (`concepts/`), candidate 3D models (`models/candidates/`), licence and provenance records (`licenses/`). No production-ready runtime asset exists; `assets/README.md` states the status of every file.
+- `docs/` — product, architecture, process, security, decisions, testing.
 
 ## Commands
 
@@ -82,66 +80,51 @@ pnpm --filter @virgil/knowledge-lint run lint           # Mind Scan over knowled
 pnpm --filter @virgil/knowledge-graph export-seed-graph # regenerate the committed seed graph (a test fails when stale)
 ```
 
-## The application was deleted on 2026-09-13
+## What this repository is
 
-`apps/mission-control/` — the web application and both 3D worlds — is no longer
-in this repository. The owner removed it: *"Is this related to the fact I was
-trying to link this to Virgil UI? If so, fuck it off."*
+**A build-and-review system, and nothing else.**
 
-**Why.** Its browser checks were the whole of the cost of working here. The four
-V11 jobs, the hosted build and the two owner builds took between five and twelve
-minutes each; the repository's own checks take ninety seconds. A one-file
-documentation change waited twenty minutes for four browsers to confirm a 3D
-world still rendered at 390 pixels.
+It scopes work into a bounded contract, plans it, builds it inside permitted
+paths, proves each check can fail, hands the candidate to a reviewer with no
+stake in the answer, records every finding where nothing can drop it, and stops
+for the owner at the decisions that are his. It is meant to be pointed at any
+project.
 
-**What it does not mean.** The application is not abandoned and nothing is lost.
-It is in this repository's history at `a182b196`, whole, and comes back with:
+**It was first pointed at one:** a 3D interface called Virgil Mission Control,
+which gave the repository its name. On 2026-09-13 the owner deleted it —
+*"I want everything from the UI app gone"* — along with its hosting, its
+endpoints, its assets, its screenshots, its visual contract, its phase records,
+its reviews and the decisions taken about it.
 
-```sh
-git checkout a182b196 -- apps/ netlify.toml
-```
+**Why.** Its browser checks were the entire cost of working here: four viewport
+jobs, a hosted build and two owner builds, between five and twelve minutes each.
+A one-file documentation change waited twenty minutes for four browsers to
+confirm a 3D world still rendered at 390 pixels. The repository's own checks take
+thirty-five seconds. And 432 of 436 megabytes were its models and screenshots.
 
-The owner's position of 2026-09-12 stands: *"I don't want to work on the UI for a
-long time. I'll go back to it another day."* When that day comes it is likely to
-be a repository of its own, which is what `packages/repo-checks/test/standalone.test.ts`
-and pull request #18 exist to make possible: nothing here imports an
-application, and that is enforced rather than remembered.
+**What it cost, said plainly.** There is no longer a way to type an instruction
+at a web page and start a run. Instructing this repository means starting a
+session. The visual language, the art direction and the phase-one record are
+gone from the tree.
 
-**What went with it.** Its CI jobs, its turbo tasks, its root scripts, and
-`netlify.toml`, whose build command named a directory that no longer exists.
+**What could not be removed, and no session can remove.** The application is
+still in this repository's *history*. `git push --force` is denied to sessions,
+and rewriting history would break every review record pinned to a commit. It is
+whole at `a182b196`.
 
-**What went with it, beyond the directory.** Its hosting (`netlify.toml`), its
-two endpoints (`netlify/functions/`), the conversation writer and the
-`instruct.yml` workflow that drove it, their tests, and `scripts/virgil-standalone.mjs`
-— a command that deletes `apps/` from a copy cannot mean anything once `apps/`
-is gone. The owner's instruction was *"I don't want any trace of the app in the
-code of this building system"*, and a back end with no front end is a trace.
-
-**What that costs, said plainly.** There is no longer a way to type an
-instruction at a web page and have a run start. That mechanism was Phase 2
-slices three to six and it worked. It is in the history with everything else and
-comes back with the same command. Instructing this repository now means starting
-a session.
-
-**What stayed, because it is not the application's.** `.virgil/state.json` and
-`scripts/virgil-status.mjs` — session status, roles and hops, which are the
-build system's own record. `packages/gate-engine/test/refusals.test.ts` names
-`owner/virgil-mission-control` as a repository in its fixtures; that is this
-repository's name, not the application's.
-
-**One thing the owner has to do himself.** `.claude/settings.json` still allows
-three commands that no longer exist (`pnpm --filter mission-control dev`,
-`build`, `capture`). That file is deny-listed to sessions, and the only route to
-it is the shell bypass recorded above as a hazard. Stale permissions for absent
-commands are harmless; a session editing its own permission list to tidy up is
-the shape of the thing that rule exists to stop.
+**And one thing deliberately left.** `docs/product/VIRGIL_MASTER_COMMISSION.md`
+and the owner decisions approving each phase mention the application, because it
+is what the phases built. They are authority layer 1, they are the owner's own
+records rather than the application's, and `CLAUDE.md` reserves them to him.
 
 ## Phase status
 
-Phase 0 (foundation and governed design), the Keeper-required foundation repairs (K-01, K-02, K-03, K-15) and the owner's approved visual direction were consolidated on one branch and merged into `main` by the owner as merge commit `cd0981d` (pull request #1; `docs/process/CONSOLIDATION_RUN_RECORD.md`). The repaired authority system passed fresh independent review: the Keeper's review of candidate `3b9a964e7de4c53560fd3128090cdba39b005c6c` returned `PASS_WITH_NON_BLOCKING_FINDINGS`, resolving KR-01, KR-02, KR-04 and KR-05. Four accepted gaps remain open and honestly recorded — KR-03, KR-06, KR-07 and KR-09 (`docs/architecture/ENFORCEMENT_BOUNDARIES.md`) — and are carried as Phase 1 entries; KR-03 and KR-07 are the first two (`docs/process/PHASE_1_BRIEF.md`), under the owner's disposition in `docs/decisions/OD-0004-non-blocking-findings-disposition.md`. The Phase 0 spikes and the Phase 0.5 runtime rebuild are rejected as an art baseline; the approved direction is the hybrid reference under `docs/art-direction/approved/`, recorded as the owner's decision in `docs/decisions/OD-0002-art-direction-checkpoint.md`.
+**Phase 0 and Phase 1 are finished and their subject is deleted.** What survives
+them is the machinery: twenty gates each proved able to refuse, a findings
+register nothing can drop from, risk tiers derived from a diff rather than
+claimed, and a knowledge layer whose links are checked in both directions.
 
-All five decisions that had been stranded as proposals — OD-0002, OD-0003, OD-0004, OD-0005 and OD-0006 — are filed in `docs/decisions/` and carry authority layer 1. The owner accepted them on 2026-09-07 by instruction in the owner console. OD-0006 records that mechanism and replaces the old one: the owner instructs in the owner console, the instruction is transcribed verbatim, a session files the record. The owner's own commit `9627bae` removed the two `docs/decisions/OD-*` deny lines that had made filing impossible by any session; the two `constitution/**` deny lines were deliberately left in place, and `constitution/` remains out of bounds. OD-0006 states plainly what that mechanism costs: no code enforces the verbatim quote or the single channel, and the owner reading their own decision records is the only detection of a false one.
-
-**Phase 1 is authorised and may begin**, on branch `claude/virgil-phase-1-slice`, without sound in the slice. The owner accepted Phase 0 as complete and authorised Phase 1 on 2026-09-07 by instruction in the owner console; the six decisions of that day are filed as `docs/decisions/OD-0007-phase-1-authorisation-and-todays-decisions.md` and carry authority layer 1. That record closes the four items this section previously listed as outstanding. Optional sound motifs are out of the slice and return after it works well (`docs/process/PHASE_1_BRIEF.md`, "Owner decisions required before start", item 3). The build branch is `claude/virgil-phase-1-slice`, named by the owner console under the owner's delegation rather than by the owner themselves (item 4). The commission integrity check is declined (`docs/process/PHASE_0_RUN_RECORD.md`, open decision 4), so `docs/product/VIRGIL_MASTER_COMMISSION.md` stays unverified against the owner's original, permanently and knowingly; a SHA-256 fingerprint recorded in OD-0007 makes any future change to it detectable, which is a weaker thing than verification and is not recorded as more. And the acceptance the brief opens by requiring — the owner accepting the Phase 0 run record — is now on record.
-
-What that authorisation does not change. `docs/process/PHASE_0_RUN_RECORD.md` is not rewritten: its verdict `BLOCKED_PENDING_REAL_GPU_REVIEW` and its "Phase 1 readiness: not ready" line stand exactly as written, as the evidence of what the Phase 0 session found, and OD-0007 supersedes them rather than deleting them — a reader of the run record should read OD-0007 alongside it. **The owner looked on real graphics hardware on 10 September 2026** and judged V11: *"Runs beautifully."* Recorded in `docs/process/OWNER_DECISIONS_2026-09-10.md`, item 3. That is the first judgment of this project's visual quality made on real hardware by anybody — every image in every record before it was drawn in software by a CPU rasteriser. What it establishes is that he has looked and it looks right and runs well on his device. What it does **not** establish, and what therefore stays unmeasured: any frame-rate figure, and whether the reduced-performance governor ever engages, which has still never been observed doing so on any hardware. OD-0005's two graphics-hardware checks are recorded against that judgment and not against a measurement. The four accepted gaps named above — KR-03, KR-06, KR-07 and KR-09 — remain open. See `docs/process/PHASE_0_RUN_RECORD.md`, `PHASE_0_TRACEABILITY.md` and `docs/process/PHASE_1_BRIEF.md`.
+**What is in flight** is recorded in `docs/process/ROADMAP.md`, and what only the
+owner can do is in `docs/process/OWNER_TODO.md`. Open findings are in
+`docs/process/FINDINGS.md`, which is read on every `pnpm test` and which no
+session can quietly close.

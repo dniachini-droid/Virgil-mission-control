@@ -22,9 +22,9 @@ claims:
   - id: C-arch-durability
     statement: "Events are classed durable audit or replayable operational; ephemeral telemetry is never appended and never drives an authenticated animation."
     sources: [src-od-0001, docs/architecture/EVENT_MODEL.md]
-related: [governance-overview, two-worlds, knowledge-layer]
+related: [governance-overview, knowledge-layer]
 ---
 
 # System boundaries
 
-Eleven boundaries, each with a single responsibility and no power to create authority (`docs/architecture/SYSTEM_ARCHITECTURE.md`). Operational truth lives in Git, GitHub and the event store; derived status in the read model; durable knowledge here in [[knowledge-layer]]; presentation state in the client. The projection layer maps read-model and graph state to the two worlds ([[two-worlds]]) deterministically. Phase 0 delivers executable cores for the domain, the gate engine, the knowledge graph and the visual language; orchestration, adapters and the compiler are deferred by phase.
+Eleven boundaries, each with a single responsibility and no power to create authority (`docs/architecture/SYSTEM_ARCHITECTURE.md`). Operational truth lives in Git, GitHub and the event store; derived status in the read model; durable knowledge here in [[knowledge-layer]]; presentation state in the client. The projection layer maps read-model and graph state to the two worlds (the two worlds) deterministically. Phase 0 delivers executable cores for the domain, the gate engine, the knowledge graph and the visual language; orchestration, adapters and the compiler are deferred by phase.

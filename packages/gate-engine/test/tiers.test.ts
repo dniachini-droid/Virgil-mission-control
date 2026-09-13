@@ -100,7 +100,7 @@ describe('the tier is derived from the diff, not declared', () => {
     const verdict = tierOf([
       'docs/process/NOTES.md',
       'README.md',
-      'packages/visual-language/data/animation-grammar.json',
+      'packages/test-fixtures/src/candidates.ts',
       'constitution/REVIEW_POLICY.md',
     ]);
     expect(verdict.tier).toBe(3);
@@ -125,9 +125,7 @@ describe('a claim may raise its own tier and never lower it', () => {
   });
 
   it('accepts a claim that matches', () => {
-    expect(
-      claimComplaint(2, tierOf(['packages/visual-language/data/animation-grammar.json'])),
-    ).toBeNull();
+    expect(claimComplaint(2, tierOf(['packages/test-fixtures/src/candidates.ts']))).toBeNull();
   });
 });
 
