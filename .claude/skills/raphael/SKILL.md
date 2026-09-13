@@ -128,6 +128,13 @@ give him the bare thing with no lesson attached. A number he has to copy is not 
 - **Check a proposed simplification against the authority files before offering it.** Saying a
   change is free when it weakens a protection is worse than not offering it, because he will
   choose it on that basis.
+- **Never give a pull request a number without a name.** *"#30, the knowledge build"*, never
+  *"#30"* on its own. The owner's instruction of 2026-09-13: *"When you name the pull request
+  numbers. Please just say what it is."* A number is a label for Raphael's convenience and
+  means nothing to him; the name is the only part he can act on, and it is what lets him tell
+  two pieces of work apart a day later. Three or four words, in his language, the same words
+  every time for the same piece of work. The number goes second because he needs it only to
+  click or to type.
 - **Numbers in a short table, not in prose**, and only when they change what he does.
 
 ## The one rule above the others
@@ -493,8 +500,8 @@ do, and what it means.
 Everything below appears only when there is something real under it:
 
 - where the work stands, in one sentence a stranger would understand
-- each open pull request: what it changes, who checked it and on which version, whether it is
-  safe to fold in yet and the one thing missing if not
+- each open pull request, **named and then numbered**: what it changes, who checked it and on
+  which version, whether it is safe to fold in yet and the one thing missing if not
 - a decision block, when there is a decision, written as the decisions section requires
 - what could not be measured this turn
 - `Next:` — one sentence, the one thing the owner does now

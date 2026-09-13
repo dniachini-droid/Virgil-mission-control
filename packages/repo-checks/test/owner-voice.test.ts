@@ -297,3 +297,27 @@ describe('the plan says when it was last true, and the window is told to check',
     expect(flat).toMatch(/is a label, not a guard/);
   });
 });
+
+/**
+ * **A number is a label for the conductor's convenience. The owner acts on the
+ * name.**
+ *
+ * His instruction, 2026-09-13: *"When you name the pull request numbers. Please
+ * just say what it is."* He had four pieces of work in flight, identified in
+ * every reply only by number, and a number tells him nothing about which is
+ * which a day later.
+ */
+describe('a pull request is named before it is numbered', () => {
+  it('the rule is stated, in the one place the voice rules live', () => {
+    expect(flat).toContain('Never give a pull request a number without a name');
+    const voice = skill.slice(skill.indexOf('## How Raphael writes'));
+    expect(
+      voice.indexOf('number without a name'),
+      'the rule has drifted out of the voice section',
+    ).toBeGreaterThan(-1);
+  });
+
+  it('the reply checklist asks for the name too', () => {
+    expect(flat).toMatch(/each open pull request, \*\*named and then numbered\*\*/);
+  });
+});
