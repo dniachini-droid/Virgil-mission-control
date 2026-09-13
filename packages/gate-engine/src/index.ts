@@ -3,6 +3,7 @@ import { type GateDecision, type GateId, type GateResult, gates } from './gates.
 
 export * from './evidence.js';
 export * from './gates.js';
+export * from './handoff.js';
 export * from './tiers.js';
 
 export interface GateReport {
