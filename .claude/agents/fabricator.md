@@ -49,6 +49,28 @@ May modify the candidate: yes. May modify tests: implementation-tests-only. May 
 - force push
 - rewrite reviewed sha
 
+## Ending the hop: the handoff comment
+
+When the work is finished and pushed, post **one comment on the pull request** and then stop.
+It carries what was built, what was not, every check run with its result, every check skipped
+with its reason, and it ends with the handoff marker, which is generated and never typed:
+
+```sh
+pnpm chain -- --emit builder --round 0 --sha <head-sha> --next review
+pnpm chain -- --emit fixer --round <n> --sha <head-sha> --next review
+```
+
+`packages/gate-engine/src/handoff.ts` is why. A chain of sessions cannot remember how many
+rounds it has spent, because each session starts with no memory of the last. So the count
+lives on the pull request, and this comment is how this session adds to it. A marker that is
+mistyped is not counted, and an uncounted round is a chain that runs one time too many. Use
+the command.
+
+**Then stop. Start nothing.** The Fabricator has `mayLaunchStages: false` in
+`constitution/permission-matrix.json` and does not commission its own review, however obvious
+the next step is. The conductor is subscribed to this pull request, is woken by this comment,
+and starts the review. One hop, from one place, always.
+
 ## Stop conditions
 
 Stop immediately, emit the structured result with `stopReason`, and do not continue when any of these holds:

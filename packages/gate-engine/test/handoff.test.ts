@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { type ChainState, nextStep, readChain } from '../src/handoff.js';
+import {
+  type ChainState,
+  nextStep,
+  ROUNDS_WITH_OWNER,
+  ROUNDS_WITHOUT_OWNER,
+  readChain,
+} from '../src/handoff.js';
 
 /**
  * **The cap has to hold against a machine, not a reader.**
@@ -21,9 +27,24 @@ describe('reading the chain from the pull request', () => {
     expect(s.handoffs).toHaveLength(3);
   });
 
-  it('authorises nothing unless the owner wrote it on this pull request', () => {
-    expect(readChain([handoff('builder', 0)]).roundsAuthorised).toBe(0);
-    expect(readChain(['<!-- virgil:authorisation rounds=2 -->']).roundsAuthorised).toBe(2);
+  it('allows one fix round with nobody saying so, and two when the owner does', () => {
+    // The owner, 2026-09-13: "Always one round. 2 if I approve." Which is also
+    // REPAIR_LIMITS.md's maxCyclesWithoutOwner and maxCyclesWithOwner.
+    expect(readChain([handoff('builder', 0)]).roundsAuthorised).toBe(ROUNDS_WITHOUT_OWNER);
+    expect(readChain(['<!-- virgil:authorisation rounds=2 -->']).roundsAuthorised).toBe(
+      ROUNDS_WITH_OWNER,
+    );
+  });
+
+  it('refuses to be authorised past the constitution, however large the number', () => {
+    // A comment on a pull request does not amend authority layer 2. Anyone who
+    // can comment can write rounds=99; nobody who can comment can grant a third
+    // round.
+    for (const n of [3, 5, 99, 1000]) {
+      expect(readChain([`<!-- virgil:authorisation rounds=${n} -->`]).roundsAuthorised).toBe(
+        ROUNDS_WITH_OWNER,
+      );
+    }
   });
 
   it('takes the highest authorisation the owner wrote, never a later smaller one', () => {
@@ -53,18 +74,32 @@ describe('reading the chain from the pull request', () => {
 describe('what happens next', () => {
   const state = (o: Partial<ChainState>): ChainState => ({
     roundsUsed: 0,
-    roundsAuthorised: 0,
+    roundsAuthorised: ROUNDS_WITHOUT_OWNER,
     handoffs: [],
     lastVerdict: null,
     ...o,
   });
 
-  it('sends a blocked review with no authorisation to the owner, not to a fixer', () => {
+  it('gives a blocked review its one unauthorised fix round, and then stops', () => {
+    // The owner asked for build, review, fix without him approving anything.
+    // The round after that is his, because REPAIR_LIMITS.md says so.
+    const base = { lastVerdict: 'BLOCKED', handoffs: readChain([handoff('builder', 0)]).handoffs };
+    expect(nextStep(state(base))).toMatchObject({ step: 'fix', round: 1 });
+
+    const spent = nextStep(state({ ...base, roundsUsed: ROUNDS_WITHOUT_OWNER }));
+    expect(spent.step).toBe('owner');
+    expect(spent.because).toContain('only the owner can authorise another');
+  });
+
+  it('names the ceiling rather than the owner once both rounds are gone', () => {
+    // Two different dead ends, and the owner is told which one he is at: one he
+    // can lift by approving a round, one he cannot lift at all without changing
+    // the constitution.
     const s = nextStep(
-      state({ lastVerdict: 'BLOCKED', handoffs: readChain([handoff('builder', 0)]).handoffs }),
+      state({ lastVerdict: 'BLOCKED', roundsAuthorised: ROUNDS_WITH_OWNER, roundsUsed: 2 }),
     );
     expect(s.step).toBe('owner');
-    expect(s.because).toContain('authorised no fix rounds');
+    expect(s.because).toContain("constitution's ceiling");
   });
 
   it('authorises exactly the rounds the owner gave and not one more', () => {

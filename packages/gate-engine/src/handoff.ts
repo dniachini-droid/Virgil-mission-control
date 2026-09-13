@@ -27,12 +27,23 @@
  * <!-- virgil:authorisation rounds=2 -->
  * ```
  *
- * **No authorisation means no fix round.** Not one — zero. A chain that has not
- * been given rounds by the owner reviews once and stops. That is deliberately
- * stricter than `REPAIR_LIMITS.md`'s "one without owner", because the limit
- * there governs a session a human is watching and this governs a machine
- * starting machines while he sleeps.
+ * **One fix round is allowed without anybody saying so; two if the owner does.**
+ * Those are `REPAIR_LIMITS.md`'s own numbers — `maxCyclesWithoutOwner: 1`,
+ * `maxCyclesWithOwner: 2` — and the owner set the chain to them on 2026-09-13:
+ * *"I want it to go from Raphael—build—review—fix without me having [to] approve
+ * it. Always one round. 2 if I approve."*
+ *
+ * So the authorisation marker raises the cap from one to two and can do nothing
+ * else. **It cannot raise it to three.** A marker saying `rounds=99` is read as
+ * two, because the ceiling is authority layer 2 and no comment on a pull
+ * request amends it. Past the cap the chain stops and the run enters
+ * `OWNER_DECISION_REQUIRED`, exactly as the constitution says.
  */
+
+/** `REPAIR_LIMITS.md` `repairLimits.maxCyclesWithoutOwner`. */
+export const ROUNDS_WITHOUT_OWNER = 1;
+/** `REPAIR_LIMITS.md` `repairLimits.maxCyclesWithOwner`. The ceiling, full stop. */
+export const ROUNDS_WITH_OWNER = 2;
 
 /** One session's report, as it appears on the pull request. */
 export interface Handoff {
@@ -46,7 +57,10 @@ export interface Handoff {
 export interface ChainState {
   /** Fix rounds already spent, counted from the markers. */
   readonly roundsUsed: number;
-  /** Fix rounds the owner authorised. Zero unless he said so on this pull request. */
+  /**
+   * Fix rounds this chain may spend. `ROUNDS_WITHOUT_OWNER` unless the owner
+   * raised it on this pull request, and never above `ROUNDS_WITH_OWNER`.
+   */
   readonly roundsAuthorised: number;
   /** Every handoff read, in the order posted. */
   readonly handoffs: readonly Handoff[];
@@ -80,14 +94,17 @@ function fields(text: string): Record<string, string> {
  */
 export function readChain(comments: readonly string[]): ChainState {
   const handoffs: Handoff[] = [];
-  let roundsAuthorised = 0;
+  let roundsAuthorised: number = ROUNDS_WITHOUT_OWNER;
   for (const comment of comments) {
     AUTHORISATION.lastIndex = 0;
     for (const m of comment.matchAll(AUTHORISATION)) {
       const n = Number(m[1]);
       // The owner may raise his own authorisation and never lower it by a
-      // later comment saying less: the highest he has written stands.
-      if (Number.isInteger(n) && n > roundsAuthorised) roundsAuthorised = n;
+      // later comment saying less: the highest he has written stands. And the
+      // ceiling is the constitution's, not his comment's.
+      if (Number.isInteger(n) && n > roundsAuthorised) {
+        roundsAuthorised = Math.min(n, ROUNDS_WITH_OWNER);
+      }
     }
     HANDOFF.lastIndex = 0;
     for (const m of comment.matchAll(HANDOFF)) {
@@ -148,9 +165,9 @@ export function nextStep(state: ChainState): Step {
     return {
       step: 'owner',
       because:
-        roundsAuthorised === 0
-          ? 'the review is blocking and the owner has authorised no fix rounds on this pull request'
-          : `${roundsUsed} of ${roundsAuthorised} authorised fix rounds are spent`,
+        roundsAuthorised >= ROUNDS_WITH_OWNER
+          ? `${roundsUsed} of ${roundsAuthorised} fix rounds are spent, which is the constitution's ceiling`
+          : `${roundsUsed} of ${roundsAuthorised} fix rounds are spent, and only the owner can authorise another`,
     };
   }
 

@@ -49,6 +49,30 @@ Independence: must not be the same session, and must not share reasoning with, f
 - adjudicate
 - invent findings without evidence
 
+## Ending the hop: the handoff comment
+
+The review is posted as **one comment on the pull request**, headed
+`Keeper review — candidate <sha>`, and it ends with the handoff marker, which is generated and
+never typed:
+
+```sh
+pnpm chain -- --emit reviewer --round <n> --sha <reviewed-sha> --verdict <PASS|PASS_WITH_NON_BLOCKING_FINDINGS|BLOCKED|INSUFFICIENT_EVIDENCE> --next <fix|owner>
+```
+
+The SHA in the marker is **the SHA that was actually read**, not the branch's current head. A
+review vouches for one exact version and the marker is the claim about which one. If the head
+has moved since the review began, say so in the comment and mark the verdict against the SHA
+reviewed; a later session compares the two and knows the review is stale.
+
+The `--next` field is this reviewer's reading, not an instruction. What actually happens next
+is decided by `nextStep` in `packages/gate-engine/src/handoff.ts` from the whole pull request,
+including how many rounds have been spent and how many the owner allowed.
+
+**Then stop. Start nothing.** The Keeper has `mayLaunchStages: false` in
+`constitution/permission-matrix.json`: no fix session, no second reviewer, no follow-up of any
+kind. The conductor is subscribed to this pull request, is woken by this comment, and decides.
+A reviewer that could start the repair of its own findings is no longer independent of them.
+
 ## Stop conditions
 
 Stop immediately, emit the structured result with `stopReason`, and do not continue when any of these holds:
