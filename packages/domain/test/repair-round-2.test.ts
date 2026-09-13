@@ -64,7 +64,7 @@ const add = (
 const rejected = (run: RunState, type: string) =>
   run.invalidTransitions.filter((x) => x.type === type);
 const lastOf = (run: RunState, type: string) => rejected(run, type).at(-1);
-const FILE = 'apps/mission-control/src/world/Capsule.tsx';
+const FILE = 'apps/example-app/src/world/Capsule.tsx';
 const write = (path = FILE) => ({
   roleId: 'fabricator',
   path,
@@ -127,7 +127,7 @@ describe('KR-01: writes, staging and commits are bound to the actor\u2019s own g
         grantId: 'G-fab-x',
         roleId: 'fabricator',
         tier: 'TIER_2',
-        permittedPaths: ['apps/mission-control/src/world/**'],
+        permittedPaths: ['apps/example-app/src/world/**'],
         expiresAt: at(600),
       }),
       'agent_started',

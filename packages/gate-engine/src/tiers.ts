@@ -64,11 +64,16 @@ export const GOVERNED: readonly GovernedPath[] = [
   // Files whose whole job is to make a check able to fail. A change here can
   // make the suite green without making the repository sound, which is the
   // failure mode every other entry on this list exists to prevent.
-  exact('apps/mission-control/e2e/mutation-manifest.ts', 'it proves checks can fail'),
-  exact('apps/mission-control/test/check-quality-v11.test.ts', 'it proves checks can fail'),
-  exact('apps/mission-control/test/findings-register.test.ts', 'it guards the register'),
-  exact('apps/mission-control/test/review-records.test.ts', 'it guards the kept reviews'),
-  exact('apps/mission-control/test/cache-inputs.test.ts', 'it guards the test cache'),
+  //
+  // **A prefix rather than five filenames — `KXR-40`, and a defect this list
+  // carried in silence.** They were written as exact paths under
+  // an application's own test directory. Three of those files moved to
+  // `packages/repo-checks/` in #18 and the entries were not followed, so for a
+  // day the register's own guard could be edited at tier 2 — the list said it
+  // was governed and named a file that had moved. The application was then
+  // deleted and the other two went with it. A prefix cannot come apart from a
+  // move inside it; five filenames can, and did.
+  prefix('packages/repo-checks/', 'these are the checks the repository runs on itself'),
   exact('packages/gate-engine/test/refusals.test.ts', 'it proves every gate can refuse'),
   exact('packages/gate-engine/src/tiers.ts', 'it decides how much review a change gets'),
   exact('packages/gate-engine/test/tiers.test.ts', 'it guards the tier derivation'),

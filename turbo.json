@@ -13,13 +13,11 @@
         "$TURBO_ROOT$/CLAUDE.md",
         "$TURBO_ROOT$/package.json",
         "$TURBO_ROOT$/turbo.json",
-        "$TURBO_ROOT$/netlify.toml",
         "$TURBO_ROOT$/packages/**",
         "$TURBO_ROOT$/constitution/**",
         "$TURBO_ROOT$/docs/**",
         "$TURBO_ROOT$/knowledge/**",
         "$TURBO_ROOT$/schemas/**",
-        "$TURBO_ROOT$/netlify/**",
         "$TURBO_ROOT$/scripts/**",
         "$TURBO_ROOT$/.claude/**",
         "$TURBO_ROOT$/.github/**",
@@ -29,48 +27,6 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
-    },
-    "build:owner": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/owner-build/**"],
-      "cache": false,
-      "env": [
-        "VIRGIL_OWNER_SHA",
-        "VIRGIL_OWNER_STAGE",
-        "VIRGIL_OWNER_STAGE_SLUG",
-        "VIRGIL_OWNER_BUILD_DATE"
-      ]
-    },
-    "verify:owner": {
-      "dependsOn": ["build:owner"],
-      "outputs": [],
-      "cache": false,
-      "env": ["CHROMIUM_EXECUTABLE", "PLAYWRIGHT_BROWSERS_PATH"]
-    },
-    "build:owner:v11": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/owner-build-v11/**"],
-      "cache": false,
-      "env": [
-        "VIRGIL_OWNER_SHA",
-        "VIRGIL_OWNER_V11_STAGE",
-        "VIRGIL_OWNER_V11_STAGE_SLUG",
-        "VIRGIL_OWNER_BUILD_DATE"
-      ]
-    },
-    "verify:owner:v11": {
-      "dependsOn": ["build:owner:v11"],
-      "outputs": [],
-      "cache": false,
-      "env": ["CHROMIUM_EXECUTABLE", "PLAYWRIGHT_BROWSERS_PATH"]
-    },
-    "build:web": {
-      "cache": false,
-      "outputs": ["dist/web/**"]
-    },
-    "verify:web": {
-      "dependsOn": ["build:web"],
-      "cache": false
     }
   }
 }

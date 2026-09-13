@@ -175,7 +175,13 @@ describe('the reviews are kept, exactly as they were written', () => {
      * which is the failure this check exists to catch and which stays caught.
      */
     const gateHeld = new Set<string>();
-    for (const row of register.matchAll(/^\| (KXR-\d+) \| \S+ \| gate \| [^|]+ \| ([^|]+?) \|/gm)) {
+    // `gate` and `owner` alike: neither has a review to be kept in. A finding a
+    // check caught, and a finding only the owner can close, are both held by the
+    // document their own pointer names. `review` is deliberately excluded — a
+    // reviewer's finding must live in the kept review, which is `KXR-30`.
+    for (const row of register.matchAll(
+      /^\| (KXR-\d+) \| \S+ \| (?:gate|owner) \| [^|]+ \| ([^|]+?) \|/gm,
+    )) {
       const id = row[1] as string;
       const pointer = (row[2] as string).trim();
       if (!existsSync(resolve(root, pointer))) continue;

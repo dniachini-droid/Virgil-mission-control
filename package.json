@@ -9,23 +9,14 @@
     "node": ">=22"
   },
   "scripts": {
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm verify:owner && pnpm verify:owner:v11 && pnpm verify:web",
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
     "lint": "biome check .",
     "format": "biome format --write .",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "build": "turbo run build",
-    "build:owner": "turbo run build:owner",
-    "build:owner:v11": "turbo run build:owner:v11",
-    "verify:owner": "turbo run verify:owner",
-    "verify:owner:v11": "turbo run verify:owner:v11",
     "virgil:status": "node scripts/virgil-status.mjs",
-    "tier": "tsx scripts/virgil-tier.ts",
-    "reproduce:owner": "node apps/mission-control/owner-build/reproduce.mjs",
-    "reproduce:owner:v11": "node apps/mission-control/owner-build/reproduce-v11.mjs",
-    "measure:compression:v11": "node apps/mission-control/asset-pipeline/assess-compression.mjs",
-    "verify:web": "turbo run verify:web",
-    "standalone": "node scripts/virgil-standalone.mjs"
+    "tier": "tsx scripts/virgil-tier.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",

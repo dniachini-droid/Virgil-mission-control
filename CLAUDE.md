@@ -59,7 +59,7 @@ So the self-protection is thinner than it reads. It stops an honest session reac
 
 ## Repository map
 
-- `apps/mission-control/` — the web application and both 3D worlds (Phase 0: two spikes only).
+- `packages/repo-checks/` — checks about the repository itself: the findings register, the kept reviews, the test cache's declared inputs, the conversation contract.
 - `packages/domain/` — states, events, transition table, reducer, replay.
 - `packages/gate-engine/` — deterministic eligibility and integrity checks over evidence objects.
 - `packages/agent-contracts/` — Zod schemas for every structured contract; exported to `schemas/`.
@@ -76,11 +76,65 @@ So the self-protection is thinner than it reads. It stops an honest session reac
 ```sh
 pnpm install          # uses the committed lockfile
 pnpm check            # biome lint, typecheck, unit tests across the workspace
+pnpm tier             # derive this change's risk tier from its changed paths
 pnpm --filter @virgil/agent-contracts export-schemas   # regenerate schemas/*.schema.json
 pnpm --filter @virgil/knowledge-lint run lint           # Mind Scan over knowledge/
 pnpm --filter @virgil/knowledge-graph export-seed-graph # regenerate the committed seed graph (a test fails when stale)
-pnpm --filter mission-control dev                       # spikes at /spike/foundry and /spike/mind (rejected as an art baseline)
 ```
+
+## The application was deleted on 2026-09-13
+
+`apps/mission-control/` — the web application and both 3D worlds — is no longer
+in this repository. The owner removed it: *"Is this related to the fact I was
+trying to link this to Virgil UI? If so, fuck it off."*
+
+**Why.** Its browser checks were the whole of the cost of working here. The four
+V11 jobs, the hosted build and the two owner builds took between five and twelve
+minutes each; the repository's own checks take ninety seconds. A one-file
+documentation change waited twenty minutes for four browsers to confirm a 3D
+world still rendered at 390 pixels.
+
+**What it does not mean.** The application is not abandoned and nothing is lost.
+It is in this repository's history at `a182b196`, whole, and comes back with:
+
+```sh
+git checkout a182b196 -- apps/ netlify.toml
+```
+
+The owner's position of 2026-09-12 stands: *"I don't want to work on the UI for a
+long time. I'll go back to it another day."* When that day comes it is likely to
+be a repository of its own, which is what `packages/repo-checks/test/standalone.test.ts`
+and pull request #18 exist to make possible: nothing here imports an
+application, and that is enforced rather than remembered.
+
+**What went with it.** Its CI jobs, its turbo tasks, its root scripts, and
+`netlify.toml`, whose build command named a directory that no longer exists.
+
+**What went with it, beyond the directory.** Its hosting (`netlify.toml`), its
+two endpoints (`netlify/functions/`), the conversation writer and the
+`instruct.yml` workflow that drove it, their tests, and `scripts/virgil-standalone.mjs`
+— a command that deletes `apps/` from a copy cannot mean anything once `apps/`
+is gone. The owner's instruction was *"I don't want any trace of the app in the
+code of this building system"*, and a back end with no front end is a trace.
+
+**What that costs, said plainly.** There is no longer a way to type an
+instruction at a web page and have a run start. That mechanism was Phase 2
+slices three to six and it worked. It is in the history with everything else and
+comes back with the same command. Instructing this repository now means starting
+a session.
+
+**What stayed, because it is not the application's.** `.virgil/state.json` and
+`scripts/virgil-status.mjs` — session status, roles and hops, which are the
+build system's own record. `packages/gate-engine/test/refusals.test.ts` names
+`owner/virgil-mission-control` as a repository in its fixtures; that is this
+repository's name, not the application's.
+
+**One thing the owner has to do himself.** `.claude/settings.json` still allows
+three commands that no longer exist (`pnpm --filter mission-control dev`,
+`build`, `capture`). That file is deny-listed to sessions, and the only route to
+it is the shell bypass recorded above as a hazard. Stale permissions for absent
+commands are harmless; a session editing its own permission list to tidy up is
+the shape of the thing that rule exists to stop.
 
 ## Phase status
 

@@ -456,6 +456,12 @@ const PINNED: Record<
     where: 'docs/process/SLICE_SIX_INTEGRATION_RECORD.md',
     what: 'ed8d6508df17',
   },
+  'KXR-43': {
+    status: 'open',
+    foundBy: 'owner',
+    where: 'docs/process/OWNER_TODO.md',
+    what: '7b1ce902e597',
+  },
 };
 
 /**
@@ -512,6 +518,7 @@ const PINNED_ATTRIBUTES: Record<string, string> = {
   'KXR-30': '04570f1156e5',
   'KXR-31': 'c269b3ae1731',
   'KXR-38': '87f779b24970',
+  'KXR-43': '9199fb088d10',
 };
 
 const digest = (text: string) => createHash('sha256').update(text).digest('hex').slice(0, 12);
