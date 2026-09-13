@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:e87e71829cff5bf2ce30cc88d73c69d52622c70b03fa6ccbe890a9f841be8a04",
+  "graphHash": "sha256:2b3c7565690bac0329e9f9e64f0406df9079262b9a9b30dbe6ac69b605e0997b",
   "nodes": [
     {
       "id": "agent-roster",
@@ -233,6 +233,16 @@
       "claimCount": 3
     },
     {
+      "id": "lesson-gates-that-cannot-refuse",
+      "nodeType": "wiki_page",
+      "kind": "lesson",
+      "title": "A check nobody has watched fail is not a check",
+      "epistemicClass": "durable_compiled_knowledge",
+      "authorityClass": "compiled",
+      "status": "current",
+      "claimCount": 4
+    },
+    {
       "id": "src-master-commission",
       "nodeType": "raw_source",
       "kind": null,
@@ -354,6 +364,12 @@
       "kind": "links_to",
       "from": "knowledge-layer",
       "to": "two-worlds",
+      "state": null
+    },
+    {
+      "kind": "links_to",
+      "from": "lesson-gates-that-cannot-refuse",
+      "to": "governance-overview",
       "state": null
     },
     {
@@ -498,6 +514,18 @@
       "kind": "related",
       "from": "knowledge-layer",
       "to": "two-worlds",
+      "state": null
+    },
+    {
+      "kind": "related",
+      "from": "lesson-gates-that-cannot-refuse",
+      "to": "agent-roster",
+      "state": null
+    },
+    {
+      "kind": "related",
+      "from": "lesson-gates-that-cannot-refuse",
+      "to": "governance-overview",
       "state": null
     },
     {

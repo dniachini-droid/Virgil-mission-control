@@ -21,8 +21,16 @@ Content-oriented index of `knowledge/wiki/`. Maintained on every page change. Th
 ## Visual
 - [[epistemic-visual-language]] — nine classes, animation grammar discipline.
 
+## Lessons
+One page per lesson, each naming the files it governs and named back by them. `knowledge/SCHEMA.md` states the shape; `knowledge/LOADER.md` says how to find one while working.
+- [[lesson-gates-that-cannot-refuse]] — a check nobody has watched fail is not a check (`scope: general`, `verification`).
+
 ## Reference
 - [[glossary]]
+
+## Inbox
+Captures awaiting compilation. Raw material, never authority; see `knowledge/inbox/README.md`.
+- `inbox/cap-2026-09-13-gates-that-cannot-refuse.capture.md` → ingested into [[lesson-gates-that-cannot-refuse]]
 
 ## Raw sources
 - `raw/src-master-commission.source.md` → `docs/product/VIRGIL_MASTER_COMMISSION.md`

@@ -38,11 +38,11 @@ Each page carries, in frontmatter: the files it governs, the evidence it rests o
 
 ### 3. The link, checked in both directions
 
-A comment shrinks to one sentence and `[[lesson-id]]`. The lesson page names the files it governs.
+A comment shrinks to one sentence and `[[lesson-…]]`. The lesson page names the files it governs.
 
 **Both directions are checked or it rots.** This repository's most repeated finding is exactly this failure: `KP3-05` (two checkers, 106 disagreements), `KXR-08` (a pointer at a document that disclaimed being one), `KXR-12` (instructions wrong about their own guard), `KXR-10` (a pointer satisfied by the register itself). Every time a fact has been separated from the thing it governs here, the two came apart.
 
-So: a `[[lesson-id]]` in code that resolves to nothing fails. A lesson page naming a file that does not reference it back fails. A lesson page named by nothing fails. That is the tether mechanism, extended from pages-and-sources to pages-and-code.
+So: a `[[lesson-…]]` in code that resolves to nothing fails. A lesson page naming a file that does not reference it back fails. A lesson page named by nothing fails. That is the tether mechanism, extended from pages-and-sources to pages-and-code.
 
 ### 4. A loader, not a library — `knowledge/LOADER.md`
 
@@ -100,7 +100,7 @@ The last two are here because a finding raised by this work must be recordable, 
 
 1. **`pnpm check` passes in CI** on the candidate, and `pnpm --filter @virgil/knowledge-lint run lint` still reports no blocking findings.
 2. **A capture goes in and a lesson comes out.** The run record shows the capture file, the page it produced, and the index and log updated — with the commands to reproduce it.
-3. **Break each direction of the link and watch it fail, by name.** A `[[lesson-id]]` pointing at nothing. A lesson page naming a file that never mentions it. A lesson page nothing references. Each quoted in the run record.
+3. **Break each direction of the link and watch it fail, by name.** A `[[lesson-…]]` pointing at nothing. A lesson page naming a file that never mentions it. A lesson page nothing references. Each quoted in the run record.
 4. **Delete a lesson that code depends on — it must fail.** The `KXR-02` lesson, one layer out.
 5. **Grow the loader past its budget — it must fail**, naming the byte count. The check that a context-saving device has not stopped saving context.
 6. **The converted file is shorter and says the same thing.** Before and after line counts in the run record, and the lesson page carrying what the comment carried.
