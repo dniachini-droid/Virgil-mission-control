@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:2b3c7565690bac0329e9f9e64f0406df9079262b9a9b30dbe6ac69b605e0997b",
+  "graphHash": "sha256:d0fe439ddd9eb6236cf58dabb9c7980de470ce1375ea4dc6ad598e14cbe86dfa",
   "nodes": [
     {
       "id": "agent-roster",
@@ -187,6 +187,16 @@
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0016 — Superpowers, the record-keeping cycle, and the path exceptions of 2026-09-12",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0017-knowledge-lessons-follow-up.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0017 — The knowledge-lessons follow-up, and a prefix for findings a builder raises",
       "epistemicClass": "owner_approved_decision",
       "authorityClass": "owner_decision",
       "status": null,

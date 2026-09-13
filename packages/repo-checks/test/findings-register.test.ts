@@ -46,8 +46,20 @@ const STATUSES = [
   'withdrawn_gap_open',
 ] as const;
 
-/** A deterministic gate, a review, or the owner looking at the thing. */
-const DETECTORS = ['gate', 'review', 'owner'] as const;
+/**
+ * A deterministic gate, a review, the owner looking at the thing, or the
+ * session building it.
+ *
+ * **`builder` was added on 2026-09-13 — `OD-0017`.** Four findings a building
+ * session raised against its own contract had nowhere to go: not a gate, not a
+ * review, not the owner, and filing them under `review` would have made the
+ * register's most load-bearing column say a review caught what no review had
+ * seen. They sat in a run record instead, which is `XR-02` in miniature.
+ *
+ * It is the weakest detector here and the register says so: a `builder` row is
+ * a session's account of its own work.
+ */
+const DETECTORS = ['gate', 'review', 'owner', 'builder'] as const;
 
 /**
  * Findings inherited from earlier reviews, whose records state neither severity
@@ -456,6 +468,39 @@ const PINNED: Record<
     where: 'docs/process/SLICE_SIX_INTEGRATION_RECORD.md',
     what: 'ed8d6508df17',
   },
+  // The first findings a building session raised against its own contract —
+  // OD-0017. `repaired` on four of them means repaired on the same branch by
+  // the same session, which the register says plainly is not evidence.
+  'BR-01': {
+    status: 'repaired',
+    foundBy: 'builder',
+    where: 'docs/process/KNOWLEDGE_LESSONS_RUN_RECORD.md',
+    what: '9445b7995ca1',
+  },
+  'BR-02': {
+    status: 'repaired',
+    foundBy: 'builder',
+    where: 'docs/process/KNOWLEDGE_LESSONS_RUN_RECORD.md',
+    what: '074175d4014a',
+  },
+  'BR-03': {
+    status: 'repaired',
+    foundBy: 'builder',
+    where: 'docs/process/KNOWLEDGE_LESSONS_RUN_RECORD.md',
+    what: '9cfd23dd9225',
+  },
+  'BR-04': {
+    status: 'repaired',
+    foundBy: 'builder',
+    where: 'docs/decisions/OD-0017-knowledge-lessons-follow-up.md',
+    what: '9634d18871d8',
+  },
+  'BR-05': {
+    status: 'open',
+    foundBy: 'builder',
+    where: 'docs/decisions/OD-0017-knowledge-lessons-follow-up.md',
+    what: '447692f247d1',
+  },
 };
 
 /**
@@ -512,6 +557,11 @@ const PINNED_ATTRIBUTES: Record<string, string> = {
   'KXR-30': '04570f1156e5',
   'KXR-31': 'c269b3ae1731',
   'KXR-38': '87f779b24970',
+  'BR-01': 'f5b45aed49bf',
+  'BR-02': 'cb83161b8df8',
+  'BR-03': 'ce5fb4abac64',
+  'BR-04': '25808c6209e1',
+  'BR-05': '03463c057508',
 };
 
 const digest = (text: string) => createHash('sha256').update(text).digest('hex').slice(0, 12);

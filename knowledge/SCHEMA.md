@@ -40,7 +40,7 @@ addedBy: owner
 immutable: true
 ```
 
-Rules: records are created, never edited or deleted, except that `ingestionState` advances by appending a new record version line in `log.md` and updating that one field. A record references its source by canonical path and hash; it never duplicates content. When a source changes on disk the tether becomes `stale` and Mind Scan reports it; agents never rehash silently.
+Rules: records are created, never edited or deleted, except that `ingestionState` advances by appending a new record version line in `log.md` and updating that one field — **and that exception is the owner's alone.** `.claude/settings.json` denies `Write` and `Edit` under `knowledge/raw/**`, so no session can advance the field however well authorised it is in prose. `CLAUDE.md` and this file read as contradicting each other until 2026-09-13; they now say the same thing. See `BR-04` and `docs/decisions/OD-0017`. A record references its source by canonical path and hash; it never duplicates content. When a source changes on disk the tether becomes `stale` and Mind Scan reports it; agents never rehash silently.
 
 ## Wiki pages
 

@@ -23,7 +23,7 @@ Only the owner may change layers 1 and 2. A session that finds a contradiction r
 - No paid services, subscriptions or commercial assets.
 - Never write secrets, tokens or credential material into files, logs, fixtures or the interface.
 - Never copy live operational values (HEAD, SHAs, PR status, check results, agent status, gate eligibility) into `knowledge/wiki/`. Link to the authority instead.
-- `knowledge/raw/` is append-only. Never edit or delete a raw source record.
+- `knowledge/raw/` is append-only. Never edit or delete a raw source record. **`knowledge/SCHEMA.md` describes one exception and no session can take it**: it says `ingestionState` advances by appending a line to `knowledge/log.md` and updating that one field, which is an edit to a raw record. `.claude/settings.json` denies `Write` and `Edit` under `knowledge/raw/**` outright, so advancing that field is the owner's to do and nobody else's. The two documents read as contradicting each other until 2026-09-13, when a session hit the wall between them and reported it rather than reaching for a shell to get past it — `BR-04`, and `docs/decisions/OD-0017`.
 - Never skip, disable or weaken a test to make a check pass.
 - Every role performs one hop. A session assigned one role does not perform the next role's work.
 - A builder's success report is not evidence. Deterministic checks and independent review are.

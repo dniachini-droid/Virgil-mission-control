@@ -357,7 +357,52 @@ knowledge operation with an owner-curated record on the other end of it. It is
 recorded in `knowledge/log.md` as raised and not acted on, and it is the first
 thing the new check found in this repository without anybody pointing at it.
 
-## No register row, and why
+## The register rows, filed on 2026-09-13
+
+**This section replaces one headed "No register row, and why", which is kept
+below rather than deleted** — it is the account of why four findings had nowhere
+to live, and it is the reason the owner was asked. He answered: *"Fix those four
+things. I take your recommendation as to the best way forward."*
+`docs/decisions/OD-0017` transcribes that and names what a session chose under
+it — the prefix `BR`, and `builder` as a fourth word in the `found by`
+vocabulary.
+
+Five rows are now in `docs/process/FINDINGS.md`, each with all five attributes
+`constitution/REVIEW_POLICY.md` requires:
+
+| id | status | what it is |
+|---|---|---|
+| `BR-01` | repaired | criterion 7 required the mutation manifest and the permitted paths put it out of reach |
+| `BR-02` | repaired | the permitted paths omitted the derived seed graph, so criterion 1 and the path list could not both hold |
+| `BR-03` | repaired | the brief's own placeholder was read by the check it commissioned as a link to a lesson that does not exist |
+| `BR-04` | repaired | `CLAUDE.md` forbade editing a raw source record while `knowledge/SCHEMA.md` prescribed editing one field of one |
+| `BR-05` | **open** | ten pages rest on `src-master-commission`, its record still reads `sealed`, and the tooling denies every write under `knowledge/raw/` |
+
+**`repaired` here is the weakest sense of the word this register has.** Four
+findings were raised by the session that built the work, against the contract
+binding that session, and repaired by the same session on the same branch.
+`CLAUDE.md`: a builder's success report is not evidence. A reviewer should read
+these as where to start looking.
+
+**`BR-05` is the one nobody here can close.** `knowledge/SCHEMA.md` prescribes
+advancing `ingestionState` to `compiled`; `.claude/settings.json` denies `Write`
+and `Edit` under `knowledge/raw/**`. The owner authorised the change in the
+owner console on 2026-09-13 — *"I approve touching anything that I just said.
+Don't ask again"* — and **the tool refused it anyway**:
+
+```
+Edit knowledge/raw/src-master-commission.source.md
+  → File is in a directory that is denied by your permission settings.
+```
+
+`CLAUDE.md` records that those deny rules name the *tools* rather than the file,
+so `python3`, `sed -i`, `cat >` and `tee` all go past them. **None was used.**
+That paragraph exists to make the gap visible rather than to close it, and the
+one thing that makes the difference safe to rely on is a session declining the
+shell when it has verbal permission and a locked door. `BR-05` stays open and
+`OD-0017` sets out the three ways the owner can close it.
+
+## The account that stood before those rows existed
 
 `docs/process/FINDINGS.md` and `packages/repo-checks/test/findings-register.test.ts`
 are in the permitted paths *"because a finding raised by this work must be

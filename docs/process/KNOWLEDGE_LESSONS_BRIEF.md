@@ -90,9 +90,12 @@ docs/process/KNOWLEDGE_LESSONS_BRIEF.md
 docs/process/KNOWLEDGE_LESSONS_RUN_RECORD.md
 docs/process/FINDINGS.md
 packages/repo-checks/test/findings-register.test.ts
+packages/test-fixtures/knowledge/seed-graph.json
 ```
 
 The last two are here because a finding raised by this work must be recordable, and recording one costs an edit in two places by design.
+
+**`seed-graph.json` was added on 2026-09-13, after the work, by `docs/decisions/OD-0017`, and the amendment is recorded rather than made quietly.** It is a derived artifact: `packages/knowledge-graph/scripts/export-seed-graph.ts` writes it and `packages/knowledge-graph/test/seed-graph.test.ts` fails while it is stale. Adding pages under `knowledge/wiki/lessons/` — which this brief commissions — changes the graph it is derived from, so criterion 1 below and this list could not both be satisfied as the list originally stood. It is regenerated with that command, never hand-edited. That is `BR-02`. **A reviewer should weigh the delivered work against this list as it stood when the work was done**, which is the version without this file, and the run record says so too.
 
 **One file outside this list will be edited and is named here rather than declared afterwards:** whichever source file is converted as the proof in point 3. The builder names it in the run record before converting it. Declaring an exception after taking it is `KXR-07`, which is open.
 
@@ -104,7 +107,9 @@ The last two are here because a finding raised by this work must be recordable, 
 4. **Delete a lesson that code depends on — it must fail.** The `KXR-02` lesson, one layer out.
 5. **Grow the loader past its budget — it must fail**, naming the byte count. The check that a context-saving device has not stopped saving context.
 6. **The converted file is shorter and says the same thing.** Before and after line counts in the run record, and the lesson page carrying what the comment carried.
-7. **Every new guard goes into the mutation manifest as it is written**, not retrofitted.
+7. **Every new guard is watched failing, by name, before it passes, and the run record quotes which check failed.** Where the guard lives somewhere `apps/mission-control/e2e/mutation-manifest.ts` can reach, it goes into the manifest as it is written, not retrofitted. **The manifest runs `vitest` inside the application and reaches only the application's own tests**, so a guard in `packages/` is proved by hand instead and the record carries the output. That is weaker and is not pretended otherwise: a manifest entry runs on every push, a hand-run happened once. Teaching the manifest a second working directory is its own piece of work and belongs beside roadmap item 3, not smuggled into this one.
+
+   *Rewritten on 2026-09-13 by `docs/decisions/OD-0017`. It read `**Every new guard goes into the mutation manifest as it is written**, not retrofitted` — a mechanism this brief's own permitted paths put out of reach, since the manifest is outside them and is a governed tier-3 path. That is `BR-01`.*
 
 ## Cost, stated before it is spent
 
