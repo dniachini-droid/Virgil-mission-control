@@ -56,7 +56,7 @@ stop. Generate it; do not write it:
 
 ```sh
 pnpm chain -- --facts builder --round 0 --ran <file> --could-not-run "…" --not-done "…"
-pnpm chain -- --facts fixer --round <n> --ran <file> --could-not-run "…" --not-done "…"
+pnpm chain -- --facts fixer --round <n> --ran <file> --could-not-run "…" --not-done "…" --findings "KXR-39, KXR-40"
 ```
 
 **This binds a repair session exactly as hard as a build session.** Both lines are above and
@@ -82,6 +82,11 @@ from Git rather than asking, and refuses to print without the three it cannot de
 | `--ran` | a file holding the **real output**, not a summary of it. An empty file is refused. |
 | `--could-not-run` | every check that did not happen, and why. "Nothing" is an answer; silence is not. |
 | `--not-done` | what was deliberately left, and why. This is where scope discipline becomes visible. |
+| `--findings` | a repair only: the findings this round repaired. A repair with no named findings has no edges. |
+
+**Push before you run it.** The script checks that the commit is on the remote and refuses
+otherwise: a handoff for a commit only this machine can see sends a reviewer looking for
+something that is not there.
 
 The comment ends in a handoff marker and a facts marker, both generated.
 `packages/gate-engine/src/handoff.ts` reads them: a pushing handoff with no facts block for

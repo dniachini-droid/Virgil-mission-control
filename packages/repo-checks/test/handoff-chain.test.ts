@@ -260,3 +260,61 @@ describe('the reviewer answers the repository, not the builder', () => {
     expect(keeper.replace(/\s+/g, ' ')).toMatch(/not `?SAFE_TO_MERGE/);
   });
 });
+
+/**
+ * **The contract is the facts block's checklist, and a checklist nobody checks
+ * is the thing this whole section exists to stop.**
+ *
+ * `candidate-artifact` sat unused for eight days across 345 commits, and the
+ * coverage table in `docs/architecture/CONTRACTS.md` reported it delivered the
+ * whole time. Comparing it field by field against what a pushing session
+ * actually posts found two real gaps — which findings a repair addressed, and
+ * whether the commit had been pushed at all — and one box the contract itself
+ * was missing.
+ *
+ * These fail if that comparison is quietly dropped.
+ */
+describe('the facts block answers the contract that specifies it', () => {
+  it('the contract has the box a review actually needs', () => {
+    const schema = JSON.parse(read('schemas/candidate-artifact.schema.json')) as {
+      properties: Record<string, unknown>;
+    };
+    // checksSkipped says what could not be run. notDone says what was not
+    // attempted. A stage reporting neither has described only what went well.
+    expect(schema.properties.checksSkipped, 'the contract lost checksSkipped').toBeDefined();
+    expect(schema.properties.notDone, 'the contract lost notDone').toBeDefined();
+    expect(schema.properties.findingIds, 'the contract lost findingIds').toBeDefined();
+    expect(schema.properties.pushed, 'the contract lost pushed').toBeDefined();
+  });
+
+  it('a fixer must name the findings it repaired', () => {
+    const out = spawnSync(
+      'npx',
+      [
+        'tsx',
+        resolve(root, 'scripts/virgil-chain.ts'),
+        '--facts',
+        'fixer',
+        '--round',
+        '1',
+        '--ran',
+        resolve(root, 'package.json'),
+        '--could-not-run',
+        'nothing',
+        '--not-done',
+        'nothing',
+      ],
+      { cwd: root, encoding: 'utf8' },
+    );
+    expect(out.status, 'a repair with no named findings was accepted').not.toBe(0);
+    expect(out.stderr).toContain('--findings');
+  });
+
+  it('the mapping is written down rather than left to be rediscovered', () => {
+    const contracts = read('docs/architecture/CONTRACTS.md');
+    expect(contracts, 'the box-by-box mapping is gone').toContain('box by box');
+    // The honest counts are the part most likely to be tidied away, because
+    // they are the part that makes the coverage table above look worse.
+    expect(contracts).toMatch(/`candidate-artifact`\s*\|\s*0\s*\|/);
+  });
+});

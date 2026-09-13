@@ -135,13 +135,18 @@ if (factsRole !== undefined) {
     'could-not-run': flag('could-not-run'),
     'not-done': flag('not-done'),
   };
+  // A repair that names no findings has no edges. `ChainContext.findingIds`
+  // asked for this and the first draft of the facts block did not.
+  if (factsRole === 'fixer') required.findings = flag('findings');
   const missing = Object.entries(required)
     .filter(([, v]) => v === undefined || v.trim() === '')
     .map(([k]) => `--${k}`);
   if (missing.length > 0) {
     console.error(
-      `chain: ${missing.join(', ')} missing. These are the three the repository cannot derive, ` +
-        'and they are the ones a review is built on. "nothing" is an acceptable answer; silence is not.',
+      `chain: ${missing.join(', ')} missing. These are what the repository cannot derive, and ` +
+        'they are what a review is built on. "nothing" is an acceptable answer; silence is not. ' +
+        'A fixer also names the findings it repaired, because a repair with no named findings ' +
+        'has no edges.',
     );
     process.exit(2);
   }
@@ -176,6 +181,23 @@ if (factsRole !== undefined) {
   }
   if (branch === 'HEAD' || branch === 'main') {
     console.error(`chain: refusing to post facts from ${branch}. Work belongs on its own branch.`);
+    process.exit(2);
+  }
+
+  // `CandidateArtifact.pushed` asked whether the work had left the machine.
+  // Without it a session can post a handoff for a commit only it can see, and
+  // the reviewer goes looking for something that is not there.
+  let pushed = false;
+  try {
+    pushed = git('branch', '--remotes', '--contains', head).trim() !== '';
+  } catch {
+    pushed = false;
+  }
+  if (!pushed) {
+    console.error(
+      `chain: ${head.slice(0, 7)} is not on the remote. Push before handing off; a reviewer ` +
+        'cannot read a commit that never left this machine.',
+    );
     process.exit(2);
   }
 
@@ -220,6 +242,9 @@ if (factsRole !== undefined) {
     '',
     required['not-done'] as string,
     '',
+    ...(factsRole === 'fixer'
+      ? ['**Findings this round repaired**', '', required.findings as string, '']
+      : []),
     `<!-- virgil:facts sha=${short} -->`,
     `<!-- virgil:handoff role=${factsRole} round=${round} sha=${short} verdict=n/a next=review -->`,
   ];

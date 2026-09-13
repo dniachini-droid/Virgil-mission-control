@@ -44,3 +44,57 @@ Added by Amendment 1: `work-order`, `operational-animation-grammar`, `animation-
 - No schema has a field for secret values; command apertures carry a command class and target only.
 - Prose fields are never evidence. `EvidenceRef` is the only evidence type.
 - Schemas are versioned with the package; a breaking change to a contract is an ADR.
+
+## Which of these anything actually produces
+
+**The coverage table above says a contract exists. It does not say anything writes one, and
+until 2026-09-13 nothing said so anywhere.** Counted on that date, over 345 commits:
+
+| contract | instances in the repository | last written |
+|---|---|---|
+| `run-record` | 2 | 2026-09-07 |
+| `candidate-artifact` | 0 | never |
+
+**Why**, recorded so it is not rediscovered. These contracts were built in Phase 0 work
+package 3 as the foundation for an orchestration service that reads and writes them. That
+service is Phase 3 and does not exist. What runs in this repository is sessions, and a session
+writes prose into a pull request. The schema and the pull request never met.
+
+**And nothing refused to proceed without one.** `run-record` has two instances because a test
+names those two files; nothing has ever demanded a third, so there has not been a third. A
+test that names its instances proves those instances valid and is structurally incapable of
+noticing that no more were written.
+
+A contract nobody produces costs nothing, breaks nothing, passes every check and exports
+cleanly. That is precisely why it can sit for eight days without anyone noticing, and it is
+the failure mode to watch for in every row of the table above.
+
+### `candidate-artifact`, box by box, against the facts block that replaced it
+
+`scripts/virgil-chain.ts --facts` is what a pushing session actually posts
+(`docs/process/AUTOMATIC_HANDOFF_CHAIN.md`). The contract was used as its checklist rather
+than as its format, and this is the result. **The contract is not dead: it is the specification
+the facts block is checked against.**
+
+| contract field | in the facts block | how |
+|---|---|---|
+| `branch`, `baseSha`, `headSha`, `shortSha`, `parentSha` | yes | derived from Git, never asked for |
+| `filesChanged`, `manifest` | yes | derived; the path list, not a hash manifest |
+| `checksRun` | yes | `--ran`, the real output from a file |
+| `checksSkipped` | yes | `--could-not-run` |
+| `notDone` | yes | `--not-done`. **The box the contract did not have**, added on 2026-09-13 |
+| `findingIds` | yes | `--findings`, required of a fixer. **Found by this comparison** |
+| `pushed` | yes | verified, not declared. A handoff for an unpushed commit is refused. **Found by this comparison** |
+| `roleId`, `handoffSource`, `handoffDestination`, `nextAction` | yes | the handoff marker |
+| `authorityTier` | partly | the facts block carries the **risk** tier, derived from paths. Authority tier is the role's, and is in the role definition |
+| `repository`, `pr` | implicitly | the comment is on the pull request |
+| `projectId`, `worktree` | no | one repository, no worktrees in practice |
+| `sessionId`, `authorityGrantId`, `permittedActions` | no | there is no grant issuer to issue them |
+| `artifactId`, `lineageId`, `sealed` | no | identity and sealing belong to the orchestration service |
+| `author`, `committedAt` | no | Git holds both, next to the commit the block names |
+| `gateResult`, `stopReason` | no | a gate result belongs to a gate, and a push is not a stop |
+
+**Four of these are deliberately empty rather than filled with something plausible.**
+`artifactId`, `lineageId`, `sealed` and `authorityGrantId` describe a service that assigns and
+seals them. A script inventing values for them would be manufacturing evidence, which is worse
+than an honest gap.
