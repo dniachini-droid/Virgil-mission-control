@@ -93,6 +93,12 @@ export interface ChainState {
   /** Every handoff read, in the order posted. */
   readonly handoffs: readonly Handoff[];
   /**
+   * Whether the comments were in the order every rule here assumes: oldest
+   * first. False when a round number falls, which cannot happen in a chain that
+   * ran forwards. See `readChain`.
+   */
+  readonly ordered: boolean;
+  /**
    * The newest pushed work no reviewer has reported on since, or null when the
    * newest thing on the pull request is a review.
    *
@@ -175,7 +181,48 @@ export function readChain(comments: readonly string[]): ChainState {
       });
     }
   }
-  const roundsUsed = handoffs.filter((h) => h.role === 'fixer').length;
+  // **A repair round is a push that follows a review, whatever it calls itself.**
+  //
+  // `KXR-44/PR26`. This counted handoffs whose declared role was `fixer`, and
+  // the role is the session's own word: `--facts builder` is a legal command
+  // for any session, so a repair session spelling itself `builder` left the
+  // count at zero for ever and the chain authorised "round 1 of 1" without
+  // bound — on the one night nobody is watching.
+  //
+  // Position cannot be misdeclared. A pushing handoff before any review is the
+  // build; every pushing handoff after one is a repair round.
+  // **And the order the count depends on is checked rather than assumed.**
+  //
+  // `KXR-45/PR26`. `readChain` requires the comments oldest first, nothing said
+  // so and nothing checked it. Handed them newest first the chain commissioned
+  // a review of already-reviewed work and never stopped doing it — reviews are
+  // not repair rounds, so the cap never engaged.
+  //
+  // **The signal is a review arriving before the push it reviewed.**
+  //
+  // Round numbers were the obvious choice and are the wrong one: a session that
+  // misdeclares its role also writes `round=0`, so they fall legitimately and
+  // the check cried wolf over the very chain `KXR-44/PR26` describes. A review
+  // of a version that has not been pushed yet cannot happen in a chain that ran
+  // forwards, and needs no session to have declared anything truthfully.
+  //
+  // Ambiguity resolves to the owner rather than to another session.
+  const pushedBy = new Map<string, number>();
+  handoffs.forEach((h, i) => {
+    if (h.role !== 'reviewer' && !pushedBy.has(h.sha)) pushedBy.set(h.sha, i);
+  });
+  const ordered = !handoffs.some((h, i) => {
+    if (h.role !== 'reviewer') return false;
+    const pushed = pushedBy.get(h.sha);
+    return pushed !== undefined && pushed > i;
+  });
+
+  let roundsUsed = 0;
+  let reviewSeen = false;
+  for (const h of handoffs) {
+    if (h.role === 'reviewer') reviewSeen = true;
+    else if (reviewSeen) roundsUsed++;
+  }
 
   // Newest first, so the first pushing handoff found with no review after it is
   // the work that is owed one. `findLast` is not available at this target.
@@ -192,7 +239,7 @@ export function readChain(comments: readonly string[]): ChainState {
     break;
   }
 
-  return { roundsUsed, roundsAuthorised, handoffs, unreviewed, lastVerdict };
+  return { roundsUsed, roundsAuthorised, handoffs, unreviewed, lastVerdict, ordered };
 }
 
 export type Step =
@@ -209,6 +256,15 @@ export type Step =
  */
 export function nextStep(state: ChainState): Step {
   const { lastVerdict, roundsUsed, roundsAuthorised, unreviewed } = state;
+
+  if (!state.ordered) {
+    return {
+      step: 'owner',
+      because:
+        'the comments are not in the order this count depends on, so nothing here can be ' +
+        'trusted to say which round the chain is in',
+    };
+  }
 
   // Pushed work outranks any verdict, because a verdict is about one version
   // and this is a newer one. This is what makes the second review round happen

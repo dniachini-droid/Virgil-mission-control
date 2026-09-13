@@ -149,6 +149,28 @@ because anyone remembered to ask.
 This is `constitution/REVIEW_POLICY.md`'s staleness rule, applied by the machine rather than by
 a reader: *a review vouches for the exact version it read and is broken by any later push.*
 
+### 4a. Two ways it could have run without stopping, and how both were shut
+
+Both were found by an independent inspector attacking the counter rather than reading it, and
+neither could bite while a person was driving. They bite on the night nobody is watching, which
+is the night this exists for.
+
+**A repair session that called itself a builder was never counted.** The count read the role
+each session declared for itself, and both spellings are commands this system offers. A repair
+labelled `builder` left the count at zero for ever, so the chain would authorise "round 1 of 1"
+again and again. **A round is now counted by position: a push that follows a review is a repair
+round, whatever it calls itself.** Position cannot be misdeclared.
+
+**Comments read newest-first commissioned reviews without bound.** The order was load-bearing,
+undocumented and unchecked; reviews are not repair rounds, so the cap never engaged. **The
+counter now refuses to decide when it can prove the order is wrong** — a review of a version
+that had not been pushed yet cannot happen in a chain that ran forwards.
+
+**The first signal tried for this was round numbers falling, and it was wrong.** A session that
+misdeclares its role also writes round zero, so they fall legitimately, and the check cried wolf
+over the very chain the first fix exists to catch. The two repairs collided, a test caught it,
+and the signal became one no session declares at all.
+
 ### 5. One round without you, two with you, and never three
 
 `constitution/REPAIR_LIMITS.md` says one repair cycle without the owner and two with him, and

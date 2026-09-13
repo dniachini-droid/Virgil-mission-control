@@ -20,8 +20,8 @@ const handoff = (role: string, round: number, sha = 'abc1234', extra = '') =>
 /** A pushing handoff with its facts block, as `pnpm chain --facts` emits it. */
 const built = (role: string, round: number, sha = 'abc1234') =>
   `<!-- virgil:facts sha=${sha} -->\n${handoff(role, round, sha, 'next=review')}`;
-const review = (verdict: string, round = 0) =>
-  handoff('reviewer', round, 'abc1234', `verdict=${verdict} next=owner`);
+const review = (verdict: string, round = 0, sha = 'abc1234') =>
+  handoff('reviewer', round, sha, `verdict=${verdict} next=owner`);
 
 describe('reading the chain from the pull request', () => {
   it('counts fix rounds and nothing else as a round', () => {
@@ -80,6 +80,7 @@ describe('what happens next', () => {
     roundsAuthorised: ROUNDS_WITHOUT_OWNER,
     handoffs: [],
     unreviewed: null,
+    ordered: true,
     lastVerdict: null,
     ...o,
   });
@@ -188,5 +189,91 @@ describe('what happens next', () => {
 
   it('an empty pull request cannot be talked into a fix round', () => {
     expect(nextStep(state({ roundsAuthorised: 99 })).step).toBe('owner');
+  });
+});
+
+/**
+ * **The two ways an unattended chain could run without bound, and the reason
+ * neither is closed by a paragraph.**
+ *
+ * Both were found by an independent reviewer of `7e1f719` attacking the counter
+ * rather than reading it, and both defeat the round cap only when nobody is
+ * watching — which is the night the chain exists for.
+ */
+describe('the round cap holds against a session that misdeclares itself', () => {
+  it('counts a push after a review as a repair round, whatever it calls itself', () => {
+    // KXR-44/PR26. `--facts builder` is a legal command for any session, so a
+    // repair session spelling itself `builder` used to leave the count at zero
+    // for ever and the chain authorised "round 1 of 1" without bound.
+    const chain = readChain([
+      built('builder', 0, 'aaa1111'),
+      review('BLOCKED'),
+      built('builder', 0, 'bbb2222'), // a repair, lying about what it is
+      review('BLOCKED', 1, 'bbb2222'),
+      built('builder', 0, 'ccc3333'), // and another
+    ]);
+    expect(chain.roundsUsed, 'a push after a review is a repair round').toBe(2);
+    expect(nextStep(chain).step).toBe('review');
+  });
+
+  it('stops the same chain at the owner once the rounds are spent', () => {
+    const chain = readChain([
+      built('builder', 0, 'aaa1111'),
+      review('BLOCKED'),
+      built('builder', 0, 'bbb2222'),
+      review('BLOCKED', 1, 'bbb2222'),
+    ]);
+    // One round without the owner. The second push above spent it.
+    expect(chain.roundsUsed).toBe(1);
+    const step = nextStep(chain);
+    expect(step.step).toBe('owner');
+    expect(step.because).toContain('only the owner can authorise another');
+  });
+
+  it('still counts an honest fixer exactly once', () => {
+    const chain = readChain([
+      built('builder', 0, 'aaa1111'),
+      review('BLOCKED'),
+      built('fixer', 1, 'bbb2222'),
+    ]);
+    expect(chain.roundsUsed).toBe(1);
+  });
+
+  it('a build before any review is not a repair round', () => {
+    expect(readChain([built('builder', 0, 'aaa1111')]).roundsUsed).toBe(0);
+  });
+});
+
+describe('the order the count depends on is checked, not assumed', () => {
+  const forwards = [
+    built('builder', 0, 'aaa1111'),
+    review('BLOCKED', 0, 'aaa1111'),
+    built('fixer', 1, 'bbb2222'),
+    review('PASS', 1, 'bbb2222'),
+  ];
+
+  it('reads a chain that ran forwards', () => {
+    const chain = readChain(forwards);
+    expect(chain.ordered).toBe(true);
+    expect(nextStep(chain).step).toBe('owner');
+  });
+
+  it('refuses to decide from comments that are not oldest first', () => {
+    // KXR-45/PR26. Handed them newest first the chain used to commission a
+    // review of already-reviewed work, and never stop: reviews are not repair
+    // rounds, so the cap never engaged.
+    const chain = readChain([...forwards].reverse());
+    expect(chain.ordered, 'a falling round number is proof the order is wrong').toBe(false);
+    const step = nextStep(chain);
+    expect(step.step, 'a chain that cannot tell where it is must not start a session').toBe(
+      'owner',
+    );
+    expect(step.because).toContain('not in the order this count depends on');
+  });
+
+  it('does not cry wolf over a chain that never left round zero', () => {
+    expect(readChain([built('builder', 0, 'aaa1111'), review('PASS', 0, 'aaa1111')]).ordered).toBe(
+      true,
+    );
   });
 });
