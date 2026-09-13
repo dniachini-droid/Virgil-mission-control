@@ -656,6 +656,90 @@ const PINNED: Record<
     where: 'docs/process/KEEPER_PR30_REVIEW.md',
     what: '76e5a8605389',
   },
+
+  /**
+   * **The eleven of the two reviews of #32 and the one review of #33.**
+   *
+   * `KXR-70/PR32` and `KXR-71/PR32` were raised BLOCKING on `8ba4452`, repaired
+   * on `6e7c6b3`, and the final reviewer replayed both attacks and reported
+   * both closed. `repaired` is that reviewer's finding, not this session's.
+   * Every other status here is `open`, and each was checked against the tree
+   * at `f2aa068` rather than assumed: the sentence `KXR-80/PR32` names is still
+   * at `handoff.ts:150-155`, the message `KXR-74/PR32` names is still at
+   * `handoff.test.ts:343`, and the two claims `KXR-73/PR32` and `KXR-82/PR32`
+   * name are still in #32's description.
+   *
+   * `KXR-75/PR33` and `KXR-76/PR33` are `repaired` by the commit that files
+   * them — the pin below in `review-records.test.ts`, and the re-stamped plan.
+   * The register says what that is worth: a repair on the same branch as its
+   * finding has not been independently reviewed.
+   */
+  'KXR-70/PR32': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR32_REVIEW.md',
+    what: 'd849cbd953fd',
+  },
+  'KXR-71/PR32': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR32_REVIEW.md',
+    what: '0f8620268cf9',
+  },
+  'KXR-72/PR32': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR32_REVIEW.md',
+    what: '7a4bfc0554f6',
+  },
+  'KXR-73/PR32': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR32_REVIEW.md',
+    what: 'f0b4d3cdd314',
+  },
+  'KXR-74/PR32': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR32_REVIEW.md',
+    what: 'd38c5443e68a',
+  },
+  'KXR-80/PR32': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR32_REREVIEW.md',
+    what: '4cd25e270a6a',
+  },
+  'KXR-81/PR32': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR32_REREVIEW.md',
+    what: 'ad51f4bd7ac7',
+  },
+  'KXR-82/PR32': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR32_REREVIEW.md',
+    what: '9c36e8b85648',
+  },
+  'KXR-75/PR33': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR33_REVIEW.md',
+    what: 'e3c2dcb0866b',
+  },
+  'KXR-76/PR33': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR33_REVIEW.md',
+    what: '24c6a5bd3815',
+  },
+  'KXR-77/PR33': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR33_REVIEW.md',
+    what: '383a4a5a64dd',
+  },
 };
 
 /**
@@ -748,6 +832,22 @@ const PINNED_ATTRIBUTES: Record<string, string> = {
   'KXR-63/PR28': 'd3aee9076a86',
   'KXR-57/PR30': '9dd3ca6248e9',
   'KXR-58/PR30': 'da120c038bf1',
+  // The eleven of 2026-09-13's two reviews of #32 and one review of #33. The
+  // two reviews of #32 graded on a high/medium/low scale where every other
+  // review here used major/moderate/minor; the words below are theirs and no
+  // mapping was applied, because a mapping would be this session's judgement.
+  // The register says so under the attributes table.
+  'KXR-70/PR32': '14a7f001b4fe',
+  'KXR-71/PR32': '587067650c06',
+  'KXR-72/PR32': 'bd36407ace0b',
+  'KXR-73/PR32': '5dd836aa51c1',
+  'KXR-74/PR32': '3a28d7f62baa',
+  'KXR-80/PR32': '8bae47550606',
+  'KXR-81/PR32': '297dd1ee343a',
+  'KXR-82/PR32': 'e38feaf92271',
+  'KXR-75/PR33': 'fc2265c2c148',
+  'KXR-76/PR33': 'db484945e6ea',
+  'KXR-77/PR33': '750d9083cb05',
 };
 
 const digest = (text: string) => createHash('sha256').update(text).digest('hex').slice(0, 12);
