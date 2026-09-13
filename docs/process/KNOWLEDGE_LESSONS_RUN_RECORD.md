@@ -855,16 +855,16 @@ $ grep -rn 'KXR-39' packages/gate-engine/test/tiers.test.ts
 What each contested id already means, established by reading the repository
 rather than by taking anybody's word:
 
-| id | what the PR-20 review calls it | what it already meant | where that lives | on `main`? |
+| id | what the PR-20 review calls it | what it already meant | where that is established | on `main`? |
 |---|---|---|---|---|
-| `KXR-39` | the link matcher and page validator disagree | *"a test case cited a commit that never touched the paths it cited"* | `packages/gate-engine/test/tiers.test.ts:13`, commit `25f9453` | **yes** |
-| `KXR-40` | `lesson_unreferenced` satisfied by a sibling | *"a prefix rather than five filenames"* in the governed-path list | `packages/gate-engine/src/tiers.ts:68` and `test/tiers.test.ts:75` | no — `claude/virgil-remove-app` |
-| `KXR-41` | the `TEXT_EXTENSIONS` allowlist | **nothing found on any branch** | — | — |
-| `KXR-42` | the run record contradicts its own diff | *"`RISK_TIERS.md` derived a tier and nothing consumed it"* | `.github/workflows/checks.yml:158`, `docs/process/RISK_TIERS.md:40`, `packages/repo-checks/test/tier-gating.test.ts:8` | no — `claude/virgil-tier-ci` |
-| `KXR-43` | the `BR-04` repair states a falsehood | *"three permission entries allow commands deleted with the application"* — **and it is a filed register row**, in the register table, the attributes table and `PINNED` | `docs/process/FINDINGS.md:89` and `:135`, `docs/process/OWNER_TODO.md:16`, `packages/repo-checks/test/findings-register.test.ts:459` | no — `claude/virgil-remove-app` |
-| `KXR-44` | "filed first" not evidenced | **nothing found on any branch** | — | — |
-| `KXR-45` | the contract amended after delivery | **nothing found on any branch** | — | — |
-| `KXR-46` | criterion-1 evidence pasted from an earlier commit | **nothing found on any branch** | — | — |
+| `KXR-39` | the link scan and page validator disagree | *"a test case cited a commit that never touched the paths it cited"* — raised by the first review of #17 and **repaired** there | `25f9453`; merge commit `77c0eab`; the surviving note at `packages/gate-engine/test/tiers.test.ts:13` | **yes** |
+| `KXR-40` | `lesson_unreferenced` satisfied by a sibling | *"the governed list omits vitest configs, `turbo.json`, `netlify.toml`, `scripts/**` and three guard files"* — carried unrepaired by #17 | merge commit `77c0eab` | **yes** |
+| `KXR-41` | the `TEXT_EXTENSIONS` allowlist | *"tier 1 is any `.md`, which includes `knowledge/raw/**`"* — carried unrepaired by #17 | merge commit `77c0eab` | **yes** |
+| `KXR-42` | the run record contradicts its own diff | *"nothing consumes `tierOf` yet — it computes the answer and enforces nothing"* — carried unrepaired by #17 | merge commit `77c0eab` | **yes** |
+| `KXR-43` | the `BR-04` repair states a falsehood | *"three permission entries allow commands deleted with the application"* — **a filed register row**, in the register table, the attributes table and `PINNED` | `812f651`; `docs/process/FINDINGS.md:89` and `:135`; `docs/process/OWNER_TODO.md:16` | no — `claude/virgil-remove-app` |
+| `KXR-44` | "filed first" not evidenced | **free.** No file and no commit message on any branch carries it | — | — |
+| `KXR-45` | the contract amended after delivery | **free.** Same | — | — |
+| `KXR-46` | criterion-1 evidence pasted from an earlier commit | **free.** Same | — | — |
 
 Method, so this table can be checked rather than believed:
 
@@ -872,14 +872,29 @@ Method, so this table can be checked rather than believed:
 $ for b in $(git branch -r | grep -v HEAD); do
     git grep -lE 'KXR-(39|40|41|42|43|44|45|46)' "$b" 2>/dev/null | sed "s|^|$b -> |"
   done | sort -u
+$ for n in 39 40 41 42 43 44 45 46; do
+    echo "KXR-$n: $(git log --all --grep="KXR-$n" --format='%h' | tr '\n' ' ')"
+  done
 ```
 
-**One correction to the task as it was given to this session.** The brief said
-`KXR-39` to `KXR-42` were used by the two reviews of pull request #17. Three of
-those four are confirmed in the repository. `KXR-41` is not: it appears in no
-file on any branch except `KEEPER_PR20_REVIEW.md` itself. Those reviews are not
-in this repository, so a fifth use may exist in a place a session cannot read —
-but on the evidence the repository carries, `KXR-41` is free.
+**A correction to this record, made by the session that wrote it.** The first
+version of the table above said `KXR-41` was free and gave partial meanings for
+`KXR-40` and `KXR-42`, and the paragraph here disputed the task brief on that
+basis. **It was wrong**, and the reason is worth more than the error: the first
+sweep used `git grep` over branch *trees*, which reads files and cannot see a
+commit message. Three of the four contested findings were never written into any
+file — they were repaired or carried in prose, in the commit that merged pull
+request #17. `git log --all --grep` finds them in one command.
+
+The authority is `77c0eab`, **the merge commit of #17, on `main`**, which names
+all four with their meanings — quoted in the table above. So all four of
+`KXR-39` to `KXR-42` are taken, exactly as the task brief said and contrary to
+what this record first claimed, and the review's *"the highest id in the
+repository before this document is `KXR-38`"* is wrong by four rather than by
+one. `KXR-44`, `KXR-45` and `KXR-46` survive both sweeps and are free.
+
+This paragraph is left in rather than the error quietly overwritten. A record
+that silently corrects itself is `KXR-42` from the other side.
 
 ### Why `docs/process/FINDINGS.md` was not touched at all
 
@@ -927,6 +942,28 @@ hop by a later session.
    the four earlier uses are source comments on unmerged branches and cheap to
    change; the fourth, `KXR-43`, is a filed register row with a `PINNED` digest,
    and moving it is the renumbering of a filed finding.
+
+### The owner's answer, given after this record was first written
+
+Asked to choose, the owner answered in the owner console on 2026-09-13:
+*"Yes change the numbers as you said"* — "as you said" being resolution 1 above,
+qualifying the PR-20 review's eight ids as `KXR-39/PR20` … `KXR-46/PR20` and
+renaming nothing that already exists.
+
+**Recorded here, and not applied here, for two reasons a reader can check.**
+Applying it means editing `docs/process/KEEPER_PR20_REVIEW.md`, which lives on
+`claude/pr-20-independent-review-76o7ea` — a branch this session may not commit
+to, `CLAUDE.md` allowing a session only its assigned branch. And the register
+rows depend on it: the pointer check demands the pointer file name the finding
+as a whole id, so a row reading `KXR-39/PR20` cannot be filed until the review
+document says `KXR-39/PR20`. The review branch has to move first, then the
+register.
+
+**A decision record is owed and this is not it.** `OD-0006` sets out the
+mechanism — the owner instructs, the instruction is transcribed verbatim, a
+session files the record in `docs/decisions/`. That path is outside this
+repair's permitted paths and outside its hop. The verbatim instruction is above
+so whoever files it does not have to reconstruct it.
 
 **What would stop this recurring**, offered and not built: nothing in this
 repository can currently tell a session the highest id in use. The reviewer
