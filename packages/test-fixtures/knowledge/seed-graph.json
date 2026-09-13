@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:34b77342d79524f51f3db30a0a7247485c2a6e5a2670aceaf11c455b263ca7ca",
+  "graphHash": "sha256:70b741c39535dd24fc3015a6baca002f71b44f243ab86a59c19ed77775d4ec44",
   "nodes": [
     {
       "id": "agent-roster",
@@ -157,6 +157,16 @@
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0016 — Superpowers, the record-keeping cycle, and the path exceptions of 2026-09-12",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
+      "id": "docs/decisions/OD-0018-builders-open-their-own-pull-requests.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0018 — A builder opens its own pull request, and the review follows automatically",
       "epistemicClass": "owner_approved_decision",
       "authorityClass": "owner_decision",
       "status": null,
