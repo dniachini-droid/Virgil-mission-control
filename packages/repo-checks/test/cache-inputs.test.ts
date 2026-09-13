@@ -97,6 +97,24 @@ function rootSegmentsRead(): Map<string, string[]> {
   return found;
 }
 
+/**
+ * **`node_modules` is the one root path a test may read without being declared,
+ * and only while the lockfile is.**
+ *
+ * Declaring `node_modules/**` would hash tens of thousands of files on every
+ * run to learn what one line of `pnpm-lock.yaml` already says. The lockfile is
+ * what actually determines the tree, so it is the honest input, and it was
+ * undeclared until 2026-09-13 — found when a test began spawning the resolved
+ * `tsx` binary instead of `npx`, which cannot resolve it outside this project
+ * and goes to the network for it.
+ *
+ * The exemption is not free: it holds only while the lockfile is declared. Take
+ * the lockfile out of `turbo.json` and `node_modules` stops being exempt and
+ * this file fails, which is the point.
+ */
+const LOCKFILE = '$TURBO_ROOT$/pnpm-lock.yaml';
+const COVERED_BY_LOCKFILE = new Set(['node_modules']);
+
 const declared = turbo.tasks.test?.inputs ?? [];
 const covered = new Set(
   declared
@@ -117,7 +135,9 @@ describe('the test cache watches everything the tests read', () => {
 
   it('declares every root path the tests actually reach for', () => {
     const missing: string[] = [];
+    const lockfileDeclared = declared.includes(LOCKFILE);
     for (const [segment, files] of rootSegmentsRead()) {
+      if (COVERED_BY_LOCKFILE.has(segment) && lockfileDeclared) continue;
       if (!covered.has(segment)) {
         missing.push(
           `${segment} — read by ${files[0]}${files.length > 1 ? ` and ${files.length - 1} more` : ''}`,
