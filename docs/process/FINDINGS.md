@@ -118,6 +118,17 @@ This column is the point of the register rather than a decoration on it. It is t
 | KXR-63/PR28 | open | review | The plan's staleness measure counts merges since a stamped commit, and the plan's live section is about work that has not merged, so it reports current while already two facts behind | docs/process/KEEPER_PR28_REREVIEW.md |
 | KXR-57/PR30 | open | review | The corrected check-output block went stale again without a byte of it changing, because the replay moved the base under counts the record pins absolutely | docs/process/KEEPER_PR30_REVIEW.md |
 | KXR-58/PR30 | open | review | Pull request #30's description sends a reader to the run record for six findings' reasons where it carries four, and two of the six appear nowhere in the tree | docs/process/KEEPER_PR30_REVIEW.md |
+| KXR-70/PR32 | repaired | review | The order guard compares the reviewer's forty-character sha against the builder's seven-character one, so it could not fire on any chain this repository's own tooling emits | docs/process/KEEPER_PR32_REVIEW.md |
+| KXR-71/PR32 | repaired | review | "Position cannot be misdeclared" was untrue: a pushing session spelling itself `reviewer`, and one whose marker never parsed, both left the round count pinned at zero however deep the chain ran | docs/process/KEEPER_PR32_REVIEW.md |
+| KXR-72/PR32 | open | review | The change hardening the rule that every pushing session posts a generated facts block was itself pushed without one | docs/process/KEEPER_PR32_REVIEW.md |
+| KXR-73/PR32 | open | review | The pull request's description names as the order guard's blind spot a reversal the guard detects, and leaves the two real blind spots unnamed | docs/process/KEEPER_PR32_REVIEW.md |
+| KXR-74/PR32 | open | review | A test asserts with the message of the signal that was rejected, on the case that proves the signal which replaced it | docs/process/KEEPER_PR32_REVIEW.md |
+| KXR-80/PR32 | open | review | A comment claims an over-eager sha match "can only" resolve towards the owner, where it suppresses the guard instead, and no test holds that direction | docs/process/KEEPER_PR32_REREVIEW.md |
+| KXR-81/PR32 | open | review | The facts block names a governed file under "governed paths touched" that the round it describes did not touch | docs/process/KEEPER_PR32_REREVIEW.md |
+| KXR-82/PR32 | open | review | The description claims nine new cases where the diff adds eight and removes none | docs/process/KEEPER_PR32_REREVIEW.md |
+| KXR-75/PR33 | repaired | review | The seven reviews captured by #33 were held by nothing, so one could be emptied, or a finding inside it reversed, with every check still passing | docs/process/KEEPER_PR33_REVIEW.md |
+| KXR-76/PR33 | repaired | review | The candidate falsified the plan's queued line — twenty-four rows filed where it still said none were — and did not record that it had | docs/process/KEEPER_PR33_REVIEW.md |
+| KXR-77/PR33 | open | review | A capture's builder-authored header says its reason is a finding "this very document raises", naming one that a different capture raises | docs/process/KEEPER_PR33_REVIEW.md |
 
 ## Attributes, for findings recorded from 2026-09-12
 
@@ -193,6 +204,17 @@ It is repaired **forward-only**, which is the same rule the register already run
 | KXR-63/PR28 | minor | `docs/process/ROADMAP.md`; `.claude/skills/raphael/SKILL.md`, startup step 7 | `git rev-list --count 515373f..origin/main` returned 0 while the plan's in-flight table still named a finished review and undercounted the rows owed | the section's own rule that every reply says how far behind the plan is |
 | KXR-57/PR30 | moderate | `docs/process/KNOWLEDGE_LESSONS_RUN_RECORD.md`, the corrected "Every check, and what it printed" block | Run the four commands at `6dec9f6`: 92 files not 88, 630 tests not 582, graph hash `928fac21…` not `8d3a270a…`, with the block byte-identical to `9ed95d60` | the brief's instruction to paste what the command printed; `CLAUDE.md`, a builder's success report is not evidence |
 | KXR-58/PR30 | minor | the pull request description for #30 | Search `docs/process/KNOWLEDGE_LESSONS_RUN_RECORD.md` for `KXR-51` and `KXR-52`: no occurrence, where the description sends a reader there for their reasons | `CLAUDE.md` authority order, which makes a pull-request description no authority over `docs/process/` |
+| KXR-70/PR32 | high (major on this register's scale) | `packages/gate-engine/src/handoff.ts:210-218` at `8ba4452`; `scripts/virgil-chain.ts:57-93` and `:248-249`; `.claude/agents/keeper.md:110` | `--facts` always writes `sha=${head.slice(0, 7)}` and `--emit` passes `--sha` through unnormalised, so the two markers are 7 and 40 characters; the exact-string lookup misses and a reversed chain returns `next=review` | raised BLOCKING. A check a candidate adds must be able to fire on the chain the system emits; `docs/process/AUTOMATIC_HANDOFF_CHAIN.md` on a counter that refuses to decide when it can prove the order is wrong |
+| KXR-71/PR32 | high (major on this register's scale) | `packages/gate-engine/src/handoff.ts:220-225` and the claim at `:192`; `docs/process/AUTOMATIC_HANDOFF_CHAIN.md`, "Position cannot be misdeclared"; the description for #32 | Post repair rounds as `--emit reviewer --verdict BLOCKED`, or push with a marker `readChain` cannot parse: ten rounds deep the chain still reports `roundsUsed=0/1` and authorises round 1 | raised BLOCKING. `KXR-44/PR26`, whose mechanism the tree claimed closed; `constitution/REPAIR_LIMITS.md` on the round cap |
+| KXR-72/PR32 | medium (moderate on this register's scale) | pull request #32's comments as they stood at `8ba4452` | Run `pnpm chain -- --comments` over them: `handoffs recorded : 0`, `next=owner`, "nothing has been handed off on this pull request" | `.claude/agents/fabricator.md`, "Ending the hop: the facts block"; `docs/process/AUTOMATIC_HANDOFF_CHAIN.md` |
+| KXR-73/PR32 | low (minor on this register's scale) | the pull request description for #32 | `built('builder', 0, 'aaa1111')` and `review('PASS', 0, 'aaa1111')` reversed give `ordered=false` and `next=owner`, against the description's "A two-comment chain reversed is undetectable" | accuracy of the sentence an owner would read to learn where the hole is; `CLAUDE.md`, a builder's success report is not evidence |
+| KXR-74/PR32 | low (minor on this register's scale) | `packages/gate-engine/test/handoff.test.ts`, the assertion message "a falling round number is proof the order is wrong" — line 266 as reviewed, line 343 on `main` at `f2aa068` | `grep -n "a falling round number is proof the order is wrong" packages/gate-engine/test/handoff.test.ts`: one hit, on the case that proves the signal which replaced falling round numbers | accuracy of a test's own account of what it proves |
+| KXR-80/PR32 | medium (moderate on this register's scale) | `packages/gate-engine/src/handoff.ts:150-155`; `packages/gate-engine/test/handoff.test.ts:393-396`; the description for #32 | Put two pushing markers with one-character shas in front of a reversed chain the guard catches: `ordered` goes `false` to `true` and `next` goes `owner` to `review`. Make `sameSha` true for any two non-empty strings and the whole `gate-engine` package still passes | the comment's own claim, which no test holds; `KXR-71/PR32`, the same shape of over-claim |
+| KXR-81/PR32 | low (minor on this register's scale) | the round-1 facts comment on pull request #32 | `git diff --name-only 8ba4452..6e7c6b3` returns three files and not `.claude/skills/raphael/SKILL.md`, which that block names under "Governed paths touched" | `.claude/agents/fabricator.md` on what the facts block is for — it is what frames the review that follows it |
+| KXR-82/PR32 | low (minor on this register's scale) | the pull request description for #32, its evidence section | Count `it(` in `git diff 8ba4452..6e7c6b3 -- packages/gate-engine/test/handoff.test.ts`: eight added and none removed, against the description's "Nine new cases" | `CLAUDE.md`, a builder's success report is not evidence; this is a claim about evidence |
+| KXR-75/PR33 | major | `packages/repo-checks/test/review-records.test.ts`; the seven captures added by pull request #33 | At `d2c8188` replace `docs/process/KEEPER_PR28_REREVIEW.md` with the four ids it is cited for and run `pnpm test --force`: 792 passed, 0 failed. Or reword `KXR-44/PR26`'s heading inside `KEEPER_PR26_REVIEW.md` to say it was raised in error: 792 passed, 0 failed | `review-records.test.ts`'s own stated purpose, that a copy which can be quietly tidied is worse than a link because it looks like the original |
+| KXR-76/PR33 | moderate | `docs/process/ROADMAP.md` line 33, the queued table | `sed -n '33p' docs/process/ROADMAP.md` at `88d5d5a` reads "thirteen findings owed a row … none filed", against the twenty-four rows in `docs/process/FINDINGS.md` at the same head | `CLAUDE.md` authority order, which makes `docs/process/` layer 4 and expects it to be true; the facts block's `--not-done` field |
+| KXR-77/PR33 | minor | `docs/process/KEEPER_PR30_REVIEW.md` line 18 — a builder-authored header above the rule, not part of the verbatim review | `grep -n '^### .KXR-' docs/process/KEEPER_PR30_REVIEW.md` returns `KXR-57/PR30` and `KXR-58/PR30`; the header names `KXR-49/PR27`, which `KEEPER_PR27_REVIEW.md` raises | accuracy of a document about itself, in a repository whose recurring defect is exactly that |
 
 ## The reviews of 2026-09-13, filed together
 
@@ -240,18 +262,81 @@ reviewer replayed both attacks and confirmed the closures. One was repaired on
 because the merge order it asked for is what `git log --merges` shows. Filing is
 not repairing, and nothing here was repaired in order to be filed.
 
-**What holds these seven documents, and what does not.**
-`packages/repo-checks/test/review-records.test.ts` pins seven earlier review
-documents to the SHA-256 of the bytes they had at a named commit, so that a
-kept review cannot be quietly tidied afterwards. **These seven are not in it.**
-Nothing in that file required an entry — its completeness check reads
-unqualified `KXR-NN` ids and every id filed here is qualified — and the
-instruction bounding this work was to change nothing there that was not
-required. The consequence, said rather than left to be found: **the seven
-captures added today are held by nothing but this paragraph and the diff.** A
-later session can edit them and no check will notice. That is a smaller
-protection than the seven documents above them have, and closing it is a change
-to a test file, which is somebody else's hop.
+**What holds these seven documents. Nothing did, and now something does.**
+`packages/repo-checks/test/review-records.test.ts` pins a review document to
+the SHA-256 of the bytes it had at a named commit, so that a kept review cannot
+be quietly tidied afterwards. **When these seven were captured they were in no
+such pin**, and the paragraph that stood here said so plainly: *"the seven
+captures added today are held by nothing but this paragraph and the diff."*
+
+The reviewer of `88d5d5a` did not take that on trust. It cut
+`KEEPER_PR28_REREVIEW.md` down to the bare ids it is cited for and every check
+passed; it rewrote a finding inside `KEEPER_PR26_REVIEW.md` to say the problem
+had been raised in error and every check passed. That is `KXR-75/PR33`, and it
+is repaired below: all seven are pinned, together with the three captured on
+2026-09-13 from the reviews of #32 and #33.
+
+**The reason the check had required nothing of them is repaired too, and it was
+the id pattern.** The completeness rule read `/^\| (KXR-\d+) \|/` — an
+unqualified id followed by a cell boundary — so every qualified id filed under
+the owner's resolution of 2026-09-13 was invisible to it. It now reads both
+spellings. That is a decision rather than a tidy-up, and the reasoning is
+written where the pattern is: a qualified id is a `KXR` finding, qualification
+is how this register now mints them, and a completeness check blind to the
+register's dominant identity shape counts the wrong set.
+
+## The reviews of #32 and #33, filed after them
+
+**Eleven more findings, from three reviews that ran on 2026-09-13 after the
+twenty-four above were counted.** Two reviews of pull request #32 — the first
+returning `BLOCKED` on `8ba4452`, the second `PASS_WITH_NON_BLOCKING_FINDINGS`
+on `6e7c6b3` after the one repair round the first authorised — and one review of
+pull request #33 on `88d5d5a`, which is the review that found the gap the
+section above closes.
+
+They are filed the same way and for the same reason: the reviews were captured
+first, verbatim, as `docs/process/KEEPER_PR32_REVIEW.md`,
+`KEEPER_PR32_REREVIEW.md` and `KEEPER_PR33_REVIEW.md`, because a row must point
+at a file in this repository and a comment on a website is not one. **All three
+are pinned**, so this batch never has the property the last one had.
+
+**No substitution was needed in any of the three.** The two captures of
+2026-09-13 that carried one — `KEEPER_PR27_REVIEW.md` and
+`KEEPER_PR30_REVIEW.md` — rewrote doubled-square-bracket lesson links so the
+knowledge scan would not read a quoted link as a made one, which is
+`KXR-49/PR27` biting. None of these three comments contains such a link, so each
+capture is its comment's bytes exactly.
+
+**Three read `repaired` and eight read `open`, on the same rule as before: a
+review's word, or a fact anyone can check from the tree, never this session's
+judgement.** `KXR-70/PR32` and `KXR-71/PR32` were raised BLOCKING and the final
+reviewer of #32 replayed both attacks against the repaired code and reported
+both closed; that reviewer's word is what the status records. `KXR-75/PR33` and
+`KXR-76/PR33` are repaired by the commit that files them, and the rule at the
+top of this file applies to both: a repair on the same branch as its finding has
+not been independently reviewed. Every `open` row was checked against the tree
+at `f2aa068` rather than assumed — the sentence `KXR-80/PR32` names is still at
+`handoff.ts:150-155`, the assertion message `KXR-74/PR32` names is still in
+`handoff.test.ts`, and the two claims `KXR-73/PR32` and `KXR-82/PR32` name are
+still in #32's description.
+
+**`KXR-80/PR32` was deliberately not repaired.** It is a wrong sentence beside
+correct code in `packages/gate-engine/src/handoff.ts`, which is outside the
+paths this work may touch, and its own reviewer's instruction is that the right
+time to correct it is the next time something touches that file.
+
+**Two identity gaps, neither of them this session's to close.** The reviews jump
+from `KXR-77` to `KXR-80`; `KXR-78` and `KXR-79` were never minted, as `KXR-59`
+was not. And `KXR-39/PR20` through `KXR-46/PR20` are still owed: they are
+referenced in two captures but `KEEPER_PR20_REVIEW.md` is in no part of this
+tree, so a row for them would point at a document that names the id without
+holding its text — the failure `KXR-08` exists to prevent.
+
+**On severity words.** The two reviews of #32 graded on a high/medium/low scale
+where every other review in this register used major/moderate/minor. Their words
+are kept, and the equivalent on this register's scale is stated beside each and
+labelled as such. Replacing one with the other silently would be this session
+grading eight findings it did not raise.
 
 ## Adding a row
 
