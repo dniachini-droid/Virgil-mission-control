@@ -72,7 +72,7 @@ Not a bloat problem. An index problem. Deleting would have made it worse.
 
 What is added: a way in (`knowledge/inbox/`, captures written mid-work), a place for engineering lessons, the link checked in **both** directions, a loader held to a byte budget so it cannot grow into the context cost it exists to avoid, and the numeric thresholds that stop a knowledge base becoming forty-six files with eleven versions of one document.
 
-Brief written and queued: `docs/process/KNOWLEDGE_LESSONS_BRIEF.md`. Four ideas taken from `toolboxmd/karpathy-wiki` (MIT, design only). Nothing taken from `NicholasSpisak/second-brain`, which carries no licence.
+**Built on 2026-09-13, on `claude/virgil-knowledge`, and not yet reviewed.** The inbox, the lessons category, the link checked in both directions, the loader under its byte budget, the numeric thresholds, and one source file converted as proof. What it cost and what it left open is in `docs/process/KNOWLEDGE_LESSONS_RUN_RECORD.md`; the brief is `docs/process/KNOWLEDGE_LESSONS_BRIEF.md`, amended after the fact by `docs/decisions/OD-0017`. Five findings are filed under the new `BR` prefix. Four ideas taken from `toolboxmd/karpathy-wiki` (MIT, design only). Nothing taken from `NicholasSpisak/second-brain`, which carries no licence.
 
 ## 5. Phase 1 — the inspector looks at the real thing
 
