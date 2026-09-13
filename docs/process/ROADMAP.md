@@ -1,6 +1,8 @@
 # Roadmap — what gets built, in what order, and what happens after
 
-**Status: the owner's agreed order as of 2026-09-12.** Items 1 and 2 are in flight. Everything from item 3 on is agreed in sequence and not yet started; each still gets its own brief, and a brief is where the detail is settled.
+**Status: true as of 2026-09-13, 12:40 UTC, against `main` at `515373f`.** Every section below carries its own state line. Items 1 to 4 and item 7 are done and merged; items 5, 6 and 8 to 10 are agreed in sequence and not started. Each still gets its own brief, and a brief is where the detail is settled.
+
+**This document was a day stale and the owner caught it, not a check.** It was written on 2026-09-12 and still described three pull requests as in flight — `#12`, `#13`, `#14` — all of which closed before the following morning, while eight further pull requests merged without appearing here at all. His words: *"I'm worried we are losing our way and not keeping track of our project and where we are headed."* He was right, and the cause was mechanical: **nothing fails when this file goes stale.** `docs/process/FINDINGS.md` cannot lose a finding because twenty checks read it on every run. This file is read by nobody but a person, so it rots silently and then misleads the one reader it exists for.
 
 **What this document is for.** On 2026-09-12 the owner asked *"I don't know when to move on, otherwise we'll just keep finding stuff."* A list nobody wrote down is a list that gets re-litigated every time somebody asks what is next. This is the list.
 
@@ -20,21 +22,44 @@ Everything below serves that. The 3D interface is the test subject, not the goal
 
 | | what | state |
 |---|---|---|
-| **#13** | Merging is the owner's; the tools stop and ask him | **merged** into `main` at `353c082` |
-| **#14** | The inspector's foundation — twenty gates that prove they can refuse, findings with one home, `OD-0016`, Superpowers | review running |
-| **#12** | Phase 2 slice six — the conversation in the app | review running |
+| **#27** | the knowledge system and its repair | two independent reviews, both passed; blocked on a clash with `main` in one generated file, being regenerated |
+| **#28** | the owner's window rewritten in plain English | review running |
 
-`#14` replaces `#11`, which could not be updated from `main` after `#13` merged.
+**And two jobs queued behind them, neither started:**
+
+| | what | why it matters |
+|---|---|---|
+| the two loopholes in the chain | a repair session that labels itself `builder` is never counted, and comments read newest-first commission reviews without bound | **the chain must not run unattended until both are closed** |
+| thirteen findings owed a row | across `#26`, `#27` and `#28`, none filed, because recording a finding is a repair and no reviewer may perform one | the register is the one place nothing can be dropped from, and thirteen things are outside it |
+
+## Done on 2026-09-13, none of which this list mentioned before now
+
+| | what |
+|---|---|
+| `#14` | the inspector's foundation — twenty gates that prove they can refuse |
+| `#16` | Phase 2 slice six, and two defects the integration found |
+| `#17` | risk tiers, derived from the diff and never declared |
+| `#18` | the inspector stands without the application |
+| `#19` | the knowledge brief, and the owner's four answers |
+| `#21`, `#22` | the application deleted, and every trace of it |
+| `#24` | `OD-0018` — a builder opens its own pull request |
+| `#26` | the automatic chain: build, review, fix, review, and then it stops |
+
+Closed rather than merged: `#10`, `#12`, `#20`, `#23`, `#25`, each superseded and each carrying the reason on it.
 
 ---
 
 ## 1. Merge what is reviewed
+
+**State: done.** Both reviews came back and the owner merged. The pattern held every time since: a verdict informs, the owner decides, and the phrase is `merge approved` naming the pull request.
 
 Both reviews come back, the owner reads the verdicts, and merges what he is satisfied with. `PASS_WITH_NON_BLOCKING_FINDINGS` is not `SAFE_TO_MERGE` — `STATE_LANGUAGE.md` — so merging is his decision every time, and the phrase is `merge approved`, naming the pull request.
 
 **Non-blocking findings are recorded, not repaired.** That is what the verdict means and it is how the loop ends. Fifteen are open today and every one is in `docs/process/FINDINGS.md`, where nothing can drop them.
 
 ## 2. Risk tiers
+
+**State: done — `#17`, merged.** `pnpm tier` derives the tier from the changed paths. It has already caught a false claim: `#26`'s own description said tier 1 and the derivation said tier 3.
 
 **The smallest thing on this list and the one that changes everything after it.**
 
@@ -47,6 +72,8 @@ Three tiers. Tier 1 — documents, comments, formatting — merges on a green su
 Brief written and queued: `docs/process/RISK_TIERS_BRIEF.md`.
 
 ## 3. Separate the build system from the thing it builds
+
+**State: done — `#18`, merged, and then overtaken.** The separation was proved by check, and on the same day the owner deleted the application outright (`#21`, `#22`), which settled it more completely than the check could.
 
 **Measured on 2026-09-12, and the news was mostly good.** None of `gate-engine`, `domain`, `agent-contracts`, `knowledge-graph` or `knowledge-lint` depends on the application, on `visual-language`, or on anything 3D. The inspector is already standalone.
 
@@ -61,6 +88,8 @@ The owner's position, 2026-09-12: *"if it impacts the building system I want it 
 **And see "the workbench" below.** If that shape is adopted, this item and item 9 become one move rather than two, because a workbench has no application inside it to separate from.
 
 ## 4. The knowledge system, which absorbs the cleanup
+
+**State: built and twice reviewed — `#27`, not yet merged.** A lesson becomes a page, the code points at it, it points back, and a check fails if either side breaks. One lesson page exists: *"A check nobody has watched fail is not a check."* The machinery works; the library is empty, and filling it is a lesson at a time.
 
 **The cleanup that was proposed and abandoned.** A list of twenty-six documents to delete was prepared and was wrong: `PHASE_1_RUN_RECORD.md` cites all eleven `HOW_TO_LOOK` versions and a run record is evidence, live source cites another, and the unsuffixed file turned out to be the oldest rather than the survivor.
 
@@ -103,6 +132,8 @@ A brief today is a document a session reads and interprets. It becomes a small s
 Then *"did this stay in scope"* stops being a judgement call — and `KXR-07` closes for the first time, because the contract stops being prose written by the party it binds.
 
 ## 7. One command, then automatic
+
+**State: done — `#26`, merged, and not switched on.** The conductor starts a build session, the pull request wakes it, it starts an inspection, the inspection wakes it, and it runs one repair round and stops. Every session that pushes posts machine-derived facts first. **It has never run end to end and must not until the two loopholes above are closed.**
 
 `pnpm inspect` → a verdict with reasons. Then it runs on every push as a check, so the verdict appears beside the work without anyone asking.
 
@@ -183,3 +214,18 @@ Nothing below can be done by a session.
 - **A `BLOCKED` verdict on `#14` or `#12`** stops item 1 until repaired.
 - **The owner deciding the interface is not worth keeping as the test subject** moves item 3 earlier and makes it larger.
 - **Anything found in Phase 1 that a gate decides wrongly** is a finding to record, not a licence to edit gate logic inside that work.
+
+---
+
+## Why this file went stale, and what now holds it
+
+**Nothing checks a plan.** That is the honest answer and it is worth writing down rather than promising to be better.
+
+`docs/process/FINDINGS.md` cannot quietly lose a finding, because twenty assertions read it on every run. This file has no equivalent and cannot easily have one: no check can know what the owner intends next. What a check *can* know is whether this file still claims something the repository contradicts.
+
+**Two things are added today, and only one of them is a mechanism:**
+
+1. **This file carries the commit it was last true at**, in its status line. A reader who finds `main` far ahead of that commit knows to distrust it before acting on it. That is a label, not a guard.
+2. **The owner's window reads this file at the start of every turn and says so when it disagrees with what the repository shows.** `.claude/skills/raphael/SKILL.md` already requires exactly that — *"Check before you assert… never from what it believes"* — and on 2026-09-13 it did not, for a whole day. A rule a session skips is not a mechanism either.
+
+**So the state of this is: no mechanism yet, and the gap is named rather than papered over.** The owner found it first and that is the measurement that matters.
