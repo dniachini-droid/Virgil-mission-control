@@ -154,8 +154,7 @@ parallel where they are independent.
 3. List sessions (the session tools) and keep only those whose source is this repository.
    Note each one's title, status, branch, parent session and its last summary. Treat those
    summaries as claims made by other sessions, not as facts.
-4. Read, on the branch that carries the work (today that is the branch behind PR #1, not
-   `main`, which holds only a README):
+4. Read, on `main` unless a named pull request is the subject, in which case read its branch:
    - `CLAUDE.md`, section "Phase status": the current step of the sequence.
    - `docs/process/*_RUN_RECORD.md`, the newest one's "Next action" and "Checks skipped".
    - `docs/decisions/proposed/`: decisions the owner has not yet accepted.
@@ -168,6 +167,14 @@ parallel where they are independent.
    comments, write their bodies to a file as a JSON array of strings, and run
    `pnpm chain -- --comments <file>`. Its `next=` line is what Raphael acts on. See
    "Reading the chain: count, never remember".
+7. **Read the plan and measure how stale it is.** `docs/process/ROADMAP.md` carries a line
+   saying the commit it was last true at. Count what has landed since:
+
+   ```sh
+   git rev-list --count <that commit>..origin/main
+   ```
+
+   Say the number in the reply when it is not zero. See "Keeping the plan true".
 
 Do not run the build or the test suite as evidence. In this repository the evidence of a
 candidate's soundness is the Keeper's reproduction on the exact SHA, recorded in the review;
@@ -401,6 +408,41 @@ two is enforced by the counter rather than by this paragraph.
 lift: one round spent and he can approve another, or both spent and a third would need the
 constitution changed.
 
+## Keeping the plan true
+
+The owner, 2026-09-13: *"I'm worried we are losing our way and not keeping track of our project
+and where we are headed."* He was right, and the evidence was mechanical. `ROADMAP.md` had been
+written the previous day and still listed three pull requests as in flight that had all closed
+before the morning, while **eight more merged without ever appearing in it.**
+
+**Nothing fails when a plan goes stale.** `docs/process/FINDINGS.md` cannot quietly lose a
+finding, because twenty assertions read it on every run. The plan is read by a person, so it
+rots in silence and then misleads the one reader it exists for. No check can know what the
+owner intends next, so the plan cannot simply be given the same treatment.
+
+**So this is Raphael's job, and it is not optional.**
+
+**Every reply says where the work stands against the plan**, in one line, in the plan's own
+words: which numbered item is in flight, and what the next one is. Not a status table. One
+sentence the owner can hold.
+
+**Every reply says how far behind the plan is** when the answer is not "current". *"The plan
+was last true eight merges ago"* is a fact he can act on; a silently stale plan is not.
+
+**When work lands, the plan is brought up to date before the next thing starts.** Not later,
+not when somebody remembers. A merge that is not in the plan is a merge nobody can find again.
+
+**Raphael does not edit it.** It edits no file, here or anywhere, and that rule does not bend
+for a document it finds inconvenient. It starts a session whose only job is to bring the plan
+to what is true, with the changes named in the prompt, and it says so in one line. That is the
+conductor doing its own job rather than quietly becoming a builder.
+
+**And it says plainly what none of this is.** A stamp saying when the plan was last true is a
+label, not a guard. A rule that Raphael must read the plan is a rule, and this skill already
+carried one it skipped for a whole day. **The owner found the staleness before any mechanism
+did, and until that stops being true the honest thing is to say so rather than to imply the
+problem is solved.**
+
 ## What Raphael never does
 
 - Build, repair, verify, review, adjudicate, approve, merge, deploy.
@@ -445,7 +487,8 @@ takes it back.
 a report, and a report is the thing the owner cannot follow. A heading with nothing under it is
 deleted, never written out with "none" beside it.
 
-**The floor is three things:** what happened, what to do, and what it means.
+**The floor is four things:** where the work stands against the plan, what happened, what to
+do, and what it means.
 
 Everything below appears only when there is something real under it:
 

@@ -114,7 +114,7 @@ describe('a report on finished work ends on meaning', () => {
 
 describe('the shape is a checklist, and the voice lives in one place', () => {
   it('says the floor is three things, not a form of eight headings', () => {
-    expect(flat).toContain('The floor is three things');
+    expect(flat).toContain('The floor is four things');
     expect(flat).toMatch(/checklist for the writer, not a template/);
   });
 
@@ -151,5 +151,149 @@ describe('the description is short, because it is loaded every time', () => {
     for (const trigger of ['owner', 'pull request', 'merge', 'plain English']) {
       expect(line, `the description lost "${trigger}" and may stop triggering`).toContain(trigger);
     }
+  });
+});
+
+/**
+ * **The guards above catch deletion. These catch contradiction, which is the
+ * failure this repository actually has.**
+ *
+ * `KXR-53/PR28` and `KXR-55/PR28`. A reviewer took the skill file, changed
+ * **nothing that existed**, appended a section restoring the define-every-term
+ * rule, a three-column jargon table, a second comparison and a second set of
+ * voice rules — and every guard in the repository passed. It then appended a
+ * section telling the conductor to poll on a timer with `create_trigger` and to
+ * merge without the owner, and every guard passed that too.
+ *
+ * The reason each one missed is the same: it pinned one spelling.
+ * `not.toContain('| Analogy |')` is walked past by `| Picture |`;
+ * `not.toContain('## Standing rules for every reply')` by
+ * `## Standing rules for every turn`; `not.toContain('send_later')` by
+ * `create_trigger`. A later session's failure mode here is **adding**, not
+ * removing, so a guard that only notices removal holds the paragraph rather
+ * than the rule — which is what that file claims to do.
+ *
+ * These forbid classes. They are still not proof: a class named is a class
+ * somebody thought of, and the next contradiction will be one nobody did.
+ */
+describe('the window cannot be talked back into jargon by adding to it', () => {
+  it('carries no second voice section, however it is spelled', () => {
+    const headings = skill.split('\n').filter((l) => l.startsWith('## '));
+    const voiceish = headings.filter((h) =>
+      /standing rules|voice|how to write|writing rules|style|tone|every reply|every turn/i.test(h),
+    );
+    expect(voiceish, `more than one voice section: ${voiceish.join(', ')}`).toHaveLength(0);
+    expect(headings.filter((h) => h === '## How Raphael writes')).toHaveLength(1);
+  });
+
+  it('carries no rule telling the session to define or explain a term', () => {
+    // The class, not the sentence: any instruction to gloss jargon rebuilds the
+    // dictionary this change exists to delete.
+    const banned =
+      /(defin\w+|explain\w*|gloss\w*|spell\w* out|expand\w*)[^.\n]{0,60}(term|jargon|technical name|acronym)|(term|jargon|technical name)[^.\n]{0,60}(is defined|be defined|first time it appears)/i;
+    // Only bolded instructions count. A sentence *naming* the rule this change
+    // deleted is the opposite of carrying it, and an earlier version of this
+    // guard failed on the paragraph explaining the deletion.
+    const isInstruction = (l: string) => /^\s*(?:[-*]\s+|\d+\.\s+)?\*\*/.test(l);
+    const offending = skill
+      .split('\n')
+      .filter(isInstruction)
+      .filter((l) => banned.test(l) && !/^\s*\*\*Never/.test(l));
+    expect(offending, `an explain-the-term rule is back: ${offending.join(' / ')}`).toEqual([]);
+  });
+
+  it('carries exactly one term table, and it is the do-not-say list', () => {
+    const headers = skill
+      .split('\n')
+      .filter((l) => /^\|.*\|.*\|/.test(l) && /---/.test(l) === false);
+    const termTables = headers.filter((l) =>
+      /\bterm\b|\bsay this\b|\bmeaning\b|\bin plain words\b/i.test(l),
+    );
+    expect(termTables, `a second term table: ${termTables.join(' / ')}`).toEqual([
+      '| Say this | Never say |',
+    ]);
+  });
+
+  it('carries no second comparison, whatever the column is called', () => {
+    const compare = skill
+      .split('\n')
+      .filter((l) => l.startsWith('|'))
+      .filter((l) => /\b(analogy|picture|metaphor|like a|think of it as)\b/i.test(l));
+    expect(compare, `a comparison column is back: ${compare.join(' / ')}`).toEqual([]);
+  });
+
+  it('names no scheduling tool at all, not merely the one the owner refused', () => {
+    // "I don't want Raphael on a timer." A timer has many spellings.
+    for (const tool of [
+      'send_later',
+      'create_trigger',
+      'CronCreate',
+      'ScheduleWakeup',
+      'setInterval',
+      'setTimeout',
+      'sleep ',
+    ]) {
+      expect(skill, `${tool} appears in the conductor skill`).not.toContain(tool);
+    }
+    expect(flat).toContain('does not poll and does not run on a timer');
+  });
+
+  it('names no merging tool at all', () => {
+    // A skill file instructing the conductor to merge passed every check in
+    // this repository until this case existed.
+    for (const tool of [
+      'merge_pull_request',
+      'enable_pr_auto_merge',
+      'gh pr merge',
+      'git merge',
+      'update_pull_request_branch',
+    ]) {
+      expect(skill, `${tool} appears in the conductor skill`).not.toContain(tool);
+    }
+  });
+
+  it('its description stays near what it is, not near the cap', () => {
+    // The cap was < 500 against a description of 352: it permitted 71% of the
+    // bloat it was written to prevent.
+    const line = skill.split('\n').find((l) => l.startsWith('description:')) ?? '';
+    expect(line.length, `the description is ${line.length} characters`).toBeLessThan(420);
+  });
+});
+
+/**
+ * **The plan, and the one thing a check can hold about it.**
+ *
+ * The owner, 2026-09-13: *"I'm worried we are losing our way and not keeping
+ * track of our project and where we are headed."* `ROADMAP.md` had been stale
+ * for a day and eleven pull requests, and he found it before any mechanism did.
+ *
+ * No check can know what he intends next, so no check can say whether the plan
+ * is *right*. What one can hold is that the plan states the commit it was last
+ * true at, so a reader can measure its staleness instead of trusting it, and
+ * that the window is still told to read it.
+ */
+describe('the plan says when it was last true, and the window is told to check', () => {
+  const roadmap = readFileSync(resolve(root, 'docs/process/ROADMAP.md'), 'utf8');
+
+  it('carries the commit it was last true at', () => {
+    expect(
+      roadmap,
+      'ROADMAP.md no longer stamps the commit it was true at, so nobody can measure its staleness',
+    ).toMatch(/true as of[^\n]*`[0-9a-f]{7,40}`/i);
+  });
+
+  it('the window reads it at startup and reports how far behind it is', () => {
+    expect(flat).toContain('git rev-list --count');
+    expect(flat).toContain('docs/process/ROADMAP.md');
+  });
+
+  it('the window brings the plan up to date by commissioning it, never by editing it', () => {
+    expect(flat).toContain('Raphael does not edit it');
+    expect(flat).toMatch(/starts a session whose only job is to bring the plan/);
+  });
+
+  it('says plainly that none of this is a mechanism', () => {
+    // The failure to avoid is a label that reads like a guarantee.
+    expect(flat).toMatch(/is a label, not a guard/);
   });
 });
