@@ -154,10 +154,51 @@ lesson scan: 1 findings, 0 blocking
 one minor finding is real, is not repaired, and is discussed under "What the
 first run found and nobody fixed", below.
 
-`pnpm check` also runs `verify:owner`, `verify:owner:v11` and `verify:web`,
-which build and drive a browser. **The result of the full `pnpm check` on this
-candidate is recorded by continuous integration on the pushed commit, and that
-run — not this file — is the evidence.** Nothing in this diff touches the
+### In continuous integration, on the pushed commit
+
+Actions run **34727473621**, head `630b549`, event `push`, conclusion
+**success**:
+
+| job | conclusion |
+|---|---|
+| lint, typecheck, tests | success |
+| the inspector stands without the application | success |
+| hosted build, read and refused | success |
+| Mind Scan, V10 owner build and verify, committed digests | **skipped** |
+| V11 owner build and verify | **skipped** |
+| newest Owner Build rebuilds byte for byte | **skipped** |
+
+**Three jobs are skipped and a reader should know why rather than count six
+green ticks.** All three carry `if: github.event_name != 'push'` in
+`.github/workflows/checks.yml`: they run on a pull request and not on a branch
+push. **The skipped one that matters here is Mind Scan**, which is the
+continuous-integration half of criterion 1 — so on this commit `pnpm --filter
+@virgil/knowledge-lint run lint` has been run by this session and **not** by
+continuous integration. Opening a pull request runs it. That is the owner's call
+and no pull request was opened.
+
+The green `the inspector stands without the application` job is worth naming:
+it deletes `apps/mission-control` and runs what is left. The new checks are in
+`packages/knowledge-graph`, and they still stand without the application.
+
+### Locally, on the committed tree
+
+`pnpm check` was run end to end on a clean tree at `630b549` — the commit above,
+before this section was written into it — and exited **0**. That run includes
+what continuous integration skipped on a push:
+
+```
+$ pnpm check
+mission-control:verify:owner:      PASS — opens from file://, no console errors, no off-document requests
+mission-control:verify:owner:v11:  PASS — opens from file://, no console errors, no off-document requests, no horizontal overflow
+mission-control:verify:web:        PASS — the page reads /api/state, names what it read, and when it reads
+                                   nothing it says so and draws no recorded value. Every control took a real click.
+pnpm check exit: 0
+```
+
+**This is one machine's result and it is a builder's machine.** It is recorded
+because the alternative is saying nothing about the three jobs CI skipped, not
+because a local run substitutes for CI. Nothing in this diff touches the
 application, its builds or its browser verification.
 
 ## Criterion 2 — a capture goes in and a lesson comes out
@@ -185,7 +226,8 @@ Each was done to the **real repository**, not to a fixture, and put back
 afterwards. The command each time is
 `pnpm --filter @virgil/knowledge-lint run lint`.
 
-**Delete the lesson the code depends on** (criterion 4). `git mv` the page away:
+**Delete the lesson the code depends on** (criterion 4). Move the page out of
+the tree:
 
 ```
 blocking  capture_malformed        cap-2026-09-13-gates-that-cannot-refuse — … says it was ingested into lesson-gates-that-cannot-refuse, and there is no such lesson page.
@@ -284,8 +326,9 @@ boolean)` one at a time and `vitest run test/lessons.test.ts` was run:
 committed.
 
 **What this does not establish.** Eight other finding classes were not
-individually mutated. Each is observed firing by a scenario in the test file and
-the coverage test refuses to pass while any class has never been seen — but
+individually mutated — including `lesson_id_not_unique`, which was added after
+these four runs. Each is observed firing by a scenario in the test file and the
+coverage test refuses to pass while any class has never been seen — but
 "observed firing" and "its guard cannot be removed unnoticed" are two different
 statements and only the four above carry the second.
 
@@ -364,6 +407,10 @@ against its own contract — puts them in the register.
 5. **Nothing converts the other comments.** The brief excludes it. One file is
    converted, the mechanism is proved, and the rest of `docs/process/`'s
    forty-six files and every other essay comment are where they were.
+6. **`docs/process/ROADMAP.md` still reads "brief written and queued" against
+   item 4.** It is outside the permitted paths and was not edited. Somebody has
+   to move it, and a roadmap that lags what is built is the habit
+   `PHASE_1_BACKLOG.md` names.
 
 ## What is not reviewed
 
