@@ -507,6 +507,155 @@ const PINNED: Record<
     where: 'docs/decisions/OD-0017-knowledge-lessons-follow-up.md',
     what: '447692f247d1',
   },
+  // The twenty-four findings of 2026-09-13, filed together on
+  // `claude/file-the-findings`. Seven reviews across five pull requests, whose
+  // text lived only in comments until the reviews were captured into
+  // `docs/process/`. Ids are qualified by document on the owner's resolution of
+  // that day; nothing already filed is renumbered.
+  'KXR-51/PR24': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR24_REVIEW.md',
+    what: '502811494ea3',
+  },
+  'KXR-44/PR26': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR26_REVIEW.md',
+    what: '5313a261c24e',
+  },
+  'KXR-45/PR26': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR26_REVIEW.md',
+    what: 'b4205cea080a',
+  },
+  'KXR-46/PR26': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR26_REVIEW.md',
+    what: '17fb0a26039f',
+  },
+  'KXR-47/PR26': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR26_REVIEW.md',
+    what: 'e097f13be786',
+  },
+  'KXR-48/PR26': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR26_REVIEW.md',
+    what: '8725ef0c28d1',
+  },
+  'KXR-49/PR26': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR26_REVIEW.md',
+    what: 'a425c59e4f17',
+  },
+  'KXR-50/PR26': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR26_REVIEW.md',
+    what: '2493e0ad56b3',
+  },
+  'KXR-47/PR27': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR27_REVIEW.md',
+    what: 'bfdaa4a48326',
+  },
+  'KXR-48/PR27': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR27_REVIEW.md',
+    what: '66e49aca735c',
+  },
+  'KXR-49/PR27': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR27_REVIEW.md',
+    what: 'c5e3d19dd8e0',
+  },
+  'KXR-50/PR27': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR27_REVIEW.md',
+    what: 'd4374041451e',
+  },
+  'KXR-51/PR27': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR27_REREVIEW.md',
+    what: '012406ae4a4c',
+  },
+  'KXR-52/PR27': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR27_REREVIEW.md',
+    what: '08a791012a74',
+  },
+  'KXR-53/PR28': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR28_REVIEW.md',
+    what: '1347bf93b11a',
+  },
+  'KXR-54/PR28': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR28_REVIEW.md',
+    what: '53bf094defbf',
+  },
+  'KXR-55/PR28': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR28_REVIEW.md',
+    what: '2dc65520cf78',
+  },
+  'KXR-56/PR28': {
+    status: 'repaired',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR28_REVIEW.md',
+    what: 'f3e74f037d6b',
+  },
+  'KXR-60/PR28': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR28_REREVIEW.md',
+    what: '4d0b437ecfa5',
+  },
+  'KXR-61/PR28': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR28_REREVIEW.md',
+    what: '551f3a9272f4',
+  },
+  'KXR-62/PR28': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR28_REREVIEW.md',
+    what: 'e1ba6498a327',
+  },
+  'KXR-63/PR28': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR28_REREVIEW.md',
+    what: '0e9a5153e9e2',
+  },
+  'KXR-57/PR30': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR30_REVIEW.md',
+    what: '7bf0dc8307c1',
+  },
+  'KXR-58/PR30': {
+    status: 'open',
+    foundBy: 'review',
+    where: 'docs/process/KEEPER_PR30_REVIEW.md',
+    what: '76e5a8605389',
+  },
 };
 
 /**
@@ -574,6 +723,31 @@ const PINNED_ATTRIBUTES: Record<string, string> = {
   'BR-03': 'ce5fb4abac64',
   'BR-04': '25808c6209e1',
   'BR-05': '03463c057508',
+  // The twenty-four of 2026-09-13; see the note in PINNED above.
+  'KXR-51/PR24': 'c3d7452742ec',
+  'KXR-44/PR26': '112087ab99c6',
+  'KXR-45/PR26': '32947be053f0',
+  'KXR-46/PR26': '88d3ec15df6e',
+  'KXR-47/PR26': '48884eb7c3ac',
+  'KXR-48/PR26': '5c0a53548e1a',
+  'KXR-49/PR26': '61fe50441a7a',
+  'KXR-50/PR26': '379f6d6390b8',
+  'KXR-47/PR27': '2221c20b82b4',
+  'KXR-48/PR27': '23522e4728cf',
+  'KXR-49/PR27': '0683853ed98e',
+  'KXR-50/PR27': '833b68f8992f',
+  'KXR-51/PR27': 'a0fc9b9ec1b4',
+  'KXR-52/PR27': 'c084ceb91c0a',
+  'KXR-53/PR28': 'f4b305fc4c7f',
+  'KXR-54/PR28': 'bc6504889591',
+  'KXR-55/PR28': '6c34668d76a8',
+  'KXR-56/PR28': 'bae8275ccb90',
+  'KXR-60/PR28': '2c45979eee45',
+  'KXR-61/PR28': '2844f9d785f1',
+  'KXR-62/PR28': '6be786cf892d',
+  'KXR-63/PR28': 'd3aee9076a86',
+  'KXR-57/PR30': '9dd3ca6248e9',
+  'KXR-58/PR30': 'da120c038bf1',
 };
 
 const digest = (text: string) => createHash('sha256').update(text).digest('hex').slice(0, 12);

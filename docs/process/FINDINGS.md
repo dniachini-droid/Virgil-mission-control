@@ -94,6 +94,30 @@ This column is the point of the register rather than a decoration on it. It is t
 | BR-03 | repaired | builder | A brief wrote the link syntax as a placeholder that the check it commissioned then read as a real link to a lesson that does not exist | docs/process/KNOWLEDGE_LESSONS_RUN_RECORD.md |
 | BR-04 | repaired | builder | `CLAUDE.md` forbade editing a raw source record while `knowledge/SCHEMA.md` prescribed an edit to one of its fields, and neither named the tooling that settles it | docs/decisions/OD-0017-knowledge-lessons-follow-up.md |
 | BR-05 | open | builder | Ten wiki pages rest on `src-master-commission` and its record still reads `sealed`; the tooling denies every write under `knowledge/raw/`, so no session can advance it | docs/decisions/OD-0017-knowledge-lessons-follow-up.md |
+| KXR-51/PR24 | open | review | The decisions index lists `OD-0001` to `OD-0008` and stops, so ten filed authority-layer-1 records are indexed nowhere | docs/process/KEEPER_PR24_REVIEW.md |
+| KXR-44/PR26 | open | review | The repair-round cap counts handoffs whose declared role is `fixer`, and the role is the session's own word, so a repair posting `--facts builder` leaves the counter at zero for ever | docs/process/KEEPER_PR26_REVIEW.md |
+| KXR-45/PR26 | open | review | The chain reader requires the pull request's comments oldest-first; nothing documents it and nothing checks it, and newest-first commissions review sessions without bound | docs/process/KEEPER_PR26_REVIEW.md |
+| KXR-46/PR26 | repaired | review | The new unpushed-commit guard spawned `npx` outside the project, reached the npm registry and failed in every container this repository's own sessions run in | docs/process/KEEPER_PR26_REVIEW.md |
+| KXR-47/PR26 | open | review | Four further refusals of the chain script work and are held by no test, two of them behaviours asserted in prose the same diff ships | docs/process/KEEPER_PR26_REVIEW.md |
+| KXR-48/PR26 | open | review | The facts marker is what the chain checks rather than the facts, so a hand-typed marker with no facts is accepted and a quoted one injects a handoff that never happened | docs/process/KEEPER_PR26_REVIEW.md |
+| KXR-49/PR26 | open | review | The guards on the role files assert that sentences are present, so a role file instructing the opposite of what it says passes all thirty | docs/process/KEEPER_PR26_REVIEW.md |
+| KXR-50/PR26 | repaired | review | Merged alone, a layer-4 process document would instruct what `CLAUDE.md` then forbade; the two pull requests complete each other and #24 had to land first or with it | docs/process/KEEPER_PR26_REVIEW.md |
+| KXR-47/PR27 | repaired | review | The run record's check-output block quoted 313 files and 2,400 tests from a tree that no longer exists, under a sentence denying any figure was copied from an earlier commit | docs/process/KEEPER_PR27_REVIEW.md |
+| KXR-48/PR27 | open | review | `pnpm --filter @virgil/knowledge-lint run lint` is run by no check on any event, while `CLAUDE.md` tells every session to run it | docs/process/KEEPER_PR27_REVIEW.md |
+| KXR-49/PR27 | open | review | The lesson link scan cannot tell a discussed link from a made one, so any file explaining the mechanism must obfuscate its own examples | docs/process/KEEPER_PR27_REVIEW.md |
+| KXR-50/PR27 | open | review | Two register rows describe a tree that has moved under them: `BR-04`'s stated reproduction is stale and `BR-05` says ten wiki pages where the scan says eight | docs/process/KEEPER_PR27_REVIEW.md |
+| KXR-51/PR27 | open | review | The mutant section's integrity seal quotes a `lessons.ts` hash that matches no version of that file which has ever existed in this repository | docs/process/KEEPER_PR27_REREVIEW.md |
+| KXR-52/PR27 | open | review | Pull request #27's description still says the three mutants carry seven tests, the figure the commit it describes retired in favour of six of ten | docs/process/KEEPER_PR27_REREVIEW.md |
+| KXR-53/PR28 | repaired | review | Eleven of the fourteen new owner-voice guards pin one spelling each, so a section restoring every defect the work removes passes all fourteen | docs/process/KEEPER_PR28_REVIEW.md |
+| KXR-54/PR28 | repaired | review | Pull request #28 carried no facts block, so the chain its own parent merged reported the next step as the owner rather than as a review | docs/process/KEEPER_PR28_REVIEW.md |
+| KXR-55/PR28 | repaired | review | The four guards inherited from #26 no longer constrain the rewritten skill: a file instructing the conductor to poll on a timer and to merge without the owner passes every check | docs/process/KEEPER_PR28_REVIEW.md |
+| KXR-56/PR28 | repaired | review | The window's startup step sent the reader to the branch behind pull request #1, closed days earlier, for work it said `main` did not hold | docs/process/KEEPER_PR28_REVIEW.md |
+| KXR-60/PR28 | open | review | The ten class guards are a longer spelling list: a section restoring every defect passes all twenty-five, and a second file in the skill directory is read by no guard at all | docs/process/KEEPER_PR28_REREVIEW.md |
+| KXR-61/PR28 | open | review | The facts block's one un-generated field reported 630 tests where the tree produces 593, because `--ran` was handed a written summary rather than real command output | docs/process/KEEPER_PR28_REREVIEW.md |
+| KXR-62/PR28 | open | review | Two of the four documents the window's startup step tells it to read do not exist, so it spends two of four reads announcing absences every turn | docs/process/KEEPER_PR28_REREVIEW.md |
+| KXR-63/PR28 | open | review | The plan's staleness measure counts merges since a stamped commit, and the plan's live section is about work that has not merged, so it reports current while already two facts behind | docs/process/KEEPER_PR28_REREVIEW.md |
+| KXR-57/PR30 | open | review | The corrected check-output block went stale again without a byte of it changing, because the replay moved the base under counts the record pins absolutely | docs/process/KEEPER_PR30_REVIEW.md |
+| KXR-58/PR30 | open | review | Pull request #30's description sends a reader to the run record for six findings' reasons where it carries four, and two of the six appear nowhere in the tree | docs/process/KEEPER_PR30_REVIEW.md |
 
 ## Attributes, for findings recorded from 2026-09-12
 
@@ -145,6 +169,89 @@ It is repaired **forward-only**, which is the same rule the register already run
 | BR-03 | minor | `docs/process/KNOWLEDGE_LESSONS_BRIEF.md`, three occurrences | Run `pnpm --filter @virgil/knowledge-lint run lint` with the brief's original placeholder in the tree: one blocking `lesson_link_unresolved` naming the brief | Accuracy of a document against the check it commissions |
 | BR-04 | moderate | `CLAUDE.md` hard limits; `knowledge/SCHEMA.md` raw source records | Read `CLAUDE.md`'s "never edit or delete a raw source record" against `SCHEMA.md`'s "`ingestionState` advances by … updating that one field" | `CLAUDE.md` authority order; a session must report a contradiction, not resolve it |
 | BR-05 | minor | `knowledge/raw/src-master-commission.source.md`; `.claude/settings.json` | `pnpm --filter @virgil/knowledge-lint run lint` reports it on every run; attempting the edit returns "File is in a directory that is denied by your permission settings" | `knowledge/SCHEMA.md` raw source records; `BR-04` |
+| KXR-51/PR24 | minor | `docs/decisions/README.md`, the `Index:` table | The index table ends at `OD-0008`; `ls docs/decisions/` shows `OD-0009` through `OD-0018` filed and unindexed | `docs/decisions/README.md`'s own promise that the table is an index; `CLAUDE.md` authority order, which makes `docs/decisions/OD-*` layer 1 |
+| KXR-44/PR26 | major | `packages/gate-engine/src/handoff.ts`, `roundsUsed`; `scripts/virgil-chain.ts`, `--facts` | Post three repair rounds as `--facts builder --round 0`: `roundsUsed` stays 0 and the chain authorises round 1 without bound | `docs/process/AUTOMATIC_HANDOFF_CHAIN.md` rule 5, that the ceiling is enforced by the counter and not by a paragraph |
+| KXR-45/PR26 | major | `packages/gate-engine/src/handoff.ts`, `readChain`; `.claude/skills/raphael/SKILL.md`, "Reading the chain" | Feed the same four comments newest-first: `lastVerdict` goes null, `next=review` on every iteration, and it does not recover | `handoff.ts`'s own rule that every path which is not plainly carry on ends at the owner; the containment argument in rule 1 |
+| KXR-46/PR26 | minor | `packages/repo-checks/test/handoff-chain.test.ts`, the unpushed-commit guard | Run `pnpm test` in a proxied container at `7e1f719`: `SELF_SIGNED_CERT_IN_CHAIN`, then `Test timed out in 60000ms`. It passes in CI in 1552ms | Nothing in the contract, and the review says so; it matters because the sessions this chain serves run in such containers |
+| KXR-47/PR26 | minor | `scripts/virgil-chain.ts`; `packages/repo-checks/test/handoff-chain.test.ts` | Disable each of the four refusals in turn and run the file: `30 passed (30)` every time | `docs/process/AUTOMATIC_HANDOFF_CHAIN.md` line 121 and `.claude/agents/fabricator.md` line 82, which assert two of the four as behaviour |
+| KXR-48/PR26 | minor | `packages/gate-engine/src/handoff.ts`, the facts marker | Post a comment carrying a typed facts marker and no facts: `facts=true`, `next=review`. A quoted `role=fixer` marker inflates the round count | `docs/process/AUTOMATIC_HANDOFF_CHAIN.md` rule 3, "Nothing proceeds without it" |
+| KXR-49/PR26 | minor | `packages/repo-checks/test/handoff-chain.test.ts`, the guards on `.claude/agents/*.md` | Append a section to `fabricator.md` telling the builder to start the Keeper itself, leaving every asserted sentence intact: `30 passed (30)` | the test file's own header, that these are tests a written rule still has something holding it |
+| KXR-50/PR26 | minor | `docs/process/AUTOMATIC_HANDOFF_CHAIN.md` line 27; `CLAUDE.md` as it stood before `OD-0018` | Read the diagram's "pushes, opens its own pull request" against `CLAUDE.md` on `main` at the time. `git log --merges` shows #24 at `84b7767` before #26 at `515373f` | `CLAUDE.md` authority order; `docs/decisions/OD-0018-builders-open-their-own-pull-requests.md` |
+| KXR-47/PR27 | moderate | `docs/process/KNOWLEDGE_LESSONS_RUN_RECORD.md`, "Every check, and what it printed" | Check out `571b258a` and run the four commands in that block: 88 files not 313, 582 tests not 2,400, and two of the named packages absent from the base | the brief's closing instruction to paste what the command printed; `CLAUDE.md`, a builder's success report is not evidence |
+| KXR-48/PR27 | moderate | `.github/workflows/checks.yml`; `tools/knowledge-lint/src/cli.ts` | Search `.github/workflows/checks.yml` at `571b258a` for `knowledge-lint`: no occurrence. The same holds on `main` today | `CLAUDE.md`'s "Commands" section, which tells every session to run it |
+| KXR-49/PR27 | minor | `packages/knowledge-graph/src/lessons.ts`, `LESSON_LINK` | Put a lowercase doubled-square-bracket link to a lesson that does not exist inside a fenced code block in any scanned file and lint: one blocking `lesson_link_unresolved` | accuracy of a repository's own explanatory prose against the check it commissions; `BR-03` |
+| KXR-50/PR27 | minor | `docs/process/FINDINGS.md`, the `BR-04` and `BR-05` attribute rows | Search `CLAUDE.md` for `ingestionState`: no occurrence, against `BR-04`'s stated reproduction. The lesson scan reports eight wiki pages where `BR-05` says ten | accuracy of the register's own reproduction column; `constitution/REVIEW_POLICY.md` on reproduction evidence |
+| KXR-51/PR27 | moderate | `docs/process/KNOWLEDGE_LESSONS_RUN_RECORD.md` line 752, the mutant section's integrity seal | Take the SHA-256 of `packages/knowledge-graph/src/lessons.ts` at every commit that has held it: `53abda18…` throughout, never the `c1897d7c…` the seal names | the purpose of quoting a hash, which is that a reader can check it; `KXR-47/PR27`'s class |
+| KXR-52/PR27 | minor | the pull request description for #27 | Read "The mutants carry those seven" in #27's description against the run record's corrected six of ten; the description is unchanged and #27 is closed | `CLAUDE.md`, a builder's success report is not evidence |
+| KXR-53/PR28 | moderate | `packages/repo-checks/test/owner-voice.test.ts` | Append a `## Standing rules for every turn` section restoring the define-a-term rule, a three-column jargon table and a second comparison: `14 passed (14)` | the file's own stated purpose, that these rules are held by something other than the paragraph that states them |
+| KXR-54/PR28 | moderate | pull request #28; `docs/process/AUTOMATIC_HANDOFF_CHAIN.md` rule 3 | Run the chain reader over #28's comments as they stood: `0 comments read`, `next=owner`, because nothing had been handed off on that pull request | `docs/process/AUTOMATIC_HANDOFF_CHAIN.md` rule 3, that nothing proceeds without a facts block for its own SHA |
+| KXR-55/PR28 | moderate | `packages/repo-checks/test/handoff-chain.test.ts`, lines 94 to 113 | Append a section instructing `create_trigger` polling and `mcp__github__merge_pull_request` to the skill: `304 passed (304)` | the owner's instruction "I don't want Raphael on a timer"; `CLAUDE.md` on merging |
+| KXR-56/PR28 | minor | `.claude/skills/raphael/SKILL.md`, "Startup: measure, every time", item 4 | Read item 4's "today that is the branch behind PR #1, not `main`, which holds only a README" against a `main` that has held far more for days | accuracy of a governed instruction the window follows every turn |
+| KXR-60/PR28 | moderate | `packages/repo-checks/test/owner-voice.test.ts`, the class-guard block | Append a `### House rules for every turn` section restoring every defect: `25 passed (25)`. Or put the banned text in a second file under `.claude/skills/raphael/` and link it: also 25 passed | the file's own sentence that a class named is a class somebody thought of, and the next contradiction will be one nobody did |
+| KXR-61/PR28 | moderate | the round-1 facts comment on #28; `scripts/virgil-chain.ts`, the `--ran` flag | Run `pnpm test --force` at `f9d803d` three times: 593 passed each time, against the 630 the facts block states | the script's own contract that `--ran` names a file of real command output; `CLAUDE.md`, a builder's success report is not evidence |
+| KXR-62/PR28 | minor | `.claude/skills/raphael/SKILL.md`, "Startup: measure, every time", item 4 | `ls docs/decisions/proposed/` and `ls docs/process/PHASE_1_BRIEF.md` both report no such file, and item 4 names both | `KXR-56/PR28` as raised, and the sibling sweep that repair declined to do |
+| KXR-63/PR28 | minor | `docs/process/ROADMAP.md`; `.claude/skills/raphael/SKILL.md`, startup step 7 | `git rev-list --count 515373f..origin/main` returned 0 while the plan's in-flight table still named a finished review and undercounted the rows owed | the section's own rule that every reply says how far behind the plan is |
+| KXR-57/PR30 | moderate | `docs/process/KNOWLEDGE_LESSONS_RUN_RECORD.md`, the corrected "Every check, and what it printed" block | Run the four commands at `6dec9f6`: 92 files not 88, 630 tests not 582, graph hash `928fac21…` not `8d3a270a…`, with the block byte-identical to `9ed95d60` | the brief's instruction to paste what the command printed; `CLAUDE.md`, a builder's success report is not evidence |
+| KXR-58/PR30 | minor | the pull request description for #30 | Search `docs/process/KNOWLEDGE_LESSONS_RUN_RECORD.md` for `KXR-51` and `KXR-52`: no occurrence, where the description sends a reader there for their reasons | `CLAUDE.md` authority order, which makes a pull-request description no authority over `docs/process/` |
+
+## The reviews of 2026-09-13, filed together
+
+**Seven independent reviews ran on 2026-09-13 across five pull requests and
+raised twenty-four findings between them. Until this commit not one was filed.**
+They existed only as comments on a website, which is `XR-02` at full size: the
+register whose entire purpose is that nothing can be dropped was carrying none
+of them.
+
+**Why they waited, and it is not neglect.** Recording a finding is a repair, and
+every one of these was raised by a reviewer, who may not perform one —
+`CLAUDE.md`, *"Every role performs one hop."* Each of the seven reviews says so
+in its own words, and several count the growing debt. They needed a session with
+no stake in the answer, and this is it.
+
+**And they could not be filed until the reviews were in the tree.** A row must
+point at a file in this repository that names the finding as a whole id, and a
+comment on a website is not one. So the reviews were captured first, verbatim,
+as `docs/process/KEEPER_PR24_REVIEW.md`, `KEEPER_PR26_REVIEW.md`,
+`KEEPER_PR27_REVIEW.md`, `KEEPER_PR27_REREVIEW.md`, `KEEPER_PR28_REVIEW.md`,
+`KEEPER_PR28_REREVIEW.md` and `KEEPER_PR30_REVIEW.md`, each with a header naming
+the pull request and the candidate SHA it judged.
+
+**Twenty-four, counted rather than inherited.** One review of `138fa39d` on #24
+raised one finding; one of `7e1f719e` on #26 raised seven; two on #27 raised four
+and two; two on #28 raised four and four; one of `6dec9f6f` on #30 raised two.
+The conductor said seventeen at one point and eighteen at another and was unsure
+both times. Neither figure was used, and neither is right.
+
+**The identities are qualified by document, and nothing already filed is
+renumbered.** `constitution/REVIEW_POLICY.md` forbids renumbering a filed
+finding, and the reviews minted ids that collide with each other and with ids
+already on `main`. The owner's resolution of 2026-09-13 is to qualify by
+document, and each review had already applied it to its own findings. They are
+filed exactly as proposed. `KXR-43` is still the highest unqualified id and it
+has not moved. `KXR-59` was never minted: the reviewer of `f9d803db` skipped from
+`KXR-56` to `KXR-60` deliberately, to leave the reviewer of #30 room.
+
+**Seven read `repaired` and seventeen read `open`, and the rule was the same
+every time: a review's word, or a fact anyone can check from the tree, never
+this session's judgement.** Four were repaired on #28 and its own second
+reviewer replayed both attacks and confirmed the closures. One was repaired on
+#27 and its second reviewer re-ran every command. One is repaired because the
+`npx` spawn it names is gone from `handoff-chain.test.ts`. One is repaired
+because the merge order it asked for is what `git log --merges` shows. Filing is
+not repairing, and nothing here was repaired in order to be filed.
+
+**What holds these seven documents, and what does not.**
+`packages/repo-checks/test/review-records.test.ts` pins seven earlier review
+documents to the SHA-256 of the bytes they had at a named commit, so that a
+kept review cannot be quietly tidied afterwards. **These seven are not in it.**
+Nothing in that file required an entry — its completeness check reads
+unqualified `KXR-NN` ids and every id filed here is qualified — and the
+instruction bounding this work was to change nothing there that was not
+required. The consequence, said rather than left to be found: **the seven
+captures added today are held by nothing but this paragraph and the diff.** A
+later session can edit them and no check will notice. That is a smaller
+protection than the seven documents above them have, and closing it is a change
+to a test file, which is somebody else's hop.
 
 ## Adding a row
 
