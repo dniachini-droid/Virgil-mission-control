@@ -765,48 +765,77 @@ manifest entry runs on every push. That is weaker and is not recorded as more.
 
 ## Every check, and what it printed
 
-Run on the repaired tree, in this session, on this machine. **None of the
-figures below is copied from an earlier commit** — the previous round of this
-work was found doing exactly that (`KXR-46` of the review).
+**This section was wrong and is corrected. `KXR-47/PR27`.**
+
+It quoted a 313-file, 2,400-test tree under the sentence *"None of the figures
+below is copied from an earlier commit"*. Those figures came from the
+pre-replay base, where the application still existed. When this work was rebuilt
+onto `4e39b82` the continuous-integration paragraphs below were corrected and
+**this block was not**, so the strongest denial in the record sat on top of the
+exact thing it denied — the third instance of that class in this lineage, after
+`KXR-42/PR20` and `KXR-46/PR20`. The independent re-review of `571b258a` caught
+it and it is the one thing that review asked to be corrected.
+
+The wrong figures, kept visible rather than quietly swapped:
+
+| the record said | actual at `571b258a` |
+|---|---|
+| `Checked 313 files` | `Checked 88 files` |
+| `Tasks: 9 successful` | `7 successful` |
+| `@virgil/visual-language: 18 passed` | package does not exist at this base |
+| `mission-control: 1780 passed` | package does not exist at this base |
+| `@virgil/repo-checks: 305 passed` | `285 passed` |
+| **`2,400 tests passed`** | **`582 passed`** |
+| `101 nodes, 187 edges, 11 pages` | `83 nodes, 147 edges, 9 pages` |
+| `graph hash sha256:d0fe439d…` | `sha256:8d3a270a…` |
+| `10 wiki pages rest on src-master-commission` | `8 wiki pages` |
+
+**What the four commands actually print at `571b258a`.** Run in this session, on
+this machine, at this head, and pasted from the terminal:
 
 ```
 $ pnpm lint
 > biome check .
-Checked 313 files in 273ms. No fixes applied.
+Checked 88 files in 256ms. No fixes applied.
 
 $ pnpm typecheck
- Tasks:    9 successful, 9 total
-Cached:    0 cached, 9 total
-  Time:    12.814s
+ Tasks:    7 successful, 7 total
+  Time:    189ms >>> FULL TURBO
 
 $ pnpm test --force
-@virgil/gate-engine:test:       Tests  58 passed (58)
-@virgil/visual-language:test:   Tests  18 passed (18)
+@virgil/repo-checks:test:       Tests  285 passed (285)
+@virgil/gate-engine:test:       Tests   58 passed (58)
 @virgil/domain:test:            Tests  104 passed (104)
-@virgil/knowledge-graph:test:   Tests  61 passed (61)
-@virgil/repo-checks:test:       Tests  305 passed (305)
-@virgil/agent-contracts:test:   Tests  74 passed (74)
-mission-control:test:           Tests  1780 passed (1780)
- Tasks:    7 successful, 7 total
+@virgil/knowledge-graph:test:   Tests   61 passed (61)
+@virgil/agent-contracts:test:   Tests   74 passed (74)
+ Tasks:    5 successful, 5 total
+Cached:    0 cached, 5 total
 
 $ pnpm --filter @virgil/knowledge-lint run lint
-knowledge graph: 101 nodes, 187 edges, 11 pages, 32 claims, 107 tethers (107 intact)
-graph hash sha256:d0fe439ddd9eb6236cf58dabb9c7980de470ce1375ea4dc6ad598e14cbe86dfa
+knowledge graph: 83 nodes, 147 edges, 9 pages, 26 claims, 88 tethers (88 intact)
+graph hash sha256:8d3a270a6c33687d0b22f4a67f2eb698635c59a58eed26963aef3833dd8173db
 mind scan: no findings
 lessons: 1 pages governing 1 files, 1 captures (0 open), loader 1752 bytes
-minor         raw_source_ready_to_compile                src-master-commission — 10 wiki pages rest on src-master-commission and its record still reads ingestionState: sealed.
+minor         raw_source_ready_to_compile                src-master-commission — 8 wiki pages rest on src-master-commission and its record still reads ingestionState: sealed.
 lesson scan: 1 findings, 0 blocking
 exit: 0
 ```
 
-**2,400 tests passed, 0 failed**, against the reviewer's 2,390 at `b449f29`. The
-difference is the ten new tests, all in `@virgil/knowledge-graph`, which goes
-from 51 to 61.
+**582 tests passed, 0 failed.** The independent reviewer ran the same four
+commands in a detached worktree at this SHA and got the same numbers, which is
+the only reason to believe this block rather than the last one.
 
-The graph hash and node count are unchanged from the candidate, and that is the
-expected result: this repair adds no wiki page and no graph node, so
-`packages/test-fixtures/knowledge/seed-graph.json` needed no regeneration and
-`seed-graph.test.ts` is green without one.
+**The ten new tests are still ten**, and `@virgil/knowledge-graph` still goes
+from 51 to 61 — that comparison was against `b449f29`'s knowledge-graph package,
+which the deletion did not touch, and it survives the correction. What did not
+survive is the total: 2,390 → 2,400 was arithmetic over packages that no longer
+exist.
+
+**The seed graph did need regenerating on this base**, contrary to what the old
+block said. `packages/test-fixtures/knowledge/seed-graph.json` was regenerated
+by `pnpm --filter @virgil/knowledge-graph export-seed-graph` → 25 nodes, 41
+edges, and the reviewer confirmed it fresh with no diff against the committed
+artifact.
 
 **Continuous integration has run on this repair.** Read the Actions run on the
 pushed head rather than this paragraph.
@@ -1132,3 +1161,35 @@ of the review's eight ids are taken and four of the five collisions are now on
 cycle only with an owner decision authorising it. If the fresh independent
 review of this repaired SHA comes back with anything blocking, the work stops
 and waits for the owner rather than starting a third round.
+
+---
+
+# The fresh independent review of repair round one
+
+**Verdict: `PASS_WITH_NON_BLOCKING_FINDINGS`** on `571b258a26117549e00a2293ec84c04e7370b4d7`, posted on pull request #27 on 2026-09-13 by a session with no part in building or repairing this candidate. It is a review record: authority layer 4, not a decision, and it does not propose a merge.
+
+**Both blocking findings were confirmed repaired by reproduction rather than by reading.** The reviewer put each defect back — the reviewer's own probe for `KXR-39/PR20`, and the two-page citation ring plus its control for `KXR-40/PR20` — and watched the repaired checker catch what the old one missed. They also re-ran the builder's three mutants and added a fourth of their own, and verified `lessons.ts` byte-identical either side (`sha256 53abda18…`).
+
+**One correction they made to this record's own account of the mutants, and it is fair.** This record said three mutants carried the seven weak-red tests. They carry **six of the ten** new tests, not all ten; the reviewer's fourth mutant brings it to eight. The two remaining — `accepts lesson-a` and `accepts lesson-one-two-three` — are positive controls that nothing has yet been observed killing. The reviewer raised that as an observation rather than a finding because their mutant D proved the group is not vacuous. It is recorded here as the more accurate number.
+
+## The four findings, and what this session did with each
+
+The reviewer proposed document-qualified ids on the owner's own precedent, having searched every ref and confirmed `KXR-47` and above are free.
+
+| id | severity | this session |
+|---|---|---|
+| `KXR-47/PR27` — the check-output block quoted the pre-replay tree under a sentence denying exactly that | moderate | **Corrected**, above. It is this session's own error, in this session's own file, and it is the one thing the reviewer asked be fixed before the work goes anywhere. Corrected in place with the wrong figures left visible beside the right ones. |
+| `KXR-48/PR27` — `tools/knowledge-lint` is run by no check on any event | moderate | **Carried.** Already named in this record before the review; the reviewer agreed it deserves an id and gave it one. It arrived from `main` with #22, it is outside this repair's findings and paths, and it is the owner's to schedule. |
+| `KXR-49/PR27` — the scan cannot tell a discussed lesson link from a made one | minor | **Carried.** `BR-03`'s tail, named twice before and now filed. The boundary is deliberate and documented in the source; skipping fenced code blocks is the repair and is not this round's. |
+| `KXR-50/PR27` — the `BR-04` and `BR-05` register rows describe a tree that moved under them | minor | **Carried, not repaired.** `BR-05` says ten wiki pages rest on `src-master-commission`; the scan now says eight. Changing a register row means re-pinning its digest, which is a repair, and these are non-blocking. |
+
+**Four register rows are owed to `docs/process/FINDINGS.md` and this session filed none of them** — the same reason as before, and now a second one. Recording a finding is a repair and this session is the repairer, not the reviewer; and the ids are document-qualified proposals under an owner decision that is still unapplied to the review documents themselves.
+
+## What correcting `KXR-47/PR27` costs, stated rather than glossed
+
+`constitution/REVIEW_POLICY.md`: *"Any change to the candidate SHA after review breaks the review seal. Verification signatures and review verdicts never transfer to a new SHA. The new SHA requires fresh verification and fresh independent review."*
+
+So **the `PASS_WITH_NON_BLOCKING_FINDINGS` above applies to `571b258a` and not to whatever SHA carries this correction.** That is the honest cost and it is paid deliberately: a record whose loudest sentence is false is worse than a review that has to be repeated, and the reviewer named this correction as the one to make before the work goes anywhere.
+
+**It is not a repair round.** `constitution/REPAIR_LIMITS.md` counts repair cycles against findings, the reviewer wrote that no further repair round is warranted and that this is *"a documentation edit, not a repair cycle"*, and no code changed: the diff is one Markdown file. Round one remains the only repair round spent, and the second stays reserved for the owner.
+
