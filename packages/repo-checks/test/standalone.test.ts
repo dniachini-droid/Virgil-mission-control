@@ -1,32 +1,30 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * **The inspector does not depend on the thing it inspects.**
+ * **Nothing here depends on an application.**
  *
- * `docs/process/ROADMAP.md`, item 3: *"The check is the point: delete
- * `apps/mission-control` and everything else must still pass. A line nothing
- * enforces is not a line."*
+ * This repository is a build-and-review system and, since 2026-09-13, nothing
+ * else: the application it was first pointed at was deleted, along with its
+ * hosting, its endpoints and its twelve minutes of browser checks.
  *
- * `scripts/virgil-standalone.mjs` performs that deletion for real — it exports
- * the committed tree, removes the application from the copy and runs what
- * remains. It needs an install, so it is a command and a CI job rather than a
- * unit test. **This file is the always-on half**: it reads what the packages
- * reach for and refuses anything reaching into the application, so coupling is
- * caught on the run that introduces it rather than whenever somebody next
- * remembers to delete a directory.
+ * The rule survives the thing that prompted it, and that is the point. The
+ * coupling it exists to catch was never deliberate — check files were written
+ * inside an application because a brief's permitted paths pointed there, and a
+ * session put its work where it was allowed rather than where it belonged. The
+ * next application will arrive under `apps/` the same way and the same pressure
+ * will apply.
  *
- * The two are not redundant. This one cannot miss a run; that one cannot be
- * fooled by a shape nobody thought to match. Each is weaker where the other is
- * strong, which is the only honest reason to have both.
+ * It passes trivially today and costs a few milliseconds. The day it fails is
+ * the day it was worth keeping.
  *
- * **What this cannot do**, said rather than implied: it matches text. A package
- * reaching the application through a computed path, an environment variable or
- * a dependency that itself reaches, is invisible here. The deletion test is
- * what catches those, and it is why that one exists rather than this one alone.
+ * **What it can and cannot see.** It matches module specifiers, where the
+ * meaning is not in doubt. It does not match paths written as strings: an
+ * earlier draft did, and made false positives of tests using a filename as
+ * fixture data and never opening it. A text scan cannot tell a path used as
+ * data from a path used to read.
  */
-
 const root = resolve(import.meta.dirname, '../../..');
 
 /** Every `.ts`, `.mts` and `.mjs` file under a directory, source and test alike. */
@@ -53,7 +51,7 @@ function sources(dir: string, out: string[] = []): string[] {
  * that was wrong twice over. `packages/agent-contracts/test/paths.test.ts`
  * asserts on `'apps/x'` and `'apps/%2e%2e/x'` as *inputs to a path normaliser*,
  * and five `packages/domain` tests use
- * `'apps/mission-control/src/world/Capsule.tsx'` as a plausible filename inside
+ * a plausible source path as a plausible filename inside
  * a fixture event log. None of them opens a file. All of them pass with the
  * application deleted — which the deletion test demonstrates rather than
  * assumes.
@@ -100,20 +98,14 @@ describe('the inspector stands without the application', () => {
       }
       const named = Object.keys({ ...json.dependencies, ...json.devDependencies });
       for (const dep of named) {
-        if (dep === 'mission-control' || dep.startsWith('@virgil/mission')) {
-          offenders.push(`packages/${pkg} depends on ${dep}`);
+        // Any workspace dependency that is not another package here is, by
+        // elimination, an application: `pnpm-workspace.yaml` declares only
+        // `packages/*` and `tools/*`.
+        if (dep.startsWith('@virgil/') && !existsSync(resolve(root, 'packages', dep.slice(8)))) {
+          offenders.push(`packages/${pkg} depends on ${dep}, which is not a package here`);
         }
       }
     }
     expect(offenders, offenders.join('; ')).toEqual([]);
-  });
-
-  it('the deletion test exists and is a command, not a claim in prose', () => {
-    const script = readFileSync(resolve(root, 'scripts/virgil-standalone.mjs'), 'utf8');
-    expect(script).toContain("rmSync(join(tree, 'apps')");
-    const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as {
-      scripts: Record<string, string>;
-    };
-    expect(pkg.scripts.standalone).toBe('node scripts/virgil-standalone.mjs');
   });
 });

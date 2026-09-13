@@ -49,10 +49,10 @@ const baseEvidence = {
   builderSessionIds: ['sess-fab-1'],
   proverSessionIds: ['sess-prover-1'],
   changedPaths: [
-    'apps/mission-control/src/world/Capsule.tsx',
-    'apps/mission-control/src/world/Capsule.test.tsx',
+    'apps/example-app/src/world/Capsule.tsx',
+    'apps/example-app/src/world/Capsule.test.tsx',
   ],
-  permittedPaths: ['apps/mission-control/src/world/**'],
+  permittedPaths: ['apps/example-app/src/world/**'],
   baselineFailingCheckIds: [],
   candidateFailingCheckIds: [],
   repairCycleCount: 0,

@@ -58,7 +58,7 @@ export const StationActivity = z.enum(['READY', 'RECEIVING', 'WORKING', 'REPORTE
  * Narrowed after a drift test caught it on its first run: the wire check in
  * `netlify/functions/state.mjs` accepted only these three while this accepted
  * any role, and the two are now held against each other by
- * `apps/mission-control/test/live-state-v11.test.ts`. Who *holds* the work is a
+ * the interface's own live-state test. Who *holds* the work is a
  * separate field and still admits `virgil`, because between roles is a real
  * place for it to be.
  */

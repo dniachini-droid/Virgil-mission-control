@@ -51,16 +51,10 @@ describe('the tier is derived from the diff, not declared', () => {
   });
 
   it('product code inside an existing boundary is tier 2', () => {
-    // e98dd63 — the KP10-13 repair, all five files it touched.
-    expect(
-      tierOf([
-        'apps/mission-control/e2e/verify-web-build.ts',
-        'apps/mission-control/src/world/mobile/MobileRoom.tsx',
-        'apps/mission-control/src/world/panel/Panel.tsx',
-        'apps/mission-control/src/world/panel/panelStore.ts',
-        'apps/mission-control/src/world/window/AgentWindow.tsx',
-      ]).tier,
-    ).toBe(2);
+    // 61ef7d4 — "The standalone command had never been run", the one file it
+    // touched. `scripts/**` is not governed: a script decides nothing about what
+    // a session may do or what a check can catch.
+    expect(tierOf(['scripts/virgil-standalone.mjs']).tier).toBe(2);
   });
 
   it('an empty diff is not a low-risk change', () => {
@@ -77,17 +71,9 @@ describe('the tier is derived from the diff, not declared', () => {
         tier: 3,
       },
       {
-        what: 'the record-keeping commit wrote to the register',
-        sha: '5667063',
-        paths: [
-          'apps/mission-control/test/cache-inputs.test.ts',
-          'apps/mission-control/test/findings-register.test.ts',
-          'apps/mission-control/test/review-records.test.ts',
-          'docs/process/FINDINGS.md',
-          'docs/process/KEEPER_PR11_REREVIEW_OD0016.md',
-          'docs/process/KEEPER_PR14_REVIEW.md',
-          'turbo.json',
-        ],
+        what: 'a guard the repository runs on itself is governed',
+        sha: 'the repo-checks prefix, KXR-40',
+        paths: ['packages/repo-checks/test/findings-register.test.ts'],
         tier: 3,
       },
       {
@@ -114,7 +100,7 @@ describe('the tier is derived from the diff, not declared', () => {
     const verdict = tierOf([
       'docs/process/NOTES.md',
       'README.md',
-      'apps/mission-control/src/world/floor.ts',
+      'packages/visual-language/data/animation-grammar.json',
       'constitution/REVIEW_POLICY.md',
     ]);
     expect(verdict.tier).toBe(3);
@@ -139,7 +125,9 @@ describe('a claim may raise its own tier and never lower it', () => {
   });
 
   it('accepts a claim that matches', () => {
-    expect(claimComplaint(2, tierOf(['apps/mission-control/src/world/floor.ts']))).toBeNull();
+    expect(
+      claimComplaint(2, tierOf(['packages/visual-language/data/animation-grammar.json'])),
+    ).toBeNull();
   });
 });
 

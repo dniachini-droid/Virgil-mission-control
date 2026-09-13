@@ -69,7 +69,7 @@ describe('replay of the passing run', () => {
   it('records files as read, unstaged, staged and committed distinctly', () => {
     const frames = replayFrames('run-pass', events);
     const statuses = frames
-      .map((f) => f.state.files['apps/mission-control/src/world/Capsule.tsx']?.status)
+      .map((f) => f.state.files['apps/example-app/src/world/Capsule.tsx']?.status)
       .filter(Boolean);
     expect([...new Set(statuses)]).toEqual(['read', 'unstaged', 'staged', 'committed']);
   });

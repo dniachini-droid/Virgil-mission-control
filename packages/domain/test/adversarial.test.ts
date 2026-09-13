@@ -219,7 +219,7 @@ describe('K-01: repair authorisation and cycle counts derive from recorded event
     lineageId: 'LIN-1',
     reviewedSha: HEAD_SHA_2,
     acceptedFindingIds: ['F-3'],
-    permittedFiles: ['apps/mission-control/src/world/Capsule.tsx'],
+    permittedFiles: ['apps/example-app/src/world/Capsule.tsx'],
     repairCycleCount: n,
     ...extra,
   });
@@ -546,7 +546,7 @@ describe('K-03: actor, authority, decision and reviewer-independence validation'
     expect(lastOf(s2, 'authority_granted')?.reason).toContain('protected boundary');
     expect(patternReachesProtectedBoundary('**')).toBe('constitution/');
     expect(patternReachesProtectedBoundary('docs/**')).toBeDefined();
-    expect(patternReachesProtectedBoundary('apps/mission-control/src/world/**')).toBeUndefined();
+    expect(patternReachesProtectedBoundary('apps/example-app/src/world/**')).toBeUndefined();
   });
   it('rejects a TIER_3 grant by Virgil and a grant beyond the role maxTier', () => {
     const base = prefixThrough(passingRun(), 'scope_approved');
@@ -566,7 +566,7 @@ describe('K-03: actor, authority, decision and reviewer-independence validation'
       grantId: 'G-early',
       roleId: 'fabricator',
       tier: 'TIER_2',
-      permittedPaths: ['apps/mission-control/src/world/**'],
+      permittedPaths: ['apps/example-app/src/world/**'],
       expiresAt: at(600),
     });
     const s = replay('adv', t.events);

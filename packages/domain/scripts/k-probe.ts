@@ -124,7 +124,7 @@ const out: Record<string, Record<string, unknown>> = {};
       lineageId: 'LIN-1',
       reviewedSha: HEAD_SHA_2,
       acceptedFindingIds: ['F-3'],
-      permittedFiles: ['apps/mission-control/src/world/Capsule.tsx'],
+      permittedFiles: ['apps/example-app/src/world/Capsule.tsx'],
       repairCycleCount: 2,
       ownerDecisionId: 'OD-fake',
     }),
@@ -205,7 +205,7 @@ const out: Record<string, Record<string, unknown>> = {};
       grantId: 'G-trav',
       roleId: 'fabricator',
       tier: 'TIER_2',
-      permittedPaths: ['apps/mission-control/../../constitution/**'],
+      permittedPaths: ['apps/example-app/../../constitution/**'],
       expiresAt: at(600),
     }),
   );

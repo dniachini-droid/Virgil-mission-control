@@ -56,8 +56,8 @@ export class RunBuilder {
   }
 }
 
-const FILE = 'apps/mission-control/src/world/Capsule.tsx';
-const TEST = 'apps/mission-control/src/world/Capsule.test.tsx';
+const FILE = 'apps/example-app/src/world/Capsule.tsx';
+const TEST = 'apps/example-app/src/world/Capsule.test.tsx';
 
 /** Common prologue: idea → scope → plan → work order → grant → branch → worktree → fabricator at work → sealed commit → push → PR → handoff to Prover. */
 function prologue(b: RunBuilder, headSha: string): void {
@@ -92,7 +92,7 @@ function prologue(b: RunBuilder, headSha: string): void {
       grantId: 'G-fab-1',
       roleId: 'fabricator',
       tier: 'TIER_2',
-      permittedPaths: ['apps/mission-control/src/world/**'],
+      permittedPaths: ['apps/example-app/src/world/**'],
       expiresAt: at(600),
     },
     [ev('owner_decision', 'OD-0002')],
@@ -137,7 +137,7 @@ function prologue(b: RunBuilder, headSha: string): void {
     {
       roleId: 'fabricator',
       scope: 'directory',
-      scopePath: 'apps/mission-control/src/world',
+      scopePath: 'apps/example-app/src/world',
       patternClass: 'identifier',
       matchCount: 3,
     },
@@ -177,7 +177,7 @@ function prologue(b: RunBuilder, headSha: string): void {
       roleId: 'fabricator',
       commandId: 'cmd-1',
       commandClass: 'unit-test',
-      target: 'apps/mission-control',
+      target: 'apps/example-app',
     },
     [],
     { grant: 'G-fab-1', durability: 'replayable_operational' },

@@ -220,7 +220,7 @@ describe('K-03: repair authorisation requires a recorded owner decision', () => 
     lineageId: 'LIN-1',
     reviewedSha: HEAD_SHA,
     acceptedFindingIds: ['F-2'],
-    permittedFiles: ['apps/mission-control/src/world/Capsule.tsx'],
+    permittedFiles: ['apps/example-app/src/world/Capsule.tsx'],
     repairCycleCount: 1,
   };
   const event = (payload: Record<string, unknown>, actor: Actor = virgil) =>
@@ -269,7 +269,7 @@ describe('K-03: repair authorisation requires a recorded owner decision', () => 
   });
   it('rejects a repair contract whose permitted files traverse or reach a protected boundary', () => {
     for (const bad of [
-      'apps/mission-control/../../constitution/authority.json',
+      'apps/example-app/../../constitution/authority.json',
       '/etc/passwd',
       'apps/%2e%2e/constitution/**',
       'constitution/**',
@@ -284,12 +284,12 @@ describe('repository paths are normalised; traversal cannot escape an authorised
   it('rejects grants whose permitted paths cannot be normalised or reach a protected boundary', () => {
     const base = prefixThrough(passingRun(), 'scope_approved');
     const cases: Array<[string, string]> = [
-      ['apps/mission-control/../../constitution/**', 'parent traversal'],
-      ['apps/mission-control/%2e%2e/**', 'percent-encoded'],
+      ['apps/example-app/../../constitution/**', 'parent traversal'],
+      ['apps/example-app/%2e%2e/**', 'percent-encoded'],
       ['/apps/**', 'absolute'],
       ['apps\\mission-control\\**', 'backslash'],
       ['C:/apps/**', 'drive-letter'],
-      ['apps/mission-control/src/**/../../../constitution/authority.json', 'parent traversal'],
+      ['apps/example-app/src/**/../../../constitution/authority.json', 'parent traversal'],
     ];
     for (const [path, reason] of cases) {
       const t = new Tail(base).add('authority_granted', virgil, {
@@ -327,9 +327,9 @@ describe('repository paths are normalised; traversal cannot escape an authorised
     expect(lastOf(outside, 'file_modified')?.reason).toContain('outside the permitted paths');
     expect(Object.keys(outside.files)).toEqual([]);
     for (const path of [
-      'apps/mission-control/src/world/../../../../constitution/authority.json',
+      'apps/example-app/src/world/../../../../constitution/authority.json',
       '../constitution/authority.json',
-      'apps/mission-control/src/world/%2e%2e/x.ts',
+      'apps/example-app/src/world/%2e%2e/x.ts',
     ]) {
       const s = replay('con', write(path).events);
       expect(lastOf(s, 'file_modified')?.kind, path).toBe('contract');
@@ -338,11 +338,11 @@ describe('repository paths are normalised; traversal cannot escape an authorised
       expect(direct?.kind, path).toBe('authority');
       expect(direct?.reason, path).toContain('is invalid');
     }
-    const inside = replay('con', write('apps/mission-control/src/./world//Capsule.tsx').events);
+    const inside = replay('con', write('apps/example-app/src/./world//Capsule.tsx').events);
     expect(rejected(inside, 'file_modified')).toEqual([]);
     const noGrant = new Tail(base).add('file_created', fab, {
       roleId: 'fabricator',
-      path: 'apps/mission-control/src/world/New.tsx',
+      path: 'apps/example-app/src/world/New.tsx',
       bytes: 1,
       hash: 'h',
     });
@@ -355,7 +355,7 @@ describe('repository paths are normalised; traversal cannot escape an authorised
       fab,
       {
         roleId: 'fabricator',
-        paths: ['apps/mission-control/src/world/Capsule.tsx', 'constitution/authority.json'],
+        paths: ['apps/example-app/src/world/Capsule.tsx', 'constitution/authority.json'],
         rejectedOutOfBoundary: [],
       },
       [],
@@ -363,7 +363,7 @@ describe('repository paths are normalised; traversal cannot escape an authorised
     );
     const s = replay('con', staged.events);
     expect(lastOf(s, 'changes_staged')?.reason).toContain('constitution/authority.json');
-    expect(s.files['apps/mission-control/src/world/Capsule.tsx']?.status).not.toBe('staged');
+    expect(s.files['apps/example-app/src/world/Capsule.tsx']?.status).not.toBe('staged');
     const committed = new Tail(prefixThrough(passingRun(), 'changes_staged')).add(
       'candidate_committed',
       { kind: 'git' },
