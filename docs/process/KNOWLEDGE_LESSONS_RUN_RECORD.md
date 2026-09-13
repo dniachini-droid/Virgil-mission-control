@@ -171,11 +171,26 @@ Actions run **34727473621**, head `630b549`, event `push`, conclusion
 **Three jobs are skipped and a reader should know why rather than count six
 green ticks.** All three carry `if: github.event_name != 'push'` in
 `.github/workflows/checks.yml`: they run on a pull request and not on a branch
-push. **The skipped one that matters here is Mind Scan**, which is the
-continuous-integration half of criterion 1 — so on this commit `pnpm --filter
-@virgil/knowledge-lint run lint` has been run by this session and **not** by
-continuous integration. Opening a pull request runs it. That is the owner's call
-and no pull request was opened.
+push. The skipped one that mattered was Mind Scan, the continuous-integration
+half of criterion 1.
+
+**The owner then asked for a pull request, and it ran.** Pull request **#20**,
+head `b563cd9`, Actions run **34731411096**, event `pull_request`, conclusion
+**success** — all nine jobs, none skipped:
+
+| job | conclusion |
+|---|---|
+| lint, typecheck, tests | success |
+| the inspector stands without the application | success |
+| hosted build, read and refused | success |
+| **Mind Scan, V10 owner build and verify, committed digests** | **success** |
+| V11 owner build and verify — portrait-390, portrait-430, landscape-844, motion and performance | success (4 of 4) |
+| newest Owner Build rebuilds byte for byte | success |
+
+So criterion 1 is met by continuous integration and not only by this session.
+**The sentence that stood here before said the opposite and was true when it was
+written**; it is corrected rather than deleted, because what changed is the
+state and not the reading of it.
 
 The green `the inspector stands without the application` job is worth naming:
 it deletes `apps/mission-control` and runs what is left. The new checks are in
