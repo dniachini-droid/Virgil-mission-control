@@ -1,6 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { nextStep, ROUNDS_WITH_OWNER, ROUNDS_WITHOUT_OWNER, readChain } from '@virgil/gate-engine';
 import { describe, expect, it } from 'vitest';
 
@@ -309,6 +310,51 @@ describe('the facts block answers the contract that specifies it', () => {
     expect(out.status, 'a repair with no named findings was accepted').not.toBe(0);
     expect(out.stderr).toContain('--findings');
   });
+
+  it('refuses a handoff for a commit that never left the machine', () => {
+    // Demonstrated by hand when it was written and then, for one commit, left
+    // unguarded — which an attack on this file caught. A throwaway repository
+    // is used because the refusal needs a commit that is genuinely on no
+    // remote, and this repository's own commits are pushed.
+    const scratch = mkdtempSync(join(tmpdir(), 'virgil-chain-'));
+    const run = (...args: string[]) => spawnSync('git', args, { cwd: scratch, encoding: 'utf8' });
+    run('init', '-q', '-b', 'main');
+    run('config', 'user.email', 'test@example.invalid');
+    run('config', 'user.name', 'test');
+    writeFileSync(join(scratch, 'a.txt'), 'a\n');
+    run('add', '-A');
+    run('commit', '-qm', 'base');
+    const base = run('rev-parse', 'HEAD').stdout.trim();
+    // A remote-tracking ref, without a remote: the base is "pushed", the next
+    // commit is not.
+    run('update-ref', 'refs/remotes/origin/main', base);
+    run('checkout', '-q', '-b', 'work');
+    writeFileSync(join(scratch, 'b.txt'), 'b\n');
+    run('add', '-A');
+    run('commit', '-qm', 'unpushed');
+
+    const out = spawnSync(
+      'npx',
+      [
+        'tsx',
+        resolve(root, 'scripts/virgil-chain.ts'),
+        '--facts',
+        'builder',
+        '--round',
+        '0',
+        '--ran',
+        join(scratch, 'a.txt'),
+        '--could-not-run',
+        'nothing',
+        '--not-done',
+        'nothing',
+      ],
+      { cwd: scratch, encoding: 'utf8' },
+    );
+    rmSync(scratch, { recursive: true, force: true });
+    expect(out.status, 'a handoff was accepted for an unpushed commit').not.toBe(0);
+    expect(out.stderr).toContain('not on the remote');
+  }, 60_000);
 
   it('the mapping is written down rather than left to be rediscovered', () => {
     const contracts = read('docs/architecture/CONTRACTS.md');
