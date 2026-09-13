@@ -171,6 +171,15 @@ export function deriveGraph(opts: DeriveOptions): KnowledgeGraph {
       const ref = str(s.ref);
       if (ref) edges.push(tether(root, nodes, `${id}`, ref, 'page'));
     }
+    // A lesson page names the files it governs. Each is an edge and a tether:
+    // an edge so the pages-and-code direction is in the graph rather than only
+    // in frontmatter, and a tether so the file's existence is checked by the
+    // same machinery that checks every other kind of source.
+    for (const g of arr(data.governs)) {
+      if (typeof g !== 'string') continue;
+      edges.push({ id: `governs:${id}->${g}`, kind: 'governs', from: id, to: g });
+      edges.push(tether(root, nodes, id, g, 'page'));
+    }
     for (const r of arr(data.related))
       if (typeof r === 'string')
         edges.push({ id: `related:${id}->${r}`, kind: 'related', from: id, to: r });

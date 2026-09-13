@@ -63,7 +63,22 @@ export interface GraphNode {
 
 export interface GraphEdge {
   id: string;
-  kind: 'supports' | 'contradicts' | 'supersedes' | 'related' | 'contains' | 'links_to' | 'tether';
+  /**
+   * `governs` is the pages-and-code direction, added with lesson pages
+   * (`./lessons.ts`). A lesson names the files it is about; that name is an edge
+   * in the graph rather than frontmatter nothing reads, so a reader of the graph
+   * sees what a lesson holds and `scanLessons` and the graph cannot disagree
+   * about it.
+   */
+  kind:
+    | 'supports'
+    | 'contradicts'
+    | 'supersedes'
+    | 'related'
+    | 'contains'
+    | 'links_to'
+    | 'tether'
+    | 'governs';
   from: string;
   to: string;
   tetherKind?: TetherKindName;

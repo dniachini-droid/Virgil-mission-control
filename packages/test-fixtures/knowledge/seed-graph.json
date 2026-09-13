@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:70b741c39535dd24fc3015a6baca002f71b44f243ab86a59c19ed77775d4ec44",
+  "graphHash": "sha256:928fac211d4278da86dd82bc8bb3c45ed1269f9ae20919bb38adfae0a235be45",
   "nodes": [
     {
       "id": "agent-roster",
@@ -163,6 +163,16 @@
       "claimCount": 0
     },
     {
+      "id": "docs/decisions/OD-0017-knowledge-lessons-follow-up.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0017 — The knowledge-lessons follow-up, and a prefix for findings a builder raises",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
       "id": "docs/decisions/OD-0018-builders-open-their-own-pull-requests.md",
       "nodeType": "owner_decision",
       "kind": null,
@@ -201,6 +211,16 @@
       "authorityClass": "compiled",
       "status": "current",
       "claimCount": 3
+    },
+    {
+      "id": "lesson-gates-that-cannot-refuse",
+      "nodeType": "wiki_page",
+      "kind": "lesson",
+      "title": "A check nobody has watched fail is not a check",
+      "epistemicClass": "durable_compiled_knowledge",
+      "authorityClass": "compiled",
+      "status": "current",
+      "claimCount": 4
     },
     {
       "id": "src-master-commission",
@@ -290,6 +310,12 @@
       "kind": "links_to",
       "from": "governance-overview",
       "to": "state-language",
+      "state": null
+    },
+    {
+      "kind": "links_to",
+      "from": "lesson-gates-that-cannot-refuse",
+      "to": "governance-overview",
       "state": null
     },
     {
@@ -392,6 +418,18 @@
       "kind": "related",
       "from": "knowledge-layer",
       "to": "system-boundaries",
+      "state": null
+    },
+    {
+      "kind": "related",
+      "from": "lesson-gates-that-cannot-refuse",
+      "to": "agent-roster",
+      "state": null
+    },
+    {
+      "kind": "related",
+      "from": "lesson-gates-that-cannot-refuse",
+      "to": "governance-overview",
       "state": null
     },
     {
