@@ -287,7 +287,7 @@ describe('repository paths are normalised; traversal cannot escape an authorised
       ['apps/example-app/../../constitution/**', 'parent traversal'],
       ['apps/example-app/%2e%2e/**', 'percent-encoded'],
       ['/apps/**', 'absolute'],
-      ['apps\\mission-control\\**', 'backslash'],
+      ['apps\\example-app\\**', 'backslash'],
       ['C:/apps/**', 'drive-letter'],
       ['apps/example-app/src/**/../../../constitution/authority.json', 'parent traversal'],
     ];
@@ -310,7 +310,7 @@ describe('repository paths are normalised; traversal cannot escape an authorised
       expect(direct?.reason, path).toContain(reason);
     }
     expect(patternReachesProtectedBoundary('apps/../constitution/**')).toContain('unnormalisable');
-    expect(patternReachesProtectedBoundary('apps/./mission-control/src/**')).toBeUndefined();
+    expect(patternReachesProtectedBoundary('apps/./example-app/src/**')).toBeUndefined();
   });
   it('rejects file writes outside the actor grant and any traversal path, and records no file', () => {
     const base = prefixThrough(passingRun(), 'agent_started');
