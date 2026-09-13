@@ -27,6 +27,6 @@ related: [state-language, governance-overview, knowledge-layer]
 - **Gate**: a deterministic check computed from machine evidence; prose cannot override it.
 - **Seal**: the review record bound to one SHA; any SHA change makes it stale.
 - **Quarantine field**: the state geometry holding a blocked candidate; differs in form from the incomplete-evidence field.
-- **Mind gateway**: the causal crossing from a verified run into the knowledge layer ([[two-worlds]]).
+- **Mind gateway**: the causal crossing from a verified run into the knowledge layer (the two worlds).
 - **Tether**: an inspectable provenance link from a claim or page to its evidence; intact, broken, stale or absent ([[knowledge-layer]]).
 - **Mind Scan**: a single-pass lint over the knowledge galaxy that reports and proposes but never rewrites authority.

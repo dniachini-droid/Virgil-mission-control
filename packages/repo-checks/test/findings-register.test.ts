@@ -453,7 +453,7 @@ const PINNED: Record<
   'KXR-38': {
     status: 'repaired',
     foundBy: 'gate',
-    where: 'docs/process/SLICE_SIX_INTEGRATION_RECORD.md',
+    where: 'docs/process/CACHE_GUARD_RECORD.md',
     what: 'ed8d6508df17',
   },
   'KXR-43': {

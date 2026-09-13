@@ -19,7 +19,7 @@ claims:
   - id: C-principle-review-does-not-merge
     statement: "Passing review makes a candidate eligible for the owner gate; it does not merge it."
     sources: [src-master-commission, constitution/REVIEW_POLICY.md]
-related: [governance-overview, state-language, two-worlds]
+related: [governance-overview, state-language]
 ---
 
 # The artifact moves. Authority stays.

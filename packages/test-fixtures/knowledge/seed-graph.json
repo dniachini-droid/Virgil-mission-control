@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:e87e71829cff5bf2ce30cc88d73c69d52622c70b03fa6ccbe890a9f841be8a04",
+  "graphHash": "sha256:34b77342d79524f51f3db30a0a7247485c2a6e5a2670aceaf11c455b263ca7ca",
   "nodes": [
     {
       "id": "agent-roster",
@@ -43,16 +43,6 @@
       "claimCount": 0
     },
     {
-      "id": "docs/decisions/OD-0002-art-direction-checkpoint.md",
-      "nodeType": "owner_decision",
-      "kind": null,
-      "title": "OD-0002 — Art-direction checkpoint: rejected runtime executions and approved visual direction",
-      "epistemicClass": "owner_approved_decision",
-      "authorityClass": "owner_decision",
-      "status": null,
-      "claimCount": 0
-    },
-    {
       "id": "docs/decisions/OD-0003-consolidation-repair-round.md",
       "nodeType": "owner_decision",
       "kind": null,
@@ -73,16 +63,6 @@
       "claimCount": 0
     },
     {
-      "id": "docs/decisions/OD-0005-phase-1-visual-checks-and-reference.md",
-      "nodeType": "owner_decision",
-      "kind": null,
-      "title": "OD-0005 — The new reference image, and the graphics-hardware checks in Phase 1 (Tier 3)",
-      "epistemicClass": "owner_approved_decision",
-      "authorityClass": "owner_decision",
-      "status": null,
-      "claimCount": 0
-    },
-    {
       "id": "docs/decisions/OD-0006-recording-owner-decisions.md",
       "nodeType": "owner_decision",
       "kind": null,
@@ -97,16 +77,6 @@
       "nodeType": "owner_decision",
       "kind": null,
       "title": "OD-0007 — Phase 0 accepted, Phase 1 authorised, and the five other decisions of 2026-09-07 (Tier 3)",
-      "epistemicClass": "owner_approved_decision",
-      "authorityClass": "owner_decision",
-      "status": null,
-      "claimCount": 0
-    },
-    {
-      "id": "docs/decisions/OD-0008-meshy-licence-attestation.md",
-      "nodeType": "owner_decision",
-      "kind": null,
-      "title": "OD-0008 — The owner's attestation as the licence basis for Meshy-generated models (Tier 3)",
       "epistemicClass": "owner_approved_decision",
       "authorityClass": "owner_decision",
       "status": null,
@@ -193,16 +163,6 @@
       "claimCount": 0
     },
     {
-      "id": "epistemic-visual-language",
-      "nodeType": "wiki_page",
-      "kind": "visual_language",
-      "title": "Epistemic visual language",
-      "epistemicClass": "durable_compiled_knowledge",
-      "authorityClass": "compiled",
-      "status": "current",
-      "claimCount": 3
-    },
-    {
       "id": "glossary",
       "nodeType": "wiki_page",
       "kind": "glossary_term",
@@ -271,25 +231,9 @@
       "authorityClass": "compiled",
       "status": "current",
       "claimCount": 3
-    },
-    {
-      "id": "two-worlds",
-      "nodeType": "wiki_page",
-      "kind": "architecture_concept",
-      "title": "The two worlds and the Mind gateway",
-      "epistemicClass": "durable_compiled_knowledge",
-      "authorityClass": "compiled",
-      "status": "current",
-      "claimCount": 3
     }
   ],
   "edges": [
-    {
-      "kind": "links_to",
-      "from": "agent-roster",
-      "to": "epistemic-visual-language",
-      "state": null
-    },
     {
       "kind": "links_to",
       "from": "artifact-moves-authority-stays",
@@ -310,12 +254,6 @@
     },
     {
       "kind": "links_to",
-      "from": "epistemic-visual-language",
-      "to": "agent-roster",
-      "state": null
-    },
-    {
-      "kind": "links_to",
       "from": "glossary",
       "to": "authority-tiers",
       "state": null
@@ -324,12 +262,6 @@
       "kind": "links_to",
       "from": "glossary",
       "to": "knowledge-layer",
-      "state": null
-    },
-    {
-      "kind": "links_to",
-      "from": "glossary",
-      "to": "two-worlds",
       "state": null
     },
     {
@@ -348,12 +280,6 @@
       "kind": "links_to",
       "from": "governance-overview",
       "to": "state-language",
-      "state": null
-    },
-    {
-      "kind": "links_to",
-      "from": "knowledge-layer",
-      "to": "two-worlds",
       "state": null
     },
     {
@@ -369,27 +295,9 @@
       "state": null
     },
     {
-      "kind": "links_to",
-      "from": "system-boundaries",
-      "to": "two-worlds",
-      "state": null
-    },
-    {
-      "kind": "links_to",
-      "from": "two-worlds",
-      "to": "epistemic-visual-language",
-      "state": null
-    },
-    {
       "kind": "related",
       "from": "agent-roster",
       "to": "authority-tiers",
-      "state": null
-    },
-    {
-      "kind": "related",
-      "from": "agent-roster",
-      "to": "epistemic-visual-language",
       "state": null
     },
     {
@@ -412,12 +320,6 @@
     },
     {
       "kind": "related",
-      "from": "artifact-moves-authority-stays",
-      "to": "two-worlds",
-      "state": null
-    },
-    {
-      "kind": "related",
       "from": "authority-tiers",
       "to": "agent-roster",
       "state": null
@@ -426,18 +328,6 @@
       "kind": "related",
       "from": "authority-tiers",
       "to": "governance-overview",
-      "state": null
-    },
-    {
-      "kind": "related",
-      "from": "epistemic-visual-language",
-      "to": "agent-roster",
-      "state": null
-    },
-    {
-      "kind": "related",
-      "from": "epistemic-visual-language",
-      "to": "two-worlds",
       "state": null
     },
     {
@@ -496,12 +386,6 @@
     },
     {
       "kind": "related",
-      "from": "knowledge-layer",
-      "to": "two-worlds",
-      "state": null
-    },
-    {
-      "kind": "related",
       "from": "state-language",
       "to": "artifact-moves-authority-stays",
       "state": null
@@ -525,30 +409,6 @@
       "state": null
     },
     {
-      "kind": "related",
-      "from": "system-boundaries",
-      "to": "two-worlds",
-      "state": null
-    },
-    {
-      "kind": "related",
-      "from": "two-worlds",
-      "to": "epistemic-visual-language",
-      "state": null
-    },
-    {
-      "kind": "related",
-      "from": "two-worlds",
-      "to": "knowledge-layer",
-      "state": null
-    },
-    {
-      "kind": "related",
-      "from": "two-worlds",
-      "to": "system-boundaries",
-      "state": null
-    },
-    {
       "kind": "tether",
       "from": "agent-roster",
       "to": "src-master-commission",
@@ -564,18 +424,6 @@
       "kind": "tether",
       "from": "authority-tiers",
       "to": "src-master-commission",
-      "state": "intact"
-    },
-    {
-      "kind": "tether",
-      "from": "epistemic-visual-language",
-      "to": "src-master-commission",
-      "state": "intact"
-    },
-    {
-      "kind": "tether",
-      "from": "epistemic-visual-language",
-      "to": "src-od-0001",
       "state": "intact"
     },
     {
@@ -612,18 +460,6 @@
       "kind": "tether",
       "from": "system-boundaries",
       "to": "src-master-commission",
-      "state": "intact"
-    },
-    {
-      "kind": "tether",
-      "from": "two-worlds",
-      "to": "src-master-commission",
-      "state": "intact"
-    },
-    {
-      "kind": "tether",
-      "from": "two-worlds",
-      "to": "src-od-0001",
       "state": "intact"
     }
   ]

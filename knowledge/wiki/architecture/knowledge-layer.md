@@ -22,9 +22,9 @@ claims:
   - id: C-know-graph-reproducible
     statement: "The provenance graph is derived reproducibly from files, metadata and explicit events and is never an opaque second store."
     sources: [src-master-commission, docs/architecture/KNOWLEDGE_ONTOLOGY.md, packages/knowledge-graph/src/derive.ts]
-related: [two-worlds, system-boundaries, glossary]
+related: [system-boundaries, glossary]
 ---
 
 # The knowledge layer
 
-An adaptation of the LLM wiki pattern to governed development. Raw sources are records with canonical paths and hashes; the wiki holds pages with frontmatter claims and provenance tethers; outputs are derived. Five operations exist: ingest, query, compile, lint and propose (`.claude/skills/knowledge-maintenance`). Mind Scan (`docs/architecture/MIND_SCAN.md`) reports contradictions, stale material, orphans, broken tethers, repeated concepts, unsupported claims, echo chambers, copied live state and pending proposals. The user-facing form of this layer is the Mind of Virgil ([[two-worlds]]).
+An adaptation of the LLM wiki pattern to governed development. Raw sources are records with canonical paths and hashes; the wiki holds pages with frontmatter claims and provenance tethers; outputs are derived. Five operations exist: ingest, query, compile, lint and propose (`.claude/skills/knowledge-maintenance`). Mind Scan (`docs/architecture/MIND_SCAN.md`) reports contradictions, stale material, orphans, broken tethers, repeated concepts, unsupported claims, echo chambers, copied live state and pending proposals. The user-facing form of this layer is the Mind of Virgil (the two worlds).

@@ -85,7 +85,7 @@ This column is the point of the register rather than a decoration on it. It is t
 | KXR-29 | repaired | review | The `turbo.json` repair fixed the instance and not the class; the same failure reproduces through the commission | docs/process/KEEPER_PR14_REVIEW.md |
 | KXR-30 | repaired | review | The review that blocked pull request #14 was kept in no file, and its findings existed nowhere in the repository | docs/process/KEEPER_PR14_REVIEW.md |
 | KXR-31 | open | review | A pull request description called the last verdict fixed and named only half of it | docs/process/KEEPER_PR14_REVIEW.md |
-| KXR-38 | repaired | gate | A guard read `resolve(root, …)` as a repository read where `root` is a scratch directory, and named two temporary files as undeclared cache inputs | docs/process/SLICE_SIX_INTEGRATION_RECORD.md |
+| KXR-38 | repaired | gate | A guard read `resolve(root, …)` as a repository read where `root` is a scratch directory, and named two temporary files as undeclared cache inputs | docs/process/CACHE_GUARD_RECORD.md |
 | KXR-43 | open | owner | Three permission entries allow commands deleted with the application; a session is refused the edit by two independent mechanisms | docs/process/OWNER_TODO.md |
 
 ## Attributes, for findings recorded from 2026-09-12

@@ -15,11 +15,9 @@ Content-oriented index of `knowledge/wiki/`. Maintained on every page change. Th
 
 ## Architecture
 - [[system-boundaries]] — the eleven boundaries and the separation of truths.
-- [[two-worlds]] — Orbital Foundry, Mind of Virgil, the gateway sequence.
 - [[knowledge-layer]] — raw, wiki, outputs, operations, anti-drift.
 
 ## Visual
-- [[epistemic-visual-language]] — nine classes, animation grammar discipline.
 
 ## Reference
 - [[glossary]]

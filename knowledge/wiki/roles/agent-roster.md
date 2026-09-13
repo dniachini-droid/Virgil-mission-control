@@ -22,11 +22,11 @@ claims:
   - id: C-roster-keeper-verdicts
     statement: "The Keeper returns exactly one of PASS, PASS_WITH_NON_BLOCKING_FINDINGS, BLOCKED or INSUFFICIENT_EVIDENCE."
     sources: [src-master-commission, constitution/REVIEW_POLICY.md]
-related: [governance-overview, authority-tiers, epistemic-visual-language]
+related: [governance-overview, authority-tiers]
 ---
 
 # Agent roster
 
 Definitions live in `.claude/agents/`, one versioned file per role, and must agree with `constitution/permission-matrix.json` (a test enforces it). Each definition states remit, inputs, required outputs, allowed tools, prohibited actions, stop conditions, escalation and result schema.
 
-Permanent crew: **Virgil** conducts and never performs routed work; the **Cartographer** bounds scope; the **Architect** plans without building; the **Fabricator** builds inside a worktree and permitted paths; the **Prover** verifies and may seed mutations into a disposable copy; the **Keeper** reviews one exact SHA read-only; the **Arbiter** adjudicates conflicting findings and defines one bounded repair. Conditional specialists (Domain Verifier, Breaker, Integrator, Interface Keeper, Security Sentinel, Transport Inspector, Performance Examiner) appear only when the risk classification names them. Their stations and performance identities are described in [[epistemic-visual-language]] and the role performance bible.
+Permanent crew: **Virgil** conducts and never performs routed work; the **Cartographer** bounds scope; the **Architect** plans without building; the **Fabricator** builds inside a worktree and permitted paths; the **Prover** verifies and may seed mutations into a disposable copy; the **Keeper** reviews one exact SHA read-only; the **Arbiter** adjudicates conflicting findings and defines one bounded repair. Conditional specialists (Domain Verifier, Breaker, Integrator, Interface Keeper, Security Sentinel, Transport Inspector, Performance Examiner) appear only when the risk classification names them. Their stations and performance identities are described in the epistemic visual language and the role performance bible.
