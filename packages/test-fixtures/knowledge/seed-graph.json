@@ -1,6 +1,6 @@
 {
   "derivedFrom": "knowledge/ via @virgil/knowledge-graph deriveGraph",
-  "graphHash": "sha256:34b77342d79524f51f3db30a0a7247485c2a6e5a2670aceaf11c455b263ca7ca",
+  "graphHash": "sha256:8d3a270a6c33687d0b22f4a67f2eb698635c59a58eed26963aef3833dd8173db",
   "nodes": [
     {
       "id": "agent-roster",
@@ -163,6 +163,16 @@
       "claimCount": 0
     },
     {
+      "id": "docs/decisions/OD-0017-knowledge-lessons-follow-up.md",
+      "nodeType": "owner_decision",
+      "kind": null,
+      "title": "OD-0017 — The knowledge-lessons follow-up, and a prefix for findings a builder raises",
+      "epistemicClass": "owner_approved_decision",
+      "authorityClass": "owner_decision",
+      "status": null,
+      "claimCount": 0
+    },
+    {
       "id": "glossary",
       "nodeType": "wiki_page",
       "kind": "glossary_term",
@@ -191,6 +201,16 @@
       "authorityClass": "compiled",
       "status": "current",
       "claimCount": 3
+    },
+    {
+      "id": "lesson-gates-that-cannot-refuse",
+      "nodeType": "wiki_page",
+      "kind": "lesson",
+      "title": "A check nobody has watched fail is not a check",
+      "epistemicClass": "durable_compiled_knowledge",
+      "authorityClass": "compiled",
+      "status": "current",
+      "claimCount": 4
     },
     {
       "id": "src-master-commission",
@@ -280,6 +300,12 @@
       "kind": "links_to",
       "from": "governance-overview",
       "to": "state-language",
+      "state": null
+    },
+    {
+      "kind": "links_to",
+      "from": "lesson-gates-that-cannot-refuse",
+      "to": "governance-overview",
       "state": null
     },
     {
@@ -382,6 +408,18 @@
       "kind": "related",
       "from": "knowledge-layer",
       "to": "system-boundaries",
+      "state": null
+    },
+    {
+      "kind": "related",
+      "from": "lesson-gates-that-cannot-refuse",
+      "to": "agent-roster",
+      "state": null
+    },
+    {
+      "kind": "related",
+      "from": "lesson-gates-that-cannot-refuse",
+      "to": "governance-overview",
       "state": null
     },
     {

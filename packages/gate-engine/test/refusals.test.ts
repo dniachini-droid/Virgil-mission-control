@@ -3,25 +3,8 @@ import { type GateEvidence, type GateId, gateIds, gates } from '../src/index.js'
 
 /**
  * **Every gate is driven to `fail` here, and nothing may be added to `gates`
- * without appearing below.**
- *
- * `docs/process/GATE_PROOF_AND_FINDINGS_BRIEF.md`, finding **XR-01**. Twenty
- * gates existed and eight of them had never been observed refusing anything:
- * `repository_allowlisted`, `working_tree_clean`, `branch_identity`,
- * `approved_base_ancestry`, `commit_and_push_complete`, `required_checks_ran`,
- * `deploy_authority`, and `merge_authority` — which had one case inside a test
- * about something else, where its removal would have gone unremarked.
- *
- * `gates.test.ts` asserts the harmless candidate raises no false blockers on any
- * gate. Nothing asserted the other direction, so for those eight a passing suite
- * could not distinguish a gate that works from a gate that cannot fire.
- *
- * **Why that is worse here than in most repositories.**
- * `docs/architecture/ENFORCEMENT_BOUNDARIES.md` records that the engine *"has no
- * evidence until Phase 2 adapters exist; today only fixtures feed it."* Until
- * those adapters land, a fixture is the only thing that ever exercises a gate,
- * so a gate no fixture refuses has never run its refusal path at all — not in
- * CI, not in a session, not anywhere.
+ * without appearing below** — why that is the half that matters is
+ * [[lesson-gates-that-cannot-refuse]]; the finding it came from is `XR-01`.
  *
  * **This file changes no gate's behaviour.** It only asks each one to say no,
  * with the smallest evidence that should make it. Where a gate turns out to be
@@ -29,13 +12,8 @@ import { type GateEvidence, type GateId, gateIds, gates } from '../src/index.js'
  */
 
 /**
- * The base is deliberately *healthy*: every field set to the value that passes.
- * Each case below then spoils exactly one thing.
- *
- * That shape is the point. A refusal case built from an empty object would
- * mostly prove the gate returns `insufficient_evidence`, which is a different
- * answer and is already covered. One spoiled field against an otherwise clean
- * candidate is what a real refusal looks like.
+ * The base is deliberately *healthy*: every field set to the value that passes,
+ * so each case below spoils exactly one thing — [[lesson-gates-that-cannot-refuse]].
  */
 const HEAD = 'a'.repeat(40);
 const BASE = 'b'.repeat(40);
@@ -99,13 +77,10 @@ interface Refusal {
 }
 
 /**
- * One case per gate, in the order `gates` declares them.
- *
- * **`because` is not decoration.** A gate that refused for an unrelated reason
- * would satisfy `result === 'fail'` and prove nothing about the path this case
- * is aiming at — that is how `merge_authority` came to have a case that could be
- * deleted unremarked. The reason is read, so the case is tied to the refusal it
- * claims to exercise.
+ * One case per gate, in the order `gates` declares them. **`because` is not
+ * decoration** — [[lesson-gates-that-cannot-refuse]], "read the reason, not just
+ * the outcome". It is how `merge_authority` came to have a case that could be
+ * deleted unremarked.
  */
 const REFUSALS: Refusal[] = [
   {
@@ -264,11 +239,8 @@ const REFUSALS: Refusal[] = [
 ];
 
 describe('the candidate this suite calls healthy really is healthy', () => {
-  /**
-   * Without this, every case below could be passing because the base evidence is
-   * broken rather than because the spoiled field did anything — and the whole
-   * file would be measuring nothing while looking thorough.
-   */
+  // Without this, every case below could be passing because the base evidence is
+  // broken rather than because the spoiled field did anything.
   it('passes every gate before anything is spoiled', () => {
     for (const id of gateIds) {
       const decision = gates[id](HEALTHY);
@@ -291,12 +263,9 @@ describe('every gate can refuse, and has been seen to', () => {
   }
 
   /**
-   * **The coverage is enforced, not remembered.**
-   *
-   * This is the half that makes the rest durable. A gate added to `gates` with
-   * no refusal case fails here, by name, on the push that adds it — rather than
-   * being noticed by a reader months later, which is exactly how eight of them
-   * accumulated.
+   * **The coverage is enforced, not remembered** — [[lesson-gates-that-cannot-refuse]].
+   * A gate added to `gates` with no refusal case fails here, by name, on the
+   * push that adds it.
    */
   it('every gate in the engine has a case above, named', () => {
     const covered = new Set(REFUSALS.map((r) => r.gate));
