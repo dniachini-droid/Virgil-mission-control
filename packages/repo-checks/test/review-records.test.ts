@@ -24,6 +24,12 @@ import { describe, expect, it } from 'vitest';
  *
  * The digests below were taken from `git show <sha>:<path>` at the commit named,
  * and a reviewer can take them again the same way.
+ *
+ * **The ten added on 2026-09-13 are the repair of `KXR-75/PR33`**, which is the
+ * sentence above happening for real rather than being warned about. Seven
+ * reviews were captured into `docs/process/` and twenty-four register rows were
+ * pointed at them, and nothing here held any of the seven. A reviewer emptied
+ * one and softened a finding inside another, and the suite passed both times.
  */
 
 const root = resolve(import.meta.dirname, '../../..');
@@ -99,11 +105,127 @@ const RECORDS: Record_[] = [
     reviewed: '4e331f5d45bb992d5a25fed606b22a699b116fa6',
     holds: ['KXR-29', 'KXR-30', 'KXR-31'],
   },
+
+  /**
+   * **The ten captures of 2026-09-13 — `KXR-75/PR33`.**
+   *
+   * The seven above were taken from a reviewer's own branch with
+   * `git show <sha>:<path>`, so `from` and `commit` name where the bytes were
+   * already sitting. The ten below were captured from pull-request comments,
+   * which are not in any tree, so `from` and `commit` name the branch and
+   * commit that **introduced** the capture. A reviewer re-takes the digest the
+   * same way — `git show <commit>:<path> | sha256sum` — and the guarantee is
+   * identical: these bytes, at that commit, and any later edit fails here.
+   *
+   * **Why they needed adding, proved rather than argued.** The reviewer of #33
+   * cut `KEEPER_PR28_REREVIEW.md` from 18,742 bytes to a line holding only the
+   * four ids it is cited for, and the whole suite still passed. It softened
+   * `KXR-44/PR26` inside `KEEPER_PR26_REVIEW.md` into a finding raised in error,
+   * and the whole suite still passed. Both were reproduced on an untouched copy
+   * of `f2aa068` before this entry existed: `792 passed, 0 failed` each time.
+   * Twenty-four findings pointed at documents anyone could empty or reverse.
+   *
+   * **One thing this freezes that is known to be wrong.**
+   * `docs/process/KEEPER_PR30_REVIEW.md`'s builder-authored header says its
+   * reason is a finding *"this very document raises"* and names `KXR-49/PR27`,
+   * which a different capture raises. That is `KXR-77/PR33`, filed open, and
+   * pinning the file as it stands means correcting it will mean re-pinning it
+   * in the same commit. That is the pin working, not the pin obstructing: the
+   * correction becomes visible in a diff instead of happening quietly.
+   */
+  {
+    path: 'docs/process/KEEPER_PR24_REVIEW.md',
+    from: 'claude/file-the-findings',
+    commit: '88d5d5a',
+    sha256: '97158e076e5da63211f440c1a85a2b4fed5b82ef1556c002bdf1b2ebf7b1382b',
+    reviewed: '138fa39d6e1be8d8516a34e0d5b50ea8d972ed51',
+    holds: ['KXR-51/PR24'],
+  },
+  {
+    path: 'docs/process/KEEPER_PR26_REVIEW.md',
+    from: 'claude/file-the-findings',
+    commit: '88d5d5a',
+    sha256: 'f5777aba4ff9c0d203242be99cbf0b9a31067177ecfeb9cafeffb9723b03e5f5',
+    reviewed: '7e1f719e6a1df57c52e5400d5499769952db09f8',
+    holds: [
+      'KXR-44/PR26',
+      'KXR-45/PR26',
+      'KXR-46/PR26',
+      'KXR-47/PR26',
+      'KXR-48/PR26',
+      'KXR-49/PR26',
+      'KXR-50/PR26',
+    ],
+  },
+  {
+    path: 'docs/process/KEEPER_PR27_REVIEW.md',
+    from: 'claude/file-the-findings',
+    commit: '88d5d5a',
+    sha256: '729bba99bdde3cc24ee50e268d6a9bb4c91c9ff5ff9d332e9e834dbfa2143815',
+    reviewed: '571b258a26117549e00a2293ec84c04e7370b4d7',
+    holds: ['KXR-47/PR27', 'KXR-48/PR27', 'KXR-49/PR27', 'KXR-50/PR27'],
+  },
+  {
+    path: 'docs/process/KEEPER_PR27_REREVIEW.md',
+    from: 'claude/file-the-findings',
+    commit: '88d5d5a',
+    sha256: '1774719a09efa004f85fc64014ba4bb1704ee5149b6dc9c60c653b1d4ac7fb25',
+    reviewed: '9ed95d60f857adb09ee84a73ec65112566b7ecfe',
+    holds: ['KXR-51/PR27', 'KXR-52/PR27'],
+  },
+  {
+    path: 'docs/process/KEEPER_PR28_REVIEW.md',
+    from: 'claude/file-the-findings',
+    commit: '88d5d5a',
+    sha256: '26cccec923b83d73a47f845c5121c2aa2a837dfb623305db199903e3702e585b',
+    reviewed: 'd436ca78802b1c66edcd680a50848727a9111f28',
+    holds: ['KXR-53/PR28', 'KXR-54/PR28', 'KXR-55/PR28', 'KXR-56/PR28'],
+  },
+  {
+    path: 'docs/process/KEEPER_PR28_REREVIEW.md',
+    from: 'claude/file-the-findings',
+    commit: '88d5d5a',
+    sha256: 'e76a1631b71e70f49ab5f5ce6b2a43c264014cbdeba44d25d8ddb425bb92bd1b',
+    reviewed: 'f9d803db6d591ebed8c7038ba79823907ec28205',
+    holds: ['KXR-60/PR28', 'KXR-61/PR28', 'KXR-62/PR28', 'KXR-63/PR28'],
+  },
+  {
+    path: 'docs/process/KEEPER_PR30_REVIEW.md',
+    from: 'claude/file-the-findings',
+    commit: '88d5d5a',
+    sha256: '5df68f45e6aa1915a93f10eed8cd32614191eac0ebc9c26caf8c396508fe41bb',
+    reviewed: '6dec9f6f0bd6eaf5b12ab68153cf04f8de2c0b09',
+    holds: ['KXR-57/PR30', 'KXR-58/PR30'],
+  },
+  {
+    path: 'docs/process/KEEPER_PR32_REVIEW.md',
+    from: 'claude/hold-the-captures-and-file-pr32-pr33',
+    commit: 'ffb7d82',
+    sha256: '28e7dbf7d7306275eb001c449a448ce936a596dfc8521c43b93256a8bce89195',
+    reviewed: '8ba445262c15c487f087623a172c5f22eed23f49',
+    holds: ['KXR-70/PR32', 'KXR-71/PR32', 'KXR-72/PR32', 'KXR-73/PR32', 'KXR-74/PR32'],
+  },
+  {
+    path: 'docs/process/KEEPER_PR32_REREVIEW.md',
+    from: 'claude/hold-the-captures-and-file-pr32-pr33',
+    commit: 'ffb7d82',
+    sha256: '6fbbc6f925f526e60495a97e6f2687d712e933ebcb906a1b7ff2cbb216ee7b1c',
+    reviewed: '6e7c6b329c46c7a848fba3ba70f3a06d215ec208',
+    holds: ['KXR-80/PR32', 'KXR-81/PR32', 'KXR-82/PR32'],
+  },
+  {
+    path: 'docs/process/KEEPER_PR33_REVIEW.md',
+    from: 'claude/hold-the-captures-and-file-pr32-pr33',
+    commit: 'ffb7d82',
+    sha256: '67ac45c4f92b991a2bf284fe3875f6f9db57da8ef985434f3ad3ee5024c869f6',
+    reviewed: '88d5d5a9de263261b17ff21b4c5a1fa13d90a72f',
+    holds: ['KXR-75/PR33', 'KXR-76/PR33', 'KXR-77/PR33'],
+  },
 ];
 
 describe('the reviews are kept, exactly as they were written', () => {
   it('has records to check, or every assertion below is vacuous', () => {
-    expect(RECORDS.length).toBe(7);
+    expect(RECORDS.length).toBe(17);
   });
 
   for (const record of RECORDS) {
@@ -153,7 +275,27 @@ describe('the reviews are kept, exactly as they were written', () => {
      */
     const held = new Set(RECORDS.flatMap((r) => r.holds));
     const register = readFileSync(resolve(root, 'docs/process/FINDINGS.md'), 'utf8');
-    const carried = [...register.matchAll(/^\| (KXR-\d+) \|/gm)].map((m) => m[1] as string);
+    /**
+     * **`KXR-75/PR33`: the id pattern was the reason this check required
+     * nothing of twenty-four findings.**
+     *
+     * It read `/^\| (KXR-\d+) \|/` — an unqualified id followed by a cell
+     * boundary — and every id filed on 2026-09-13 is qualified by the document
+     * that raised it, `KXR-44/PR26`. Not one matched. The check reported
+     * completeness over the eleven ids that predate the convention and said
+     * nothing about the rest, which is a completeness check counting the wrong
+     * set: the same shape of defect as `KXR-22`, where it counted to a literal.
+     *
+     * **So it matches both spellings, and that is the decision.** A qualified
+     * id is a `KXR` finding — `constitution/REVIEW_POLICY.md` governs identity
+     * and the owner's resolution of 2026-09-13 qualifies by document rather
+     * than renumbering. Reading only the unqualified form would mean the
+     * register's dominant identity shape is the one shape this file cannot
+     * see, and every finding filed from now on would be born invisible to it.
+     */
+    const carried = [...register.matchAll(/^\| (KXR-\d+(?:\/PR\d+)?) \|/gm)].map(
+      (m) => m[1] as string,
+    );
     expect(
       carried.length,
       'the register carries no KXR findings, so this proves nothing',
@@ -180,7 +322,7 @@ describe('the reviews are kept, exactly as they were written', () => {
     // document their own pointer names. `review` is deliberately excluded — a
     // reviewer's finding must live in the kept review, which is `KXR-30`.
     for (const row of register.matchAll(
-      /^\| (KXR-\d+) \| \S+ \| (?:gate|owner) \| [^|]+ \| ([^|]+?) \|/gm,
+      /^\| (KXR-\d+(?:\/PR\d+)?) \| \S+ \| (?:gate|owner) \| [^|]+ \| ([^|]+?) \|/gm,
     )) {
       const id = row[1] as string;
       const pointer = (row[2] as string).trim();

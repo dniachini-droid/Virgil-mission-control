@@ -262,18 +262,81 @@ reviewer replayed both attacks and confirmed the closures. One was repaired on
 because the merge order it asked for is what `git log --merges` shows. Filing is
 not repairing, and nothing here was repaired in order to be filed.
 
-**What holds these seven documents, and what does not.**
-`packages/repo-checks/test/review-records.test.ts` pins seven earlier review
-documents to the SHA-256 of the bytes they had at a named commit, so that a
-kept review cannot be quietly tidied afterwards. **These seven are not in it.**
-Nothing in that file required an entry — its completeness check reads
-unqualified `KXR-NN` ids and every id filed here is qualified — and the
-instruction bounding this work was to change nothing there that was not
-required. The consequence, said rather than left to be found: **the seven
-captures added today are held by nothing but this paragraph and the diff.** A
-later session can edit them and no check will notice. That is a smaller
-protection than the seven documents above them have, and closing it is a change
-to a test file, which is somebody else's hop.
+**What holds these seven documents. Nothing did, and now something does.**
+`packages/repo-checks/test/review-records.test.ts` pins a review document to
+the SHA-256 of the bytes it had at a named commit, so that a kept review cannot
+be quietly tidied afterwards. **When these seven were captured they were in no
+such pin**, and the paragraph that stood here said so plainly: *"the seven
+captures added today are held by nothing but this paragraph and the diff."*
+
+The reviewer of `88d5d5a` did not take that on trust. It cut
+`KEEPER_PR28_REREVIEW.md` down to the bare ids it is cited for and every check
+passed; it rewrote a finding inside `KEEPER_PR26_REVIEW.md` to say the problem
+had been raised in error and every check passed. That is `KXR-75/PR33`, and it
+is repaired below: all seven are pinned, together with the three captured on
+2026-09-13 from the reviews of #32 and #33.
+
+**The reason the check had required nothing of them is repaired too, and it was
+the id pattern.** The completeness rule read `/^\| (KXR-\d+) \|/` — an
+unqualified id followed by a cell boundary — so every qualified id filed under
+the owner's resolution of 2026-09-13 was invisible to it. It now reads both
+spellings. That is a decision rather than a tidy-up, and the reasoning is
+written where the pattern is: a qualified id is a `KXR` finding, qualification
+is how this register now mints them, and a completeness check blind to the
+register's dominant identity shape counts the wrong set.
+
+## The reviews of #32 and #33, filed after them
+
+**Eleven more findings, from three reviews that ran on 2026-09-13 after the
+twenty-four above were counted.** Two reviews of pull request #32 — the first
+returning `BLOCKED` on `8ba4452`, the second `PASS_WITH_NON_BLOCKING_FINDINGS`
+on `6e7c6b3` after the one repair round the first authorised — and one review of
+pull request #33 on `88d5d5a`, which is the review that found the gap the
+section above closes.
+
+They are filed the same way and for the same reason: the reviews were captured
+first, verbatim, as `docs/process/KEEPER_PR32_REVIEW.md`,
+`KEEPER_PR32_REREVIEW.md` and `KEEPER_PR33_REVIEW.md`, because a row must point
+at a file in this repository and a comment on a website is not one. **All three
+are pinned**, so this batch never has the property the last one had.
+
+**No substitution was needed in any of the three.** The two captures of
+2026-09-13 that carried one — `KEEPER_PR27_REVIEW.md` and
+`KEEPER_PR30_REVIEW.md` — rewrote doubled-square-bracket lesson links so the
+knowledge scan would not read a quoted link as a made one, which is
+`KXR-49/PR27` biting. None of these three comments contains such a link, so each
+capture is its comment's bytes exactly.
+
+**Three read `repaired` and eight read `open`, on the same rule as before: a
+review's word, or a fact anyone can check from the tree, never this session's
+judgement.** `KXR-70/PR32` and `KXR-71/PR32` were raised BLOCKING and the final
+reviewer of #32 replayed both attacks against the repaired code and reported
+both closed; that reviewer's word is what the status records. `KXR-75/PR33` and
+`KXR-76/PR33` are repaired by the commit that files them, and the rule at the
+top of this file applies to both: a repair on the same branch as its finding has
+not been independently reviewed. Every `open` row was checked against the tree
+at `f2aa068` rather than assumed — the sentence `KXR-80/PR32` names is still at
+`handoff.ts:150-155`, the assertion message `KXR-74/PR32` names is still in
+`handoff.test.ts`, and the two claims `KXR-73/PR32` and `KXR-82/PR32` name are
+still in #32's description.
+
+**`KXR-80/PR32` was deliberately not repaired.** It is a wrong sentence beside
+correct code in `packages/gate-engine/src/handoff.ts`, which is outside the
+paths this work may touch, and its own reviewer's instruction is that the right
+time to correct it is the next time something touches that file.
+
+**Two identity gaps, neither of them this session's to close.** The reviews jump
+from `KXR-77` to `KXR-80`; `KXR-78` and `KXR-79` were never minted, as `KXR-59`
+was not. And `KXR-39/PR20` through `KXR-46/PR20` are still owed: they are
+referenced in two captures but `KEEPER_PR20_REVIEW.md` is in no part of this
+tree, so a row for them would point at a document that names the id without
+holding its text — the failure `KXR-08` exists to prevent.
+
+**On severity words.** The two reviews of #32 graded on a high/medium/low scale
+where every other review in this register used major/moderate/minor. Their words
+are kept, and the equivalent on this register's scale is stated beside each and
+labelled as such. Replacing one with the other silently would be this session
+grading eight findings it did not raise.
 
 ## Adding a row
 
