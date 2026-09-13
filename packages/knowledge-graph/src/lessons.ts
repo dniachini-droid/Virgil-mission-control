@@ -221,12 +221,70 @@ const TEXT_EXTENSIONS = [
 ];
 
 /**
- * A lesson id is `lesson-` and then lowercase words. The prefix is load-bearing:
- * it is what lets one regular expression over the whole tree distinguish a link
- * to a lesson from the `[[nodeId]]` links the wiki has always used between its
- * other pages, without a list of ids to keep in step.
+ * **What a lesson id is. One constraint, in one place.**
+ *
+ * `lesson-` and then lowercase words. The prefix is load-bearing: it is what
+ * lets one regular expression over the whole tree distinguish a link to a
+ * lesson from the `[[nodeId]]` links the wiki has always used between its other
+ * pages, without a list of ids to keep in step.
+ *
+ * **This was stated twice and the two statements disagreed.** The tree scan
+ * matched `lesson-[a-z0-9-]+`; the page validator accepted any `nodeId` that
+ * merely began `lesson-`. Both directions of the link were wrong
+ * as a result. A link whose id carried a capital letter or an underscore was
+ * invisible to the scan — three dangling links written into one file reported
+ * nothing and exited 0 — and a page whose id carried one was accepted and then
+ * reported broken from the very file that named it correctly. That is the exact
+ * rot the mechanism exists to catch, one level down: two checkers inside one
+ * module disagreeing about the identity everything else resolves by.
+ *
+ * So the charset is declared once, here, and everything below is built from it.
+ *
+ * **The finding is `KXR-39` of `docs/process/KEEPER_PR20_REVIEW.md`**, named
+ * with its document rather than by its number alone: `KXR-39` already means
+ * something else in this same tree, at `packages/gate-engine/test/tiers.test.ts`
+ * line 13. That collision is not this session's to resolve and is set out in
+ * `docs/process/KNOWLEDGE_LESSONS_RUN_RECORD.md`, "Repair round one".
  */
-const LESSON_LINK = /\[\[(lesson-[a-z0-9-]+)\]\]/g;
+const LESSON_ID_CHARS = 'a-z0-9';
+
+/**
+ * **The characters a lesson link is *read* with, which is deliberately wider.**
+ *
+ * The id charset plus the two ways a hand-typed id goes wrong: a capital letter
+ * and an underscore. Spliced from `LESSON_ID_CHARS` rather than written beside
+ * it, so the scan cannot stop covering an id the validator accepts — the
+ * containment holds by construction, and `test/lessons.test.ts` asserts it as
+ * well, because by construction is a claim a reader has to check and a test is
+ * one they do not.
+ *
+ * A typo has to be *visible* before it can be rejected, and it needs no finding
+ * class of its own: an id outside `LESSON_ID` can never be a page's `nodeId`,
+ * so a link written with one resolves to no page and fails as
+ * `lesson_link_unresolved`, which is what it is.
+ *
+ * **It stops short of matching anything at all between the brackets, and that
+ * boundary is deliberate.** `[[lesson-…]]`, with a literal ellipsis, is how the
+ * prose here *discusses* a lesson link without making one — eight times, in the
+ * brief, in `knowledge/SCHEMA.md`, in the run record and in this file. A scan
+ * that read prose would turn all eight into blocking findings and teach the next
+ * writer to stop explaining the mechanism. `BR-03` is that lesson already
+ * learned once.
+ */
+const LESSON_LINK_EXTRA_CHARS = 'A-Z_';
+
+/**
+ * A well-formed lesson id. The page validator and the link scan both resolve by
+ * this and there is nowhere else that decides it. The hyphen sits last in each
+ * character class below so splicing the classes together stays valid.
+ */
+export const LESSON_ID = new RegExp(`^lesson-[${LESSON_ID_CHARS}-]+$`);
+
+/** Anything written as a lesson link, well-formed or not. */
+const LESSON_LINK = new RegExp(
+  `\\[\\[(lesson-[${LESSON_ID_CHARS}${LESSON_LINK_EXTRA_CHARS}-]+)\\]\\]`,
+  'g',
+);
 
 const str = (v: unknown, d = ''): string => (typeof v === 'string' ? v : d);
 const strArr = (v: unknown): string[] =>
@@ -281,15 +339,32 @@ function walkTree(dir: string, ownKnowledgeDir: string, out: string[] = []): str
 }
 
 /**
- * **Files that name every page by construction, and so evidence nothing.**
+ * **Files that cannot be evidence that a lesson is used.**
  *
  * `knowledge/index.md` lists every page and `knowledge/log.md` journals every
  * operation. If either counted as a reference, every lesson would be referenced
  * the moment it was filed and `lesson_unreferenced` could never fire — a guard
  * satisfied by its own bookkeeping, which is `KXR-10` in a new place.
+ *
+ * **And neither can another lesson page.** That is `KXR-40` of
+ * `docs/process/KEEPER_PR20_REVIEW.md`, named with its document for the same
+ * reason as above: the bare id is contested. Two lessons that
+ * govern nothing and name each other satisfied this guard forever, and would
+ * have gone on satisfying it: a citation ring is precisely the failure the
+ * guard exists to prevent — prose accumulating in a new place with nothing tied
+ * to it — wearing the evidence of its own usefulness. `KXR-10` was a pointer
+ * satisfied by the register itself; this was a pointer satisfied by the
+ * category itself.
+ *
+ * A lesson may still link to another lesson, and an unresolved one still fails.
+ * What a sibling cannot do is be the only thing keeping a lesson alive.
  */
-function isBookkeeping(path: string, knowledgeDir: string): boolean {
-  return path === `${knowledgeDir}/index.md` || path === `${knowledgeDir}/log.md`;
+function cannotEvidenceUse(path: string, knowledgeDir: string): boolean {
+  return (
+    path === `${knowledgeDir}/index.md` ||
+    path === `${knowledgeDir}/log.md` ||
+    path.startsWith(`${knowledgeDir}/wiki/lessons/`)
+  );
 }
 
 /**
@@ -364,7 +439,12 @@ export function scanLessons(opts: LessonScanOptions): LessonScanResult {
     const { data, body } = readFrontmatter(readFileSync(file, 'utf8'));
     const nodeId = str(data.nodeId);
     const missing: string[] = [];
-    if (!nodeId.startsWith('lesson-')) missing.push('nodeId beginning "lesson-"');
+    // The pattern text is taken from the constraint rather than retyped beside
+    // it: a message that can disagree with the check it explains is `KXR-12`.
+    if (!LESSON_ID.test(nodeId))
+      missing.push(
+        `a nodeId matching ${LESSON_ID.source} — lowercase letters, digits and hyphens, and nothing else, because that is what a link to it can be written with`,
+      );
     if (str(data.kind) !== 'lesson') missing.push('kind: lesson');
     const scope = str(data.scope);
     if (!(LESSON_SCOPES as readonly string[]).includes(scope))
@@ -489,7 +569,7 @@ export function scanLessons(opts: LessonScanOptions): LessonScanResult {
     const referencedBy = [...links]
       .filter(
         ([file, ids]) =>
-          ids.has(lesson.nodeId) && file !== lesson.path && !isBookkeeping(file, kdirRel),
+          ids.has(lesson.nodeId) && file !== lesson.path && !cannotEvidenceUse(file, kdirRel),
       )
       .map(([file]) => file);
     if (referencedBy.length === 0)
@@ -497,7 +577,7 @@ export function scanLessons(opts: LessonScanOptions): LessonScanResult {
         'lesson_unreferenced',
         lesson.nodeId,
         [lesson.path],
-        `Nothing names [[${lesson.nodeId}]]. The index and the journal do not count: they name every page by construction.`,
+        `Nothing names [[${lesson.nodeId}]]. The index and the journal do not count: they name every page by construction. Neither does another lesson page: two lessons naming each other govern nothing and keep each other alive.`,
         'Tie it to the code or document it is about, or delete it. A lesson nothing reaches is prose in a new place.',
       );
   }

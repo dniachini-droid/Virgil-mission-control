@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   LESSON_BODY_BYTE_BUDGET,
+  LESSON_ID,
   LESSON_SEVERITY,
   LESSON_TAGS,
   type LessonFindingClass,
@@ -178,6 +179,56 @@ const SCENARIOS: Scenario[] = [
     }),
     expect: ['lesson_unreferenced'],
     because: /name every page by construction/,
+  },
+  {
+    // `KXR-39` of `docs/process/KEEPER_PR20_REVIEW.md` — the bare id is
+    // contested and the run record says why. Before the repair these three
+    // reported nothing at all: the scan read `lesson-[a-z0-9-]+`, so a capital
+    // letter or an underscore made a dangling link invisible to it.
+    name: 'links whose ids carry a capital letter or an underscore, pointing at nothing',
+    files: withFiles({
+      'docs/note.md': `# A note\n\nSee ${link('lesson-one')}, ${link('lesson-One-Two')}, ${link(
+        'lesson-one_two',
+      )} and ${link('lesson-NOPE')}.\n`,
+    }),
+    expect: ['lesson_link_unresolved'],
+    because: /lesson-NOPE/,
+  },
+  {
+    // The same finding, the other direction: the page validator took any id
+    // beginning `lesson-`, so a page could carry an id that no link to it could
+    // be written in.
+    name: 'a lesson page whose own id is outside the shape every link resolves by',
+    files: withFiles({
+      'knowledge/wiki/lessons/lesson-one.md': lessonPage({
+        id: 'lesson-One',
+        governs: ['src/thing.ts', 'docs/note.md'],
+      }),
+    }),
+    expect: ['lesson_frontmatter_incomplete', 'lesson_link_unresolved'],
+    because: /a nodeId matching \^lesson-/,
+  },
+  {
+    // `KXR-40` of `docs/process/KEEPER_PR20_REVIEW.md`, likewise contested.
+    // Before the repair this reported nothing: a sibling lesson page
+    // counted as a reference, so a pair governing nothing kept each other alive.
+    name: 'two lessons that govern nothing and cite only each other',
+    files: withFiles({
+      'knowledge/wiki/lessons/lesson-one.md': lessonPage({
+        id: 'lesson-one',
+        governs: [],
+        body: `The body. See ${link('lesson-two')}.`,
+      }),
+      'knowledge/wiki/lessons/lesson-two.md': lessonPage({
+        id: 'lesson-two',
+        governs: [],
+        body: `The body. See ${link('lesson-one')}.`,
+      }),
+      'src/thing.ts': 'export const thing = 1;\n',
+      'docs/note.md': '# A note\n',
+    }),
+    expect: ['lesson_unreferenced'],
+    because: /Neither does another lesson page/,
   },
   {
     name: 'a lesson with no scope, which is the field promotion will need',
@@ -355,6 +406,47 @@ describe('each direction of the link, broken on purpose', () => {
     const twice = scan(files);
     expect(JSON.stringify(twice.findings)).toBe(JSON.stringify(once.findings));
   });
+});
+
+/**
+ * **The two halves of the identity, held to each other.**
+ *
+ * `KXR-39` of `KEEPER_PR20_REVIEW.md`: the scan and the page validator each
+ * carried their own idea of what
+ * a lesson id is, and drifted. `LESSON_ID_CHARS` in `lessons.ts` now makes the
+ * containment hold by construction — but by construction is a claim a reader has
+ * to check, and the disagreement it replaced also looked fine in isolation. So
+ * it is asserted end to end instead: a whole tree built around each id, scanned,
+ * and the verdict read off. An id the validator accepts and the scan cannot see
+ * turns the first group red; an id the validator refuses and the scan cannot see
+ * turns the second red.
+ */
+describe('the link scan and the page validator agree about what a lesson id is', () => {
+  const treeFor = (id: string): Record<string, string> => ({
+    'knowledge/LOADER.md': 'Directions, not content.\n',
+    'knowledge/index.md': `# Index\n\n- ${link(id)}\n`,
+    'knowledge/log.md': '# Log\n',
+    [`knowledge/wiki/lessons/${id}.md`]: lessonPage({ id, governs: ['src/thing.ts'] }),
+    'src/thing.ts': `// Why this shape: ${link(id)}\nexport const thing = 1;\n`,
+  });
+
+  for (const id of ['lesson-a', 'lesson-one-two-three', 'lesson-x9', 'lesson-9'])
+    it(`accepts ${id} as a page id, and the scan finds the link that names it`, () => {
+      expect(LESSON_ID.test(id)).toBe(true);
+      const result = scan(treeFor(id));
+      expect(result.findings.map((f) => f.explanation)).toEqual([]);
+    });
+
+  for (const id of ['lesson-One', 'lesson-one_two', 'lesson-NOPE'])
+    it(`refuses ${id} as a page id, and the scan still sees a link written with it`, () => {
+      expect(LESSON_ID.test(id)).toBe(false);
+      const result = scan(treeFor(id));
+      expect(classesOf(result)).toEqual([
+        'lesson_frontmatter_incomplete',
+        'lesson_link_unresolved',
+      ]);
+      expect(result.blocking).toBeGreaterThan(0);
+    });
 });
 
 const repoRoot = resolve(import.meta.dirname, '../../..');
