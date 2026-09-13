@@ -78,7 +78,11 @@ importers:
         specifier: ^4.5.4
         version: 4.5.4
 
-  packages/repo-checks: {}
+  packages/repo-checks:
+    devDependencies:
+      '@virgil/gate-engine':
+        specifier: workspace:*
+        version: link:../gate-engine
 
   packages/test-fixtures:
     dependencies:

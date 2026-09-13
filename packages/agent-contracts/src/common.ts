@@ -125,6 +125,17 @@ export const ChainContext = z.object({
   filesChanged: z.array(RepoPath).optional(),
   checksRun: z.array(CheckRun).optional(),
   checksSkipped: z.array(z.object({ checkId: Id, reason: z.string() })).optional(),
+  /**
+   * **What was deliberately left undone, and why.** The box this contract went
+   * eight days without, found on 2026-09-13 by checking it against what a
+   * review actually needs rather than against what a runtime would file.
+   *
+   * `checksSkipped` says what could not be run. This says what was not
+   * attempted, which is a different admission and the one where scope
+   * discipline becomes visible. A stage that reports neither has told a
+   * reviewer only the parts that went well.
+   */
+  notDone: z.array(z.string()).optional(),
   findingIds: z.array(Id).optional(),
   handoffSource: RoleId.optional(),
   handoffDestination: RoleId.optional(),

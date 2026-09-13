@@ -16,7 +16,8 @@
     "test": "turbo run test",
     "build": "turbo run build",
     "virgil:status": "node scripts/virgil-status.mjs",
-    "tier": "tsx scripts/virgil-tier.ts"
+    "tier": "tsx scripts/virgil-tier.ts",
+    "chain": "tsx scripts/virgil-chain.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",

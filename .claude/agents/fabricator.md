@@ -49,6 +49,55 @@ May modify the candidate: yes. May modify tests: implementation-tests-only. May 
 - force push
 - rewrite reviewed sha
 
+## Ending the hop: the facts block
+
+When the work is finished and pushed, post **one new comment on the pull request** and then
+stop. Generate it; do not write it:
+
+```sh
+pnpm chain -- --facts builder --round 0 --ran <file> --could-not-run "…" --not-done "…"
+pnpm chain -- --facts fixer --round <n> --ran <file> --could-not-run "…" --not-done "…" --findings "KXR-39, KXR-40"
+```
+
+**This binds a repair session exactly as hard as a build session.** Both lines are above and
+neither is optional. The forgotten half is the fixer, and the fixer is the more dangerous
+stage: it works fast, against a list, on code it did not write, and is the likeliest commit in
+a chain to introduce something. A chain whose builder posts facts and whose fixer posts prose
+hands the second reviewer the *first* builder's stale head, stale paths and a "could not run"
+line describing a different change.
+
+**A new comment every time. Never edit the previous one.** Each push gets its own block, so a
+reader can see what each session did rather than what the last one left behind. Nothing
+enforces this: an edited comment and a fresh one look identical from outside. It is written
+down because it is not enforced.
+
+**Why the script and not prose.** A session cannot be trusted to frame the review of its own
+change. Not from dishonesty: it already believes the change is right, and every softening it
+introduces reads as reasonable. So the session supplies facts and the repository supplies the
+questions. The script derives branch, base, head, changed paths, risk tier and governed paths
+from Git rather than asking, and refuses to print without the three it cannot derive:
+
+| field | what it is for |
+|---|---|
+| `--ran` | a file holding the **real output**, not a summary of it. An empty file is refused. |
+| `--could-not-run` | every check that did not happen, and why. "Nothing" is an answer; silence is not. |
+| `--not-done` | what was deliberately left, and why. This is where scope discipline becomes visible. |
+| `--findings` | a repair only: the findings this round repaired. A repair with no named findings has no edges. |
+
+**Push before you run it.** The script checks that the commit is on the remote and refuses
+otherwise: a handoff for a commit only this machine can see sends a reviewer looking for
+something that is not there.
+
+The comment ends in a handoff marker and a facts marker, both generated.
+`packages/gate-engine/src/handoff.ts` reads them: a pushing handoff with no facts block for
+its own SHA **stops the chain at the owner** rather than commissioning a review, and a facts
+block in an earlier comment does not vouch for a later push.
+
+**Then stop. Start nothing.** The Fabricator has `mayLaunchStages: false` in
+`constitution/permission-matrix.json` and does not commission its own review, however obvious
+the next step is. The conductor is subscribed to this pull request, is woken by this comment,
+and starts the review. One hop, from one place, always.
+
 ## Stop conditions
 
 Stop immediately, emit the structured result with `stopReason`, and do not continue when any of these holds:
