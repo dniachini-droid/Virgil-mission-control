@@ -808,9 +808,50 @@ expected result: this repair adds no wiki page and no graph node, so
 `packages/test-fixtures/knowledge/seed-graph.json` needed no regeneration and
 `seed-graph.test.ts` is green without one.
 
-**Continuous integration has not run on this repair at the time of writing.**
-The figures above are local. A reviewer should read the Actions run on the
+**Continuous integration has run on this repair.** Read the Actions run on the
 pushed head rather than this paragraph.
+
+### Two claims this record made about continuous integration, both now corrected
+
+**One: why the `pull_request` event did not fire on #23.** This record said it
+was *"likely because the pull request was opened through a token rather than by
+a person, and GitHub does not re-trigger workflows on its own token's events"*.
+**Pull request #27 was opened exactly the same way and the event fired**
+(run `34753875362`, event `pull_request`, `success`). So the explanation is
+wrong, or at least is not the explanation. What is left is the fact without a
+cause: on #23 no `pull_request` run was ever created and the job was run by
+`workflow_dispatch` instead; on #27 it fired normally. A cause offered without
+evidence is the habit this brief closes on, and offering one twice would be
+worse than leaving it unexplained.
+
+**Two: the Mind Scan job no longer exists.** Pull request #22 deleted it.
+`.github/workflows/checks.yml` now declares **one** job — `lint, typecheck,
+tests` — and the job that carried the `Mind Scan` step was bundled with the
+application's owner-build verification and went with it. So all the arithmetic
+above about `if: github.event_name != 'push'` describes a workflow that is gone,
+and `pnpm --filter @virgil/knowledge-lint run lint` is **not run by continuous
+integration on any event**.
+
+**What that does and does not cost, measured rather than assumed.** The two
+scans themselves are still asserted against the real repository by tests that
+`pnpm test` runs, and CI runs `pnpm test`:
+
+- `packages/knowledge-graph/test/lint.test.ts` — *"the real knowledge tree has
+  no blocking findings"*, which is Mind Scan over `knowledge/`.
+- `packages/knowledge-graph/test/lessons.test.ts` — *"has no blocking lesson
+  findings"*, which is the lesson scan, and it is what proves both repairs in
+  this round.
+
+So the substance is covered and this round's repairs are covered. **What is no
+longer covered is the `tools/knowledge-lint` command itself** — its argument
+handling, its output and its exit code are exercised nowhere in CI now, and
+that command is the one `CLAUDE.md` tells every session to run. That is a
+narrower gap than "Mind Scan does not run", and it is stated at its real width.
+
+It is not repaired here. It arrived on `main` by somebody else's pull request,
+it is outside this repair's two findings and its permitted paths, and this
+session is the repairer rather than the reviewer. It is written down so the
+next reviewer can weigh it and give it an id if it deserves one.
 
 ---
 
