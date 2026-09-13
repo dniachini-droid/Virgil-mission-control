@@ -20,6 +20,29 @@
  * <!-- virgil:handoff role=fixer round=1 sha=abc1234 verdict=BLOCKED next=review -->
  * ```
  *
+ * **And every session that pushes posts a facts block in the same comment**,
+ * marked the same way:
+ *
+ * ```
+ * <!-- virgil:facts sha=abc1234 -->
+ * ```
+ *
+ * A build session cannot be trusted to frame its own review — not from
+ * dishonesty, but because it already believes the change is right, and every
+ * softening it introduces reads as reasonable. So the session supplies facts
+ * and the repository supplies the questions. `scripts/virgil-chain.ts` derives
+ * the facts it can derive (branch, base, head, changed paths, governed paths)
+ * from Git rather than asking, and refuses to print a block without the three
+ * it cannot derive: what was run, what could not be run and why, and what was
+ * deliberately not done.
+ *
+ * **The rule binds the fix session exactly as hard as the build session, and
+ * that is the half everybody forgets.** A fix session works fast, against a
+ * list, on code it did not write; it is more likely to introduce something than
+ * the original build, not less. A chain whose builder posts facts and whose
+ * fixer posts prose hands the second reviewer the first builder's stale head,
+ * stale paths, and a "could not run" line describing a different change.
+ *
  * And the owner's authorisation, written by the session he says it to, quoting
  * him, so that a later session can check it rather than believe it:
  *
@@ -52,6 +75,11 @@ export interface Handoff {
   readonly sha: string;
   readonly verdict: string | null;
   readonly next: string | null;
+  /**
+   * Whether the same comment carried a facts block for this same SHA. Always
+   * false for a reviewer, which pushes nothing and therefore owes none.
+   */
+  readonly facts: boolean;
 }
 
 export interface ChainState {
@@ -64,12 +92,26 @@ export interface ChainState {
   readonly roundsAuthorised: number;
   /** Every handoff read, in the order posted. */
   readonly handoffs: readonly Handoff[];
-  /** The last verdict any reviewer posted, or null if none has. */
+  /**
+   * The newest pushed work no reviewer has reported on since, or null when the
+   * newest thing on the pull request is a review.
+   *
+   * `constitution/REVIEW_POLICY.md`, Staleness: a review vouches for the exact
+   * version it read and is broken by any later push. So a fixer's commit does
+   * not inherit the verdict of the review that prompted it; it owes a review of
+   * its own, which is the second review round the owner asked for.
+   */
+  readonly unreviewed: Handoff | null;
+  /**
+   * The last verdict any reviewer posted, **or null when work has been pushed
+   * since it**. A stale verdict is not a verdict.
+   */
   readonly lastVerdict: string | null;
 }
 
 const HANDOFF = /<!--\s*virgil:handoff\s+([^>]*?)-->/g;
 const AUTHORISATION = /<!--\s*virgil:authorisation\s+rounds=(\d+)\s*-->/g;
+const FACTS = /<!--\s*virgil:facts\s+([^>]*?)-->/g;
 
 function fields(text: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -96,6 +138,15 @@ export function readChain(comments: readonly string[]): ChainState {
   const handoffs: Handoff[] = [];
   let roundsAuthorised: number = ROUNDS_WITHOUT_OWNER;
   for (const comment of comments) {
+    // Facts are scoped to the comment they appear in, not to the pull request.
+    // A facts block in an earlier comment does not vouch for a later push: that
+    // is precisely the stale-head failure this exists to stop.
+    const factShas = new Set<string>();
+    FACTS.lastIndex = 0;
+    for (const m of comment.matchAll(FACTS)) {
+      const sha = fields(m[1] ?? '').sha;
+      if (sha) factShas.add(sha);
+    }
     AUTHORISATION.lastIndex = 0;
     for (const m of comment.matchAll(AUTHORISATION)) {
       const n = Number(m[1]);
@@ -120,17 +171,28 @@ export function readChain(comments: readonly string[]): ChainState {
         sha: f.sha,
         verdict: f.verdict && f.verdict !== 'n/a' ? f.verdict : null,
         next: f.next ?? null,
+        facts: role !== 'reviewer' && factShas.has(f.sha),
       });
     }
   }
   const roundsUsed = handoffs.filter((h) => h.role === 'fixer').length;
-  const verdicts = handoffs.filter((h) => h.role === 'reviewer' && h.verdict !== null);
-  return {
-    roundsUsed,
-    roundsAuthorised,
-    handoffs,
-    lastVerdict: verdicts.at(-1)?.verdict ?? null,
-  };
+
+  // Newest first, so the first pushing handoff found with no review after it is
+  // the work that is owed one. `findLast` is not available at this target.
+  let unreviewed: Handoff | null = null;
+  let lastVerdict: string | null = null;
+  for (let i = handoffs.length - 1; i >= 0; i--) {
+    const h = handoffs[i];
+    if (h === undefined) continue;
+    if (h.role === 'reviewer') {
+      if (h.verdict !== null) lastVerdict = h.verdict;
+      break;
+    }
+    unreviewed = h;
+    break;
+  }
+
+  return { roundsUsed, roundsAuthorised, handoffs, unreviewed, lastVerdict };
 }
 
 export type Step =
@@ -146,12 +208,28 @@ export type Step =
  * cannot tell where it is stops; it does not guess and run another session.
  */
 export function nextStep(state: ChainState): Step {
-  const { lastVerdict, roundsUsed, roundsAuthorised } = state;
+  const { lastVerdict, roundsUsed, roundsAuthorised, unreviewed } = state;
+
+  // Pushed work outranks any verdict, because a verdict is about one version
+  // and this is a newer one. This is what makes the second review round happen
+  // after a fix instead of the chain stopping on the review that prompted it.
+  if (unreviewed !== null) {
+    if (!unreviewed.facts) {
+      return {
+        step: 'owner',
+        because:
+          `the ${unreviewed.role} posted no facts block for ${unreviewed.sha}, so a review ` +
+          'would be framed by its own prose rather than by the repository',
+      };
+    }
+    return {
+      step: 'review',
+      because: `${unreviewed.sha} was pushed and no reviewer has reported on it`,
+    };
+  }
 
   if (lastVerdict === null) {
-    return state.handoffs.some((h) => h.role === 'builder' || h.role === 'fixer')
-      ? { step: 'review', because: 'work was handed off and no reviewer has reported on it' }
-      : { step: 'owner', because: 'nothing has been handed off on this pull request' };
+    return { step: 'owner', because: 'nothing has been handed off on this pull request' };
   }
 
   if (lastVerdict !== 'BLOCKED') {

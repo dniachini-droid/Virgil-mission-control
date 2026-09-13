@@ -1,7 +1,7 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { ROUNDS_WITH_OWNER, ROUNDS_WITHOUT_OWNER } from '@virgil/gate-engine';
+import { nextStep, ROUNDS_WITH_OWNER, ROUNDS_WITHOUT_OWNER, readChain } from '@virgil/gate-engine';
 import { describe, expect, it } from 'vitest';
 
 /**
@@ -140,9 +140,10 @@ describe('the commands the chain is told to run exist', () => {
         expect(out.trim(), `${file}: ${args.join(' ')}`).toMatch(/^<!-- virgil:handoff .* -->$/);
       }
     }
-    expect(seen.length, 'no --emit command found in the role files at all').toBeGreaterThanOrEqual(
-      3,
-    );
+    expect(
+      seen.length,
+      'no --emit command found in the role files; the reviewer has nothing to run',
+    ).toBeGreaterThanOrEqual(1);
   }, 60_000);
 });
 
@@ -158,4 +159,104 @@ describe('nobody is told to type a marker by hand', () => {
       );
     });
   }
+});
+
+/**
+ * **The rule that binds "the builder" is obeyed by the builder and by nobody
+ * else.**
+ *
+ * The facts block exists because a session cannot frame the review of its own
+ * change. Almost everyone writes that rule for the build stage and forgets the
+ * fix stage — and the fix stage is the more dangerous one: it works fast,
+ * against a list, on code it did not write. A chain whose builder posts facts
+ * and whose fixer posts prose hands the second reviewer the first builder's
+ * stale head and stale paths.
+ *
+ * So these check the rule binds both, and that something refuses to proceed
+ * without it rather than the paragraph being the whole of the mechanism.
+ */
+describe('the facts block binds every session that pushes', () => {
+  const fabricator = read('.claude/agents/fabricator.md');
+
+  it('names the fixer as well as the builder', () => {
+    expect(fabricator).toContain('--facts builder');
+    expect(fabricator, 'the repair stage is not bound to post its own facts').toContain(
+      '--facts fixer',
+    );
+  });
+
+  it('says a new comment, never an edit of the previous one', () => {
+    expect(fabricator).toMatch(/[Nn]ever edit the previous one/);
+  });
+
+  it('requires the three fields the repository cannot derive', () => {
+    for (const field of ['--ran', '--could-not-run', '--not-done']) {
+      expect(fabricator, `${field} is no longer required of a pushing session`).toContain(field);
+    }
+  });
+
+  it('every --facts line in the fabricator names a pushing role and all three fields', () => {
+    // These cannot be executed the way an --emit line can: they need a real
+    // file of real output and a real branch. So the shape is checked here and
+    // the behaviour is checked by the script's own refusals above.
+    const lines = [...fabricator.matchAll(/pnpm chain -- --facts (\w+)([^\n`]*)/g)];
+    expect(
+      lines.length,
+      'the fabricator documents no --facts command at all',
+    ).toBeGreaterThanOrEqual(2);
+    for (const [, role, rest] of lines) {
+      expect(['builder', 'fixer'], `--facts ${role} is not a pushing role`).toContain(role);
+      for (const field of ['--ran', '--could-not-run', '--not-done']) {
+        expect(rest, `--facts ${role} omits ${field}`).toContain(field);
+      }
+    }
+  });
+
+  it('the reviewer is not asked for facts, because it pushes nothing', () => {
+    const out = spawnSync(
+      'npx',
+      ['tsx', resolve(root, 'scripts/virgil-chain.ts'), '--facts', 'reviewer'],
+      {
+        cwd: root,
+        encoding: 'utf8',
+      },
+    );
+    expect(out.status, 'the script accepted a facts block from a reviewer').not.toBe(0);
+  });
+
+  it('a pushing handoff with no facts stops the chain instead of commissioning a review', () => {
+    // The mechanism, not the paragraph. This is what refuses to proceed.
+    const bare = '<!-- virgil:handoff role=fixer round=1 sha=bbb2222 verdict=n/a next=review -->';
+    const step = nextStep(readChain([bare]));
+    expect(step.step).toBe('owner');
+    expect(step.because).toContain('no facts block');
+  });
+
+  it('facts in an earlier comment do not vouch for a later push', () => {
+    const withFacts = readChain([
+      '<!-- virgil:facts sha=aaa1111 -->\n<!-- virgil:handoff role=builder round=0 sha=aaa1111 verdict=n/a next=review -->',
+      '<!-- virgil:handoff role=fixer round=1 sha=bbb2222 verdict=n/a next=review -->',
+    ]);
+    expect(withFacts.unreviewed?.sha).toBe('bbb2222');
+    expect(withFacts.unreviewed?.facts, 'a stale facts block was accepted').toBe(false);
+  });
+});
+
+describe('the reviewer answers the repository, not the builder', () => {
+  const keeper = read('.claude/agents/keeper.md');
+
+  it('says the pull-request description is not the contract', () => {
+    expect(keeper.replace(/\s+/g, ' ')).toContain('is not the contract');
+  });
+
+  it('tells the reviewer to run things rather than read claims', () => {
+    for (const cmd of ['npx biome check .', 'npx turbo run test --force']) {
+      expect(keeper, `the reviewer is no longer told to run ${cmd}`).toContain(cmd);
+    }
+  });
+
+  it('keeps the volume rule that ended the eleven-round day', () => {
+    expect(keeper).toContain('PASS_WITH_NON_BLOCKING_FINDINGS');
+    expect(keeper.replace(/\s+/g, ' ')).toMatch(/not `?SAFE_TO_MERGE/);
+  });
 });

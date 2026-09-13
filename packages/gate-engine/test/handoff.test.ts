@@ -17,6 +17,9 @@ import {
 
 const handoff = (role: string, round: number, sha = 'abc1234', extra = '') =>
   `done\n\n<!-- virgil:handoff role=${role} round=${round} sha=${sha} ${extra} -->`;
+/** A pushing handoff with its facts block, as `pnpm chain --facts` emits it. */
+const built = (role: string, round: number, sha = 'abc1234') =>
+  `<!-- virgil:facts sha=${sha} -->\n${handoff(role, round, sha, 'next=review')}`;
 const review = (verdict: string, round = 0) =>
   handoff('reviewer', round, 'abc1234', `verdict=${verdict} next=owner`);
 
@@ -76,6 +79,7 @@ describe('what happens next', () => {
     roundsUsed: 0,
     roundsAuthorised: ROUNDS_WITHOUT_OWNER,
     handoffs: [],
+    unreviewed: null,
     lastVerdict: null,
     ...o,
   });
@@ -125,8 +129,56 @@ describe('what happens next', () => {
   });
 
   it('commissions a review when work was handed off and none has reported', () => {
-    const s = nextStep(state({ handoffs: readChain([handoff('builder', 0)]).handoffs }));
+    const s = nextStep(readChain([built('builder', 0)]));
     expect(s.step).toBe('review');
+  });
+
+  it('reviews the fix rather than stopping on the review that prompted it', () => {
+    // The owner asked for "a 2nd review round after the fix". A verdict is
+    // about one version; the fixer's commit is a newer one, so the verdict is
+    // stale and the work owes a review of its own.
+    // REVIEW_POLICY.md, Staleness.
+    const s = readChain([
+      built('builder', 0, 'aaa1111'),
+      review('BLOCKED'),
+      built('fixer', 1, 'bbb2222'),
+    ]);
+    expect(s.lastVerdict, 'a verdict older than the newest push is not a verdict').toBeNull();
+    expect(s.unreviewed?.sha).toBe('bbb2222');
+    expect(nextStep(s)).toMatchObject({ step: 'review' });
+  });
+
+  it('refuses to commission a review of work that arrived without facts', () => {
+    // A reviewer handed only the pushing session's prose is reading that
+    // session's framing of its own change. Stop and tell the owner instead.
+    const s = readChain([handoff('builder', 0, 'aaa1111', 'next=review')]);
+    expect(s.unreviewed?.facts).toBe(false);
+    const step = nextStep(s);
+    expect(step.step).toBe('owner');
+    expect(step.because).toContain('no facts block');
+  });
+
+  it('holds the fixer to the same facts as the builder', () => {
+    // The half everybody forgets. A fix session works fast, against a list, on
+    // code it did not write, and is the likeliest commit in the chain to
+    // introduce something.
+    const s = readChain([
+      built('builder', 0, 'aaa1111'),
+      review('BLOCKED'),
+      handoff('fixer', 1, 'bbb2222', 'next=review'),
+    ]);
+    expect(nextStep(s).because).toContain('the fixer posted no facts block for bbb2222');
+  });
+
+  it('will not let an older comment vouch for a newer push', () => {
+    // The stale-head failure, exactly: facts for aaa1111 do not cover bbb2222.
+    const s = readChain([
+      built('builder', 0, 'aaa1111'),
+      review('BLOCKED'),
+      `<!-- virgil:facts sha=aaa1111 -->\n${handoff('fixer', 1, 'bbb2222', 'next=review')}`,
+    ]);
+    expect(s.unreviewed?.facts).toBe(false);
+    expect(nextStep(s).step).toBe('owner');
   });
 
   it('stops at the owner when the pull request says nothing at all', () => {

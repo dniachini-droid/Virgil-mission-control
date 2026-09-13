@@ -56,7 +56,7 @@ books a third visit without asking.
 
 ---
 
-## The four things that make it safe
+## The six things that make it safe
 
 ### 1. One hop, always
 
@@ -97,7 +97,59 @@ This also means **a chain survives its conductor**. If the Raphael window is clo
 or replaced, a fresh one reads the same pull request and knows exactly where the chain stands.
 Nothing has to be told to it and nothing is lost.
 
-### 3. One round without you, two with you, and never three
+### 3. Every session that pushes declares its own facts
+
+A session cannot be trusted to frame the review of its own change. Not from dishonesty —
+**because it already believes the change is right, and every softening it introduces reads as
+reasonable.**
+
+So the handoff is split in two: **the session supplies facts, the repository supplies the
+questions.** The comment is generated, not written:
+
+```sh
+pnpm chain -- --facts builder --round 0 --ran <file> --could-not-run "…" --not-done "…"
+pnpm chain -- --facts fixer --round <n> --ran <file> --could-not-run "…" --not-done "…"
+```
+
+The script derives everything it can derive — branch, base, head, changed paths, risk tier,
+and which governed paths were touched — **from Git rather than from the session**. A stale
+head or a stale path list cannot be reported, because nobody is asked for them. What is left
+is the three the repository cannot know, and it refuses to print without them:
+
+| field | what it is for |
+|---|---|
+| what was run | the **real output**, from a file. An empty file is refused. |
+| what could not be run, and why | "nothing" is an answer; silence is not |
+| what was deliberately not done | where scope discipline becomes visible |
+
+**The half everybody forgets is the fix session.** Almost everyone writes this rule for "the
+builder", and a rule that binds the builder is obeyed by the builder and by nobody else. The
+fix stage is the more dangerous one: it works fast, against a list, on code it did not write,
+and it is the likeliest commit in a chain to introduce something new. A chain whose builder
+posts facts and whose fixer posts prose hands the second reviewer the *first* builder's stale
+head, stale paths, and a "could not run" line describing a different change.
+
+**And a paragraph is not a mechanism.** This one has one: a pushing handoff with no facts
+block for its own SHA **stops the chain at the owner** instead of starting a review, and a
+facts block in an earlier comment does not vouch for a later push. Nothing proceeds without
+it.
+
+**One thing that is not enforced**, said rather than implied: the rule is a *new* comment each
+time, never an edit of the previous one, so a reader sees what each session did rather than
+what the last one left behind. From outside, an edited comment and a fresh one look identical.
+That rule is written down precisely because nothing holds it.
+
+### 4. A verdict is about one version, and the fix makes a new one
+
+When the fix session pushes, the review that prompted it stops counting. The chain owes the
+repaired version a review of its own — which is the second review round in the diagram, and it
+happens because the counter treats any push newer than the last review as unreviewed, not
+because anyone remembered to ask.
+
+This is `constitution/REVIEW_POLICY.md`'s staleness rule, applied by the machine rather than by
+a reader: *a review vouches for the exact version it read and is broken by any later push.*
+
+### 5. One round without you, two with you, and never three
 
 `constitution/REPAIR_LIMITS.md` says one repair cycle without the owner and two with him, and
 past that the run stops at `OWNER_DECISION_REQUIRED`. The chain runs at exactly those numbers.
@@ -116,7 +168,7 @@ When a chain stops you are told **which** dead end it reached, because only one 
 yours to lift: *one round is spent and you can approve a second*, or *both are spent and a
 third would need the constitution changed*.
 
-### 4. It never merges
+### 6. It never merges
 
 Sessions branch, commit, push and open pull requests unattended, overnight, and that is
 authorised. **They never merge.** No session merges into `main` unless the owner writes
@@ -209,10 +261,10 @@ hop and stop there, because none of them can start anything.
 
 | Piece | File |
 |---|---|
-| The rule that counts rounds | `packages/gate-engine/src/handoff.ts` |
+| The rule that counts rounds, and refuses a factless handoff | `packages/gate-engine/src/handoff.ts` |
 | The command that runs it | `scripts/virgil-chain.ts`, as `pnpm chain` |
 | The conductor | `.claude/skills/raphael/SKILL.md` |
-| What a builder posts, and that it starts nothing | `.claude/agents/fabricator.md` |
-| What a reviewer posts, and that it starts nothing | `.claude/agents/keeper.md` |
+| What a builder **and a fixer** post, and that they start nothing | `.claude/agents/fabricator.md` |
+| The questions the repository asks a reviewer | `.claude/agents/keeper.md` |
 | The guards on all of the above | `packages/repo-checks/test/handoff-chain.test.ts` |
 | The round limits themselves | `constitution/REPAIR_LIMITS.md`, `constitution/authority.json` |

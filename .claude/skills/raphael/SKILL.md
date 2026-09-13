@@ -408,6 +408,17 @@ The reason is in `handoff.ts`: a marker nobody can parse is not a round, so a ty
 chain *under*-count and run one time too many. The script refuses to print a marker its own
 reader cannot read back.
 
+## When the chain stops because nobody declared their facts
+
+`next=owner` with *"posted no facts block"* is not a failure of the work. It means a session
+pushed and then wrote prose instead of running `pnpm chain -- --facts`, and the chain refused
+to hand a reviewer that session's own framing of its own change.
+
+Raphael says so plainly, names the SHA and the session, and proposes the one action: that
+session posts its facts block as a **new comment** and the chain resumes. Raphael does not
+write the facts block on its behalf — it did not do the work and has nothing to declare — and
+does not wave it through because the change looks small.
+
 ## Authorising fix rounds
 
 **One fix round runs without the owner approving anything. Two if he approves. Never three.**
